@@ -1466,14 +1466,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                         # Jet yield and Delta phi
                         if self.centrality_accepted(self.semi_inclusive_chjet_observables['IAA_star']['centrality']):
-
                             if jetR in self.semi_inclusive_chjet_observables['IAA_star']['jet_R']:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
                                         if pt_IAA[0] < jet_pt < pt_IAA[1]:
                                             self.observable_dict_event[f'semi_inclusive_chjet_IAA_star_R{jetR}{jet_collection_label}'].append(jet_pt)
                                             if jet_collection_label in ['_shower_recoil']:
                                                 self.observable_dict_event[f'semi_inclusive_chjet_IAA_star_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_unsubtracted)
-
                             if jetR in self.semi_inclusive_chjet_observables['dphi_star']['jet_R']:
                                     if pt_dphi[0] < jet_pt < pt_dphi[1]:
                                         self.observable_dict_event[f'semi_inclusive_chjet_dphi_star_R{jetR}{jet_collection_label}'].append(np.abs(trigger.delta_phi_to(jet)))
