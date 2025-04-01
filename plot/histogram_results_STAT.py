@@ -71,8 +71,18 @@ class HistogramResults(common_base.CommonBase):
         #       that the jobs failed.
         self.weights = self.observables_df.get('event_weight', [])
         self.pt_hat = self.observables_df.get('pt_hat', [])
-        # Event-level centrality bin (lower edge)
-        self.event_centrality = self.observables_df.get('centrality_min', [])
+
+        # Read metadata from parquet file to determine centrality mode
+        try:
+            parquet_table = pq.read_table(self.input_file)
+            metadata = parquet_table.schema.metadata
+            self.use_event_based_centrality = metadata.get(b"use_event_based_centrality", b"False") == b"True"
+        except Exception as e:
+            print(f"Warning: could not read metadata from {self.input_file}. Assuming use_event_based_centrality = False.")
+            self.use_event_based_centrality = False
+
+        self.event_centrality_min = self.observables_df.get('centrality_min', [])
+        self.event_centrality_max = self.observables_df.get('centrality_max', [])
 
         #------------------------------------------------------
         # Read cross-section file
@@ -201,7 +211,7 @@ class HistogramResults(common_base.CommonBase):
 
             # Histogram for event-by-event centrality
             h = ROOT.TH1F('h_event_centrality_generated', 'h_event_centrality_generated', 100, 0, 100)
-            for cent in self.event_centrality:
+            for cent in self.event_centrality_min:
                 h.Fill(cent)
             self.output_list.append(h)
         else:
@@ -485,7 +495,7 @@ class HistogramResults(common_base.CommonBase):
     def histogram_observable(self, column_name=None, bins=None, centrality=None, pt_suffix='',
                              pt_bin=None, block=None, observable=''):
 
-        # Check if event centrality is within observable centrality bin
+        # Check if centrality range is within observable centrality bin
         if not self.centrality_accepted(centrality):
             return
 
@@ -536,23 +546,38 @@ class HistogramResults(common_base.CommonBase):
     #-------------------------------------------------------------------------------------------
     def histogram_1d_observable(self, col, column_name=None, bins=None, centrality=None, pt_suffix='', observable=''):
 
-        hname = f'h_{column_name}{observable}_{centrality}{pt_suffix}'
-        h = ROOT.TH1F(hname, hname, len(bins)-1, bins)
-        h.Sumw2()
+        # Flag to check if any valid event exists
+        has_valid_event = False
+        h = None
 
-        # Fill histogram
-        for i,_ in enumerate(col):
+        # Check for valid events and fill histogram
+        for i, _ in enumerate(col):
             if col[i] is not None:
+                # Check if the current event's centrality is accepted
+                if not self.centrality_accepted(centrality, event_index=i):
+                    continue
+                # Create histogram only when the first valid event is found
+                if not has_valid_event:
+                    hname = f'h_{column_name}{observable}_{centrality}{pt_suffix}'
+                    h = ROOT.TH1F(hname, hname, len(bins) - 1, bins)
+                    h.Sumw2()
+                    has_valid_event = True
                 for value in col[i]:
                     h.Fill(value, self.weights[i])
 
-        # Save histogram to output list
-        self.output_list.append(h)
+        # Save histogram only if it contains at least one valid event
+        if has_valid_event:
+            self.output_list.append(h)
 
     #-------------------------------------------------------------------------------------------
     # Histogram a single observable
     #-------------------------------------------------------------------------------------------
     def histogram_2d_observable(self, col, column_name=None, bins=None, centrality=None, pt_suffix='', block=None):
+
+        # Flag to track if any event was accepted
+        has_valid_event = False
+        h = None
+        h2 = None
 
         hname = f'h_{column_name}_{centrality}{pt_suffix}'
         h = ROOT.TH1F(hname, hname, len(bins)-1, bins)
@@ -566,12 +591,16 @@ class HistogramResults(common_base.CommonBase):
             # Fill histogram
             for i,_ in enumerate(col):
                 if col[i] is not None:
+                    if not self.centrality_accepted(centrality, event_index=i):
+                        continue
+                    has_valid_event = True
                     for value in col[i]:
                         h.Fill(value[0], self.weights[i]*value[1])
                         h2.Fill(value[0], self.weights[i])
                         #print('pt=',value[0], ', cosine=',value[1], ',i=',i)
-            self.output_list.append(h)
-            self.output_list.append(h2)
+            if has_valid_event:
+                self.output_list.append(h)
+                self.output_list.append(h2)
             return
 
         # Get pt bin
@@ -580,28 +609,43 @@ class HistogramResults(common_base.CommonBase):
         pt_max = block['pt'][pt_index+1]
 
         # Fill histogram
-        for i,_ in enumerate(col):
+        for i, _ in enumerate(col):
             if col[i] is not None:
+                if not self.centrality_accepted(centrality, event_index=i):
+                    continue
+                has_valid_event = True
                 for value in col[i]:
-                    if pt_min < value[0] < pt_max:
-                        h.Fill(value[1], self.weights[i])
+                    pt = value[0]
+                    observable_value = value[1]
+                    if pt_min < pt < pt_max:
+                        h.Fill(observable_value, self.weights[i])
 
         # Save histogram to output list
-        self.output_list.append(h)
+        if has_valid_event:
+            self.output_list.append(h)
 
     # ---------------------------------------------------------------
     # Check if event centrality is within observable's centrality
     # ---------------------------------------------------------------
-    def centrality_accepted(self, observable_centrality):
+    def centrality_accepted(self, observable_centrality, event_index=None):
 
         # AA
         if self.is_AA:
+            if self.use_event_based_centrality:
+                if event_index is None:
+                    raise ValueError("event_index must be provided for event-based centrality analysis.")
 
-            if self.centrality_range[0] >= observable_centrality[0]:
-                if self.centrality_range[1] <= observable_centrality[1]:
+                # Retrieve event-level centrality values
+                event_cmin = self.event_centrality_min[event_index]
+                event_cmax = self.event_centrality_max[event_index]
+
+                if event_cmin >= observable_centrality[0] and event_cmax <= observable_centrality[1]:
                     return True
-            return False
-
+                return False
+            else:
+                if self.centrality_range[0] >= observable_centrality[0] and self.centrality_range[1] <= observable_centrality[1]:
+                    return True
+                return False
         # pp
         else:
             return True

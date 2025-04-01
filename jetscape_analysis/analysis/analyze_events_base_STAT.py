@@ -241,6 +241,15 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         #self.output_dataframe = ak.Array(self.output_event_list)
         table = pa.Table.from_pandas(self.output_dataframe)
 
+        # Add metadata for use_event_based_centrality
+        metadata_dict = {
+            "use_event_based_centrality": str(self.use_event_based_centrality)
+        }
+        # Merge with existing metadata if any
+        existing_metadata = table.schema.metadata or {}
+        merged_metadata = {**existing_metadata, **{k.encode(): v.encode() for k, v in metadata_dict.items()}}
+        table = table.replace_schema_metadata(merged_metadata)
+
         # Write to parquet
         # Determine the types for improved compression when writing
         # See writing to parquet in the final state hadrons parser for more info.
