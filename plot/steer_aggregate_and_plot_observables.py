@@ -88,7 +88,7 @@ analysis_name = 'Analysis3'
 download_runinfo = True # if true, download all run_info.yaml files specified in DataManagement (runs.yaml)
 download_histograms = False # if true, download all histogram files from OSN
 list_paths_for_selected_design_points = False
-merge_histograms = False # if true, merge all histograms for each run into a single file
+merge_histograms = True # if true, merge all histograms for each run into a single file
 aggregate_histograms = False # if true, aggregate all histograms for each design point into a single file
 plot_and_save_histograms = False # if true, plot and save all histograms
 write_tables = False # if true, write tables for input to Bayesian analysis
@@ -106,7 +106,7 @@ local_analysis_facility = "test_587cluster" # facililty to run local re-analysis
 analysis_version = -1
 force_reanalysis = False # force to analyse and download again, even if histogram files are present
 delete_local_final_state_hadrons_after_analysis = True # delete final state hadron files after analysis is done
-randomize_run_order = True  # if true, runs will be shuffled into random order. This should be on by default, especially for benchmarking
+randomize_run_order = False  # if true, runs will be shuffled into random order. This should be on by default, especially for benchmarking
 
 
 # Processing options
@@ -116,7 +116,7 @@ download_threads = 5 # number of threads to download from OSN
 n_cores = 20 # only used for merging with hadd
 ntasks = 140 # number of analysis tasks to be submitted to local_analysis_facility
 max_n_slurm_jobs = 140
-skip_run_binomial = True
+skip_run_binomial = False
 
 # Location where histogram files and final state hadron files are stored on OSN
 #-----------------------------------------------------------------
@@ -126,7 +126,7 @@ facilities = ['bridges2', 'expanse']
 #-----------------------------------------------------------------
 stat_xsede_2021_dir = '/software/flo/myJETSCAPE/STAT-XSEDE-2021'
 jetscape_analysis_dir = '/software/flo/myJETSCAPE/JETSCAPE-analysis'
-local_base_outputdir = '/alf/data/flo/jetscape/aggregation_data'
+local_base_outputdir = '/alf/data/flo/jetscape/reAnalysisOutput/20250516'
 analyis_container_path = '/software/flo/myJETSCAPE/STAT-XSEDE-2021/containers/stat_local_gcc_v3.6.sif'
 
 # re-analysisdebug options
