@@ -329,7 +329,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # since the information is missing in the MC. Return True for now.
         return True
     # find out if the particle is isolated or not
-    def is_isolated(self, trigger_particle, iso_particles_charged,iso_particles_neutral,iso_R, iso_Et_max, isolation_type):
+    def is_isolated(self, trigger_particle, iso_particles_charged_pos,iso_particles_charged_neg,iso_particles_neutral,iso_R, iso_Et_max, isolation_type):
         """Find out if the particle is isolated or not.
         
         Args:
@@ -346,12 +346,18 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Calculate sum Et of particles in cone around trigger particle
         sum_Et = 0.
         if isolation_type == 'full' or isolation_type == 'charged':
-            for particle in iso_particles_charged:
+            for particle in iso_particles_charged_pos:
                 if trigger_particle.delta_R(particle) < iso_R:
                     # Skip the trigger particle itself
                     if particle.user_index() == trigger_particle.user_index():
                         continue
                     sum_Et += particle.Et()
+            for particle in iso_particles_charged_neg:
+                if trigger_particle.delta_R(particle) < iso_R:
+                    # Skip the trigger particle itself
+                    if particle.user_index() == trigger_particle.user_index():
+                        continue
+                    sum_Et -= particle.Et() # subtract holes
         if isolation_type == 'full' or isolation_type == 'neutral':
             for particle in iso_particles_neutral:
                 if trigger_particle.delta_R(particle) < iso_R:

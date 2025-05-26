@@ -1054,7 +1054,7 @@ semi_inclusive_chjet:
     y_min_pp: 0.1
     y_max_pp: 9.0
     skip_pp: True
-    
+
     bins: [1.57, 2.07, 2.42, 2.61, 2.76, 2.89, 3.02, 3.14]
 
   # PRC Fig 18
@@ -1250,24 +1250,24 @@ gamma_jet:
   # Data: MISSING
   Dz_atlas: # also includes Dpt_atlas
     # Trigger isolated prompt photon
-    photon_Et: [80., 126.]
-    photon_eta: 2.37 # paper mentions an exclusion of eta [1.37,1.56] but we assue this is by their acc correction
+    gamma_Et: [80., 126.]
+    gamma_eta: 2.37 # paper mentions an exclusion of eta [1.37,1.56] but we assue this is by their acc correction
     isolation_type: 'full' # specification what particles are consider for isolation, allow for charged, neutral or full
     isolation_R: 0.3
     isolation_Et_max_pp: 3 # GeV
-    isolation_Et_max_AA: 10 # GeV
+    isolation_Et_max_AA: 10 # GeV TODO think if we actually need to have 10 GeV here
 
     # jet selection (anti-kt particle flow)
     jet_R: [0.4]
     jet_eta: 2.1
     jet_pt: [63., 144.] # > 30 GeV
-    centrality: [[0,30],[30,80]]
+    centrality: [[0,30],[30,80]] # TODO probably we can't compare to 30,80, remove
 
     # track selection
     track_pt: 1 # > 1 GeV
     track_dR: 0.4 #dR of track to jet
 
-    # photon-jet pairs
+    # gamma-jet pairs
     dPhi: 7./8. # dPhi > 7/8*pi
 
   # Paper: https://inspirehep.net/literature/1648162
@@ -1275,16 +1275,16 @@ gamma_jet:
   # Unfolded?: NO !!!
   # Observables: xi_jet and xi_gamma
   xi_cms:
-    photon_min_Et: 60 # GeV
-    photon_eta: 1.44 # |eta| < 1.44
+    gamma_min_Et: 60 # GeV
+    gamma_eta: 1.44 # |eta| < 1.44
     # Note on isolation:
     # I think we do not need to mimik the exact isolation they do in data, as it gets swallowed in the effeciency calculation. 
     # We should take guidance from the islation used for the theory calculations in their comparison 
     # which is: deltaR < 0.4 and sum of all partons within cone required to be below 5 GeV. 
     # Probably what we should do in jetscape is calculated for all charged and neutral particles 
     # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of. 
-    # This will of course give us a sample of isolated photons and not isolated prompt photons, 
-    # so we in principle need to do some purity correction or find a way to ignore decay photons in the prediction
+    # This will of course give us a sample of isolated gammas and not isolated prompt gammas, 
+    # so we in principle need to do some purity correction or find a way to ignore decay gammas in the prediction
     # TODO: check if we actually need to subtracr the UE estimate from the isolation quantity
     isolation_type: 'full'
     isolation_R: 0.4
@@ -1301,7 +1301,7 @@ gamma_jet:
     track_pt: 1 # GeV
     track_dR: 0.4 #dR of track to jet
 
-    # photon-jet pairs
+    # gamma-jet pairs
     dPhi: 7./8. # dPhi > 7/8*pi
 
 
