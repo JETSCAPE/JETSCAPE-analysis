@@ -98,11 +98,11 @@ class PlotResults(common_base.CommonBase):
     def plot_results(self):
 
         self.analysis = 'Analysis1'
-        
+
         if self.analysis == 'hadron_jet_RAA':
 
             self.plot_hadron_observables(observable_type='hadron')
-                        
+
             self.plot_jet_observables(observable_type='inclusive_chjet')
 
             if 'inclusive_jet' in self.config:
@@ -296,7 +296,8 @@ class PlotResults(common_base.CommonBase):
 
         #-----------------------------------------------------------
         # Initialize data distribution into self.observable_settings
-        if 'hepdata' in block:
+        _available_hepdata_files = plot_results_STAT_utils.available_hepdata_files_in_block(block)
+        if any(_available_hepdata_files):
             self.observable_settings['data_distribution'] = self.plot_utils.tgraph_from_hepdata(block, self.is_AA, self.sqrts, observable_type, observable, centrality_index, suffix=self.suffix, pt_suffix=pt_suffix)
         elif 'custom_data' in block:
             self.observable_settings['data_distribution'] = self.plot_utils.tgraph_from_yaml(block, self.is_AA, self.sqrts, observable_type, observable, centrality_index, suffix=self.suffix, pt_suffix=pt_suffix)
@@ -855,7 +856,7 @@ class PlotResults(common_base.CommonBase):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        force_write = True        
+        force_write = True
         filename = f'Data_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}.dat'
         outputfile = os.path.join(output_dir, filename)
         if force_write or not os.path.exists(outputfile):
@@ -870,9 +871,9 @@ class PlotResults(common_base.CommonBase):
                 xbins = np.array(h_prediction.GetXaxis().GetXbins())
                 x_min = xbins[:-1]
                 x_max = xbins[1:]
-                
+
                 g_data = self.observable_settings['data_distribution']
-                g_truncated = self.plot_utils.truncate_tgraph(g_data, h_prediction, is_AA = self.is_AA) 
+                g_truncated = self.plot_utils.truncate_tgraph(g_data, h_prediction, is_AA = self.is_AA)
                 if g_truncated:
                     y = np.array(g_truncated.GetY())
                     y_err = np.array([g_truncated.GetErrorY(i) for i in range(g_truncated.GetN())])

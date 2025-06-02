@@ -4,16 +4,14 @@
   Author: James Mulligan (james.mulligan@berkeley.edu)
 """
 
-# General
+import ctypes
 import os
 import sys
-import yaml
-import argparse
+from typing import Any
 
-# Data analysis and plotting
-import ROOT
-import ctypes
 import numpy as np
+import ROOT
+import yaml
 
 # Base class
 sys.path.append('.')
@@ -21,6 +19,22 @@ from jetscape_analysis.base import common_base
 
 # Prevent ROOT from stealing focus when plotting
 ROOT.gROOT.SetBatch(True)
+
+
+def available_hepdata_files_in_block(block: dict[str, Any]) -> list[str]:
+    """Determine the hepdata files available in the config block.
+
+    Return:
+        List of hepdata files available in the block.
+    """
+    available_hepdata_files = [v in block for v in ["hepdata", "hepdata_pp", "hepdata_AA"]]
+    # Expect to have either hepdata or if in separate files, it could be hepdata_pp and hepdata_AA
+    # Validate this:
+    if available_hepdata_files and "hepdata_pp" in available_hepdata_files:
+            assert "hepdata_AA" in available_hepdata_files, "If hepdata_pp is present, hepdata_AA must also be present."
+
+    return available_hepdata_files
+
 
 ################################################################
 class PlotUtils(common_base.CommonBase):
@@ -121,18 +135,19 @@ class PlotUtils(common_base.CommonBase):
     def tgraph_from_hepdata(self, block, is_AA, sqrts, observable_type, observable, centrality_index, suffix='', pt_suffix=''):
 
         # Open the HEPData file
+        hepdata_file_key = 'hepdata'
+        hepdata_files_in_block = available_hepdata_files_in_block(block)
+        if len(hepdata_files_in_block) > 1:
+            hepdata_file_key = 'hepdata_AA' if is_AA else 'hepdata_pp'
         hepdata_dir = f'data/STAT/{sqrts}/{observable_type}/{observable}'
-        hepdata_filename = os.path.join(hepdata_dir, block['hepdata'])
+        hepdata_filename = os.path.join(hepdata_dir, block[hepdata_file_key])
         f = ROOT.TFile(hepdata_filename, 'READ')
 
         # Find the relevant directory:
         # - The list of dir/hist names may contain a suffix,
         #   which specifies e.g. the pt bin, jetR, or other parameters
 
-        if is_AA:
-            system = 'AA'
-        else:
-            system = 'pp'
+        system = 'AA' if is_AA else 'pp'
 
         # First, check for dir names in config
         if f'hepdata_{system}_dir{suffix}' in block:
@@ -202,10 +217,7 @@ class PlotUtils(common_base.CommonBase):
         # - The list of dir/hist names may contain a suffix,
         #   which specifies e.g. the pt bin, jetR, or other parameters
 
-        if is_AA:
-            system = 'AA'
-        else:
-            system = 'pp'
+        system = 'AA' if is_AA else 'pp'
 
         # First, check for key names in config
         if f'data_{system}{suffix}' in data:
