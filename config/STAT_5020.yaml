@@ -964,8 +964,9 @@ inclusive_chjet:
     eta_cut_R: 0.9
     pt: [40., 140.]
     centrality: [[0,10]]
-    SoftDrop:
-      - {'zcut': 0.2, 'beta': 0}
+    axis:
+      - {'type': 'WTA_Standard'}
+      - {'type': 'WTA_SD', "grooming_settings": {'zcut': 0.2, 'beta': 0}}
     xtitle: '#Delta R_{axis}'
 
     # RJE: TODO: Need to work out the convention here..
@@ -1048,7 +1049,7 @@ inclusive_chjet:
     y_max_AA: 2.
 
   # https://inspirehep.net/literature/2648610
-  # mininum track pt: 0.15
+  # minimum track pt: 0.15
   # maximum track eta: 9
   # this is Pb/pp WTA-standard
   axis_alice_1:
@@ -1064,7 +1065,7 @@ inclusive_chjet:
     custom_data_Ion: ['table_1.yaml', 'table_3.yaml']
 
   # https://inspirehep.net/literature/2648610
-  # mininum track pt: 0.15
+  # minimum track pt: 0.15
   # maximum track eta: 9
   # this is R0.4/R0.2 WTA-standard
   axis_alice_2:
@@ -1078,7 +1079,7 @@ inclusive_chjet:
     custom_data_AA: ['table_6.yaml']
 
   # https://inspirehep.net/literature/2648610
-  # mininum track pt: 0.15
+  # minimum track pt: 0.15
   # maximum track eta: 9
   # this is R0.4/R0.2 WTA - SD
   axis_alice_3:
