@@ -953,7 +953,8 @@ inclusive_chjet:
 
   # ALICE, jet-axis difference
   # https://inspirehep.net/literature/2648610
-  # HEPdata is private
+  # pp hepdata: https://www.hepdata.net/record/ins2182727?version=1
+  # PbPb hepdata: in private repo
   # Two sets of figures:
   # - Figure 1: WTA-standard, pp vs 0-10% PbPb, R=0.2, [40-60, 60-80] GeV
   # - Figure 2: 0-10% PbPb R ratio (0.4/0.2), 100-140 GeV
@@ -962,21 +963,54 @@ inclusive_chjet:
   axis_alice:
     jet_R: [0.2, 0.4]
     eta_cut_R: 0.9
-    pt: [40., 140.]
+    pt: [40., 60, 80, 100, 140.]
     centrality: [[0,10]]
     axis:
       - {'type': 'WTA_Standard'}
       - {'type': 'WTA_SD', "grooming_settings": {'zcut': 0.2, 'beta': 0}}
+      - {'type': 'WTA_SD', "grooming_settings": {'zcut': 0.1, 'beta': 0}}
     xtitle: '#Delta R_{axis}'
 
-    # RJE: TODO: Need to work out the convention here..
-    hepdata_pp_dir_R0.2_zcut0.2_beta0: "TBD"
+    # pp, R = 0.2
+    hepdata_pp: "HEPData-ins2182727-v1-root.root"
+    # zcut = 0.1
+    hepdata_pp_dir_R0.2_zcut0.1_beta0_WTA_SD_pt0: "Table 15"
+    hepdata_pp_dir_R0.2_zcut0.1_beta0_WTA_SD_pt1: "Table 28"
+    # zcut = 0.2
+    hepdata_pp_dir_R0.2_zcut0.2_beta0_WTA_SD_pt0: "Table 19"
+    hepdata_pp_dir_R0.2_zcut0.2_beta0_WTA_SD_pt1: "Table 32"
+    # WTA-standard
+    hepdata_pp_dir_R0.2_WTA_Standard_pt0: "Table 14"
+    hepdata_pp_dir_R0.2_WTA_Standard_pt1: "Table 27"
     hepdata_pp_gname: 'Graph1D_y1'
     ytitle_pp: '#frac{1}{#sigma_{inc}} #frac{d#sigma}{d#Delta R_{axis}}'
     y_min_pp: 0
     y_max_pp: 35
 
-    # RJE: TODO: Finish implementing this...
+    # AA
+    hepdata_AA: "HEPData-ins2648610-v1-root.root"
+    # zcut = 0.1 (supplement)
+    hepdata_AA_dir_R0.2_zcut0.1_beta0_WTA_SD_pt0: "Table 10"
+    hepdata_AA_dir_R0.2_zcut0.1_beta0_WTA_SD_pt1: "Table 12"
+    # zcut = 0.2 (supplement)
+    hepdata_AA_dir_R0.2_zcut0.2_beta0_WTA_SD_pt0: "Table 14"
+    hepdata_AA_dir_R0.2_zcut0.2_beta0_WTA_SD_pt1: "Table 16"
+    # This is supposed to correspond to the R(0.4)/R(0.2) ratio
+    # Ratio is in Table 8
+    hepdata_AA_dir_R0.2_zcut0.2_beta0_WTA_SD_pt3: "Table 7"
+    hepdata_AA_dir_R0.2_WTA_Standard_pt0: "Table 2"
+    hepdata_AA_dir_R0.2_WTA_Standard_pt1: "Table 4"
+    # TODO: For the R(0.4)/R(0.2) ratio, RJE is including the AA distributions,
+    # since it's not obvious how to define the ratio here.
+    # Ratio is in Table 6
+    hepdata_AA_dir_R0.2_WTA_Standard_pt3: "Table 5"
+    hepdata_AA_dir_R0.4_WTA_Standard_pt3: "Table 5"
+    # The former corresponds to the 0.4, while the latter is 0.2 for the ratio figures
+    hepdata_AA_gname: ['Graph1D_y1', 'Graph1D_y2']
+    ytitle_AA: '#frac{1}{#sigma_{inc}} #frac{d#sigma}{d#Delta R_{axis}}'
+    y_min_AA: 0
+    y_max_AA: 35
+
 
   # ALICE, generalized angularities
   # RJE: TODO
@@ -1047,52 +1081,6 @@ inclusive_chjet:
     ytitle_AA: 'PbPb / pp'
     y_min_AA: 0.
     y_max_AA: 2.
-
-  # https://inspirehep.net/literature/2648610
-  # minimum track pt: 0.15
-  # maximum track eta: 9
-  # this is Pb/pp WTA-standard
-  axis_alice_1:
-    jet_R: [0.2]
-    pt: [40, 60, 80]
-    eta_cut_R: 0.7
-    centrality: [0,10]
-    xtitle: '#Delta R_{axis}'
-
-    ytitle_pp: '#frac{1}{#sigma_{inc}} #frac{d#sigma}{d#Delta R_{axis}}'
-    custom_data_pp: 'HEPData-ins2182727-v1-Table_14.yaml'
-    custom_data_AA: ['table_2.yaml', 'table_4.yaml']
-    custom_data_Ion: ['table_1.yaml', 'table_3.yaml']
-
-  # https://inspirehep.net/literature/2648610
-  # minimum track pt: 0.15
-  # maximum track eta: 9
-  # this is R0.4/R0.2 WTA-standard
-  axis_alice_2:
-    jet_R: [0.2, 0.4]
-    eta_cut_R: 0.9
-    pt: [100, 140]
-    centrality: [0,10]
-    xtitle: '#Delta R_{axis}/R'
-
-    ytitle_pp: '#frac{1}{#sigma_{inc}} #frac{d#sigma}{d#Delta R_{axis}}'
-    custom_data_AA: ['table_6.yaml']
-
-  # https://inspirehep.net/literature/2648610
-  # minimum track pt: 0.15
-  # maximum track eta: 9
-  # this is R0.4/R0.2 WTA - SD
-  axis_alice_3:
-    jet_R: [0.2, 0.4]
-    eta_cut_R: 0.9
-    pt: [100, 140]
-    centrality: [0,10]
-    SoftDrop:
-      - {'zcut': 0.2, 'beta': 0}
-
-    ytitle_pp: '#frac{1}{#sigma_{inc}} #frac{d#sigma}{d#Delta R_{axis}}'
-    custom_data_AA: ['table_8.yaml']
-
 
 #------------------------------------------------------------------
 #------------------------------------------------------------------
@@ -1176,7 +1164,7 @@ semi_inclusive_chjet:
     bins: [7.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 80.0, 110.0, 140.0]
 
 #------------------------------------------------------------------
-# concidence observables – gamma+jet
+# coincidence observables – gamma+jet
 gamma_jet:
 
   # ATLAS gamma-tagged RAA
