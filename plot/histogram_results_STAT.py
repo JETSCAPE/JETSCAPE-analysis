@@ -350,6 +350,8 @@ class HistogramResults(common_base.CommonBase):
                             subobservable_label_list = [f'_k{kappa}' for kappa in block['kappa']]
                         if 'r' in block:
                             subobservable_label_list = [f'_r{r}' for r in block['r']]
+                        if 'axis' in block:
+                            subobservable_label_list = [f'_{axis_block["type"]}' for axis_block in block['axis']]
                         for subobservable_label in subobservable_label_list:
 
                             if 'SoftDrop' in block:

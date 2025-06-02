@@ -816,7 +816,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                                 self.observable_dict_event[f'inclusive_chjet_zr_alice_R{jetR}_r{r}{jet_collection_label}'].append([z_leading])
 
-            # ALICE jet axis Standard-WTA
+            # ALICE jet-axis difference (WTA-Standard)
             #   Hole treatment:
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
@@ -835,9 +835,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
                             reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
                             jet_wta = reclusterer_wta.result(jet)
-                            deltaR = jet.delta_R(jet_wta)
 
-                            self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}{jet_collection_label}'].append([jet_pt, deltaR])
+                            deltaR = jet_wta.delta_R(jet)
+                            #self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}{jet_collection_label}'].append([jet_pt, deltaR])
+                            self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_{jet_collection_label}'].append([jet_pt, deltaR])
 
             # ALICE ungroomed angularity
             #   Hole treatment:
@@ -1011,35 +1012,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         jet_groomed_lund = gshop.soft_drop(beta, zcut, jetR)
 
         if self.sqrts == 5020:
-            # ALICE jet-axis difference
-            #   Hole treatment:
-            #    - For shower_recoil case, ?
-            #    - For negative_recombiner case, ?
-            #    - For constituent_subtraction, ?
-            # Recluster with WTA (with larger jet R)
-            if self.centrality_accepted(self.inclusive_chjet_observables['axis_alice']['centrality']):
-                # We put both DyG and SD after this setting to avoid filling DyG multiple times
-                # (since DyG isn't included in the set of grooming settings)
-                if grooming_setting in self.inclusive_chjet_observables['axis_alice']['SoftDrop']:
-                    pt_min = self.inclusive_chjet_observables['axis_alice']['pt'][0]
-                    pt_max = self.inclusive_chjet_observables['axis_alice']['pt'][-1]
-                    if abs(jet.eta()) < (self.inclusive_chjet_observables['axis_alice']['eta_cut_R'] - jetR):
-                        if jetR in self.inclusive_chjet_observables['axis_alice']['jet_R']:
-                            if pt_min < jet_pt < pt_max:
-                                # Recluster with WTA (with larger jet R)
-                                jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2*jetR)
-                                if self.is_AA:
-                                    recombiner = fjext.NegativeEnergyRecombiner()
-                                    jet_def_wta.set_recombiner(recombiner)
-                                jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
-                                reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
-                                jet_wta = reclusterer_wta.result(jet)
-
-                                # Standard-WTA
-                                deltaR = jet.delta_R(jet_wta)
-                                self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_standard_WTA_{jet_collection_label}'].append([jet_pt, deltaR])
-
-                                # RJE: TODO: WTA-SD is only R ratios, so skip for now...?
 
             # ALICE hardest kt
             #   Hole treatment:
@@ -1089,6 +1061,35 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 # Note: untagged jets will return negative value
                                 self.observable_dict_event[f'inclusive_chjet_zg_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}'].append(zg)
                                 self.observable_dict_event[f'inclusive_chjet_tg_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}'].append(theta_g)
+
+            # ALICE jet-axis difference (WTA-SD)
+            #   Hole treatment:
+            #    - For shower_recoil case, correct the pt only
+            #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
+            #    - For constituent_subtraction, no subtraction is needed
+            if self.centrality_accepted(self.inclusive_chjet_observables['axis_alice']['centrality']):
+                if grooming_setting in self.inclusive_chjet_observables['axis_alice']['axis']["SD"]["grooming_settings"]:
+                    pt_min = self.inclusive_chjet_observables['axis_alice']['pt'][0]
+                    pt_max = self.inclusive_chjet_observables['axis_alice']['pt'][-1]
+                    if abs(jet.eta()) < (self.inclusive_chjet_observables['axis_alice']['eta_cut_R'] - jetR):
+                        if jetR in self.inclusive_chjet_observables['axis_alice']['jet_R']:
+                            if pt_min < jet_pt < pt_max:
+                                # Recluster with WTA (with larger jet R)
+                                jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2*jetR)
+                                if self.is_AA:
+                                    recombiner = fjext.NegativeEnergyRecombiner()
+                                    jet_def_wta.set_recombiner(recombiner)
+                                jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
+                                reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
+                                jet_wta = reclusterer_wta.result(jet)
+
+                                ## WTA-Standard
+                                #deltaR = jet_wta.delta_R(jet)
+                                #self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_{jet_collection_label}'].append([jet_pt, deltaR])
+
+                                # WTA-SD
+                                deltaR = jet_wta.delta_R(jet_groomed_lund.pair())
+                                self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_SD_zcut{zcut}_beta{beta}_{jet_collection_label}'].append([jet_pt, deltaR])
 
             # ALICE groomed angularity
             #   Hole treatment:
