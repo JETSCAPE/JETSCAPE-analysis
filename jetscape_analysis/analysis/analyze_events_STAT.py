@@ -700,7 +700,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             if self.sqrts == 5020:
                 if self.centrality_accepted(self.inclusive_jet_observables['charge_cms']['centrality']):
-                    pt_min = self.inclusive_jet_observables['charge_cms']['pt_min']
+                    pt_min = self.inclusive_jet_observables['charge_cms']['pt'][0]
                     if jetR in self.inclusive_jet_observables['charge_cms']['jet_R']:
                         if abs(jet.eta()) < self.inclusive_jet_observables['charge_cms']['eta_cut']:
                             if jet_pt > pt_min:
@@ -839,6 +839,29 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             deltaR = jet_wta.delta_R(jet)
                             #self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}{jet_collection_label}'].append([jet_pt, deltaR])
                             self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_{jet_collection_label}'].append([jet_pt, deltaR])
+
+            # CMS jet-axis difference (WTA-Standard)
+            #   Hole treatment:
+            #    - For shower_recoil case, correct the pt only
+            #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
+            #    - For constituent_subtraction, no subtraction is needed
+            if self.centrality_accepted(self.inclusive_chjet_observables['axis_cms']['centrality']):
+                pt_min = self.inclusive_chjet_observables['axis_cms']['pt'][0]
+                pt_max = self.inclusive_chjet_observables['axis_cms']['pt'][-1]
+                if abs(jet.eta()) < (self.inclusive_chjet_observables['axis_cms']['eta_cut']):
+                    if jetR in self.inclusive_chjet_observables['axis_cms']['jet_R']:
+                        if pt_min < jet_pt < pt_max:
+
+                            jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2*jetR)
+                            if jet_collection_label in ['_negative_recombiner']:
+                                recombiner = fjext.NegativeEnergyRecombiner()
+                                jet_def_wta.set_recombiner(recombiner)
+                            jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
+                            reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
+                            jet_wta = reclusterer_wta.result(jet)
+
+                            deltaR = jet_wta.delta_R(jet)
+                            self.observable_dict_event[f'inclusive_chjet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}'].append([jet_pt, deltaR])
 
             # ALICE ungroomed angularity
             #   Hole treatment:
