@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
   Class to analyze a single JETSCAPE parquet output file,
   and write out a new parquet file containing calculated observables
@@ -28,22 +26,18 @@
   Author: Raymond Ehlers (raymond.ehlers@cern.ch)
   """
 
-from __future__ import print_function
-
-# General
-import sys
-import os
 import argparse
-import yaml
-import numpy as np
 import random
+import sys
 from collections import defaultdict
 from pathlib import Path
 
 # Fastjet via python (from external library heppy)
+import fastjet as fj
 import fjcontrib
 import fjext
-import fastjet as fj
+import numpy as np
+import yaml
 
 sys.path.append('.')
 from jetscape_analysis.analysis import analyze_events_base_STAT
@@ -732,6 +726,29 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         charge = sum_charge / np.power(jet_pt, kappa)
                                     self.observable_dict_event[f'inclusive_jet_charge_cms_R{jetR}_k{kappa}{jet_collection_label}'].append(charge)
 
+            # CMS jet-axis difference (WTA-Standard)
+            #   Hole treatment:
+            #    - For shower_recoil case, correct the pt only
+            #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
+            #    - For constituent_subtraction, no subtraction is needed
+            if self.centrality_accepted(self.inclusive_jet_observables['axis_cms']['centrality']):
+                pt_min = self.inclusive_jet_observables['axis_cms']['pt'][0]
+                pt_max = self.inclusive_jet_observables['axis_cms']['pt'][-1]
+                if abs(jet.eta()) < (self.inclusive_jet_observables['axis_cms']['eta_cut']):
+                    if jetR in self.inclusive_jet_observables['axis_cms']['jet_R']:
+                        if pt_min < jet_pt < pt_max:
+
+                            jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2*jetR)
+                            if jet_collection_label in ['_negative_recombiner']:
+                                recombiner = fjext.NegativeEnergyRecombiner()
+                                jet_def_wta.set_recombiner(recombiner)
+                            jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
+                            reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
+                            jet_wta = reclusterer_wta.result(jet)
+
+                            deltaR = jet_wta.delta_R(jet)
+                            self.observable_dict_event[f'inclusive_jet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}'].append([jet_pt, deltaR])
+
     # ---------------------------------------------------------------
     # Fill inclusive full jet observables
     # ---------------------------------------------------------------
@@ -839,29 +856,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             deltaR = jet_wta.delta_R(jet)
                             #self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}{jet_collection_label}'].append([jet_pt, deltaR])
                             self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_{jet_collection_label}'].append([jet_pt, deltaR])
-
-            # CMS jet-axis difference (WTA-Standard)
-            #   Hole treatment:
-            #    - For shower_recoil case, correct the pt only
-            #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
-            #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['axis_cms']['centrality']):
-                pt_min = self.inclusive_chjet_observables['axis_cms']['pt'][0]
-                pt_max = self.inclusive_chjet_observables['axis_cms']['pt'][-1]
-                if abs(jet.eta()) < (self.inclusive_chjet_observables['axis_cms']['eta_cut']):
-                    if jetR in self.inclusive_chjet_observables['axis_cms']['jet_R']:
-                        if pt_min < jet_pt < pt_max:
-
-                            jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2*jetR)
-                            if jet_collection_label in ['_negative_recombiner']:
-                                recombiner = fjext.NegativeEnergyRecombiner()
-                                jet_def_wta.set_recombiner(recombiner)
-                            jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
-                            reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
-                            jet_wta = reclusterer_wta.result(jet)
-
-                            deltaR = jet_wta.delta_R(jet)
-                            self.observable_dict_event[f'inclusive_chjet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}'].append([jet_pt, deltaR])
 
             # ALICE ungroomed angularity
             #   Hole treatment:
