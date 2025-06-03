@@ -98,11 +98,11 @@ hadron:
     hepdata_AA_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4', 'Hist1D_y5', 'Hist1D_y6']
     ytitle_AA: '#it{R}_{AA}'
 
-    hepdata_Ion_dir: 'Table 1'
-    hepdata_Ion_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4', 'Graph1D_y5', 'Graph1D_y6']
-    ytitle_Ion: '#frac{1}{#it{N}_{event}} #frac{d^{2}#it{N}}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1}#right]'
-    y_min_Ion: 2e-9
-    y_max_Ion: 1e4
+    hepdata_AA_distribution_dir: 'Table 1'
+    hepdata_AA_distribution_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4', 'Graph1D_y5', 'Graph1D_y6']
+    ytitle_AA_distribution: '#frac{1}{#it{N}_{event}} #frac{d^{2}#it{N}}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1}#right]'
+    y_min_AA_distribution: 2e-9
+    y_max_AA_distribution: 1e4
 
   # https://www.hepdata.net/record/ins1377750 -- charged pions (no pp hepdata, no ion normalized hepdata)
   # Figs 22,23
@@ -125,10 +125,10 @@ hadron:
     hepdata_AA_hname: 'Hist1D_y1'
     ytitle_AA: '#it{R}_{AA}'
 
-    hepdata_Ion_dir: 'Table 1'
-    hepdata_Ion_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    y_min_Ion: 2e-8
-    y_max_Ion: 1e-2
+    hepdata_AA_distribution_dir: 'Table 1'
+    hepdata_AA_distribution_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
+    y_min_AA_distribution: 2e-8
+    y_max_AA_distribution: 1e-2
     ytitle_Opm: '#frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1} b#right]'
 
   # https://www.hepdata.net/record/ins1662651 (no pp hepdata, no ion normalized hepdata)
@@ -151,12 +151,12 @@ hadron:
     hepdata_AA_hname: 'Hist1D_y1'
     ytitle_AA: '#it{R}_{AA}'
 
-    hepdata_Ion_dir: ['Table 1', 'Table 2']
-    hepdata_Ion_gname: 'Graph1D_y1'
-    hepdata_Ion_hname: 'Hist1D_y1'
-    ytitle_Ion: '#frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1} b#right]'
-    y_min_Ion: 2e-8
-    y_max_Ion: 1e-2
+    hepdata_AA_distribution_dir: ['Table 1', 'Table 2']
+    hepdata_AA_distribution_gname: 'Graph1D_y1'
+    hepdata_AA_distribution_hname: 'Hist1D_y1'
+    ytitle_AA_distribution: '#frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1} b#right]'
+    y_min_AA_distribution: 2e-8
+    y_max_AA_distribution: 1e-2
 
   # https://www.hepdata.net/record/ins1360290
   # leptons from W/Z decays removed
@@ -183,11 +183,11 @@ hadron:
     hepdata_AA_hname: 'Hist1D_y1'
     ytitle_AA: '#it{R}_{AA}'
 
-    hepdata_Ion_dir: ['Table 2', 'Table 3', 'Table 4', 'Table 5', 'Table 6', 'Table 7']
-    hepdata_Ion_gname: 'Graph1D_y1'
-    ytitle_Ion: '#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]'
-    y_min_Ion: 2e-14
-    y_max_Ion: 1e4
+    hepdata_AA_distribution_dir: ['Table 2', 'Table 3', 'Table 4', 'Table 5', 'Table 6', 'Table 7']
+    hepdata_AA_distribution_gname: 'Graph1D_y1'
+    ytitle_AA_distribution: '#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]'
+    y_min_AA_distribution: 2e-14
+    y_max_AA_distribution: 1e4
 
   # https://www.hepdata.net/record/ins1088823
   # Figs 3a,5
@@ -218,7 +218,7 @@ hadron:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    skip_Ion: True ## PbPb hepdata not available
+    skip_AA_distribution: True ## PbPb hepdata not available
 #------------------------------------------------------------------
 # The v2 observables include an additional layer for various methods, such as event-plane,
 # scalar-product, and four-particle cumulants. These are the only observables with this extra layer.
@@ -309,12 +309,12 @@ inclusive_jet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_Ion_dir_R0.2: 'Table 3'
-    hepdata_Ion_gname: ['Graph1D_y1', 'Graph1D_y2']
-    hepdata_Ion_hname: 'Hist1D_y1'
-    ytitle_Ion: '#frac{1}{N_{event}} #frac{d^{2}N}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1}#right]'
-    y_min_Ion: 2e-10
-    y_max_Ion: 1e-3
+    hepdata_AA_distribution_dir_R0.2: 'Table 3'
+    hepdata_AA_distribution_gname: ['Graph1D_y1', 'Graph1D_y2']
+    hepdata_AA_distribution_hname: 'Hist1D_y1'
+    ytitle_AA_distribution: '#frac{1}{N_{event}} #frac{d^{2}N}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1}#right]'
+    y_min_AA_distribution: 2e-10
+    y_max_AA_distribution: 1e-3
 
   # https://www.hepdata.net/record/ins1326911
   # Figs 1,3
@@ -341,11 +341,11 @@ inclusive_jet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_Ion_dir_R0.4: ['Table 7', 'Table 8', 'Table 9', 'Table 10', 'Table 11']
-    hepdata_Ion_gname: 'Graph1D_y1'
-    ytitle_Ion: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]'
-    y_min_Ion: 2e-6
-    y_max_Ion: 1e4
+    hepdata_AA_distribution_dir_R0.4: ['Table 7', 'Table 8', 'Table 9', 'Table 10', 'Table 11']
+    hepdata_AA_distribution_gname: 'Graph1D_y1'
+    ytitle_AA_distribution: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]'
+    y_min_AA_distribution: 2e-6
+    y_max_AA_distribution: 1e4
 
   # https://www.hepdata.net/record/ins1126965
   # We omit this for now, since we don't consider peripheral events
@@ -389,15 +389,15 @@ inclusive_jet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_Ion_dir_R0.2: 'Table 5'
-    hepdata_Ion_dir_R0.3: 'Table 6'
-    hepdata_Ion_dir_R0.4: 'Table 7'
-    hepdata_Ion_gname_R0.2: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    hepdata_Ion_gname_R0.3: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    hepdata_Ion_gname_R0.4: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    ytitle_Ion: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]'
-    y_min_Ion: 2e-10
-    y_max_Ion: 1e10
+    hepdata_AA_distribution_dir_R0.2: 'Table 5'
+    hepdata_AA_distribution_dir_R0.3: 'Table 6'
+    hepdata_AA_distribution_dir_R0.4: 'Table 7'
+    hepdata_AA_distribution_gname_R0.2: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
+    hepdata_AA_distribution_gname_R0.3: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
+    hepdata_AA_distribution_gname_R0.4: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
+    ytitle_AA_distribution: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]'
+    y_min_AA_distribution: 2e-10
+    y_max_AA_distribution: 1e10
 
   # https://www.hepdata.net/record/ins1511869
   # Note: the paper also considers the rapidity dependence, which we omit here for now (Figs 4,5)
@@ -432,11 +432,11 @@ inclusive_jet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_Ion_dir_R0.4: 'Table 5'
-    hepdata_Ion_gname: ['Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    ytitle_Ion: '#frac{1}{N_{jet}} #frac{dN_{ch}}{d#it{z}}'
-    y_min_Ion: 2e-3
-    y_max_Ion: 1e4
+    hepdata_AA_distribution_dir_R0.4: 'Table 5'
+    hepdata_AA_distribution_gname: ['Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
+    ytitle_AA_distribution: '#frac{1}{N_{jet}} #frac{dN_{ch}}{d#it{z}}'
+    y_min_AA_distribution: 2e-3
+    y_max_AA_distribution: 1e4
 
   # Figs 2,6
   Dpt_atlas:
@@ -464,11 +464,11 @@ inclusive_jet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_Ion_dir_R0.4: 'Table 1'
-    hepdata_Ion_gname: ['Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    ytitle_Ion: '#frac{1}{N_{jet}} #frac{dN_{ch}}{d#it{p}_{T}} #left[(GeV/c)^{-1}#right]'
-    y_min_Ion: 2e-4
-    y_max_Ion: 1e2
+    hepdata_AA_distribution_dir_R0.4: 'Table 1'
+    hepdata_AA_distribution_gname: ['Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
+    ytitle_AA_distribution: '#frac{1}{N_{jet}} #frac{dN_{ch}}{d#it{p}_{T}} #left[(GeV/c)^{-1}#right]'
+    y_min_AA_distribution: 2e-4
+    y_max_AA_distribution: 1e2
 
   # https://inspirehep.net/literature/1299142 (no hepdata)
   # https://twiki.cern.ch/CMSPublic/HIN12013DataTables
@@ -492,7 +492,7 @@ inclusive_jet:
     ytitle_AA: '#it{R}_{D(z)}'
     y_min_AA: 0.
     y_max_AA: 2.
-    skip_Ion: True ## PbPb yaml not available
+    skip_AA_distribution: True ## PbPb yaml not available
 
   # Figs 6,7,8
   Dpt_cms:
@@ -513,7 +513,7 @@ inclusive_jet:
     ytitle_AA: '#it{#Delta}_{D(z)}'
     y_min_AA: 0.
     y_max_AA: 2.
-    skip_Ion: True ## PbPb yaml not available
+    skip_AA_distribution: True ## PbPb yaml not available
 
 #------------------------------------------------------------------
 #------------------------------------------------------------------
@@ -544,7 +544,7 @@ inclusive_chjet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    skip_Ion: True
+    skip_AA_distribution: True
 
   # https://www.hepdata.net/record/ins1512107 (tgraph only...no binning)
   # Fig 7
@@ -576,7 +576,7 @@ inclusive_chjet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    skip_Ion: True
+    skip_AA_distribution: True
 
   # Girth, ALICE
   # https://www.hepdata.net/record/ins1682990
@@ -605,7 +605,7 @@ inclusive_chjet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    skip_Ion: True
+    skip_AA_distribution: True
 
   ptd_alice:
     jet_R: [0.2]
@@ -722,7 +722,7 @@ semi_inclusive_chjet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    skip_Ion: False
+    skip_AA_distribution: False
 #------------------------------------------------------------------
 #------------------------------------------------------------------
 dijet:
@@ -765,5 +765,5 @@ dijet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    skip_Ion: False
+    skip_AA_distribution: False
 #------------------------------------------------------------------
