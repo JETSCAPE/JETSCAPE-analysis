@@ -188,7 +188,7 @@ hadron:
 
 
 #------------------------------------------------------------------
-# The v2 observables include an additional layer for various methods, such as event-plane, 
+# The v2 observables include an additional layer for various methods, such as event-plane,
 # scalar-product, and four-particle cumulants. These are the only observables with this extra layer.
 #------------------------------------------------------------------
 # Hadron correlations
@@ -327,7 +327,7 @@ hadron_correlations:
       hepdata_AA_gname: 'Graph1D_y1'
       hepdata_AA_hname: 'Hist1D_y1'
       ytitle_AA: '#it{v}_{2}{4}'
-      
+
 #------------------------------------------------------------------
 #------------------------------------------------------------------
 # Inclusive jet observables -- full jets
@@ -1013,7 +1013,6 @@ inclusive_chjet:
     y_min_AA: 0
     y_max_AA: 35
 
-
   # ALICE, generalized angularities
   # RJE: TODO
   angularity_alice:
@@ -1029,17 +1028,37 @@ inclusive_chjet:
       - {'zcut': 0.2, 'beta': 0}
 
   # ALICE jet mass
-  # RJE: TODO
-  angularity_alice:
+  # https://www.hepdata.net/record/ins2845788
+  # NOTE: Includes both groomed and ungroomed mass
+  mass_alice:
     jet_R: [0.2, 0.4]
     eta_cut_R: 0.9
     pt: [40., 60., 80., 100., 150.]
     centrality: [[0,10]]
     SoftDrop:
-      # Ungroomed
-      - {'zcut': 0.0, 'beta': 0}
       # Groomed
       - {'zcut': 0.2, 'beta': 0}
+    xtitle: '#it{m}_{jet}'
+
+    hepdata: 'HEPData-ins1512107-v1-root.root'
+    hepdata_pp_dir_R0.4_pt0: 'Table 1'
+    hepdata_pp_dir_R0.4_pt1: 'Table 2'
+    hepdata_pp_dir_R0.4_pt2: 'Table 3'
+    hepdata_pp_gname: 'Graph1D_y1'
+    ytitle_pp: '#frac{1}{#sigma} #frac{d#sigma}{d#it{m}} #left[GeV^{-2}#right]'
+    y_min_pp: 1e-3
+    y_max_pp: 0.3
+
+    hepdata_AA_dir_R0.4_pt0: 'Table 4'
+    hepdata_AA_dir_R0.4_pt1: 'Table 5'
+    hepdata_AA_dir_R0.4_pt2: 'Table 6'
+    hepdata_AA_gname: 'Graph1D_y1'
+    hepdata_AA_hname: 'Hist1D_y1'
+    ytitle_AA: '#it{R}_{D(z)}'
+    y_min_AA: 0.
+    y_max_AA: 2.
+
+    skip_Ion: True
 
   # ALICE, ktg
   # https://www.hepdata.net/record/ins2831271
@@ -1330,12 +1349,3 @@ gamma_jet:
     y_min_pp: 0
     y_max_pp: 1.4
     bins: [0.000, 0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.000, 1.125, 1.250, 1.375, 1.500, 1.625, 1.750, 1.875, 2.000]
-
-
-
-
-
-
-
-
-
