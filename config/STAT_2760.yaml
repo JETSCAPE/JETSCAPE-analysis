@@ -220,7 +220,7 @@ hadron:
 
     skip_Ion: True ## PbPb hepdata not available
 #------------------------------------------------------------------
-# The v2 observables include an additional layer for various methods, such as event-plane, 
+# The v2 observables include an additional layer for various methods, such as event-plane,
 # scalar-product, and four-particle cumulants. These are the only observables with this extra layer.
 #------------------------------------------------------------------
 # Hadron correlations
@@ -578,9 +578,9 @@ inclusive_chjet:
 
     skip_Ion: True
 
+  # Girth, ALICE
   # https://www.hepdata.net/record/ins1682990
-  # Note: reference is to PYTHIA
-  # This is wrong !!!
+  # Note: reference is to PYTHIA, See the hepdata_pp note below
   g_alice:
     jet_R: [0.2]
     eta_cut_R: 0.9
@@ -589,7 +589,10 @@ inclusive_chjet:
     xtitle: '#it{g}'
 
     hepdata: 'HEPData-ins1682990-v1-root.root'
-    hepdata_pp_dir_R0.2: 'Table 10'
+    # NOTE: This is the 7 TeV pp measurement because the 2.76 TeV pp data was limited,
+    #       and the pythia distribution is not provided. So we intentionally take
+    #       the 7 TeV pp since it's only used for QA anyway.
+    hepdata_pp_dir_R0.2: 'Table 1'
     hepdata_pp_gname: 'Graph1D_y1'
     ytitle_pp: '#frac{1}{#sigma} #frac{d#sigma}{d#it{g}} #left[(GeV/c)^{-1}#right]'
     y_min_pp: 0.
