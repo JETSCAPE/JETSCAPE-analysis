@@ -99,12 +99,12 @@ hadron:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_Ion_dir: 'Figure 5'
-    hepdata_Ion_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4', 'Graph1D_y5']
-    hepdata_Ion_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4', 'Hist1D_y5']
-    ytitle_Ion: '#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]'
-    y_min_Ion: 2e-10
-    y_max_Ion: 2e2
+    hepdata_AA_distribution_dir: 'Figure 5'
+    hepdata_AA_distribution_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4', 'Graph1D_y5']
+    hepdata_AA_distribution_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4', 'Hist1D_y5']
+    ytitle_AA_distribution: '#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]'
+    y_min_AA_distribution: 2e-10
+    y_max_AA_distribution: 2e2
 
   # https://www.hepdata.net/record/ins619063
   # Summed yields of pi+-, K+-, p, anti-p
@@ -128,12 +128,12 @@ hadron:
     hepdata_AA_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4']
     ytitle_AA: '#it{R}_{AA}'
 
-    hepdata_Ion_dir: 'Table 1'
-    hepdata_Ion_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    hepdata_Ion_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4']
-    ytitle_Ion: 'E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]'
-    y_min_Ion: 2e-10
-    y_max_Ion: 2e2
+    hepdata_AA_distribution_dir: 'Table 1'
+    hepdata_AA_distribution_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
+    hepdata_AA_distribution_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4']
+    ytitle_AA_distribution: 'E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]'
+    y_min_AA_distribution: 2e-10
+    y_max_AA_distribution: 2e2
 
 #------------------------------------------------------------------
 #------------------------------------------------------------------
@@ -241,16 +241,16 @@ inclusive_chjet:
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_Ion_dir: 'Table 1'
-    hepdata_Ion_gname_R0.2: ['Graph1D_y1']
-    hepdata_Ion_hname_R0.2: ['Hist1D_y1']
-    hepdata_Ion_gname_R0.3: ['Graph1D_y2']
-    hepdata_Ion_hname_R0.3: ['Hist1D_y2']
-    hepdata_Ion_gname_R0.4: ['Graph1D_y3']
-    hepdata_Ion_hname_R0.4: ['Hist1D_y3']
-    ytitle_Ion: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]'
-    y_min_Ion: 2e-8
-    y_max_Ion: 1e-1
+    hepdata_AA_distribution_dir: 'Table 1'
+    hepdata_AA_distribution_gname_R0.2: ['Graph1D_y1']
+    hepdata_AA_distribution_hname_R0.2: ['Hist1D_y1']
+    hepdata_AA_distribution_gname_R0.3: ['Graph1D_y2']
+    hepdata_AA_distribution_hname_R0.3: ['Hist1D_y2']
+    hepdata_AA_distribution_gname_R0.4: ['Graph1D_y3']
+    hepdata_AA_distribution_hname_R0.4: ['Hist1D_y3']
+    ytitle_AA_distribution: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]'
+    y_min_AA_distribution: 2e-8
+    y_max_AA_distribution: 1e-1
 #------------------------------------------------------------------
 # Jet correlation observables
 semi_inclusive_chjet:
@@ -282,7 +282,7 @@ semi_inclusive_chjet:
     ytitle_AA: '#it{R}_{AA}'
 
   # The bin width is constant at 0.1256.  For the most left two data points, there are really missing in HEP
-  # PMJ 1/21/25: data points not recoverable without some effort. 
+  # PMJ 1/21/25: data points not recoverable without some effort.
   # Since this dataset has been superceded in quality by a more recent STAR publication I judge this not to worth the trouble.
   dphi_star:
     jet_R: [0.3]
@@ -322,7 +322,7 @@ semi_inclusive_pizerojet:
   # pmj 1/23/25 PRC (in journal review): https://inspirehep.net/literature/2693062
   # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accomodate
 
-  # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here: 
+  # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here:
   # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
   IAA_star:
     jet_R: [0.2, 0.5]
@@ -351,7 +351,7 @@ semi_inclusive_pizerojet:
     pizero_eta_cut: 1.0
     # pmj 1/23/25: per discussionn at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
     # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
-    # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover 
+    # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
     # it with the experimentally specified weighting
     trigger_range_det: [11., 15.]
     trigger_range_part: [9., 22.]
@@ -397,7 +397,7 @@ semi_inclusive_gammajet:
     gamma_eta_cut: 1.0
     # pmj 1/23/25: per discussionn at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
     # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
-    # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover 
+    # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
     # it with the experimentally specified weighting
     trigger_range_det: [15., 20.]
     trigger_range_part: [12., 23.]
