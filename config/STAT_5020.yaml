@@ -838,6 +838,7 @@ inclusive_chjet:
 
   # PMJ 2/28/25: new analysis charged jet RAA with ME background correction
   # RJE 2025/04/07: Need to somehow disambiguate from the ML jet measurement.
+  # https://www.hepdata.net/record/ins2637686
   pt_alice:
     jet_R: [0.2, 0.3, 0.4, 0.5]
     eta_cut_R: 0.9  # 0.9 - R

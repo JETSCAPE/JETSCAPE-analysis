@@ -326,7 +326,7 @@ semi_inclusive_pizerojet:
   # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
   IAA_star:
     jet_R: [0.2, 0.5]
-    eta_cut_R: [0.8, 0.5] # equivalent to 1-R
+    eta_cut_R: 1.0 # LDu 6/4/2025: implement 1-jet_R in the code
     pt: [5., 25.]
     centrality: [[0,15]]
     pizero_eta_cut: 1.0
@@ -345,7 +345,7 @@ semi_inclusive_pizerojet:
   # maybe define a different field?
   R25_star:
     jet_R: [0.2, 0.5]
-    eta_cut_R: [0.8, 0.5] # equivalent to 1-R
+    eta_cut_R: 1.0
     pt: [11., 15.]
     centrality: [[0,15]]
     pizero_eta_cut: 1.0
