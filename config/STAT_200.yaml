@@ -340,7 +340,7 @@ pion_trigger_chjet:
   IAA_pt_star:
     enabled: false
     jet_R: [0.2, 0.5]
-    eta_cut_R: [0.8, 0.5] # equivalent to 1-R
+    eta_cut_R: 1.0 # LDu 6/4/2025: implement 1-jet_R in the code
     pt: [5., 25.]
     centrality: [[0,15]]
     pi_zero_eta_cut: 1.0
@@ -355,6 +355,14 @@ pion_trigger_chjet:
 
     hepdata: "TODO: see above link"
 
+  # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
+  # maybe define a different field?
+  R25_star:
+    jet_R: [0.2, 0.5]
+    eta_cut_R: 1.0
+    pt: [11., 15.]
+    centrality: [[0,15]]
+    pizero_eta_cut: 1.0
     # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
     # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
     # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
