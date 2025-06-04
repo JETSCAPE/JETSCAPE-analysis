@@ -869,7 +869,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if jetR in self.inclusive_chjet_observables['angularity_alice']['jet_R']:
                         if pt_min < jet_pt < pt_max:
                             for alpha in self.inclusive_chjet_observables['angularity_alice']['alpha']:
-                                kappa=1
+                                kappa = 1
                                 if jet_collection_label in ['', '_shower_recoil', '_constituent_subtraction']:
                                     lambda_alpha = fjext.lambda_beta_kappa(jet, alpha, kappa, jetR)
                                 elif jet_collection_label in ['_negative_recombiner']:
@@ -888,8 +888,31 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         lambda_alpha -= hadron.pt() / jet_pt  * np.power(hadron.delta_R(jet)/jetR, alpha)
                                 self.observable_dict_event[f'inclusive_chjet_angularity_alice_R{jetR}_alpha{alpha}{jet_collection_label}'].append([jet_pt, lambda_alpha])
 
-        if self.sqrts == 2760:
+        if self.sqrts in [2760, 5020]:
+            # Jet mass
+            #   Hole treatment:
+            #    - For shower_recoil case, subtract recoils within R from four-vector (also store unsubtracted case)
+            #    - For negative_recombiner case, no subtraction is needed
+            #    - For constituent_subtraction, no subtraction is needed
+            if self.centrality_accepted(self.inclusive_chjet_observables['mass_alice']['centrality']):
+                pt_min = self.inclusive_chjet_observables['mass_alice']['pt'][0]
+                pt_max = self.inclusive_chjet_observables['mass_alice']['pt'][-1]
+                if abs(jet.eta()) < (self.inclusive_chjet_observables['mass_alice']['eta_cut_R'] - jetR):
+                    if jetR in self.inclusive_chjet_observables['mass_alice']['jet_R']:
+                        if pt_min < jet_pt < pt_max:
+                            jet_mass = jet.m()
+                            if jet_collection_label in ['_shower_recoil']:
+                                # NOTE: Since we haven't assigned to `jet_mass` yet, it still contains the unsubtracted mass
+                                self.observable_dict_event[f'inclusive_chjet_mass_alice_R{jetR}{jet_collection_label}_unsubtracted'].append([jet_pt, jet_mass])
+                                # Subtract hole four vectors from the original jet, and then take the mass
+                                jet_for_mass_calculation = fj.PseudoJet()    # Avoid modifying the original jet.
+                                jet_for_mass_calculation.reset(jet)
+                                for hadron in holes_in_jet:
+                                    jet_for_mass_calculation -= hadron
+                                jet_mass = jet_for_mass_calculation.m()
+                            self.observable_dict_event[f'inclusive_chjet_mass_alice_R{jetR}{jet_collection_label}'].append([jet_pt, jet_mass])
 
+        if self.sqrts == 2760:
             # ALICE charged jet RAA
             #   Hole treatment (same as with full jets - copied here for convenience):
             #    - For RAA, all jet collections can be filled from the corrected jet pt
@@ -962,29 +985,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         continue
                                     sum_ptd -= np.power(hadron.pt(), 2)
                             self.observable_dict_event[f'inclusive_chjet_ptd_alice_R{jetR}{jet_collection_label}'].append(np.sqrt(sum_ptd) / jet_pt)
-
-            # Jet mass
-            #   Hole treatment:
-            #    - For shower_recoil case, subtract recoils within R from four-vector (also store unsubtracted case)
-            #    - For negative_recombiner case, no subtraction is needed
-            #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['mass_alice']['centrality']):
-                pt_min = self.inclusive_chjet_observables['mass_alice']['pt'][0]
-                pt_max = self.inclusive_chjet_observables['mass_alice']['pt'][-1]
-                if abs(jet.eta()) < (self.inclusive_chjet_observables['mass_alice']['eta_cut_R'] - jetR):
-                    if jetR in self.inclusive_chjet_observables['mass_alice']['jet_R']:
-                        if pt_min < jet_pt < pt_max:
-                            jet_mass = jet.m()
-                            if jet_collection_label in ['_shower_recoil']:
-                                # NOTE: Since we haven't assigned to `jet_mass` yet, it still contains the unsubtracted mass
-                                self.observable_dict_event[f'inclusive_chjet_mass_alice_R{jetR}{jet_collection_label}_unsubtracted'].append([jet_pt, jet_mass])
-                                # Subtract hole four vectors from the original jet, and then take the mass
-                                jet_for_mass_calculation = fj.PseudoJet()    # Avoid modifying the original jet.
-                                jet_for_mass_calculation.reset(jet)
-                                for hadron in holes_in_jet:
-                                    jet_for_mass_calculation -= hadron
-                                jet_mass = jet_for_mass_calculation.m()
-                            self.observable_dict_event[f'inclusive_chjet_mass_alice_R{jetR}{jet_collection_label}'].append([jet_pt, jet_mass])
 
         elif self.sqrts == 200:
 
@@ -1121,9 +1121,25 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         if jetR in self.inclusive_chjet_observables['angularity_alice']['jet_R']:
                             if pt_min < jet_pt < pt_max:
                                 for alpha in self.inclusive_chjet_observables['angularity_alice']['alpha']:
-                                    kappa=1
-                                    lambda_alpha = fjext.lambda_beta_kappa(jet_groomed_lund.pair(), alpha, kappa, jetR)
+                                    kappa = 1
+                                    lambda_alpha = fjext.lambda_beta_kappa(jet, jet_groomed_lund.pair(), alpha, kappa, jetR)
                                     self.observable_dict_event[f'inclusive_chjet_angularity_alice_R{jetR}_alpha{alpha}_zcut{zcut}_beta{beta}{jet_collection_label}'].append([jet_pt, lambda_alpha])
+
+            # ALICE m_g (which is described as the groomed mass in the paper)
+            #   Hole treatment:
+            #    - For shower_recoil case, correct the pt only
+            #    - For negative_recombiner case, no subtraction is needed
+            #    - For constituent_subtraction, no subtraction is needed
+            if self.centrality_accepted(self.inclusive_chjet_observables['mass_alice']['centrality']):
+                if grooming_setting in self.inclusive_chjet_observables['mass_alice']['SoftDrop']:
+                    pt_min = self.inclusive_chjet_observables['mass_alice']['pt'][0]
+                    pt_max = self.inclusive_chjet_observables['mass_alice']['pt'][-1]
+                    if abs(jet.eta()) < (self.inclusive_chjet_observables['mass_alice']['eta_cut_R'] - jetR):
+                        if jetR in self.inclusive_chjet_observables['mass_alice']['jet_R']:
+                            if pt_min < jet_pt < pt_max:
+                                if jet_groomed_lund.Delta() > self.inclusive_chjet_observables['mass_alice']['dR']:
+                                    mg = jet_groomed_lund.pair().m()  # Note: untagged jets will return negative value
+                                    self.observable_dict_event[f'inclusive_chjet_mass_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}'].append([jet_pt, mg])
 
     # ---------------------------------------------------------------
     # Fill semi-inclusive charged jet observables
@@ -1402,10 +1418,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     xj = subleading_jet_pt / leading_jet_pt
                                     self.observable_dict_event[f'dijet_xj_atlas_R{jetR}{jet_collection_label}'].append([leading_jet_pt, xj])
 
-    #---------------------------------------------------------------
-    # Return leading jet (or subjet)
-    #---------------------------------------------------------------
     def leading_jet(self, jets, fj_hadrons_negative, jetR):
+        """ Extract the leading jet, including the subtracted pt.
+
+        Returns:
+            Leading jet PseudoJet, subtracted leading jet pt, index of leading jet in jets list
+        """
 
         leading_jet = None
         leading_jet_pt = 0.
