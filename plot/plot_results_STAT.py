@@ -217,12 +217,13 @@ class PlotResults(common_base.CommonBase):
 
                             # Set normalization
                             self_normalize = False
-                            for x in ['mass', 'g', 'ptd', 'charge', 'mg', 'zg', 'tg', 'xj']:
+                            for x in ['mass', 'g', 'ptd', 'charge', 'mg', 'zg', 'tg', 'ktg', 'xj']:
                                 if x in observable:
                                     self_normalize = True
 
                             if 'SoftDrop' in block:
                                 for grooming_setting in block['SoftDrop']:
+                                    # Custom skip
                                     if observable == 'zg_alice' or observable == 'tg_alice':
                                         if np.isclose(self.jet_R, 0.4) and centrality_index == 0:
                                             continue
