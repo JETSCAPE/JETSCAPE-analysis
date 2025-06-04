@@ -359,7 +359,11 @@ class HistogramResults(common_base.CommonBase):
                                     zcut = grooming_setting['zcut']
                                     beta = grooming_setting['beta']
 
-                                    self.suffix = f'_R{jet_R}_zcut{zcut}_beta{beta}{subobservable_label}'
+                                    # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
+                                    if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
+                                        self.suffix = f'_R{jet_R}{subobservable_label}'
+                                    else:
+                                        self.suffix = f'_R{jet_R}_zcut{zcut}_beta{beta}{subobservable_label}'
                                     bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable,
                                                                             centrality, centrality_index,
                                                                             suffix=f'{self.suffix}{pt_suffix}')

@@ -234,7 +234,12 @@ class PlotResults(common_base.CommonBase):
                                     zcut = grooming_setting['zcut']
                                     beta = grooming_setting['beta']
 
-                                    self.suffix = f'_R{self.jet_R}_zcut{zcut}_beta{beta}{subobservable_label}'
+                                    # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
+                                    if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
+                                        self.suffix = f'_R{self.jet_R}{subobservable_label}'
+                                    else:
+                                        self.suffix = f'_R{self.jet_R}_zcut{zcut}_beta{beta}{subobservable_label}'
+
                                     if 'hepdata' not in block and 'custom_data' not in block:
                                         continue
 
