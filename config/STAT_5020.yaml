@@ -943,7 +943,6 @@ inclusive_chjet:
   # - [ ] Inclusive
   # - [ ] Leading
   # https://inspirehep.net/literature/2070434
-  # https://inspirehep.net/literature/2070434
   # RJE: TODO
   zr_alice:
     jet_R: [0.4]
@@ -1014,49 +1013,136 @@ inclusive_chjet:
     y_max_AA: 35
 
   # ALICE, generalized angularities
-  # RJE: TODO
+  # https://www.hepdata.net/record/ins2845788
+  # NOTE: Includes both groomed and ungroomed mass
+  # NOTE: Ratios are not reported, so we will need to calculate them ourselves.
   angularity_alice:
-    jet_R: [0.2, 0.4]
+    jet_R: [0.2]
     eta_cut_R: 0.9
     pt: [40., 60., 80., 100., 150.]
     centrality: [[0,10]]
     alpha: [1, 1.5, 2, 3]
     SoftDrop:
-      # Ungroomed
-      - {'zcut': 0.0, 'beta': 0}
-      # Groomed
-      - {'zcut': 0.2, 'beta': 0}
+      - {'zcut': 0., 'beta': 0}   # Ungroomed
+      - {'zcut': 0.2, 'beta': 0}  # Groomed
+    xtitle: '#it{#lambda}_{#alpha}^{#kappa=1}'
 
-  # ALICE jet mass
+    # Angularities for pp were already in the previous paper.
+    # pp: https://www.hepdata.net/record/ins1891385
+    hepdata_pp: 'HEPData-ins1891385-v1-root.root'
+    # Ungroomed
+    hepdata_pp_dir_R0.2_alpha_1_pt0: 'Table 41'
+    hepdata_pp_dir_R0.2_alpha_1_pt1: 'Table 49'
+    hepdata_pp_dir_R0.2_alpha_1_pt2: 'Table 57'
+    hepdata_pp_dir_R0.2_alpha_1.5_pt0: 'Table 42'
+    hepdata_pp_dir_R0.2_alpha_1.5_pt1: 'Table 50'
+    hepdata_pp_dir_R0.2_alpha_1.5_pt2: 'Table 58'
+    hepdata_pp_dir_R0.2_alpha_2_pt0: 'Table 43'
+    hepdata_pp_dir_R0.2_alpha_2_pt1: 'Table 51'
+    hepdata_pp_dir_R0.2_alpha_2_pt2: 'Table 59'
+    hepdata_pp_dir_R0.2_alpha_3_pt0: 'Table 44'
+    hepdata_pp_dir_R0.2_alpha_3_pt1: 'Table 52'
+    hepdata_pp_dir_R0.2_alpha_3_pt2: 'Table 60'
+    # Groomed
+    hepdata_pp_dir_R0.2_alpha_1_zcut0.2_beta0_pt0: 'Table 45'
+    hepdata_pp_dir_R0.2_alpha_1_zcut0.2_beta0_pt1: 'Table 53'
+    hepdata_pp_dir_R0.2_alpha_1_zcut0.2_beta0_pt2: 'Table 61'
+    hepdata_pp_dir_R0.2_alpha_1.5_zcut0.2_beta0_pt0: 'Table 46'
+    hepdata_pp_dir_R0.2_alpha_1.5_zcut0.2_beta0_pt1: 'Table 54'
+    hepdata_pp_dir_R0.2_alpha_1.5_zcut0.2_beta0_pt2: 'Table 62'
+    hepdata_pp_dir_R0.2_alpha_2_zcut0.2_beta0_pt0: 'Table 47'
+    hepdata_pp_dir_R0.2_alpha_2_zcut0.2_beta0_pt1: 'Table 55'
+    hepdata_pp_dir_R0.2_alpha_2_zcut0.2_beta0_pt2: 'Table 63'
+    hepdata_pp_dir_R0.2_alpha_3_zcut0.2_beta0_pt0: 'Table 48'
+    hepdata_pp_dir_R0.2_alpha_3_zcut0.2_beta0_pt1: 'Table 56'
+    hepdata_pp_dir_R0.2_alpha_3_zcut0.2_beta0_pt2: 'Table 64'
+    hepdata_pp_gname: 'Graph1D_y1'
+    ytitle_pp: '#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}'
+    y_min_pp: 1e-3
+    y_max_pp: 0.3
+
+    # AA: https://www.hepdata.net/record/ins2845788
+    hepdata_AA: 'HEPData-ins2845788-v1-root.root'
+    # Ungroomed
+    hepdata_AA_dir_R0.2_alpha_1_pt0: 'Table 1'
+    hepdata_AA_dir_R0.2_alpha_1_pt1: 'Table 9'
+    hepdata_AA_dir_R0.2_alpha_1_pt2: 'Table 17'
+    hepdata_AA_dir_R0.2_alpha_1_pt3: 'Table 25'
+    hepdata_AA_dir_R0.2_alpha_1.5_pt0: 'Table 2'
+    hepdata_AA_dir_R0.2_alpha_1.5_pt1: 'Table 10'
+    hepdata_AA_dir_R0.2_alpha_1.5_pt2: 'Table 18'
+    hepdata_AA_dir_R0.2_alpha_1.5_pt3: 'Table 26'
+    hepdata_AA_dir_R0.2_alpha_2_pt0: 'Table 3'
+    hepdata_AA_dir_R0.2_alpha_2_pt1: 'Table 11'
+    hepdata_AA_dir_R0.2_alpha_2_pt2: 'Table 19'
+    hepdata_AA_dir_R0.2_alpha_2_pt3: 'Table 27'
+    hepdata_AA_dir_R0.2_alpha_3_pt0: 'Table 4'
+    hepdata_AA_dir_R0.2_alpha_3_pt1: 'Table 12'
+    hepdata_AA_dir_R0.2_alpha_3_pt2: 'Table 20'
+    hepdata_AA_dir_R0.2_alpha_3_pt3: 'Table 28'
+    # Groomed
+    hepdata_AA_dir_R0.2_alpha_1_zcut0.2_beta0_pt0: 'Table 5'
+    hepdata_AA_dir_R0.2_alpha_1_zcut0.2_beta0_pt1: 'Table 13'
+    hepdata_AA_dir_R0.2_alpha_1_zcut0.2_beta0_pt2: 'Table 21'
+    hepdata_AA_dir_R0.2_alpha_1_zcut0.2_beta0_pt3: 'Table 29'
+    hepdata_AA_dir_R0.2_alpha_1.5_zcut0.2_beta0_pt0: 'Table 6'
+    hepdata_AA_dir_R0.2_alpha_1.5_zcut0.2_beta0_pt1: 'Table 14'
+    hepdata_AA_dir_R0.2_alpha_1.5_zcut0.2_beta0_pt2: 'Table 22'
+    hepdata_AA_dir_R0.2_alpha_1.5_zcut0.2_beta0_pt3: 'Table 30'
+    hepdata_AA_dir_R0.2_alpha_2_zcut0.2_beta0_pt0: 'Table 7'
+    hepdata_AA_dir_R0.2_alpha_2_zcut0.2_beta0_pt1: 'Table 15'
+    hepdata_AA_dir_R0.2_alpha_2_zcut0.2_beta0_pt2: 'Table 23'
+    hepdata_AA_dir_R0.2_alpha_2_zcut0.2_beta0_pt3: 'Table 31'
+    hepdata_AA_dir_R0.2_alpha_3_zcut0.2_beta0_pt0: 'Table 8'
+    hepdata_AA_dir_R0.2_alpha_3_zcut0.2_beta0_pt1: 'Table 16'
+    hepdata_AA_dir_R0.2_alpha_3_zcut0.2_beta0_pt2: 'Table 24'
+    hepdata_AA_dir_R0.2_alpha_3_zcut0.2_beta0_pt3: 'Table 32'
+    ytitle_AA: '#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}'
+    y_min_AA: 0.
+    y_max_AA: 30.
+
+  # ALICE, jet mass
   # https://www.hepdata.net/record/ins2845788
   # NOTE: Includes both groomed and ungroomed mass
+  # NOTE: Ratios are not reported, so we will need to calculate them ourselves.
   mass_alice:
-    jet_R: [0.2, 0.4]
+    jet_R: [0.2]
     eta_cut_R: 0.9
     pt: [40., 60., 80., 100., 150.]
     centrality: [[0,10]]
     SoftDrop:
-      # Groomed
-      - {'zcut': 0.2, 'beta': 0}
-    xtitle: '#it{m}_{jet}'
+      - {'zcut': 0., 'beta': 0}   # Ungroomed
+      - {'zcut': 0.2, 'beta': 0}  # Groomed
+    # NOTE: This label will be incorrect in the groomed case.
+    #       However, it's quite convenient to treat them together, and the label will make it clear,
+    #       so we will keep it as is.
+    xtitle: '#it{m}_{jet}  #left[GeV^{2}/#it{c}#right]'
 
-    hepdata: 'HEPData-ins1512107-v1-root.root'
-    hepdata_pp_dir_R0.4_pt0: 'Table 1'
-    hepdata_pp_dir_R0.4_pt1: 'Table 2'
-    hepdata_pp_dir_R0.4_pt2: 'Table 3'
+    hepdata: 'HEPData-ins2845788-v1-root.root'
+    hepdata_pp_dir_R0.2_pt0: 'Table 33'
+    hepdata_pp_dir_R0.2_pt1: 'Table 35'
+    hepdata_pp_dir_R0.2_pt2: 'Table 37'
+    hepdata_pp_dir_R0.2_zcut0.2_beta0_pt0: 'Table 34'
+    hepdata_pp_dir_R0.2_zcut0.2_beta0_pt1: 'Table 36'
+    hepdata_pp_dir_R0.2_zcut0.2_beta0_pt2: 'Table 38'
     hepdata_pp_gname: 'Graph1D_y1'
-    ytitle_pp: '#frac{1}{#sigma} #frac{d#sigma}{d#it{m}} #left[GeV^{-2}#right]'
-    y_min_pp: 1e-3
-    y_max_pp: 0.3
+    ytitle_pp: '#frac{1}{#sigma} #frac{d#sigma}{d#it{m}} #left[(GeV^{2}/#it{c})^{-2}#right]'
+    y_min_pp: 0.
+    y_max_pp: 1.
 
-    hepdata_AA_dir_R0.4_pt0: 'Table 4'
-    hepdata_AA_dir_R0.4_pt1: 'Table 5'
-    hepdata_AA_dir_R0.4_pt2: 'Table 6'
+    hepdata_AA_dir_R0.2_pt0: 'Table 39'
+    hepdata_AA_dir_R0.2_pt1: 'Table 41'
+    hepdata_AA_dir_R0.2_pt2: 'Table 43'
+    hepdata_AA_dir_R0.2_pt3: 'Table 45'
+    hepdata_AA_dir_R0.2_zcut0.2_beta0_pt0: 'Table 40'
+    hepdata_AA_dir_R0.2_zcut0.2_beta0_pt1: 'Table 42'
+    hepdata_AA_dir_R0.2_zcut0.2_beta0_pt2: 'Table 44'
+    hepdata_AA_dir_R0.2_zcut0.2_beta0_pt3: 'Table 46'
     hepdata_AA_gname: 'Graph1D_y1'
     hepdata_AA_hname: 'Hist1D_y1'
-    ytitle_AA: '#it{R}_{D(z)}'
+    ytitle_AA: '#frac{1}{#sigma} #frac{d#sigma}{d#it{m}} #left[(GeV^{2}/#it{c})^{-2}#right]'
     y_min_AA: 0.
-    y_max_AA: 2.
+    y_max_AA: 1.
 
     skip_AA_distribution: True
 
