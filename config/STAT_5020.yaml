@@ -1097,6 +1097,8 @@ inclusive_chjet:
     hepdata_AA_dir_R0.2_alpha_3_zcut0.2_beta0_pt1: 'Table 16'
     hepdata_AA_dir_R0.2_alpha_3_zcut0.2_beta0_pt2: 'Table 24'
     hepdata_AA_dir_R0.2_alpha_3_zcut0.2_beta0_pt3: 'Table 32'
+    hepdata_AA_gname: 'Graph1D_y1'
+    hepdata_AA_hname: 'Hist1D_y1'
     ytitle_AA: '#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}'
     y_min_AA: 0.
     y_max_AA: 30.
