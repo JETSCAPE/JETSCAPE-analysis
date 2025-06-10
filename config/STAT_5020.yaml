@@ -931,13 +931,22 @@ inclusive_chjet:
   # https://inspirehep.net/literature/2512925
   rg_atlas:
     jet_R: [0.4]
-    eta_cut_R: 2.0
-    pt: [...]
+    eta_cut: 2.0
+    # TODO: Update
+    pt: [100, 150, 200]
     centrality: [[0,10]]
     SoftDrop:
       - {'zcut': 0.2, 'beta': 0}
     xtitle: '#it{R}_{g}'
-    hepdata: ''
+    # Rg bins
+    # TODO: Update
+    bins: [ 0.0, 1.0]
+
+    skip_pp: True
+
+    ytitle_AA: 'PbPb / pp'
+    y_min_AA: 0.
+    y_max_AA: 2.
 
   # ALICE, Subjet fraction
   # - [ ] Inclusive

@@ -803,6 +803,22 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     zg = jet_groomed_lund.z()    # Note: untagged jets will return negative value
                                     self.observable_dict_event[f'inclusive_jet_zg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}'].append([jet_pt, zg])
 
+            # ATLAS, Rg
+            #   Hole treatment:
+            #    - For shower_recoil case, correct the pt only
+            #    - For negative_recombiner case, no subtraction is needed
+            #    - For constituent_subtraction, no subtraction is needed
+            if self.centrality_accepted(self.inclusive_chjet_observables['rg_atlas']['centrality']):
+                if grooming_setting in self.inclusive_chjet_observables['rg_atlas']['SoftDrop']:
+                    pt_min = self.inclusive_chjet_observables['rg_atlas']['pt'][0]
+                    pt_max = self.inclusive_chjet_observables['rg_atlas']['pt'][1]
+                    if abs(jet.eta()) < (self.inclusive_chjet_observables['rg_atlas']['eta_cut'] - jetR):
+                        if jetR in self.inclusive_chjet_observables['rg_atlas']['jet_R']:
+                            if pt_min < jet_pt < pt_max:
+                                # Note: untagged jets will return negative value
+                                rg = jet_groomed_lund.Delta()
+                                self.observable_dict_event[f'inclusive_chjet_rg_atlas_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}'].append([jet_pt, rg])
+
     # ---------------------------------------------------------------
     # Fill inclusive charged jet observables
     # ---------------------------------------------------------------
