@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """ Base class to analyze a JETSCAPE output file
 
 You should create a user class that inherits from this one. See analyze_events_STAT.py for an example.
@@ -19,14 +17,13 @@ import sys
 import yaml
 import time
 from pathlib import Path
-from numba import jit
 
 # Analysis
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
-from pathlib import Path
+from numba import jit
 
 # Fastjet via python (from external library heppy)
 import fastjet as fj
@@ -42,7 +39,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # Constructor
     # ---------------------------------------------------------------
     def __init__(self, config_file="", input_file="", output_dir="", **kwargs):
-        super(AnalyzeJetscapeEvents_BaseSTAT, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.config_file = config_file
         self.input_file_hadrons = input_file
@@ -79,7 +76,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 # - the file index is at index 4 (in the example, it extracts `1` as an int)
                 _file_index = int(_final_state_hadrons_path.name.split('_')[4])
                 run_info_path = _final_state_hadrons_path.parent / f"{_run_number}_info.yaml"
-                with open(run_info_path, 'r') as f:
+                with run_info_path.open() as f:
                     _run_info = yaml.safe_load(f)
                     centrality_string = _run_info["index_to_hydro_event"][_file_index].split('/')[0].split('_')
                     # index of 1 and 2 based on an example entry of "cent_00_01"
@@ -154,15 +151,13 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             self.observable_dict_event = {}
 
             # Update self.centrality dynamically per event
-            if self.is_AA:
-                if self.use_event_based_centrality:
-                    # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
-                    if i == 0 and "centrality" not in event:
-                        msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
-                        raise ValueError(msg)
-                    self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
-                else:
-                    self.centrality = self.default_centrality  # Use fixed centrality; values are passed from the Run_info.yaml file
+            # NOTE: There's nothing to be done for pre-computed case - it's already stored in self.centrality
+            if self.is_AA and self.use_event_based_centrality:
+                # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
+                if i == 0 and "centrality" not in event:
+                    msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
+                    raise ValueError(msg)
+                self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
 
             # Call user-defined function to analyze event
             self.analyze_event(event)
