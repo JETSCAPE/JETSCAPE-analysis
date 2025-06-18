@@ -33,9 +33,9 @@ from collections import defaultdict
 from pathlib import Path
 
 # Fastjet via python (from external library heppy)
-import fastjet as fj
-import fjcontrib
-import fjext
+import fastjet as fj  # pyright: ignore [reportMissingImports]
+import fjcontrib  # pyright: ignore [reportMissingImports]
+import fjext  # pyright: ignore [reportMissingImports]
 import numpy as np
 import yaml
 

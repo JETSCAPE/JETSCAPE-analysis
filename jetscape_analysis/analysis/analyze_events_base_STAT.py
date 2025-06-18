@@ -2,7 +2,7 @@
 
 You should create a user class that inherits from this one. See analyze_events_STAT.py for an example.
 
-The outputdir should contain a JETSCAPE output file in parquet format
+The output_dir should contain a JETSCAPE output file in parquet format
 
 See README for pre-requisites.
 
@@ -11,26 +11,21 @@ See README for pre-requisites.
 
 from __future__ import annotations
 
-# General
-import os
-import sys
-import yaml
 import time
 from pathlib import Path
 
-# Analysis
+import fastjet as fj  # pyright: ignore [reportMissingImports]
+import fjcontrib  # pyright: ignore [reportMissingImports]
+import fjext  # pyright: ignore [reportMissingImports]
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-import numpy as np
+import yaml
 from numba import jit
 
-# Fastjet via python (from external library heppy)
-import fastjet as fj
-import fjcontrib
-import fjext
-
 from jetscape_analysis.base import common_base
+
 
 ################################################################
 class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
@@ -44,10 +39,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         self.config_file = config_file
         self.input_file_hadrons = input_file
         self.output_dir = Path(output_dir)
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        self.output_dir.mkdir(exist_ok=True, parents=True)
 
-        with open(self.config_file, 'r') as f:
+        with Path(self.config_file).open() as f:
             config = yaml.safe_load(f)
 
             if 'n_event_max' in config:
@@ -88,7 +82,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # If AA, initialize constituent subtractor
         self.constituent_subtractor = None
         if self.is_AA:
-            print('Constituent subtractor is enabled.')
+            print('Constituent subtractor is enabled.')  # noqa: T201
             constituent_subtractor = config['constituent_subtractor']
             max_distance = constituent_subtractor['R_max']
             max_eta = constituent_subtractor['max_eta']
@@ -101,16 +95,16 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             self.constituent_subtractor.set_ghost_area(ghost_area)
             self.constituent_subtractor.set_max_eta(max_eta)
             self.constituent_subtractor.initialize()
-            print(dir(self.constituent_subtractor))
+            print(dir(self.constituent_subtractor))  # noqa: T201
         else:
-            print('Constituent subtractor is disabled.')
+            print('Constituent subtractor is disabled.')  # noqa: T201
 
     # ---------------------------------------------------------------
     # Main processing function
     # ---------------------------------------------------------------
     def analyze_jetscape_events(self):
 
-        print('Analyzing events ...')
+        print('Analyzing events ...')  # noqa: T201
 
         # Initialize output objects
         self.initialize_output_objects()
@@ -127,7 +121,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Write analysis task output to ROOT file
         self.write_output_objects()
 
-        print('Done!')
+        print('Done!')  # noqa: T201
 
     # ---------------------------------------------------------------
     # Analyze event chunk
@@ -142,7 +136,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         for i, event in df_event_chunk.iterrows():
 
             if i % 1000 == 0:
-                print(f'event: {i}    (time elapsed: {time.time() - start} s)')
+                print(f'event: {i}    (time elapsed: {time.time() - start} s)')  # noqa: T201
 
             if i > self.n_event_max:
                 break
@@ -219,14 +213,12 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         if self.is_AA:
 
             for observable_centrality in observable_centrality_list:
-                if self.centrality[0] >= observable_centrality[0]:
-                    if self.centrality[1] <= observable_centrality[1]:
-                        return True
+                if self.centrality[0] >= observable_centrality[0] and self.centrality[1] <= observable_centrality[1]:
+                    return True
             return False
 
         # pp
-        else:
-            return True
+        return True
 
     # ---------------------------------------------------------------
     # Save output event list into a dataframe
@@ -247,8 +239,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # NOTE: As of 27 April 2021, this doesn't really work right because too many columns
         #       are of the "object" type. We may need to revise the output format to optimize
         #       the output size.
-        print(f"float_columns: {float_columns}")
-        print(f"other_columns: {other_columns}")
+        print(f"float_columns: {float_columns}")  # noqa: T201
+        print(f"other_columns: {other_columns}")  # noqa: T201
         pq.write_table(
             table, self.output_dir / self.output_file, compression="zstd",
             use_dictionary=other_columns,
@@ -262,7 +254,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         pq.write_table(cross_section_table, self.output_dir / filename, compression="zstd")
 
     # ---------------------------------------------------------------
-    # Fill hadrons into vector of fastjet pseudojets
+    # Fill hadrons into vector of fastjet PseudoJets
     #
     # By default, select all particles
     # If select_status='+', select only positive status particles
@@ -304,7 +296,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         status_factor = status_factor.astype(np.int32)
         for status in np.unique(status_selected): # Check that we only encounter expected statuses
             if status not in [0,-1]:
-                sys.exit(f'ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}')
+                msg = f'ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}'
+                raise RuntimeError(msg)
 
         # Create a vector of fastjet::PseudoJets from arrays of px,py,pz,e
         fj_particles = fjext.vectorize_px_py_pz_e(px, py, pz, e)
@@ -316,7 +309,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         if len(fj_particles) == len(status_factor):
             [fj_particles[i].set_user_index(int(status_factor[i]*(i+1))) for i,_ in enumerate(fj_particles)]
         else:
-            sys.exit(f'ERROR: fill_fastjet_constituents -- len(fj_particles) != {len(status_factor)} -- {len(fj_particles)} vs. {len(status_factor)}')
+            msg = f'ERROR: fill_fastjet_constituents -- len(fj_particles) != {len(status_factor)} -- {len(fj_particles)} vs. {len(status_factor)}'
+            raise RuntimeError(msg)
 
         return fj_particles, pid
 
@@ -325,7 +319,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # You must implement this
     # ---------------------------------------------------------------
     def analyze_event(self, event):
-        raise NotImplementedError('You must implement analyze_event()!')
+        msg = 'You must implement analyze_event()!'
+        raise NotImplementedError(msg)
 
 # ---------------------------------------------------------------
 # Construct charged particle mask
@@ -361,7 +356,7 @@ def get_charged_mask(pid, select_charged: bool):
     return charged_mask
 
 
-@jit(nopython=True)  # type: ignore
+@jit(nopython=True)
 def dphi_in_range_for_hadron_correlations(dphi: float, min_phi: float = -np.pi / 2, max_phi: float = 3 * np.pi / 2) -> float:
     """ Put dphi in range min_phi <= dphi < max_phi
 
