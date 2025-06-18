@@ -1089,26 +1089,27 @@ gamma_jet:
   # pp: sqrt(sNN) =5.02 TeV
   # PbPb: sqrt(sNN) =5.02 TeV
   pt_atlas:
-    pp:
-      gamma_eta: [-2.37, 2.37]
-      gamma_pT: [50.,1000.]
-      isolation_R: [0.3]
-      isolation_E: [0,3.]
-      jet_R: [0.4]
-      jet_eta: [-2.8,2.8]
-      jet_pT: [50., 320.]
-      jet_deltaphi: [7pi/8, pi]
-      xtitle: '#it{p}_{T,jet} (GeV/#it{c})'
-      logy: True
+    gamma_eta: [-2.37, 2.37]
+    gamma_pT_min: 50.
+    isolation_R: [0.3]
+    isolation_Et_max_pp: [3.]
+    isolation_Et_max_AA: [10.] # TODO see if we have to change this to 3 as well due to lack of UE
+    isolation_type: 'full'
+    jet_R: [0.4]
+    jet_eta: [-2.8,2.8]
+    jet_pT: [50., 320.]
+    dPhi: 7./8. # dPhi > 7/8*pi
+    xtitle: '#it{p}_{T,jet} (GeV/#it{c})'
+    logy: True
 
-      # Fig 3
-      # https://www.hepdata.net/record/ins2648097?version=1&table=Figure%203
-      hepdata_pp_gname: 'Graph1D_y1'
-      ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]'
-      y_min_pp: 3e-4
-      y_max_pp: 2e-2
+    # Fig 3
+    # https://www.hepdata.net/record/ins2648097?version=1&table=Figure%203
+    hepdata_pp_gname: 'Graph1D_y1'
+    ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]'
+    y_min_pp: 3e-4
+    y_max_pp: 2e-2
 
-      bins: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
+    bins_pp: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
 
     # Isolation in PbPb (text from paper): “Thus, in Pb+Pb collisions, the isolation energy requirement depends
     # continuously on the centrality of the event and is chosen so that its efficiency for prompt
@@ -1116,27 +1117,15 @@ gamma_jet:
     # minimum-bias data (described in Section 4 below). This upper limit on the isolation energy is
     # approximately 10 GeV in 0–10% Pb+Pb events, but quickly decreases in more peripheral
     # events and converges to the pp value.
-    PbPb:
-      centrality: [[0,10], [10,30], [30,80]]
-      gamma_eta: [-2.37, 2.37]
-      gamma_pT: [50.,1000.]
-      isolation_R: [0.3]
-      isolation_E: [0,10.] # see text quotation above
-      jet_R: [0.4]
-      jet_eta: [-2.8,2.8]
-      jet_pT: [50., 320.]
-      jet_deltaphi: [7pi/8, pi]
-      xtitle: '#it{p}_{T,jet} (GeV/#it{c})'
-      logy: True
+    centrality: [[0,10], [10,30], [30,80]]
+    # Fig 4 (PbPb)
+    # https://www.hepdata.net/record/ins2648097?version=1&table=Figure%204
+    hepdata_AA_gname: 'Graph1D_y1'
+    ytitle_AA: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]'
+    y_min_AA: 3e-6
+    y_max_AA: 10.
 
-      # Fig 4
-      # https://www.hepdata.net/record/ins2648097?version=1&table=Figure%204
-      hepdata_pp_gname: 'Graph1D_y1'
-      ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]'
-      y_min_pp: 3e-6
-      y_max_pp: 10.
-
-      bins: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
+    bins_AA: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
 
   # paper: https://inspirehep.net/literature/1694678
   # HEPData: https://www.hepdata.net/record/ins1694678
@@ -1146,11 +1135,13 @@ gamma_jet:
     gamma_eta: [-2.37, 2.37]
     gamma_pT: [63.1.,200.]
     isolation_R: [0.3]
-    isolation_E: [0,3.]
+    isolation_type: 'full'
+    isolation_Et_max_pp: [3.]
+    isolation_Et_max_AA: [8.] # TODO double check value needed for PbPb
     jet_R: [0.4]
     jet_eta: [-2.8,2.8]
     jet_pT: [31.6., 1000.]
-    jet_deltaphi: [7pi/8, pi]
+    jet_deltaphi: 7./8. # dPhi > 7/8*pi
 
     # Fig 4; pTgamma=63-80 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%201
@@ -1201,16 +1192,21 @@ gamma_jet:
   # pmj comment:  absence of uncertainty in smearing parameters is a significant issue I think –
   # resulting likelihood not very meaningful imho
 
+  # comment FJ: note that only highest pT photon per event is used for the calculation of xj_gamma!!
+
   # pp: sqrt(sNN) =5.02 TeV
   # PbPb: sqrt(sNN) =5.02 TeV
   xj_gamma_cms:
     gamma_eta: [-1.48, 1.48]
     gamma_pT: [40.,100.]
     isolation_R: [0.4]
-    isolation_E: [0,1.] # after UE subtraction in PbPb
+    isolation_Et_max_pp: [1.]
+    isolation_Et_max_AA: [1.] # TODO double check value needed for PbPb and UE subtraction
+    isolation_type: 'full'
     jet_R: [0.3]
     jet_eta: [-1.6, 1.6]
     jet_pT: [30., 1000.]
+    jet_deltaphi: 7./8. # dPhi > 7/8*pi
 
     # Fig 2; dphi_Jgamma
     # https://www.hepdata.net/record/ins1638996?version=1&table=Table%202
@@ -1304,4 +1300,37 @@ gamma_jet:
     # gamma-jet pairs
     dPhi: 7./8. # dPhi > 7/8*pi
 
+#------------------------------------------------------------------
+#------------------------------------------------------------------
+# Z boson triggered observables
+Z_boson_triggered:
 
+  # Paper: https://inspirehep.net/literature/1812957
+  # Data: Missing 
+  Z_hadron_IAA_atlas:
+    centrality: [[0,10]]
+    pt_hadron_min: 1.
+    eta_hadron_max: 2.5 
+    pt_Z_min: 15.
+    eta_Z_max: 2.5 # TODO They write nowhere what the eta acceptance of reconstructed Z boson is. They write requirements for decay products but not for the Z. They say they correct for reconstruction effieciney but do not specify the region for Z Boson. The written value is a blind guess
+    dPhiMin: 3./4. # dPhi > 3/4*pi
+  # Paper: https://inspirehep.net/literature/1512112
+  # Data: https://www.hepdata.net/record/ins1512112
+  # Unfolded?: NO!!!
+  zjz_cms:
+    centrality: [[0,30]]
+    pt_jet_min: 30.
+    eta_jet_max: 1.6 # |eta| < 1.6
+    jet_R: [0.3]
+    pt_Z_min: 60.
+    eta_Z_max: 2.5 # TODO not givene xplicitly but i assume this is the case
+    dPhiMin: 7./8. # dPhi > 7/8*pi
+    
+    # TODO add figures and binning later, but we need xjz distirbution normalised by number of Z boson triggers,
+    # as well as dPhi distribution
+
+
+
+  
+
+  

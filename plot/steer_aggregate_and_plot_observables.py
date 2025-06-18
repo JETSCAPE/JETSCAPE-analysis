@@ -104,7 +104,7 @@ local_analysis_facility = "test_587cluster" # facililty to run local re-analysis
 # if version -1 is specified, histogram files for download will be downloaded from faclity/RunX/histograms without version specifier
 # if version -1 is specified, no upload of the results from reanalysis is possible
 analysis_version = -1
-force_reanalysis = False # force to analyse and download again, even if histogram files are present
+force_reanalysis = True # force to analyse and download again, even if histogram files are present
 delete_local_final_state_hadrons_after_analysis = True # delete final state hadron files after analysis is done
 randomize_run_order = False  # if true, runs will be shuffled into random order. This should be on by default, especially for benchmarking
 
@@ -126,7 +126,7 @@ facilities = ['bridges2', 'expanse']
 #-----------------------------------------------------------------
 stat_xsede_2021_dir = '/software/flo/myJETSCAPE/STAT-XSEDE-2021'
 jetscape_analysis_dir = '/software/flo/myJETSCAPE/JETSCAPE-analysis'
-local_base_outputdir = '/alf/data/flo/jetscape/reAnalysisOutput/20250516'
+local_base_outputdir = '/alf/data/flo/jetscape/reAnalysisOutput/20250617'
 analyis_container_path = '/software/flo/myJETSCAPE/STAT-XSEDE-2021/containers/stat_local_gcc_v3.6.sif'
 
 # re-analysisdebug options
