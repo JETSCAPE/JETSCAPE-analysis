@@ -83,7 +83,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [[tool.mypy.overrides]]
-module = ["ROOT", "numba", "nox", "scipy.*", "awkward"]
+module = ["ROOT", "numba", "nox", "scipy.*", "awkward", "pyarrow.*"]
 ignore_missing_imports = true
 
 [tool.ruff]
