@@ -85,6 +85,7 @@ hadron:
 
   # https://www.hepdata.net/record/ins1657384
   pt_ch_alice:
+    enabled: true
     eta_cut: 0.8
     pt: [5.0, 50.]
     centrality: [[0,5], [5,10], [10,20], [20,30], [30,40], [40,50]]
@@ -110,6 +111,7 @@ hadron:
 
   # https://www.hepdata.net/record/ins1759506 -- charged pions
   pt_pi_alice:
+    enabled: true
     eta_cut: 0.8
     pt: [5.0, 20.]
     centrality: [[0,5], [5,10], [10,20], [20,30], [30,40], [40,50]]
@@ -135,6 +137,7 @@ hadron:
 
   # https://www.hepdata.net/record/ins1496050
   pt_ch_cms:
+    enabled: true
     eta_cut: 1.0
     pt: [5.0, 400.]
     centrality: [[0,5], [5,10], [10,30], [30,50]]
@@ -166,6 +169,7 @@ hadron:
 
   # https://www.hepdata.net/record/ins2601282
   pt_ch_atlas:
+    enabled: true
     eta_cut: 2.5
     pt: [5.0, 300.] # measurement in p-Pb actually starts at 0.5 GeV but cutoff at 5 GeV to not simulate very soft stuff
     centrality: [ [0,5], [5,10], [10,20], [20,30], [30,40], [40,50] ] # we stop at 50% centrality, but the measurement continues to 80%
@@ -197,6 +201,7 @@ hadron_correlations:
   v2_atlas:
     # https://www.hepdata.net/record/ins1686834
     sp: # scalar product
+      enabled: false
       eta_cut: 2.5
       pt: [0.5, 60.]
       centrality: [[0,5], [5,10], [10,20], [20,30], [30,40], [40,50]]
@@ -219,6 +224,7 @@ hadron_correlations:
 
     # https://www.hepdata.net/record/ins1686834
     ep: # event plane
+      enabled: false
       eta_cut: 2.5
       pt: [0.5, 60.]
       centrality: [[0,5], [5,10], [10,20], [20,30], [30,40], [40,50]]
@@ -243,6 +249,7 @@ hadron_correlations:
   v2_cms:
     # https://www.hepdata.net/record/ins1511868
     sp: # scalar product
+      enabled: false
       eta_cut: 1.
       pt: [1., 100.]
       centrality: [[0,5], [5,10], [10,20], [20,30], [30,40], [40,50]]
@@ -264,6 +271,7 @@ hadron_correlations:
 
     # https://www.hepdata.net/record/ins1511868
     four: # four-particle cumulants
+      enabled: false
       eta_cut: 1.
       pt: [1., 100.]
       centrality: [[5,10], [10,20], [20,30], [30,40], [40,50]]
@@ -286,6 +294,7 @@ hadron_correlations:
   v2_alice:
     # https://www.hepdata.net/record/ins1666817
     sp: # scalar product
+      enabled: false
       eta_cut: 0.8
       pt: [0.2, 50.]
       centrality: [[0,5], [5,10], [10,20], [20,30], [30,40], [40,50]]
@@ -308,6 +317,7 @@ hadron_correlations:
 
     # https://www.hepdata.net/record/ins1666817
     four: # four-particle cumulants
+      enabled: false
       eta_cut: 0.8
       pt: [0.2, 50.]
       centrality: [[5,10], [10,20], [20,30], [30,40], [40,50]]
@@ -339,6 +349,7 @@ inclusive_jet:
   # Here, we use the result where the cut is applied on PbPb and pp
   # Note: The pp HEPData file contains no leading track requirement (only used for QA)
   pt_alice:
+    enabled: true
     jet_R: [0.2, 0.4]
     eta_cut_R: 0.7
     pt: [40., 140.]
@@ -381,6 +392,7 @@ inclusive_jet:
   #       below, since the y-integrated RAA has different binning than the y-differential RAA
   # Note: The PbPb binning in hepdata is different than the pp hepdata cross-section binning
   pt_atlas:
+    enabled: true
     jet_R: [0.4]
     y_cut: 2.8
     pt: [50., 1000.]
@@ -419,6 +431,7 @@ inclusive_jet:
   # We skip the pp QA for convenience, since the pp histograms consist of separate histograms
   #   for each y, binned in pt -- whereas the PbPb histograms are separated in pt and binned in y
   pt_y_atlas:
+    enabled: true
     jet_R: [0.4]
     y_cut: 2.8
     pt: [158, 200, 251, 316, 562]
@@ -478,6 +491,7 @@ inclusive_jet:
 
   # https://www.hepdata.net/record/ins1848440
   pt_cms:
+    enabled: true
     jet_R: [0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
     eta_cut: 2.0
     pt: [200., 1000.]
@@ -534,6 +548,7 @@ inclusive_jet:
 
   # https://www.hepdata.net/record/ins1673177
   Dz_atlas:
+    enabled: true
     jet_R: [0.4]
     y_cut: 2.1
     pt: [126., 158.49, 199.53, 251.19, 316.22, 398.1]
@@ -575,6 +590,7 @@ inclusive_jet:
     y_max_AA_distribution: 1e6
 
   Dpt_atlas:
+    enabled: true
     jet_R: [0.4]
     y_cut: 2.1
     pt: [126., 158.49, 199.53, 251.19, 316.22, 398.1]
@@ -619,6 +635,7 @@ inclusive_jet:
   # but only contains the distributions (and q/g templates).
   # We therefore skip constructing the PbPb/pp ratio for now.
   charge_cms:
+    enabled: true
     jet_R: [0.4]
     eta_cut: 1.5
     pt: [120., 1000000]
@@ -658,6 +675,7 @@ inclusive_jet:
 
   # https://www.hepdata.net/record/ins1672962
   mg_cms:
+    enabled: true
     jet_R: [0.4]
     eta_cut: 1.3
     pt: [140., 160., 180., 200., 300.]
@@ -753,6 +771,7 @@ inclusive_jet:
   # Note that no PbPb distributions are not reported except for 160-180 GeV
   # (the other pt bins have only "pp smeared" reported)
   zg_cms:
+    enabled: true
     jet_R: [0.4]
     eta_cut: 1.3
     pt: [140., 160., 180., 200., 250., 300., 500.]
@@ -794,6 +813,7 @@ inclusive_jet:
   # NOTE: pp distributions are not reported
   # NOTE: As compared to ALICE, this analyses reports just WTA-standard
   axis_cms:
+    enabled: true
     jet_R: [0.4]
     eta_cut: 1.6
     pt: [120., 150., 190, 230., 300]
@@ -841,6 +861,7 @@ inclusive_chjet:
   # PMJ 2/28/25: new analysis charged jet RAA with ME background correction
   # RJE 2025/04/07: Need to somehow disambiguate from the ML jet measurement.
   pt_alice:
+    enabled: true
     jet_R: [0.2, 0.3, 0.4, 0.5]
     eta_cut_R: 0.9  # 0.9 - R
     pt: [10., 200.]
@@ -863,6 +884,7 @@ inclusive_chjet:
   # ALICE, zg
   # https://www.hepdata.net/record/ins1893479
   zg_alice:
+    enabled: true
     jet_R: [0.2, 0.4]
     eta_cut_R: 0.9
     pt: [60., 80.]
@@ -897,6 +919,7 @@ inclusive_chjet:
   # ALICE, theta_g
   # https://www.hepdata.net/record/ins1893479
   tg_alice:
+    enabled: true
     jet_R: [0.2, 0.4]
     eta_cut_R: 0.9
     pt: [60., 80.]
@@ -930,6 +953,7 @@ inclusive_chjet:
 
   # https://inspirehep.net/literature/2512925
   rg_atlas:
+    enabled: false
     jet_R: [0.4]
     eta_cut: 2.0
     # TODO: Update
@@ -954,6 +978,7 @@ inclusive_chjet:
   # https://inspirehep.net/literature/2070434
   # RJE: TODO
   zr_alice:
+    enabled: false
     jet_R: [0.4]
     eta_cut_R: 0.9
     pt: [80., 120.]
@@ -971,6 +996,7 @@ inclusive_chjet:
   #     - Left: WTA-standard
   #     - Right: WTA-SD
   axis_alice:
+    enabled: true
     jet_R: [0.2, 0.4]
     eta_cut_R: 0.9
     pt: [40., 60, 80, 100, 140.]
@@ -1026,6 +1052,7 @@ inclusive_chjet:
   # NOTE: Includes both groomed and ungroomed mass
   # NOTE: Ratios are not reported, so we will need to calculate them ourselves.
   angularity_alice:
+    enabled: true
     jet_R: [0.2]
     eta_cut_R: 0.9
     pt: [40., 60., 80., 100., 150.]
@@ -1117,6 +1144,7 @@ inclusive_chjet:
   # NOTE: Includes both groomed and ungroomed mass
   # NOTE: Ratios are not reported, so we will need to calculate them ourselves.
   mass_alice:
+    enabled: true
     jet_R: [0.2]
     eta_cut_R: 0.9
     pt: [40., 60., 80., 100., 150.]
@@ -1160,6 +1188,7 @@ inclusive_chjet:
   # ALICE, ktg
   # https://www.hepdata.net/record/ins2831271
   ktg_alice:
+    enabled: true
     jet_R: [0.2]
     eta_cut_R: 0.9
     pt: [60., 80.]
@@ -1216,6 +1245,7 @@ semi_inclusive_chjet:
   # IAA vs pT
   # recoil jet acceptance |$\delta\varphi-\pi$|<0.6
   IAA_pt_alice:
+    enabled: true
     centrality: [[0,10]]
     hadron_eta_cut: 0.9
     low_trigger_range: [5, 7]
@@ -1239,6 +1269,7 @@ semi_inclusive_chjet:
   # PRL Fig 3 [Fig 2 contains these data for R=0.4 only]
   # IAA vs delta_phi
   dphi_alice:
+    enabled: false
     centrality: [[0,10]]
     hadron_eta_cut: 0.9
     low_trigger_range: [5, 7]
@@ -1262,6 +1293,7 @@ semi_inclusive_chjet:
   # PRC Fig 18
   # R(0.2/0.4) and R(0.2/0.5)
   dphi_ratio_alice:
+    enabled: false
     centrality: [[0,10]]
     hadron_eta_cut: 0.9
     low_trigger_range: [5, 7]
@@ -1291,6 +1323,7 @@ gamma_jet:
   # pp: sqrt(sNN) =5.02 TeV
   # PbPb: sqrt(sNN) =5.02 TeV
   pt_atlas:
+    enabled: false
     pp:
       gamma_eta: [-2.37, 2.37]
       gamma_pT: [50.,1000.]
@@ -1345,6 +1378,7 @@ gamma_jet:
   # pp: sqrt(sNN) =5.02 TeV
   # PbPb: sqrt(sNN) =5.02 TeV
   xj_gamma_atlas:
+    enabled: false
     gamma_eta: [-2.37, 2.37]
     gamma_pT: [63.1.,200.]
     isolation_R: [0.3]
@@ -1406,6 +1440,7 @@ gamma_jet:
   # pp: sqrt(sNN) =5.02 TeV
   # PbPb: sqrt(sNN) =5.02 TeV
   xj_gamma_cms:
+    enabled: false
     gamma_eta: [-1.48, 1.48]
     gamma_pT: [40.,100.]
     isolation_R: [0.4]
