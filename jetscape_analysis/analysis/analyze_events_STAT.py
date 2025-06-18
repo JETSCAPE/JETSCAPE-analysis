@@ -596,11 +596,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if pid not in acceptable_particles_isolation:
                         continue
                     isolation_particles_pos.append(hadron)
-                for hadron in hadrons_negative:
-                    pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
-                    if pid not in acceptable_particles_isolation:
-                        continue
-                    isolation_particles_neg.append(hadron)
+                if hadrons_negative is not None:
+                    for hadron in hadrons_negative:
+                        pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
+                        if pid not in acceptable_particles_isolation:
+                            continue
+                        isolation_particles_neg.append(hadron)
                
                 # Loop over all photons
                 for photon in photons:
@@ -616,9 +617,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         for jet in jets_selected:
                             holes_in_jet = []
                             if jet_collection_label in ['_shower_recoil', '_negative_recombiner']:
-                                for hadron in hadrons_negative:
-                                    if jet.delta_R(hadron) < jetR:
-                                        holes_in_jet.append(hadron)
+                                if hadrons_negative is not None:
+                                    for hadron in hadrons_negative:
+                                        if jet.delta_R(hadron) < jetR:
+                                            holes_in_jet.append(hadron)
                             jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
                             if (jet.R() == jet_R 
                                 and abs(jet.eta()) < jet_eta
@@ -687,11 +689,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if pid not in acceptable_particles_isolation:
                         continue
                     isolation_particles_pos.append(hadron)
-                for hadron in hadrons_negative:
-                    pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
-                    if pid not in acceptable_particles_isolation:
-                        continue
-                    isolation_particles_neg.append(hadron)
+                if hadrons_negative is not None:
+                    for hadron in hadrons_negative:
+                        pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
+                        if pid not in acceptable_particles_isolation:
+                            continue
+                        isolation_particles_neg.append(hadron)
 
                 # trigger selection (this is slightly different than usual because only highest pt isolated photon is accepted)
                 highest_pt_photon = None
@@ -710,9 +713,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     for jet in jets_selected:
                         holes_in_jet = []
                         if jet_collection_label in ['_shower_recoil', '_negative_recombiner']:
-                            for hadron in hadrons_negative:
-                                if jet.delta_R(hadron) < jetR:
-                                    holes_in_jet.append(hadron)
+                            if hadrons_negative is not None:
+                                for hadron in hadrons_negative:
+                                    if jet.delta_R(hadron) < jetR:
+                                        holes_in_jet.append(hadron)
                         jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
                         if (jet.R() == jet_R 
                             and abs(jet.eta()) < jet_eta
@@ -796,11 +800,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if pid not in acceptable_particles_isolation:
                         continue
                     isolation_particles_pos.append(hadron)
-                for hadron in hadrons_negative:
-                    pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
-                    if pid not in acceptable_particles_isolation:
-                        continue
-                    isolation_particles_neg.append(hadron)
+                
+                # do this only if negative hardrons were actually provided
+                if hadrons_negative is not None:
+                    for hadron in hadrons_negative:
+                        pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
+                        if pid not in acceptable_particles_isolation:
+                            continue
+                        isolation_particles_neg.append(hadron)
                 
                 # loop over all photons for trigger
                 for photon in photons:
@@ -859,11 +866,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if pid not in acceptable_particles_isolation:
                         continue
                     isolation_particles_pos.append(hadron)
-                for hadron in hadrons_negative:
-                    pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
-                    if pid not in acceptable_particles_isolation:
-                        continue
-                    isolation_particles_neg.append(hadron)
+                if hadrons_negative is not None:
+                    for hadron in hadrons_negative:
+                        pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
+                        if pid not in acceptable_particles_isolation:
+                            continue
+                        isolation_particles_neg.append(hadron)
                 
                 # loop over all photons for trigger
                 for photon in photons:
@@ -928,11 +936,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if pid not in acceptable_particles_isolation:
                         continue
                     isolation_particles_pos.append(hadron)
-                for hadron in hadrons_negative:
-                    pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
-                    if pid not in acceptable_particles_isolation:
-                        continue
-                    isolation_particles_neg.append(hadron)
+                if hadrons_negative is not None:
+                    for hadron in hadrons_negative:
+                        pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
+                        if pid not in acceptable_particles_isolation:
+                            continue
+                        isolation_particles_neg.append(hadron)
                 
                 # loop over all photons for trigger
                 # CMS performs the analysis only using the highest pt photon per event that fulfills the trigger requirements
