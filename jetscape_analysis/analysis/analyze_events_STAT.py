@@ -213,7 +213,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 # ALICE
                 # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-                if self.centrality_accepted(self.hadron_observables['pt_ch_alice']['centrality']):
+                if self.centrality_accepted(self.hadron_observables['pt_ch_alice']['centrality']) \
+                    and self.hadron_observables['pt_ch_alice']['enabled']:
                     pt_min = self.hadron_observables['pt_ch_alice']['pt'][0]
                     pt_max = self.hadron_observables['pt_ch_alice']['pt'][1]
                     if pt > pt_min and pt < pt_max:
@@ -222,7 +223,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 self.observable_dict_event[f'hadron_pt_ch_alice{suffix}'].append(pt)
 
                 # Charged pion
-                if self.centrality_accepted(self.hadron_observables['pt_pi_alice']['centrality']):
+                if self.centrality_accepted(self.hadron_observables['pt_pi_alice']['centrality']) \
+                    and self.hadron_observables['pt_pi_alice']['enabled']:
                     pt_min = self.hadron_observables['pt_pi_alice']['pt'][0]
                     pt_max = self.hadron_observables['pt_pi_alice']['pt'][1]
                     if pt > pt_min and pt < pt_max:
@@ -232,7 +234,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 # Neutral pions
                 if self.sqrts in [2760]:
-                    if self.centrality_accepted(self.hadron_observables['pt_pi0_alice']['centrality']):
+                    if self.centrality_accepted(self.hadron_observables['pt_pi0_alice']['centrality']) \
+                        and self.hadron_observables['pt_pi0_alice']['enabled']:
                         pt_min = self.hadron_observables['pt_pi0_alice']['pt'][0]
                         pt_max = self.hadron_observables['pt_pi0_alice']['pt'][1]
                         if pt > pt_min and pt < pt_max:
@@ -243,7 +246,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # ATLAS
                 # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
                 if self.sqrts in [2760, 5020]:
-                    if self.centrality_accepted(self.hadron_observables['pt_ch_atlas']['centrality']):
+                    if self.centrality_accepted(self.hadron_observables['pt_ch_atlas']['centrality']) \
+                        and self.hadron_observables['pt_ch_atlas']['enabled']:
                         pt_min = self.hadron_observables['pt_ch_atlas']['pt'][0]
                         pt_max = self.hadron_observables['pt_ch_atlas']['pt'][1]
                         if pt > pt_min and pt < pt_max:
@@ -253,7 +257,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     self.observable_dict_event[f'hadron_pt_ch_atlas{suffix}'].append(pt)
                 # CMS
                 # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-                if self.centrality_accepted(self.hadron_observables['pt_ch_cms']['centrality']):
+                if self.centrality_accepted(self.hadron_observables['pt_ch_cms']['centrality']) \
+                    and self.hadron_observables['pt_ch_cms']['enabled']:
                     pt_min = self.hadron_observables['pt_ch_cms']['pt'][0]
                     pt_max = self.hadron_observables['pt_ch_cms']['pt'][1]
                     if pt > pt_min and pt < pt_max:
@@ -265,7 +270,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 # PHENIX
                 # Neutral pions
-                if self.centrality_accepted(self.hadron_observables['pt_pi0_phenix']['centrality']):
+                if self.centrality_accepted(self.hadron_observables['pt_pi0_phenix']['centrality']) \
+                    and self.hadron_observables['pt_pi0_phenix']['enabled']:
                     pt_min = self.hadron_observables['pt_pi0_phenix']['pt'][0]
                     pt_max = 100. # Open upper bound
                     if pt > pt_min and pt < pt_max:
@@ -275,7 +281,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 # STAR
                 # Charged hadrons (pi+, K+, p+)
-                if self.centrality_accepted(self.hadron_observables['pt_ch_star']['centrality']):
+                if self.centrality_accepted(self.hadron_observables['pt_ch_star']['centrality']) \
+                    and self.hadron_observables['pt_ch_star']['enabled']:
                     pt_min = self.hadron_observables['pt_ch_star']['pt'][0]
                     pt_max = 100. # Open upper bound
                     if pt > pt_min and pt < pt_max:
@@ -303,14 +310,16 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
             if self.sqrts in [5020]:
                 # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-                if self.centrality_accepted(self.hadron_correlation_observables['v2_atlas']['centrality']):
+                if self.centrality_accepted(self.hadron_correlation_observables['v2_atlas']['centrality']) \
+                    and self.hadron_correlation_observables['v2_atlas']['enabled']:
                     pt_min = self.hadron_correlation_observables['v2_atlas']['pt'][0]
                     pt_max = self.hadron_correlation_observables['v2_atlas']['pt'][1]
                     if pt > pt_min and pt < pt_max:
                         if abs(eta) < self.hadron_correlation_observables['v2_atlas']['eta_cut']:
                             if abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]:
                                 self.observable_dict_event[f'hadron_correlations_v2_atlas{suffix}'].append([pt,CosineDPhi])
-                if self.centrality_accepted(self.hadron_correlation_observables['v2_cms']['centrality']):
+                if self.centrality_accepted(self.hadron_correlation_observables['v2_cms']['centrality']) \
+                    and self.hadron_correlation_observables['v2_cms']['enabled']:
                     pt_min = self.hadron_correlation_observables['v2_cms']['pt'][0]
                     pt_max = self.hadron_correlation_observables['v2_cms']['pt'][1]
                     if pt > pt_min and pt < pt_max:
@@ -324,7 +333,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #       We keep track of the particles which pass our conditions, so the double loop ends up
         #       running for small n rather than the full event multiplicity
         if self.sqrts in [200]:
-            if self.centrality_accepted(self.hadron_correlation_observables['dihadron_star']['centrality']):  # type: ignore
+            if self.centrality_accepted(self.hadron_correlation_observables['dihadron_star']['centrality']) \
+                and self.hadron_correlation_observables['dihadron_star']['enabled']:  # type: ignore
                 # Keep track of the trigger particles in pt ranges
                 trigger_particles = defaultdict(list)
                 # Keep track of the associated particles in pt ranges
@@ -551,7 +561,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #   Hole treatment:
             #    - For RAA, all jet collections can be filled from the corrected jet pt
             #    - In the shower_recoil case, we also fill the unsubtracted jet pt
-            if self.centrality_accepted(self.inclusive_jet_observables['pt_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_jet_observables['pt_alice']['centrality']) \
+                and self.inclusive_jet_observables['pt_alice']['enabled']:
                 pt_min, pt_max = self.inclusive_jet_observables['pt_alice']['pt']
                 if jetR in self.inclusive_jet_observables['pt_alice']['jet_R']:
                     if abs(jet.eta()) < (self.inclusive_jet_observables['pt_alice']['eta_cut_R'] - jetR):
@@ -576,7 +587,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     self.observable_dict_event[f'inclusive_jet_pt_alice_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
 
             # ATLAS RAA
-            if self.centrality_accepted(self.inclusive_jet_observables['pt_atlas']['centrality']):
+            if self.centrality_accepted(self.inclusive_jet_observables['pt_atlas']['centrality']) \
+                and self.inclusive_jet_observables['pt_atlas']['enabled']:
                 pt_min = self.inclusive_jet_observables['pt_atlas']['pt'][0]
                 pt_max = self.inclusive_jet_observables['pt_atlas']['pt'][1]
                 if jetR in self.inclusive_jet_observables['pt_atlas']['jet_R']:
@@ -588,7 +600,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
             # ATLAS RAA -- rapidity-dependence
             if self.sqrts in [5020]:
-                if self.centrality_accepted(self.inclusive_jet_observables['pt_y_atlas']['centrality']):
+                if self.centrality_accepted(self.inclusive_jet_observables['pt_y_atlas']['centrality']) \
+                    and self.inclusive_jet_observables['pt_y_atlas']['enabled']:
                     pt_min = self.inclusive_jet_observables['pt_y_atlas']['pt'][0]
                     pt_max = self.inclusive_jet_observables['pt_y_atlas']['pt'][-1]
                     if jetR in self.inclusive_jet_observables['pt_y_atlas']['jet_R']:
@@ -600,7 +613,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     self.observable_dict_event[f'inclusive_jet_pt_y_atlas_R{jetR}{jet_collection_label}_unsubtracted'].append([jet_pt_uncorrected, y_abs])
 
             # CMS RAA
-            if self.centrality_accepted(self.inclusive_jet_observables['pt_cms']['centrality']):
+            if self.centrality_accepted(self.inclusive_jet_observables['pt_cms']['centrality']) \
+                and self.inclusive_jet_observables['pt_cms']['enabled']:
                 pt_min = self.inclusive_jet_observables['pt_cms']['pt'][0]
                 pt_max = self.inclusive_jet_observables['pt_cms']['pt'][1]
                 if jetR in self.inclusive_jet_observables['pt_cms']['jet_R']:
@@ -617,7 +631,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For constituent_subtraction, we will using hadrons_for_jet_finding (which are positive only)
             #   Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-            if self.centrality_accepted(self.inclusive_jet_observables['Dz_atlas']['centrality']):
+            if self.centrality_accepted(self.inclusive_jet_observables['Dz_atlas']['centrality']) \
+                and self.inclusive_jet_observables['Dz_atlas']['enabled']:
                 pt_min = self.inclusive_jet_observables['Dz_atlas']['pt'][0]
                 pt_max = self.inclusive_jet_observables['Dz_atlas']['pt'][-1]
                 if jetR in self.inclusive_jet_observables['Dz_atlas']['jet_R']:
@@ -652,7 +667,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #   Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             if self.sqrts == 2760:
-                if self.centrality_accepted(self.inclusive_jet_observables['Dz_cms']['centrality']):
+                if self.centrality_accepted(self.inclusive_jet_observables['Dz_cms']['centrality']) \
+                    and self.inclusive_jet_observables['Dz_cms']['enabled']:
                     pt_min = self.inclusive_jet_observables['Dz_cms']['pt'][0]
                     pt_max = self.inclusive_jet_observables['Dz_cms']['pt'][-1]
                     eta_range = self.inclusive_jet_observables['Dz_cms']['eta_cut']
@@ -693,7 +709,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # Charged particles (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             if self.sqrts == 5020:
-                if self.centrality_accepted(self.inclusive_jet_observables['charge_cms']['centrality']):
+                if self.centrality_accepted(self.inclusive_jet_observables['charge_cms']['centrality']) \
+                    and self.inclusive_jet_observables['charge_cms']['enabled']:
                     pt_min = self.inclusive_jet_observables['charge_cms']['pt'][0]
                     if jetR in self.inclusive_jet_observables['charge_cms']['jet_R']:
                         if abs(jet.eta()) < self.inclusive_jet_observables['charge_cms']['eta_cut']:
@@ -731,7 +748,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_jet_observables['axis_cms']['centrality']):
+            if self.centrality_accepted(self.inclusive_jet_observables['axis_cms']['centrality']) \
+                and self.inclusive_jet_observables['axis_cms']['enabled']:
                 pt_min = self.inclusive_jet_observables['axis_cms']['pt'][0]
                 pt_max = self.inclusive_jet_observables['axis_cms']['pt'][-1]
                 if abs(jet.eta()) < (self.inclusive_jet_observables['axis_cms']['eta_cut']):
@@ -776,7 +794,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_jet_observables['mg_cms']['centrality']):
+            if self.centrality_accepted(self.inclusive_jet_observables['mg_cms']['centrality']) \
+                and self.inclusive_jet_observables['mg_cms']['enabled']:
                 if grooming_setting in self.inclusive_jet_observables['mg_cms']['SoftDrop']:
                     pt_min = self.inclusive_jet_observables['mg_cms']['pt'][0]
                     pt_max = self.inclusive_jet_observables['mg_cms']['pt'][-1]
@@ -792,7 +811,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_jet_observables['zg_cms']['centrality']):
+            if self.centrality_accepted(self.inclusive_jet_observables['zg_cms']['centrality']) \
+                and self.inclusive_jet_observables['zg_cms']['enabled']:
                 if grooming_setting in self.inclusive_jet_observables['zg_cms']['SoftDrop']:
                     pt_min = self.inclusive_jet_observables['zg_cms']['pt'][0]
                     pt_max = self.inclusive_jet_observables['zg_cms']['pt'][-1]
@@ -808,7 +828,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['rg_atlas']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['rg_atlas']['centrality']) \
+                and self.inclusive_chjet_observables['rg_atlas']['enabled']:
                 if grooming_setting in self.inclusive_chjet_observables['rg_atlas']['SoftDrop']:
                     pt_min = self.inclusive_chjet_observables['rg_atlas']['pt'][0]
                     pt_max = self.inclusive_chjet_observables['rg_atlas']['pt'][1]
@@ -832,7 +853,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, subtract holes within r (for subjets) and R (for jets)
             #    - For negative_recombiner case, subtract holes within r (for subjets) only
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['zr_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['zr_alice']['centrality']) \
+                and self.inclusive_chjet_observables['zr_alice']['enabled']:
                 pt_min = self.inclusive_chjet_observables['zr_alice']['pt'][0]
                 pt_max = self.inclusive_chjet_observables['zr_alice']['pt'][-1]
                 if abs(jet.eta()) < (self.inclusive_chjet_observables['zr_alice']['eta_cut_R'] - jetR):
@@ -854,7 +876,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['axis_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['axis_alice']['centrality']) \
+                and self.inclusive_chjet_observables['axis_alice']['enabled']:
                 pt_min = self.inclusive_chjet_observables['axis_alice']['pt'][0]
                 pt_max = self.inclusive_chjet_observables['axis_alice']['pt'][-1]
                 if abs(jet.eta()) < (self.inclusive_chjet_observables['axis_alice']['eta_cut_R'] - jetR):
@@ -878,7 +901,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, subtract the hole contribution within R to the angularity (also store unsubtracted case)
             #    - For negative_recombiner case, subtract the hole contribution within R to the angularity
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['angularity_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['angularity_alice']['centrality']) \
+                and self.inclusive_chjet_observables['angularity_alice']['enabled']:
                 pt_min = self.inclusive_chjet_observables['angularity_alice']['pt'][0]
                 pt_max = self.inclusive_chjet_observables['angularity_alice']['pt'][-1]
                 if abs(jet.eta()) < (self.inclusive_chjet_observables['angularity_alice']['eta_cut_R'] - jetR):
@@ -910,7 +934,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, subtract recoils within R from four-vector (also store unsubtracted case)
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['mass_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['mass_alice']['centrality']) \
+                and self.inclusive_chjet_observables['mass_alice']['enabled']:
                 pt_min = self.inclusive_chjet_observables['mass_alice']['pt'][0]
                 pt_max = self.inclusive_chjet_observables['mass_alice']['pt'][-1]
                 if abs(jet.eta()) < (self.inclusive_chjet_observables['mass_alice']['eta_cut_R'] - jetR):
@@ -933,7 +958,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #   Hole treatment (same as with full jets - copied here for convenience):
             #    - For RAA, all jet collections can be filled from the corrected jet pt
             #    - In the shower_recoil case, we also fill the unsubtracted jet pt
-            if self.centrality_accepted(self.inclusive_chjet_observables['pt_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['pt_alice']['centrality']) \
+                and self.inclusive_chjet_observables['pt_alice']['enabled']:
                 pt_min = self.inclusive_chjet_observables['pt_alice']['pt'][0]
                 pt_max = self.inclusive_chjet_observables['pt_alice']['pt'][1]
                 if jetR in self.inclusive_chjet_observables['pt_alice']['jet_R']:
@@ -957,7 +983,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, subtract the hole contribution within R to the angularity (also store unsubtracted case)
             #    - For negative_recombiner case, subtract the hole contribution within R to the angularity
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['g_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['g_alice']['centrality']) \
+                and self.inclusive_chjet_observables['g_alice']['enabled']:
                 pt_min = self.inclusive_chjet_observables['g_alice']['pt'][0]
                 pt_max = self.inclusive_chjet_observables['g_alice']['pt'][1]
                 if abs(jet.eta()) < (self.inclusive_chjet_observables['g_alice']['eta_cut_R'] - jetR):
@@ -982,7 +1009,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, subtract the hole contribution within R to the angularity (also store unsubtracted case)
             #    - For negative_recombiner case, subtract the hole contribution within R to the angularity
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['ptd_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['ptd_alice']['centrality']) \
+                and self.inclusive_chjet_observables['ptd_alice']['enabled']:
                 pt_min = self.inclusive_chjet_observables['ptd_alice']['pt'][0]
                 pt_max = self.inclusive_chjet_observables['ptd_alice']['pt'][1]
                 if abs(jet.eta()) < (self.inclusive_chjet_observables['ptd_alice']['eta_cut_R'] - jetR):
@@ -1005,7 +1033,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         elif self.sqrts == 200:
 
             # STAR RAA
-            if self.centrality_accepted(self.inclusive_chjet_observables['pt_star']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['pt_star']['centrality']) \
+                and self.inclusive_chjet_observables['pt_star']['enabled']:
                 pt_min = self.inclusive_chjet_observables['pt_star']['pt'][0]
                 pt_max = 100. # Open upper bound
                 if jetR in self.inclusive_chjet_observables['pt_star']['jet_R']:
@@ -1053,7 +1082,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For constituent_subtraction, no subtraction is needed
             # For DyG, we need to record regardless of whether it passes SD, so we look at that observable first,
             # and then proceed with the rest afterwards.
-            if self.centrality_accepted(self.inclusive_chjet_observables['ktg_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['ktg_alice']['centrality']) \
+                and self.inclusive_chjet_observables['ktg_alice']['enabled']:
                 # We put both DyG and SD after this setting to avoid filling DyG multiple times
                 # (since DyG isn't included in the set of grooming settings)
                 if grooming_setting in self.inclusive_chjet_observables['ktg_alice']['SoftDrop']:
@@ -1082,7 +1112,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['zg_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['zg_alice']['centrality']) \
+                and self.inclusive_chjet_observables['zg_alice']['enabled']:
                 if grooming_setting in self.inclusive_chjet_observables['zg_alice']['SoftDrop']:
                     pt_min = self.inclusive_chjet_observables['zg_alice']['pt'][0]
                     pt_max = self.inclusive_chjet_observables['zg_alice']['pt'][1]
@@ -1100,7 +1131,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['axis_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['axis_alice']['centrality']) \
+                and self.inclusive_chjet_observables['axis_alice']['enabled']:
                 if grooming_setting in self.inclusive_chjet_observables['axis_alice']['axis']["SD"]["grooming_settings"]:
                     pt_min = self.inclusive_chjet_observables['axis_alice']['pt'][0]
                     pt_max = self.inclusive_chjet_observables['axis_alice']['pt'][-1]
@@ -1129,7 +1161,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, correct the pt only
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['angularity_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['angularity_alice']['centrality']) \
+                and self.inclusive_chjet_observables['angularity_alice']['enabled']:
                 if grooming_setting in self.inclusive_chjet_observables['angularity_alice']['SoftDrop']:
                     pt_min = self.inclusive_chjet_observables['angularity_alice']['pt'][0]
                     pt_max = self.inclusive_chjet_observables['angularity_alice']['pt'][-1]
@@ -1146,7 +1179,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.inclusive_chjet_observables['mass_alice']['centrality']):
+            if self.centrality_accepted(self.inclusive_chjet_observables['mass_alice']['centrality']) \
+                and self.inclusive_chjet_observables['mass_alice']['enabled']:
                 if grooming_setting in self.inclusive_chjet_observables['mass_alice']['SoftDrop']:
                     pt_min = self.inclusive_chjet_observables['mass_alice']['pt'][0]
                     pt_max = self.inclusive_chjet_observables['mass_alice']['pt'][-1]
@@ -1225,7 +1259,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         else:
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
-                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['IAA_pt_alice']['centrality']):
+                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['IAA_pt_alice']['centrality']) \
+                            and self.semi_inclusive_chjet_observables['IAA_pt_alice']['enabled']:
                             if is_signal_event:
                                 if jetR in self.semi_inclusive_chjet_observables['IAA_pt_alice']['jet_R']:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
@@ -1311,7 +1346,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         else:
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
-                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['nsubjettiness_alice']['centrality']):
+                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['nsubjettiness_alice']['centrality']) \
+                            and self.semi_inclusive_chjet_observables['nsubjettiness_alice']['enabled']:
                             if jetR in self.semi_inclusive_chjet_observables['nsubjettiness_alice']['jet_R']:
                                 if is_signal_event:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
@@ -1376,7 +1412,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
                         # Jet yield and Delta phi
-                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['IAA_star']['centrality']):
+                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['IAA_star']['centrality']) \
+                            and self.semi_inclusive_chjet_observables['IAA_star']['enabled']:
 
                             if jetR in self.semi_inclusive_chjet_observables['IAA_star']['jet_R']:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
@@ -1401,7 +1438,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct jet pt by subtracting holes within R
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.dijet_observables['xj_atlas']['centrality']):
+            if self.centrality_accepted(self.dijet_observables['xj_atlas']['centrality']) \
+                and self.dijet_observables['xj_atlas']['enabled']:
                 if jetR in self.dijet_observables['xj_atlas']['jet_R']:
 
                     # First, find jets passing kinematic cuts

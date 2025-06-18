@@ -79,18 +79,19 @@ hadron:
   # https://inspirehep.net/literature/1127262
   # Fig 11
   pt_pi0_phenix:
+    enabled: true
     eta_cut: 0.35
     pt: [5., 20.]
     centrality: [[0,10], [10,20], [20,30], [30,40], [40,50]]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     hepdata: 'HEPData-ins1127262-v2-root.root'
     ytitle_pp: '#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]'
     y_min_pp: 2e-12
     y_max_pp: 1e-4
     scale_by: '1/pt'
-    skip_pp: True
+    skip_pp: true
 
     hepdata_AA_dir: 'Figure 11'
     hepdata_AA_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4', 'Graph1D_y5']
@@ -109,11 +110,12 @@ hadron:
   # https://www.hepdata.net/record/ins619063
   # Summed yields of pi+-, K+-, p, anti-p
   pt_ch_star:
+    enabled: true
     eta_cut: 0.5
     pt: [5., 12.]
     centrality: [[0,5], [10,20], [20,30], [30,40]]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     hepdata: 'HEPData-ins619063-v1-root.root'
     hepdata_pp_dir: 'Table 1'
@@ -145,6 +147,7 @@ hadron_correlations:
   # See Fig 3 here: https://arxiv.org/pdf/nucl-th/0701045.pdf
   # pmj 13/1/22: incomplete. This is a key RHIC paper imho (based on the analysis of Xin-Nian et al., which formed the basis of a lot of developments)
   dihadron_star:
+    enabled: true
     eta_cut: 1.0
     pt_trig: [[8., 15.]]
     pt_assoc: [[4, 6], [6, -1]]
@@ -169,7 +172,7 @@ hadron_correlations:
     # NOTE: The delta phi correlations are always available in the histograms from the skim
     # NOTE: The xtitle is wrong in the case where we draw the deltaPhi correlations. One can tell
     #       by looking at the x range: [-pi/2, 3pi/2] is the correlations, which 0-10 is the yields.
-    skip_pp: True
+    skip_pp: true
     # These ranges are more appropriate for the delta phi correlations
     y_min_pp: 0.01
     y_max_pp: 0.2
@@ -177,7 +180,7 @@ hadron_correlations:
     # Whereas these are more appropriate for the yields
     y_min_AA: 0.01
     y_max_AA: 0.6
-    logy: True
+    logy: true
 
   # https://inspirehep.net/literature/1798493
   # https://www.hepdata.net/record/ins1798493
@@ -186,16 +189,17 @@ hadron_correlations:
   # Direct photon selected by subtracting pi_zero from total
   # Not sure if it is unfolded or not
   IAA_phenix:
+    enabled: true
     eta_cut_R: 1.
     pt: [5., 7.]
     centrality: [[0,40]]
     hadron_eta_cut: 0.35
     trigger_range: [5., 9.]
     xtitle: '#zeta'
-    logy: True
+    logy: true
 
     ytitle_pp: 'I_{AA}'
-    skip_pp: True
+    skip_pp: true
 
     hepdata: 'HEPData-ins1512115-v1-root.root'
     hepdata_AA_dir: 'Figure 4b'
@@ -214,17 +218,18 @@ inclusive_chjet:
   # Cuts:
   #   - pT^{ch lead} > 5 GeV
   pt_star:
+    enabled: true
     jet_R: [0.2, 0.3, 0.4]
     eta_cut_R: 1.0
     pt: [5., 30]
     centrality: [[0,10]]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right'
     y_min_pp: 2e-8
     y_max_pp: 1e-1
-    skip_pp: True
+    skip_pp: true
 
     hepdata: 'HEPData-ins1798665-v1-root.root'
     hepdata_AA_dir: 'Table 10'
@@ -260,6 +265,7 @@ semi_inclusive_chjet:
   # pmj 13/1/22: QA OK other than issues with hepdata that you identify.
   # pmj 13/1/22: Please formulate your questions about the hepdata entries and I will send them to Alex (I thought they had been fixed ;-( )
   IAA_star:
+    enabled: true
     jet_R: [0.2, 0.5]
     eta_cut_R: 1.
     pt: [5., 30.]
@@ -267,12 +273,12 @@ semi_inclusive_chjet:
     hadron_eta_cut: 0.9
     trigger_range: [9., 30.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     ytitle_pp: 'I_{AA}'
     y_min_pp: 2e-5
     y_max_pp: 2.
-    skip_pp: True
+    skip_pp: true
 
     hepdata: 'HEPData-ins1512115-v1-root.root'
     hepdata_AA_dir: 'Table 38'
@@ -283,8 +289,9 @@ semi_inclusive_chjet:
 
   # The bin width is constant at 0.1256.  For the most left two data points, there are really missing in HEP
   # PMJ 1/21/25: data points not recoverable without some effort.
-  # Since this dataset has been superceded in quality by a more recent STAR publication I judge this not to worth the trouble.
+  # Since this dataset has been superseded in quality by a more recent STAR publication I judge this not to worth the trouble.
   dphi_star:
+    enabled: false
     jet_R: [0.3]
     eta_cut_R: 1.
     pt: [9., 13.]
@@ -292,7 +299,7 @@ semi_inclusive_chjet:
     hadron_eta_cut: 0.9
     trigger_range: [9., 30.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     hepdata: 'HEPData-ins1512115-v1-root.root'
     hepdata_pp_dir:  'Table 42'
@@ -325,6 +332,7 @@ semi_inclusive_pizerojet:
   # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here:
   # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
   IAA_star:
+    enabled: false
     jet_R: [0.2, 0.5]
     eta_cut_R: [0.8, 0.5] # equivalent to 1-R
     pt: [5., 25.]
@@ -332,18 +340,19 @@ semi_inclusive_pizerojet:
     pizero_eta_cut: 1.0
     trigger_range: [11., 15.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     ytitle_pp: 'I_{AA}'
     y_min_pp: 0.1
     y_max_pp: 1.2
-    skip_pp: True
+    skip_pp: true
 
     hepdata: "TODO: see above link"
 
   # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
   # maybe define a different field?
   R25_star:
+    enabled: false
     jet_R: [0.2, 0.5]
     eta_cut_R: [0.8, 0.5] # equivalent to 1-R
     pt: [11., 15.]
@@ -356,7 +365,7 @@ semi_inclusive_pizerojet:
     trigger_range_det: [11., 15.]
     trigger_range_part: [9., 22.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     hepdata: "TODO: see above link"
 
@@ -371,6 +380,7 @@ semi_inclusive_gammajet:
   # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here:
   # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
   IAA_star:
+    enabled: false
     jet_R: [0.2, 0.5]
     eta_cut_R: 1.0
     pt: [5., 20.]
@@ -378,18 +388,19 @@ semi_inclusive_gammajet:
     gamma_eta_cut: 1.0
     trigger_range: [15., 20.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     ytitle_pp: 'I_{AA}'
     y_min_pp: 0.1
     y_max_pp: 1.2
-    skip_pp: True
+    skip_pp: true
 
     hepdata: "TODO: see above link"
 
   # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
   # maybe define a different field?
   R25_star:
+    enabled: false
     jet_R: [0.2, 0.5]
     eta_cut_R: 1.0
     pt: [5., 20.]
@@ -402,19 +413,20 @@ semi_inclusive_gammajet:
     trigger_range_det: [15., 20.]
     trigger_range_part: [12., 23.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     hepdata: "TODO: see above link"
 
 #------------------------------------------------------------------
 # Jet correlation observables
-semi_inclusive_pizero__gamma+jet_acoplanarity:
+semi_inclusive_pizero_gamma_acoplanarity:
 
   # pmj 2/28/25 same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
   # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accomodate
 
   # pmj 2/28/25: WIP, paper not yet posted to arXiv
   IAA_star:
+    enabled: false
     jet_R: [0.2, 0.5]
     eta_cut_R: [0.8, 0.5] # equivalent to 1-R
     ptjet: [10., 20.]
@@ -423,14 +435,13 @@ semi_inclusive_pizero__gamma+jet_acoplanarity:
     gamma_eta_cut: 1.0
     trigger_range: [11., 15.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    logy: true
 
     ytitle_pp: 'I_{AA}(#Delta#varphi)'
     y_min_pp: 1.e-2
     y_max_pp: 50.
-    skip_pp: True
+    skip_pp: true
 
     bins:
     bin_centroid: {1.9,2.35,2.65,2.9,3.07}
     bin_width: {0.3,0.15,0.15,0.1,0.07}
-
