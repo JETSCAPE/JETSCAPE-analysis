@@ -114,8 +114,8 @@ randomize_run_order = False  # if true, runs will be shuffled into random order.
 force_download = False
 download_threads = 5 # number of threads to download from OSN
 n_cores = 20 # only used for merging with hadd
-ntasks = 140 # number of analysis tasks to be submitted to local_analysis_facility
-max_n_slurm_jobs = 140
+ntasks = 50 # number of analysis tasks to be submitted to local_analysis_facility
+max_n_slurm_jobs = 50
 skip_run_binomial = False
 
 # Location where histogram files and final state hadron files are stored on OSN

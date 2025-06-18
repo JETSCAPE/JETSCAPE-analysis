@@ -1316,9 +1316,9 @@ gamma_trigger_jet:
     enabled: false
     gamma_eta: [-2.37, 2.37]
     gamma_pT_min: 50.
-    isolation_R: [0.3]
-    isolation_Et_max_pp: [3.]
-    isolation_Et_max_AA: [10.] # TODO see if we have to change this to 3 as well due to lack of UE
+    isolation_R: 0.3
+    isolation_Et_max_pp: 3.
+    isolation_Et_max_AA: 10. # TODO see if we have to change this to 3 as well due to lack of UE
     isolation_type: 'full'
     jet_R: [0.4]
     jet_eta: [-2.8,2.8]
@@ -1357,17 +1357,20 @@ gamma_trigger_jet:
   # pp: sqrt(sNN) =5.02 TeV
   # PbPb: sqrt(sNN) =5.02 TeV
   xj_gamma_atlas:
+    # TODO adjust for the fact that there are multile gamma_pt intervals!!
+    centrality: [[0,10],[10,20],[20,30],[30,50],[50,80]]
     enabled: false
     gamma_eta: [-2.37, 2.37]
-    gamma_pT: [63.1.,200.]
-    isolation_R: [0.3]
+    gamma_pT: [63.1,200.]
+    isolation_R: 0.3
     isolation_type: 'full'
-    isolation_Et_max_pp: [3.]
-    isolation_Et_max_AA: [8.] # TODO double check value needed for PbPb
+    isolation_Et_max_pp: 3.
+    isolation_Et_max_AA: 8. # TODO double check value needed for PbPb
     jet_R: [0.4]
     jet_eta: [-2.8,2.8]
-    jet_pT: [31.6., 1000.]
+    jet_pT: [31.6, 1000.]
     jet_deltaphi: 7./8. # dPhi > 7/8*pi
+
 
     # Fig 4; pt_gamma=63-80 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%201
@@ -1426,9 +1429,9 @@ gamma_trigger_jet:
     enabled: false
     gamma_eta: [-1.48, 1.48]
     gamma_pT: [40.,100.]
-    isolation_R: [0.4]
-    isolation_Et_max_pp: [1.]
-    isolation_Et_max_AA: [1.] # TODO double check value needed for PbPb and UE subtraction
+    isolation_R: 0.4
+    isolation_Et_max_pp: 1.
+    isolation_Et_max_AA: 1. # TODO double check value needed for PbPb and UE subtraction
     isolation_type: 'full'
     jet_R: [0.3]
     jet_eta: [-1.6, 1.6]
@@ -1448,7 +1451,7 @@ gamma_trigger_jet:
     # Fig 3; pt_gamma; pt_gamma dependence
     # https://www.hepdata.net/record/ins1638996?version=1&table=Table%203
     xtitle: '#it{x}_{J,#gamma}'
-    centrality: [0,30]
+    centrality: [[0,30]]
     jet_deltaphi: [7pi/8, pi]
     logy: False
     hepdata_pp_gname: 'Graph1D_y1'
@@ -1477,8 +1480,8 @@ gamma_trigger_jet:
     gamma_eta: 2.37 # paper mentions an exclusion of eta [1.37,1.56] but we assue this is by their acc correction
     isolation_type: 'full' # specification what particles are consider for isolation, allow for charged, neutral or full
     isolation_R: 0.3
-    isolation_Et_max_pp: 3 # GeV
-    isolation_Et_max_AA: 10 # GeV TODO think if we actually need to have 10 GeV here
+    isolation_Et_max_pp: 3. # GeV
+    isolation_Et_max_AA: 10. # GeV TODO think if we actually need to have 10 GeV here
 
     # jet selection (anti-kt particle flow)
     jet_R: [0.4]
@@ -1508,7 +1511,6 @@ gamma_trigger_jet:
     # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of. 
     # This will of course give us a sample of isolated gammas and not isolated prompt gammas, 
     # so we in principle need to do some purity correction or find a way to ignore decay gammas in the prediction
-    # TODO: check if we actually need to subtracr the UE estimate from the isolation quantity
     isolation_type: 'full'
     isolation_R: 0.4
     isolation_Et_max: 5 # GeV
