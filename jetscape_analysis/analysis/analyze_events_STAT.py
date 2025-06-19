@@ -22,13 +22,12 @@
            (ii) Additive substructure -- subtract holes within R
            (iii) Non-additive substructure -- no further hole subtraction
 
-  Author: James Mulligan (james.mulligan@berkeley.edu)
-  Author: Raymond Ehlers (raymond.ehlers@cern.ch)
-  """
+.. codeauthor:: James Mulligan (james.mulligan@berkeley.edu)
+.. codeauthor:: Raymond Ehlers (raymond.ehlers@cern.ch)
+"""
 
 import argparse
 import random
-import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -39,8 +38,8 @@ import fjext  # pyright: ignore [reportMissingImports]
 import numpy as np
 import yaml
 
-sys.path.append('.')
 from jetscape_analysis.analysis import analyze_events_base_STAT
+
 
 ################################################################
 class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_BaseSTAT):
@@ -49,10 +48,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # Constructor
     # ---------------------------------------------------------------
     def __init__(self, config_file='', input_file='', output_dir='', **kwargs):
-        super().__init__(config_file=config_file,
-                                                         input_file=input_file,
-                                                         output_dir=output_dir,
-                                                         **kwargs)
+        super().__init__(
+            config_file=config_file,
+            input_file=input_file,
+            output_dir=output_dir,
+            **kwargs
+        )
         # Initialize config file
         self.initialize_user_config()
 
