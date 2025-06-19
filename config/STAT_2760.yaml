@@ -531,6 +531,14 @@ inclusive_jet:
     y_max_AA: 2.
     skip_AA_distribution: True ## PbPb yaml not available
 
+  # https://www.hepdata.net/record/ins1240088
+  # TODO: Implement this observable
+  v2_atlas:
+    enabled: false
+    jet_R: [0.2]
+    pt: [45., 160.]
+    centrality: [[0,10]]
+
 #------------------------------------------------------------------
 #------------------------------------------------------------------
 # Inclusive jet observables -- charged jets
@@ -647,10 +655,21 @@ inclusive_chjet:
     ytitle_AA: '#it{R}_{AA}'
     y_min_AA: 0.
     y_max_AA: 2.
+
+  # https://www.hepdata.net/record/ins1394678
+  # TODO: Implement this observable
+  v2_alice:
+    enabled: false
+    jet_R: [0.2]
+    eta_cut: 0.7
+    pt: [20., 90.]
+    centrality: [[0,10]]
+
 #------------------------------------------------------------------
 #------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_chjet:
+# Hadron triggered charged-particle jet observables
+# (e.g. semi-inclusive h-jet)
+hadron_trigger_chjet:
 
   # https://www.hepdata.net/record/ins1376027
   # Note: reference is PYTHIA
@@ -746,26 +765,12 @@ semi_inclusive_chjet:
     y_max_AA: 2.
 
     skip_AA_distribution: False
+
 #------------------------------------------------------------------
 #------------------------------------------------------------------
-dijet:
-
-  # https://www.hepdata.net/record/ins1394678
-  # TODO: Implement this observable
-  v2_alice:
-    enabled: false
-    jet_R: [0.2]
-    eta_cut: 0.7
-    pt: [20., 90.]
-    centrality: [[0,10]]
-
-  # https://www.hepdata.net/record/ins1240088
-  # TODO: Implement this observable
-  v2_atlas:
-    enabled: false
-    jet_R: [0.2]
-    pt: [45., 160.]
-    centrality: [[0,10]]
+# dijet triggered jet observables
+# (e.g. semi-inclusive h-jet)
+dijet_trigger_jet:
 
   # https://inspirehep.net/literature/1607896 (no hepdata)
   # TGraphs for R=0.4 supplied by Laura/Dennis
@@ -792,4 +797,3 @@ dijet:
     y_max_AA: 2.
 
     skip_AA_distribution: False
-#------------------------------------------------------------------

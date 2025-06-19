@@ -114,11 +114,11 @@ class HistogramResults(common_base.CommonBase):
                 if 'inclusive_jet' in self.config:
                     self.histogram_jet_observables(observable_type='inclusive_jet', jet_collection_label=jet_collection_label)
 
-                if 'semi_inclusive_chjet' in self.config:
-                    self.histogram_semi_inclusive_chjet_observables(observable_type='semi_inclusive_chjet', jet_collection_label=jet_collection_label)
+                if 'hadron_trigger_chjet' in self.config:
+                    self.histogram_hadron_trigger_chjet_observables(observable_type='hadron_trigger_chjet', jet_collection_label=jet_collection_label)
 
-                if 'dijet' in self.config:
-                    self.histogram_jet_observables(observable_type='dijet', jet_collection_label=jet_collection_label)
+                if 'dijet_trigger_jet' in self.config:
+                    self.histogram_jet_observables(observable_type='dijet_trigger_jet', jet_collection_label=jet_collection_label)
         else:
             print("\tWARNING: There are no entries in the observables df. Will only write event level QA.")
 
@@ -394,7 +394,7 @@ class HistogramResults(common_base.CommonBase):
     #-------------------------------------------------------------------------------------------
     # Histogram semi-inclusive jet observables
     #-------------------------------------------------------------------------------------------
-    def histogram_semi_inclusive_chjet_observables(self, observable_type='', jet_collection_label=''):
+    def histogram_hadron_trigger_chjet_observables(self, observable_type='', jet_collection_label=''):
         print()
         print(f'Histogram {observable_type} observables...')
 
@@ -479,7 +479,7 @@ class HistogramResults(common_base.CommonBase):
                             self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}_unsubtracted',
                                                     bins=bins, centrality=centrality)
 
-                        if observable == 'IAA_star' and np.isclose(jet_R, block['jet_R'][0]):
+                        if observable == 'IAA_pt_star' and np.isclose(jet_R, block['jet_R'][0]):
                             column_name = f'{observable_type}_star_trigger_pt{jet_collection_label}'
                             bins = np.array(block['trigger_range'])
                             self.histogram_observable(column_name=column_name, bins=bins, centrality=centrality)

@@ -256,15 +256,18 @@ inclusive_chjet:
     ytitle_AA_distribution: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]'
     y_min_AA_distribution: 2e-8
     y_max_AA_distribution: 1e-1
+
 #------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_chjet:
+#------------------------------------------------------------------
+# Hadron triggered charged-particle jet observables
+# (e.g. semi-inclusive h-jet)
+hadron_trigger_chjet:
 
   # https://www.hepdata.net/record/ins1512115
   # Note: no pp reference -- RCP and R02/R05 -- we include only R02/R05 for now
   # pmj 13/1/22: QA OK other than issues with hepdata that you identify.
   # pmj 13/1/22: Please formulate your questions about the hepdata entries and I will send them to Alex (I thought they had been fixed ;-( )
-  IAA_star:
+  IAA_pt_star:
     enabled: true
     jet_R: [0.2, 0.5]
     eta_cut_R: 1.
@@ -322,22 +325,25 @@ semi_inclusive_chjet:
     y_max_AA: 2.
 
 #------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_pizerojet:
+#------------------------------------------------------------------
+# Pion triggered charged-particle jet observables
+# (e.g. semi-inclusive pi_zero-jet)
+pion_trigger_chjet:
 
   # pmj 1/23/25 PRL (accepted): https://inspirehep.net/literature/2693040
   # pmj 1/23/25 PRC (in journal review): https://inspirehep.net/literature/2693062
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accomodate
+  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
 
   # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here:
   # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
-  IAA_star:
+  # Includes R(0.2)/R(0.5) ratio, which we will construct after measuring the individual spectra.
+  IAA_pt_star:
     enabled: false
     jet_R: [0.2, 0.5]
     eta_cut_R: [0.8, 0.5] # equivalent to 1-R
     pt: [5., 25.]
     centrality: [[0,15]]
-    pizero_eta_cut: 1.0
+    pi_zero_eta_cut: 1.0
     trigger_range: [11., 15.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
     logy: true
@@ -349,37 +355,49 @@ semi_inclusive_pizerojet:
 
     hepdata: "TODO: see above link"
 
-  # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
-  # maybe define a different field?
-  R25_star:
-    enabled: false
-    jet_R: [0.2, 0.5]
-    eta_cut_R: [0.8, 0.5] # equivalent to 1-R
-    pt: [11., 15.]
-    centrality: [[0,15]]
-    pizero_eta_cut: 1.0
-    # pmj 1/23/25: per discussionn at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+    # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
     # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
     # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
     # it with the experimentally specified weighting
     trigger_range_det: [11., 15.]
     trigger_range_part: [9., 22.]
+
+  # pmj 2/28/25 same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
+  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # pmj 2/28/25: WIP, paper not yet posted to arXiv
+  dphi_star:
+    enabled: false
+    jet_R: [0.2, 0.5]
+    eta_cut_R: 1.0  # 1.0 - R
+    pt: [10., 20.]
+    centrality: [[0,15]]
+    pi_zero_eta_cut: 1.0
+    trigger_range: [11., 15.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
     logy: true
 
-    hepdata: "TODO: see above link"
+    ytitle_pp: 'I_{AA}(#Delta#varphi)'
+    y_min_pp: 1.e-2
+    y_max_pp: 50.
+    skip_pp: true
+
+    bin_centroid: {1.9,2.35,2.65,2.9,3.07}
+    bin_width: {0.3,0.15,0.15,0.1,0.07}
 
 #------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_gammajet:
+#------------------------------------------------------------------
+# gamma triggered charged-particle jet observables
+# (e.g. semi-inclusive gamma-jet)
+gamma_trigger_chjet:
 
   # pmj 1/23/25 PRL (accepted): https://inspirehep.net/literature/2693040
   # pmj 1/23/25 PRC (in journal review): https://inspirehep.net/literature/2693062
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accomodate
+  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
 
   # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here:
   # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
-  IAA_star:
+  # Includes R(0.2)/R(0.5) ratio, which we will construct after measuring the individual spectra.
+  IAA_pt_star:
     enabled: false
     jet_R: [0.2, 0.5]
     eta_cut_R: 1.0
@@ -397,41 +415,22 @@ semi_inclusive_gammajet:
 
     hepdata: "TODO: see above link"
 
-  # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
-  # maybe define a different field?
-  R25_star:
-    enabled: false
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0
-    pt: [5., 20.]
-    centrality: [[0,15]]
-    gamma_eta_cut: 1.0
-    # pmj 1/23/25: per discussionn at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+    # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
     # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
     # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
     # it with the experimentally specified weighting
     trigger_range_det: [15., 20.]
     trigger_range_part: [12., 23.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: true
-
-    hepdata: "TODO: see above link"
-
-#------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_pizero_gamma_acoplanarity:
 
   # pmj 2/28/25 same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accomodate
-
+  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
   # pmj 2/28/25: WIP, paper not yet posted to arXiv
-  IAA_star:
+  dphi_star:
     enabled: false
     jet_R: [0.2, 0.5]
-    eta_cut_R: [0.8, 0.5] # equivalent to 1-R
-    ptjet: [10., 20.]
+    eta_cut_R: 1.0  # 1.0 - R
+    pt: [10., 20.]
     centrality: [[0,15]]
-    pizero_eta_cut: 1.0
     gamma_eta_cut: 1.0
     trigger_range: [11., 15.]
     xtitle: '#it{p}_{T} (GeV/#it{c})'
@@ -442,6 +441,5 @@ semi_inclusive_pizero_gamma_acoplanarity:
     y_max_pp: 50.
     skip_pp: true
 
-    bins:
     bin_centroid: {1.9,2.35,2.65,2.9,3.07}
     bin_width: {0.3,0.15,0.15,0.1,0.07}

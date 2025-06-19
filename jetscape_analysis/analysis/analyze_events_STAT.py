@@ -88,14 +88,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         self.hadron_correlation_observables = config['hadron_correlations']
         self.inclusive_chjet_observables = config['inclusive_chjet']
         self.inclusive_jet_observables = {}
-        self.semi_inclusive_chjet_observables = {}
-        self.dijet_observables = {}
+        self.hadron_trigger_chjet_observables = {}
+        self.dijet_trigger_jet_observables = {}
         if 'inclusive_jet' in config:
             self.inclusive_jet_observables = config['inclusive_jet']
-        if 'semi_inclusive_chjet' in config:
-            self.semi_inclusive_chjet_observables = config['semi_inclusive_chjet']
-        if 'dijet' in config:
-            self.dijet_observables = config['dijet']
+        if 'hadron_trigger_chjet' in config:
+            self.hadron_trigger_chjet_observables = config['hadron_trigger_chjet']
+        if 'dijet_trigger_jet' in config:
+            self.dijet_trigger_jet_observables = config['dijet_trigger_jet']
 
         # General jet finding parameters
         self.jet_R = config['jet_R']
@@ -476,23 +476,23 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     jetR, full_jet=full_jet,
                                     jet_collection_label=jet_collection_label) for jet in jets_selected]
 
-        # Fill dijet observables -- full jets only
+        # Fill dijet_trigger_jet observables -- full jets only
         if full_jet:
-            if self.dijet_observables:
-                self.fill_dijet_observables(jets_selected, hadrons_negative, jetR,
+            if self.dijet_trigger_jet_observables:
+                self.fill_dijet_trigger_jet_observables(jets_selected, hadrons_negative, jetR,
                                             jet_collection_label=jet_collection_label)
 
         # Fill semi-inclusive jet correlations -- charged jets only
         if not full_jet:
-            if self.semi_inclusive_chjet_observables:
+            if self.hadron_trigger_chjet_observables:
                 if self.sqrts == 2760 or self.sqrts == 5020:
-                    jetR_list = self.semi_inclusive_chjet_observables['IAA_pt_alice']['jet_R']
+                    jetR_list = self.hadron_trigger_chjet_observables['IAA_pt_alice']['jet_R']
                     if self.sqrts == 2760:
-                        jetR_list += self.semi_inclusive_chjet_observables['nsubjettiness_alice']['jet_R']
+                        jetR_list += self.hadron_trigger_chjet_observables['nsubjettiness_alice']['jet_R']
                 elif self.sqrts == 200:
-                    jetR_list = self.semi_inclusive_chjet_observables['IAA_star']['jet_R']
+                    jetR_list = self.hadron_trigger_chjet_observables['IAA_pt_star']['jet_R']
                 if jetR in jetR_list:
-                    self.fill_semi_inclusive_chjet_observables(jets_selected, hadrons_for_jet_finding, hadrons_negative,
+                    self.fill_hadron_trigger_chjet_observables(jets_selected, hadrons_for_jet_finding, hadrons_negative,
                                                                 jetR, jet_collection_label=jet_collection_label)
 
     # ---------------------------------------------------------------
@@ -1194,7 +1194,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Fill semi-inclusive charged jet observables
     # ---------------------------------------------------------------
-    def fill_semi_inclusive_chjet_observables(self, jets_selected, hadrons_for_jet_finding, hadrons_negative, jetR, jet_collection_label=''):
+    def fill_hadron_trigger_chjet_observables(self, jets_selected, hadrons_for_jet_finding, hadrons_negative, jetR, jet_collection_label=''):
 
         # split events into signal and reference-classed events
         # majority signal to optimise stat. unc.
@@ -1211,11 +1211,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.sqrts == 2760 or self.sqrts == 5020:
 
             # Define trigger classes for both traditional h-jet analysis and Nsubjettiness analysis
-            hjet_low_trigger_range = self.semi_inclusive_chjet_observables['IAA_pt_alice']['low_trigger_range']
-            hjet_high_trigger_range = self.semi_inclusive_chjet_observables['IAA_pt_alice']['high_trigger_range']
+            hjet_low_trigger_range = self.hadron_trigger_chjet_observables['IAA_pt_alice']['low_trigger_range']
+            hjet_high_trigger_range = self.hadron_trigger_chjet_observables['IAA_pt_alice']['high_trigger_range']
 
-            pt_IAA = self.semi_inclusive_chjet_observables['IAA_pt_alice']['pt']
-            pt_dphi = self.semi_inclusive_chjet_observables['dphi_alice']['pt']
+            pt_IAA = self.hadron_trigger_chjet_observables['IAA_pt_alice']['pt']
+            pt_dphi = self.hadron_trigger_chjet_observables['dphi_alice']['pt']
 
             trigger_array_hjet = []
 
@@ -1224,7 +1224,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() < 0:
                     continue
 
-                if abs(hadron.eta()) < self.semi_inclusive_chjet_observables['IAA_pt_alice']['hadron_eta_cut']:
+                if abs(hadron.eta()) < self.hadron_trigger_chjet_observables['IAA_pt_alice']['hadron_eta_cut']:
 
                     # Search for hadron trigger
                     if hjet_low_trigger_range[0] < hadron.pt() < hjet_low_trigger_range[1] and not is_signal_event:
@@ -1241,12 +1241,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # NOTE: This will record the hadron trigger even if it's not used in the IAA. However,
                 #       this is fine because we account for the difference in low and high trigger ranges
                 #       when we construct the histograms.
-                if jetR == min(self.semi_inclusive_chjet_observables['IAA_pt_alice']['jet_R']):
-                    self.observable_dict_event[f'semi_inclusive_chjet_IAA_pt_alice_trigger_pt{jet_collection_label}'].append(trigger.pt())
+                if jetR == min(self.hadron_trigger_chjet_observables['IAA_pt_alice']['jet_R']):
+                    self.observable_dict_event[f'hadron_trigger_chjet_IAA_pt_alice_trigger_pt{jet_collection_label}'].append(trigger.pt())
 
                 # Search for recoil jets
                 for jet in jets_selected:
-                    if abs(jet.eta()) < (self.semi_inclusive_chjet_observables['IAA_pt_alice']['eta_cut_R'] - jetR):
+                    if abs(jet.eta()) < (self.hadron_trigger_chjet_observables['IAA_pt_alice']['eta_cut_R'] - jetR):
 
                         if jet_collection_label in ['_shower_recoil']:
                             # Get the corrected jet pt: shower+recoil-holes
@@ -1259,32 +1259,32 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         else:
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
-                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['IAA_pt_alice']['centrality']) \
-                            and self.semi_inclusive_chjet_observables['IAA_pt_alice']['enabled']:
+                        if self.centrality_accepted(self.hadron_trigger_chjet_observables['IAA_pt_alice']['centrality']) \
+                            and self.hadron_trigger_chjet_observables['IAA_pt_alice']['enabled']:
                             if is_signal_event:
-                                if jetR in self.semi_inclusive_chjet_observables['IAA_pt_alice']['jet_R']:
+                                if jetR in self.hadron_trigger_chjet_observables['IAA_pt_alice']['jet_R']:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
                                         if pt_IAA[0] < jet_pt < pt_IAA[1]:
-                                            self.observable_dict_event[f'semi_inclusive_chjet_IAA_pt_alice_R{jetR}_highTrigger{jet_collection_label}'].append(jet_pt)
+                                            self.observable_dict_event[f'hadron_trigger_chjet_IAA_pt_alice_R{jetR}_highTrigger{jet_collection_label}'].append(jet_pt)
                                             if jet_collection_label in ['_shower_recoil']:
-                                                self.observable_dict_event[f'semi_inclusive_chjet_IAA_pt_alice_R{jetR}_highTrigger{jet_collection_label}_unsubtracted'].append(jet_pt_unsubtracted)
+                                                self.observable_dict_event[f'hadron_trigger_chjet_IAA_pt_alice_R{jetR}_highTrigger{jet_collection_label}_unsubtracted'].append(jet_pt_unsubtracted)
 
-                                if jetR in self.semi_inclusive_chjet_observables['dphi_alice']['jet_R']:
+                                if jetR in self.hadron_trigger_chjet_observables['dphi_alice']['jet_R']:
                                     if pt_dphi[0] < jet_pt < pt_dphi[-1]:
 
-                                        self.observable_dict_event[f'semi_inclusive_chjet_dphi_alice_R{jetR}_highTrigger{jet_collection_label}'].append([jet_pt,np.abs(trigger.delta_phi_to(jet))])
+                                        self.observable_dict_event[f'hadron_trigger_chjet_dphi_alice_R{jetR}_highTrigger{jet_collection_label}'].append([jet_pt,np.abs(trigger.delta_phi_to(jet))])
 
                             else:
-                                if jetR in self.semi_inclusive_chjet_observables['IAA_pt_alice']['jet_R']:
+                                if jetR in self.hadron_trigger_chjet_observables['IAA_pt_alice']['jet_R']:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
                                         if pt_IAA[0] < jet_pt < pt_IAA[1]:
-                                            self.observable_dict_event[f'semi_inclusive_chjet_IAA_pt_alice_R{jetR}_lowTrigger{jet_collection_label}'].append(jet_pt)
+                                            self.observable_dict_event[f'hadron_trigger_chjet_IAA_pt_alice_R{jetR}_lowTrigger{jet_collection_label}'].append(jet_pt)
                                             if jet_collection_label in ['_shower_recoil']:
-                                                self.observable_dict_event[f'semi_inclusive_chjet_IAA_pt_alice_R{jetR}_lowTrigger{jet_collection_label}_unsubtracted'].append(jet_pt_unsubtracted)
+                                                self.observable_dict_event[f'hadron_trigger_chjet_IAA_pt_alice_R{jetR}_lowTrigger{jet_collection_label}_unsubtracted'].append(jet_pt_unsubtracted)
 
-                                if jetR in self.semi_inclusive_chjet_observables['dphi_alice']['jet_R']:
+                                if jetR in self.hadron_trigger_chjet_observables['dphi_alice']['jet_R']:
                                     if pt_dphi[0] < jet_pt < pt_dphi[-1]:
-                                        self.observable_dict_event[f'semi_inclusive_chjet_dphi_alice_R{jetR}_lowTrigger{jet_collection_label}'].append([jet_pt,np.abs(trigger.delta_phi_to(jet))])
+                                        self.observable_dict_event[f'hadron_trigger_chjet_dphi_alice_R{jetR}_lowTrigger{jet_collection_label}'].append([jet_pt,np.abs(trigger.delta_phi_to(jet))])
 
         # Nsubjettiness
         #   Hole treatment:
@@ -1293,9 +1293,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if self.sqrts == 2760:
 
-            nsubjettiness_low_trigger_range = self.semi_inclusive_chjet_observables['nsubjettiness_alice']['low_trigger_range']
-            nsubjettiness_high_trigger_range = self.semi_inclusive_chjet_observables['nsubjettiness_alice']['high_trigger_range']
-            pt_nsubjettiness = self.semi_inclusive_chjet_observables['nsubjettiness_alice']['pt']
+            nsubjettiness_low_trigger_range = self.hadron_trigger_chjet_observables['nsubjettiness_alice']['low_trigger_range']
+            nsubjettiness_high_trigger_range = self.hadron_trigger_chjet_observables['nsubjettiness_alice']['high_trigger_range']
+            pt_nsubjettiness = self.hadron_trigger_chjet_observables['nsubjettiness_alice']['pt']
 
             # Define Nsubjettiness calculators
             axis_definition = fjcontrib.KT_Axes()
@@ -1310,7 +1310,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() < 0:
                     continue
 
-                if abs(hadron.eta()) < self.semi_inclusive_chjet_observables['IAA_pt_alice']['hadron_eta_cut']:
+                if abs(hadron.eta()) < self.hadron_trigger_chjet_observables['IAA_pt_alice']['hadron_eta_cut']:
 
                     # Search for hadron trigger
                     if nsubjettiness_low_trigger_range[0] < hadron.pt() < nsubjettiness_low_trigger_range[1] and not is_signal_event:
@@ -1328,12 +1328,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # NOTE: This will record the hadron trigger even if it's not used in the IAA. However,
                 #       this is fine because we account for the difference in low and high trigger ranges
                 #       when we construct the histograms.
-                if jetR == min(self.semi_inclusive_chjet_observables['nsubjettiness_alice']['jet_R']):
-                    self.observable_dict_event[f'semi_inclusive_chjet_nsubjettiness_alice_trigger_pt{jet_collection_label}'].append(trigger.pt())
+                if jetR == min(self.hadron_trigger_chjet_observables['nsubjettiness_alice']['jet_R']):
+                    self.observable_dict_event[f'hadron_trigger_chjet_nsubjettiness_alice_trigger_pt{jet_collection_label}'].append(trigger.pt())
 
                 # Search for recoil jets
                 for jet in jets_selected:
-                    if abs(jet.eta()) < (self.semi_inclusive_chjet_observables['IAA_pt_alice']['eta_cut_R'] - jetR):
+                    if abs(jet.eta()) < (self.hadron_trigger_chjet_observables['IAA_pt_alice']['eta_cut_R'] - jetR):
 
                         if jet_collection_label in ['_shower_recoil']:
                             # Get the corrected jet pt: shower+recoil-holes
@@ -1346,16 +1346,16 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         else:
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
-                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['nsubjettiness_alice']['centrality']) \
-                            and self.semi_inclusive_chjet_observables['nsubjettiness_alice']['enabled']:
-                            if jetR in self.semi_inclusive_chjet_observables['nsubjettiness_alice']['jet_R']:
+                        if self.centrality_accepted(self.hadron_trigger_chjet_observables['nsubjettiness_alice']['centrality']) \
+                            and self.hadron_trigger_chjet_observables['nsubjettiness_alice']['enabled']:
+                            if jetR in self.hadron_trigger_chjet_observables['nsubjettiness_alice']['jet_R']:
                                 if is_signal_event:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
                                         if pt_nsubjettiness[0] < jet_pt < pt_nsubjettiness[1]:
                                             tau1 = n_subjettiness_calculator1.result(jet)/jet_pt_unsubtracted
                                             tau2 = n_subjettiness_calculator2.result(jet)/jet_pt_unsubtracted
                                             if tau1 > 1e-3:
-                                                self.observable_dict_event[f'semi_inclusive_chjet_nsubjettiness_alice_R{jetR}_highTrigger{jet_collection_label}'].append(tau2/tau1)
+                                                self.observable_dict_event[f'hadron_trigger_chjet_nsubjettiness_alice_R{jetR}_highTrigger{jet_collection_label}'].append(tau2/tau1)
                                 else:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
                                         if pt_nsubjettiness[0] < jet_pt < pt_nsubjettiness[1]:
@@ -1365,14 +1365,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                             tau1 = n_subjettiness_calculator1.result(jet)/jet_pt_unsubtracted
                                             tau2 = n_subjettiness_calculator2.result(jet)/jet_pt_unsubtracted
                                             if tau1 > 1e-3:
-                                                self.observable_dict_event[f'semi_inclusive_chjet_nsubjettiness_alice_R{jetR}_lowTrigger{jet_collection_label}'].append(tau2/tau1)
+                                                self.observable_dict_event[f'hadron_trigger_chjet_nsubjettiness_alice_R{jetR}_lowTrigger{jet_collection_label}'].append(tau2/tau1)
 
 
         if self.sqrts == 200:
 
-            hjet_trigger_range = self.semi_inclusive_chjet_observables['IAA_star']['trigger_range']
-            pt_IAA = self.semi_inclusive_chjet_observables['IAA_star']['pt']
-            pt_dphi = self.semi_inclusive_chjet_observables['dphi_star']['pt']
+            hjet_trigger_range = self.hadron_trigger_chjet_observables['IAA_pt_star']['trigger_range']
+            pt_IAA = self.hadron_trigger_chjet_observables['IAA_pt_star']['pt']
+            pt_dphi = self.hadron_trigger_chjet_observables['dphi_star']['pt']
 
             trigger_array_hjet = []
 
@@ -1381,7 +1381,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() < 0:
                     continue
 
-                if abs(hadron.eta()) < self.semi_inclusive_chjet_observables['IAA_star']['hadron_eta_cut']:
+                if abs(hadron.eta()) < self.hadron_trigger_chjet_observables['IAA_pt_star']['hadron_eta_cut']:
 
                     # Search for hadron trigger
                     if hjet_trigger_range[0] < hadron.pt() < hjet_trigger_range[1]:
@@ -1393,12 +1393,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 trigger = trigger_array_hjet[random.randrange(len(trigger_array_hjet))]
 
                 # Record hadron pt for trigger normalization
-                if jetR == min(self.semi_inclusive_chjet_observables['IAA_star']['jet_R']):
-                    self.observable_dict_event[f'semi_inclusive_chjet_hjet_star_trigger_pt{jet_collection_label}'].append(trigger.pt())
+                if jetR == min(self.hadron_trigger_chjet_observables['IAA_pt_star']['jet_R']):
+                    self.observable_dict_event[f'hadron_trigger_chjet_hjet_star_trigger_pt{jet_collection_label}'].append(trigger.pt())
 
                 # Search for recoil jets
                 for jet in jets_selected:
-                    if abs(jet.eta()) < (self.semi_inclusive_chjet_observables['IAA_star']['eta_cut_R'] - jetR):
+                    if abs(jet.eta()) < (self.hadron_trigger_chjet_observables['IAA_pt_star']['eta_cut_R'] - jetR):
 
                         if jet_collection_label in ['_shower_recoil']:
                             # Get the corrected jet pt: shower+recoil-holes
@@ -1412,24 +1412,24 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
                         # Jet yield and Delta phi
-                        if self.centrality_accepted(self.semi_inclusive_chjet_observables['IAA_star']['centrality']) \
-                            and self.semi_inclusive_chjet_observables['IAA_star']['enabled']:
+                        if self.centrality_accepted(self.hadron_trigger_chjet_observables['IAA_pt_star']['centrality']) \
+                            and self.hadron_trigger_chjet_observables['IAA_pt_star']['enabled']:
 
-                            if jetR in self.semi_inclusive_chjet_observables['IAA_star']['jet_R']:
+                            if jetR in self.hadron_trigger_chjet_observables['IAA_pt_star']['jet_R']:
                                     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
                                         if pt_IAA[0] < jet_pt < pt_IAA[1]:
-                                            self.observable_dict_event[f'semi_inclusive_chjet_IAA_star_R{jetR}{jet_collection_label}'].append(jet_pt)
+                                            self.observable_dict_event[f'hadron_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}'].append(jet_pt)
                                             if jet_collection_label in ['_shower_recoil']:
-                                                self.observable_dict_event[f'semi_inclusive_chjet_IAA_star_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_unsubtracted)
+                                                self.observable_dict_event[f'hadron_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_unsubtracted)
 
-                            if jetR in self.semi_inclusive_chjet_observables['dphi_star']['jet_R']:
+                            if jetR in self.hadron_trigger_chjet_observables['dphi_star']['jet_R']:
                                     if pt_dphi[0] < jet_pt < pt_dphi[1]:
-                                        self.observable_dict_event[f'semi_inclusive_chjet_dphi_star_R{jetR}{jet_collection_label}'].append(np.abs(trigger.delta_phi_to(jet)))
+                                        self.observable_dict_event[f'hadron_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}'].append(np.abs(trigger.delta_phi_to(jet)))
 
     # ---------------------------------------------------------------
-    # Fill dijet observables
+    # Fill dijet trigger jet observables
     # ---------------------------------------------------------------
-    def fill_dijet_observables(self, jets_selected, fj_hadrons_negative, jetR, jet_collection_label=''):
+    def fill_dijet_trigger_jet_observables(self, jets_selected, fj_hadrons_negative, jetR, jet_collection_label=''):
 
         if self.sqrts == 2760:
 
@@ -1438,9 +1438,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct jet pt by subtracting holes within R
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.centrality_accepted(self.dijet_observables['xj_atlas']['centrality']) \
-                and self.dijet_observables['xj_atlas']['enabled']:
-                if jetR in self.dijet_observables['xj_atlas']['jet_R']:
+            if self.centrality_accepted(self.dijet_trigger_jet_observables['xj_atlas']['centrality']) \
+                and self.dijet_trigger_jet_observables['xj_atlas']['enabled']:
+                if jetR in self.dijet_trigger_jet_observables['xj_atlas']['jet_R']:
 
                     # First, find jets passing kinematic cuts
                     jet_candidates = []
@@ -1456,8 +1456,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         else:
                              jet_pt = jet.pt()
 
-                        if jet_pt > self.dijet_observables['xj_atlas']['pt_subleading_min']:
-                            if np.abs(jet.eta()) < self.dijet_observables['xj_atlas']['eta_cut']:
+                        if jet_pt > self.dijet_trigger_jet_observables['xj_atlas']['pt_subleading_min']:
+                            if np.abs(jet.eta()) < self.dijet_trigger_jet_observables['xj_atlas']['eta_cut']:
                                 jet_candidates.append(jet)
 
                     # Find the leading two jets
@@ -1467,10 +1467,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         subleading_jet, subleading_jet_pt, _ = self.leading_jet(jet_candidates, fj_hadrons_negative, jetR)
                         if subleading_jet:
                             if np.abs(leading_jet.delta_phi_to(subleading_jet)) > 7*np.pi/8:
-                                pt_min = self.dijet_observables['xj_atlas']['pt'][0]
+                                pt_min = self.dijet_trigger_jet_observables['xj_atlas']['pt'][0]
                                 if leading_jet_pt > pt_min:
                                     xj = subleading_jet_pt / leading_jet_pt
-                                    self.observable_dict_event[f'dijet_xj_atlas_R{jetR}{jet_collection_label}'].append([leading_jet_pt, xj])
+                                    self.observable_dict_event[f'dijet_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}'].append([leading_jet_pt, xj])
 
     def leading_jet(self, jets, fj_hadrons_negative, jetR):
         """ Extract the leading jet, including the subtracted pt.

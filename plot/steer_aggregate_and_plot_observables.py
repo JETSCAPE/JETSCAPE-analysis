@@ -103,7 +103,7 @@ local_analysis_facility = "test_hiccup" # facililty to run local re-analysis as 
 # version number used to identify the version of the analysis. Histograms and observables are stored on OSN in facility/RunX/histograms/versionY
 # if version -1 is specified, histogram files for download will be downloaded from faclity/RunX/histograms without version specifier
 # if version -1 is specified, no upload of the results from reanalysis is possible
-analysis_version = -1 
+analysis_version = -1
 force_reanalysis = False # force to analyse and download again, even if histogram files are present
 delete_local_final_state_hadrons_after_analysis = True # delete final state hadron files after analysis is done
 randomize_run_order = True  # if true, runs will be shuffled into random order. This should be on by default, especially for benchmarking
@@ -138,7 +138,7 @@ do_debug_same_run = False # if true, only process the same run over and over, us
 # if nothing special should be selected, set to empty list. To select multiple options, separate by commas
 debug_design_points = []
 debug_parametrization_type = []
-debug_sqrts = [] 
+debug_sqrts = []
 debug_centrality = []
 debug_calculation_type = []
 debug_system = []
@@ -146,7 +146,7 @@ debug_system = []
 # Example
 # debug_design_points = [91]
 # debug_parametrization_type = ['exponential']
-# debug_sqrts = [5020] 
+# debug_sqrts = [5020]
 # debug_centrality = [[0,10]]
 # debug_calculation_type = ['jet_energy_loss']
 # debug_system = ['PbPb']
@@ -161,7 +161,7 @@ reananalysis_output_location_base = os.path.join(local_base_outputdir, 'histogra
 def download_server(facilities, runs, buffer_size=5):
     """Download server for retrieving final state hadron files from remote facilities.
 
-    Downloads files from specified facilities/runs into a local buffer directory. The program keeps 
+    Downloads files from specified facilities/runs into a local buffer directory. The program keeps
     downloading file until the buffer is full and waits 60s before rechecking.
     The main analysis thread will delete the files from the buffer once they are processed.
     A DONE file is created in the buffer directory once the download for a run is finished.
@@ -183,7 +183,7 @@ def download_server(facilities, runs, buffer_size=5):
             # If directory exists locally, check number of histograms already downloaded and number on OSN
             final_state_hadron_dir = os.path.join(final_state_hadrons_download_location, f'{facility}/{run}')
             reananalysis_output_location = os.path.join(reananalysis_output_location_base, f'{facility}/{run}')
-  
+
             # before we download any analysis output, check if we already have analysis output that we want. If it is already there then skip this run
             if analysis_final_state_hadrons and not force_reanalysis and not do_debug_same_run:
                 histpath = os.path.join(reananalysis_output_location, 'histograms')
@@ -194,7 +194,7 @@ def download_server(facilities, runs, buffer_size=5):
                     n_parquet_local = len([h for h in os.listdir(final_state_hadron_dir) if '.parquet' in h])
 
                     if n_histoutput == n_parquet_local:
-                        print(f'[Downloader] Analysis already done for run {run_number}, I found {n_histoutput} histograms, will not download ...') 
+                        print(f'[Downloader] Analysis already done for run {run_number}, I found {n_histoutput} histograms, will not download ...')
                         continue
 
             if os.path.exists(final_state_hadron_dir):
@@ -220,7 +220,7 @@ def download_server(facilities, runs, buffer_size=5):
                 # check in final_state_hadrons_download_location recursively for all files called DONE
                 # if there are more than buffer_size files, wait until there are less than buffer_size files
                 # then download the next file
-                
+
                 while True:
                     # check if there are too many files in the buffer
                     bufferedRuns = 0
@@ -243,7 +243,7 @@ def download_server(facilities, runs, buffer_size=5):
                 # create a file DONE in the directory to signal that the download is finished
                 Path(os.path.join(final_state_hadron_dir, 'DONE')).touch()
                 print()
-            
+
 def main():
 
     #-----------------------------------------------------------------
@@ -257,7 +257,7 @@ def main():
         runs = {}
         run_dictionary = {}
         missing_runinfo = defaultdict(list)
-        skipped_runs = defaultdict(list) 
+        skipped_runs = defaultdict(list)
 
         # (i) Load the runs.yaml for each facility from STAT-XSEDE-2021
         for facility in facilities.copy():
@@ -316,13 +316,13 @@ def main():
                         runinfo_pairs.append(file_management.FilePair(source, destination))
 
             failed = file_management.download_from_OSN_pairs(runinfo_pairs, download_threads)
-            
+
             if failed:
                 print(f'Warning: failed to download run_info.yaml for the following runs: {failed}')
-            
 
-            # need to loop over the runs again after processing is finished    
-            print('Finished downloading run_info.yaml for all runs, building dictionaries ...')     
+
+            # need to loop over the runs again after processing is finished
+            print('Finished downloading run_info.yaml for all runs, building dictionaries ...')
             for i,run in enumerate(runs[facility].copy()):
 
                 # should exist now after previous download
@@ -393,7 +393,7 @@ def main():
                 else:
                     print(f'Warning: {run}_info.yaml not found!')
                     runs[facility].remove(run)
-                    missing_runinfo[facility].append(run)                
+                    missing_runinfo[facility].append(run)
 
         # Print what we found
         for facility in facilities:
@@ -465,7 +465,7 @@ def main():
         print()
 
 
-    
+
     if analysis_final_state_hadrons:
         print('Downloading all final state hadrons...')
         print()
@@ -485,9 +485,9 @@ def main():
             shutil.copy(config_file, reananalysis_output_location_base)
         git_log_file = os.path.join(str(reananalysis_output_location_base), 'git_log_jetscape-analysis.txt')
         subprocess.run(['git', 'log', '--oneline', '-n', '100'], cwd=jetscape_analysis_dir, stdout=open(git_log_file, 'w'))
-        
 
-        
+
+
         # things for visualization
         total_runs = sum([len(runs[facility]) for facility in facilities])
         run_counter = 0
@@ -503,7 +503,7 @@ def main():
                 # If directory exists locally, check number of histograms already downloaded and number on OSN
                 final_state_hadron_dir = os.path.join(final_state_hadrons_download_location, f'{facility}/{run}')
                 reananalysis_output_location = os.path.join(reananalysis_output_location_base, f'{facility}/{run}')
-               
+
                 # before we download any analysis output, check if we already have analysis output that we want. If it is already there then skip this run
                 if analysis_final_state_hadrons and not force_reanalysis and not do_debug_same_run:
                     histpath = os.path.join(reananalysis_output_location, 'histograms')
@@ -514,7 +514,7 @@ def main():
                         n_parquet_local = len([h for h in os.listdir(final_state_hadron_dir) if '.parquet' in h])
 
                         if n_histoutput == n_parquet_local:
-                            print(f'Analysis already done for run {run_number}, I found {n_histoutput} histograms, will not re-analyze ...') 
+                            print(f'Analysis already done for run {run_number}, I found {n_histoutput} histograms, will not re-analyze ...')
                             continue
                 # check if file final_state_hadron_dir/DONE exist and the downloader finished buffering this run, if it does not exist, then wait until it exists
                 while 1:
@@ -524,21 +524,21 @@ def main():
                     time.sleep(60)
 
                 from js_stat_xsede_steer import submit
-                
+
 
                 # only submit if the final_state_hadron_dir actually contains any files. For some weird reason sometimes files are not available for a run
                 if len(os.listdir(final_state_hadron_dir)) > 1: #bigger than 1 because of DONE file that might be there
                     arg_list = [f'python3',f'{stat_xsede_2021_dir}/scripts/js_stat_xsede_steer/submit.py',
                                 f'analysis',
-                                f'--run_number={run_number}', 
-                                f'--run_info_dir={run_info_download_location}', 
-                            f'--final_state_hadrons_dir={final_state_hadrons_download_location}', 
-                            f'--output_dir={reananalysis_output_location}', 
-                            f'--analysis_facility_name={local_analysis_facility}', 
+                                f'--run_number={run_number}',
+                                f'--run_info_dir={run_info_download_location}',
+                            f'--final_state_hadrons_dir={final_state_hadrons_download_location}',
+                            f'--output_dir={reananalysis_output_location}',
+                            f'--analysis_facility_name={local_analysis_facility}',
                             f'--download_facility_name={facility}',
-                            f'--container_path={analyis_container_path}', 
-                            f'--n_tasks={ntasks}', 
-                            f'--max_n_slurm_jobs={max_n_slurm_jobs}', 
+                            f'--container_path={analyis_container_path}',
+                            f'--n_tasks={ntasks}',
+                            f'--max_n_slurm_jobs={max_n_slurm_jobs}',
                             f'--jetscape_analysis_dir={jetscape_analysis_dir}']
                     subprocess.run(arg_list, check=True, shell=False)
                 else:
@@ -548,7 +548,7 @@ def main():
                     with open(skipped_runs_file, 'a') as f:
                         f.write(f'{run_number}\n')
                 if delete_local_final_state_hadrons_after_analysis:
-                    # safely delete final_state_hadron_dir, make sure the path contains final_state_hadrons_per_run so we don't by accident delete "/" or "/home" .... 
+                    # safely delete final_state_hadron_dir, make sure the path contains final_state_hadrons_per_run so we don't by accident delete "/" or "/home" ....
 
                     if os.path.exists(final_state_hadron_dir) and "final_state_hadrons_per_run" in final_state_hadron_dir:
                         # remove all files in the directory that contain final_state_hadrons and parquet in name
@@ -564,11 +564,11 @@ def main():
                         os.rmdir(final_state_hadron_dir)
 
                 # TODO upload analysis results / histos to OSN in the future
-                
+
 
 
         print('Done!')
-    
+
 
     #-----------------------------------------------------------------
     # Merge for each run into a single histogram per run
@@ -579,7 +579,7 @@ def main():
             run_counter = 0
             for run in runs[facility]:
                 run_counter += 1
-                print(f'Processing run {run_counter} out of {len(runs[facility])} at facility {facility}...')     
+                print(f'Processing run {run_counter} out of {len(runs[facility])} at facility {facility}...')
                 outputdir = os.path.join(local_base_outputdir, f'histograms_per_run/{facility}/{run}')
                 inputdir = os.path.join(outputdir, 'histograms')
 
@@ -754,8 +754,8 @@ def main():
         for design_point_tuple in design_point_dictionary.keys():
             sqrts, system, parametrization_type, design_point_index = design_point_tuple
             if system == 'pp':
-                outputdir = os.path.join(local_base_outputdir, f'plot/{sqrts}_{system}')  
-                inputfile = os.path.join(outputdir_base, f'{sqrts}_{system}/histograms.root')       
+                outputdir = os.path.join(local_base_outputdir, f'plot/{sqrts}_{system}')
+                inputfile = os.path.join(outputdir_base, f'{sqrts}_{system}/histograms.root')
                 cmd = f'python3 {jetscape_analysis_dir}/plot/plot_results_STAT.py'
                 cmd += f' -c {jetscape_analysis_dir}/config/STAT_{sqrts}.yaml'
                 cmd += f' -i {inputfile}'
@@ -915,7 +915,7 @@ def main():
                                 observable = f'{key_items[6]}_{key_items[7]}'
                                 subobservable = f'{key_items[8]}_{key_items[9]}'
                                 centrality = [''.join(filter(str.isdigit, s)) for s in key_items[10].split(',')]
-                            elif 'dijet' in key:
+                            elif 'dijet_trigger_jet' in key:
                                 observable_category = key_items[4]
                                 observable = f'{key_items[5]}_{key_items[6]}'
                                 subobservable = f'{key_items[7]}_{key_items[9]}'
