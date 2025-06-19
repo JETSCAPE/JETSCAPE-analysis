@@ -106,6 +106,9 @@ class HistogramResults(common_base.CommonBase):
 
             self.histogram_hadron_correlation_observables(observable_type='hadron_correlations')
 
+            # Gamma-jet histograms
+            self.histogram_gamma_jet_observables(observable_type='gamma_jet')
+
             # Jet histograms: loop through different hole subtraction treatments
             for jet_collection_label in self.jet_collection_labels:
 
@@ -246,6 +249,45 @@ class HistogramResults(common_base.CommonBase):
                 self.histogram_observable(column_name=f'{observable_type}_{observable}', bins=bins, centrality=centrality)
                 if self.is_AA:
                     self.histogram_observable(column_name=f'{observable_type}_{observable}_holes', bins=bins, centrality=centrality)
+
+    #-------------------------------------------------------------------------------------------
+    # Histograms for gamma-jet observables
+    #-------------------------------------------------------------------------------------------
+    def histogram_gamma_jet_observables(self, observable_type='', jet_collection_label=''):
+        print()
+        print(f'Histogram {observable_type} observables...')
+
+        for observable, block in self.config[observable_type].items():
+            for centrality_index,centrality in enumerate(block['centrality']):
+
+                # Add centrality bin to list, if needed
+                if self.is_AA and centrality not in self.observable_centrality_list:
+                    self.observable_centrality_list.append(centrality)
+
+                # gamma-tagged jet RAA ATLAS
+                if observable == 'pt_atlas':
+                    # Construct appropriate binning
+                    bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable, centrality, centrality_index)
+                    if not bins.any():
+                        continue
+                    for jet_R in block['jet_R']:
+                        self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}', bins=bins, centrality=centrality)
+                        if jet_collection_label in ['_shower_recoil']:
+                            self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}_unsubtracted', bins=bins, centrality=centrality)
+                if observable == 'Dz_atlas':
+                    # TODO binning and HEP data missing
+                    # using dummy binning for nowto at least plot something
+                    bins_z = np.array(block['bins_z'])
+                    bins_pt = np.array(block['bins_pt'])
+                    # arbitrary binning which will later only be used to integrate the whole thing to determine the number of jet pairs in a given pt range (if applicable)
+                    # steps of 0.5 from 0 to 1000
+                    jetPtBins = np.arange(0, 1000, 5)
+                    if not bins.any():
+                        continue
+                    # first get observables needed for normalisation (number of charged jet pairs)
+                    # TODO check if this is actually needed or if one can simply integrate the 2D distribution of Dz and Dpt, respectively
+                    # TODO ask raymond how to deal with 2D observables?
+                    self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}_Njch', bins=jetPtBins, centrality=centrality)
 
     #-------------------------------------------------------------------------------------------
     # Histogram hadron correlation observables

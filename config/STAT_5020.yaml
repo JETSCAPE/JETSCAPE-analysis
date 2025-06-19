@@ -867,9 +867,9 @@ inclusive_chjet:
     y_max_pp: 1.5
     skip_pp: True
 
-    bins: |
-      "PMJ 2/28/25 for now use bins of width 1 GeV over the full pT range,"
-      " will be adjusted when analysis details are finalized "
+    #bins:
+    # TODO:   "PMJ 2/28/25 for now use bins of width 1 GeV over the full pT range,"
+    # TODO:  " will be adjusted when analysis details are finalized "
 
   # ALICE, zg
   # https://www.hepdata.net/record/ins1893479
@@ -1334,7 +1334,7 @@ gamma_trigger_jet:
     y_min_pp: 3e-4
     y_max_pp: 2e-2
 
-    bins_pp: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
+    bins: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
 
     # Isolation in PbPb (text from paper): “Thus, in Pb+Pb collisions, the isolation energy requirement depends
     # continuously on the centrality of the event and is chosen so that its efficiency for prompt
@@ -1350,7 +1350,6 @@ gamma_trigger_jet:
     y_min_AA: 3e-6
     y_max_AA: 10.
 
-    bins_AA: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
 
   # paper: https://inspirehep.net/literature/1694678
   # HEPData: https://www.hepdata.net/record/ins1694678
@@ -1495,6 +1494,10 @@ gamma_trigger_jet:
 
     # gamma-jet pairs
     dPhi: 7./8. # dPhi > 7/8*pi
+
+    # TODO, dummy binning until hepdata is available
+    bins_z: [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+    bins_pt: [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300,310,320]
 
   # Paper: https://inspirehep.net/literature/1648162
   # Data: https://www.hepdata.net/record/ins1648162

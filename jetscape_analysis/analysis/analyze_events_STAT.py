@@ -650,7 +650,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and jet_pt > jet_pt_min
                                 and jet_pt < jet_pt_max):
                                 # TODO double check if Njet is really the number of jets or if it should be normalized to number of jet pairs
-                                self.observable_dict_event[f'gamma_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
+                                #self.observable_dict_event[f'gamma_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
                                 if photon.delta_phi(jet) > (dPhi * np.pi):
                                     # Fill Njet, which is number of jets back to back
                                     # Loop over all primary_hadrons and select those that are back to back with the jet
