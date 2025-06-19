@@ -117,8 +117,8 @@ class PlotResults(common_base.CommonBase):
             if 'inclusive_jet' in self.config:
                 self.plot_jet_observables(observable_type='inclusive_jet')
 
-            if 'dijet' in self.config:
-                self.plot_jet_observables(observable_type='dijet')
+            if 'dijet_trigger_jet' in self.config:
+                self.plot_jet_observables(observable_type='dijet_trigger_jet')
 
         self.plot_event_qa()
 
@@ -264,7 +264,7 @@ class PlotResults(common_base.CommonBase):
     #-------------------------------------------------------------------------------------------
     # Histogram semi-inclusive jet observables
     #-------------------------------------------------------------------------------------------
-    def plot_semi_inclusive_chjet_observables(self, observable_type=''):
+    def plot_hadron_trigger_chjet_observables(self, observable_type=''):
         print()
         print(f'Plot {observable_type} observables...')
 
@@ -619,9 +619,9 @@ class PlotResults(common_base.CommonBase):
             elif observable_type == 'inclusive_chjet':
                 if observable == 'pt_star':
                     h.Scale(1./(2*self.eta_cut))
-            elif observable_type == 'semi_inclusive_chjet':
+            elif observable_type == 'hadron_trigger_chjet':
                 # Note that n_trig histograms should also be scaled by xsec/n_events
-                if observable in ['IAA_star', 'dphi_star']:
+                if observable in ['IAA_pt_star', 'dphi_star']:
                     h.Scale(1./(xsec/weight_sum))
 
         if self.sqrts == 2760:
@@ -664,7 +664,7 @@ class PlotResults(common_base.CommonBase):
             elif observable_type == 'inclusive_chjet':
                 if observable == 'pt_alice':
                     h.Scale(1./(2*self.eta_cut))
-            elif observable_type == 'semi_inclusive_chjet':
+            elif observable_type == 'hadron_trigger_chjet':
                 # Note that n_trig histograms should also be scaled by xsec/n_events
                 if observable in ['IAA_pt_alice', 'dphi_alice']:
                     h.Scale(1./(xsec/weight_sum))

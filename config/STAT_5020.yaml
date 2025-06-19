@@ -499,18 +499,6 @@ inclusive_jet:
     xtitle: '#it{p}_{T,jet} (GeV/#it{c})'
     logy: True
 
-##     hepdata: 'HEPData-ins1848440-v1-root.root'
-##     hepdata_pp_dir_R0.2: 'Figure 5-1'
-##     hepdata_pp_dir_R0.3: 'Figure 5-2'
-##     hepdata_pp_dir_R0.4: 'Figure 5-3'
-##     hepdata_pp_dir_R0.6: 'Figure 5-4'
-##     hepdata_pp_dir_R0.8: 'Figure 5-5'
-##     hepdata_pp_dir_R1.0: 'Figure 5-6'
-##     hepdata_pp_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3']
-##     ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]'
-##     y_min_pp: 2e-8
-##     y_max_pp: 1e2
-
     hepdata: 'HEPData-ins1848440-v1-root.root'
     hepdata_pp_dir_R0.2: 'Figure 5-1'
     hepdata_pp_dir_R0.3: 'Figure 5-2'
@@ -518,6 +506,8 @@ inclusive_jet:
     hepdata_pp_dir_R0.6: 'Figure 5-4'
     hepdata_pp_dir_R0.8: 'Figure 5-5'
     hepdata_pp_dir_R1.0: 'Figure 5-6'
+    # RJE: This was the previous version:
+    # hepdata_pp_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3']
     hepdata_pp_gname: ['Graph1D_y5']
     ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]'
     y_min_pp: 2e-8
@@ -1231,8 +1221,9 @@ inclusive_chjet:
 
 #------------------------------------------------------------------
 #------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_chjet:
+# Hadron triggered charged-particle jet observables
+# (e.g. semi-inclusive h-jet)
+hadron_trigger_chjet:
 
   # PRL: https://inspirehep.net/literature/2693336
   # HEPdata: https://www.hepdata.net/record/ins2693336
@@ -1315,7 +1306,7 @@ semi_inclusive_chjet:
 
 #------------------------------------------------------------------
 # coincidence observables – gamma+jet
-gamma_jet:
+gamma_trigger_jet:
 
   # ATLAS gamma-tagged RAA
   # paper: https://inspirehep.net/literature/2648097
@@ -1388,7 +1379,7 @@ gamma_jet:
     jet_pT: [31.6., 1000.]
     jet_deltaphi: [7pi/8, pi]
 
-    # Fig 4; pTgamma=63-80 GeV, both pp and PbPb
+    # Fig 4; pt_gamma=63-80 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%201
     xtitle: '#it{x}_{J,#gamma}'
     logy: False
@@ -1398,7 +1389,7 @@ gamma_jet:
     y_max_pp: 2
     bins: [.50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
 
-    # Fig 5; pTgamma=80-100 GeV, both pp and PbPb
+    # Fig 5; pt_gamma=80-100 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%202
     xtitle: '#it{x}_{J,#gamma}'
     logy: False
@@ -1408,7 +1399,7 @@ gamma_jet:
     y_max_pp: 2
     bins: [0.40, 0.45, .50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
 
-    # Fig 6; pTgamma=100-158 GeV, both pp and PbPb
+    # Fig 6; pt_gamma=100-158 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%203
     xtitle: '#it{x}_{J,#gamma}'
     logy: False
@@ -1418,7 +1409,7 @@ gamma_jet:
     y_max_pp: 2
     bins: [0.32, 0.35, 0.40, 0.45, .50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
 
-    # Fig 7; pTgamma=158-200 GeV, both pp and PbPb
+    # Fig 7; pt_gamma=158-200 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%204
     xtitle: '#it{x}_{J,#gamma}'
     logy: False
@@ -1459,7 +1450,7 @@ gamma_jet:
     y_max_pp: 5.0
     bins: [0.00, 0.94, 1.57, 1.89, 2.04, 2.20, 2.36, 2.51, 2.67, 2.83, 2.99, 3.14]
 
-    # Fig 3; pTgamma; pTgamma dependence
+    # Fig 3; pt_gamma; pt_gamma dependence
     # https://www.hepdata.net/record/ins1638996?version=1&table=Table%203
     xtitle: '#it{x}_{J,#gamma}'
     centrality: [0,30]
@@ -1471,7 +1462,7 @@ gamma_jet:
     y_max_pp: 2.0
     bins: [0.000, 0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.000, 1.125, 1.250, 1.375, 1.500, 1.625, 1.750, 1.875, 2.000]
 
-    # Fig 6; pTgamma; centrality dependence
+    # Fig 6; pt_gamma; centrality dependence
     # https://www.hepdata.net/record/ins1638996?version=1&table=Table%206
     xtitle: '#it{x}_{J,#gamma}'
     jet_deltaphi: [7pi/8, pi]
