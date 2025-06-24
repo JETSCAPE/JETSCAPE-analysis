@@ -1278,12 +1278,12 @@ gamma_jet:
     gamma_min_Et: 60 # GeV
     gamma_eta: 1.44 # |eta| < 1.44
     # Note on isolation:
-    # I think we do not need to mimik the exact isolation they do in data, as it gets swallowed in the effeciency calculation. 
-    # We should take guidance from the islation used for the theory calculations in their comparison 
-    # which is: deltaR < 0.4 and sum of all partons within cone required to be below 5 GeV. 
-    # Probably what we should do in jetscape is calculated for all charged and neutral particles 
-    # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of. 
-    # This will of course give us a sample of isolated gammas and not isolated prompt gammas, 
+    # I think we do not need to mimic the exact isolation they do in data, as it gets swallowed in the efficiency calculation.
+    # We should take guidance from the isolation used for the theory calculations in their comparison
+    # which is: deltaR < 0.4 and sum of all partons within cone required to be below 5 GeV.
+    # Probably what we should do in jetscape is calculated for all charged and neutral particles
+    # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of.
+    # This will of course give us a sample of isolated gammas and not isolated prompt gammas,
     # so we in principle need to do some purity correction or find a way to ignore decay gammas in the prediction
     isolation_type: 'full'
     isolation_R: 0.4
@@ -1303,17 +1303,65 @@ gamma_jet:
     # gamma-jet pairs
     dPhi: 7./8. # dPhi > 7/8*pi
 
+  # CMS, gamma-tagged girth
+  # https://inspirehep.net/literature/2783507
+  g_cms:
+    enabled: false
+
+    # jet reconstruction
+    jet_R: [0.2] # anti-kt with particle flow TODO check if particle flow is relevant
+    jet_pt_min: 40 # GeV
+    eta_cut_jet: 2.0
+    centrality: [[0,30]]
+
+    # gamma-jet pairs
+    dPhi: 7./8. # dPhi > 7/8*pi
+
+    # ...
+
+  # CMS, gamma-tagged Rg
+  # https://inspirehep.net/literature/2783507
+  rg_cms:
+    enabled: false
+
+    # jet reconstruction
+    jet_R: [0.2] # anti-kt with particle flow TODO check if particle flow is relevant
+    jet_pt_min: 40 # GeV
+    eta_cut_jet: 2.0
+    centrality: [[0,30]]
+
+    # gamma-jet pairs
+    dPhi: 7./8. # dPhi > 7/8*pi
+
+    # ...
+
+  # CMS, gamma-tagged jet-axis difference
+  # https://cms-results.web.cern.ch/cms-results/public-results/preliminary-results/HIN-21-019/index.html
+  axis_cms:
+    enabled: false
+
+    # jet reconstruction
+    jet_R: [0.3] # anti-kt with particle flow TODO check if particle flow is relevant
+    jet_pt: [30, 100]
+    eta_cut_jet: 1.6
+    centrality: [[0,10],[10,30],[30,50],[50,100]]
+
+    # gamma-jet pairs
+    dPhi: 2./3. # dPhi > 2./3.*pi
+
+    # ...
+
 #------------------------------------------------------------------
 #------------------------------------------------------------------
 # Z boson triggered observables
 Z_boson_triggered:
 
   # Paper: https://inspirehep.net/literature/1812957
-  # Data: Missing 
+  # Data: Missing
   Z_hadron_IAA_atlas:
     centrality: [[0,10]]
     pt_hadron_min: 1.
-    eta_hadron_max: 2.5 
+    eta_hadron_max: 2.5
     pt_Z_min: 15.
     eta_Z_max: 2.5 # TODO They write nowhere what the eta acceptance of reconstructed Z boson is. They write requirements for decay products but not for the Z. They say they correct for reconstruction effieciney but do not specify the region for Z Boson. The written value is a blind guess
     dPhiMin: 3./4. # dPhi > 3/4*pi
@@ -1328,12 +1376,11 @@ Z_boson_triggered:
     pt_Z_min: 60.
     eta_Z_max: 2.5 # TODO not givene xplicitly but i assume this is the case
     dPhiMin: 7./8. # dPhi > 7/8*pi
-    
+
     # TODO add figures and binning later, but we need xjz distirbution normalised by number of Z boson triggers,
     # as well as dPhi distribution
 
 
 
-  
 
-  
+
