@@ -51,6 +51,7 @@ dev = [
     "pre-commit >=2.13.0",
     "ruff >=0.0.209",
     "mypy >=0.931",
+    "pandas-stubs>=2.2.3.250527",
 ]
 
 [project.urls]
