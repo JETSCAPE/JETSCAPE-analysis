@@ -923,7 +923,7 @@ def parse_to_parquet(
 
 
 if __name__ == "__main__":
-    #read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
+    # read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
     for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
         print(f"Processing pt hat range: {pt_hat_range}")  # noqa: T201
         directory_name = "OutputFile_Type5_qhatA10_B0_5020_PbPb_0-10_0.30_2.0_1"
@@ -933,5 +933,5 @@ if __name__ == "__main__":
             store_only_necessary_columns=True,
             input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
             events_per_chunk=20,
-            #max_chunks=3,
+            # max_chunks=3,
         )
