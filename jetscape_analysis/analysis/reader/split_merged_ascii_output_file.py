@@ -112,10 +112,9 @@ def split_file_on_string(filename: Path, model: str, string_to_split_on: str | N
 
 def entry_point() -> None:
     """Entry point for splitting appended output files."""
-    # Just initialize something basic for convenience
-    logging.basicConfig(
-        level=logging.DEBUG,
-    )
+    # Setup logging (delayed important to make it more self contained)
+    from jetscape_analysis.base import helpers  # noqa: PLC0415
+    helpers.setup_logging(level=logging.DEBUG)
 
     # Argument parser
     parser = argparse.ArgumentParser(

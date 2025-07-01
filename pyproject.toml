@@ -41,6 +41,7 @@ dependencies = [
     "awkward >=1.7.0",
     "uproot >=5.3",
     "matplotlib >=3.8",
+    "rich>=14.0.0",
 ]
 
 [project.optional-dependencies]
