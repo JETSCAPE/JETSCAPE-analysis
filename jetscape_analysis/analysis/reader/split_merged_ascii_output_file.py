@@ -33,6 +33,7 @@ def write_output_file(
 
     logger.info(f"Created file {output_filename} with {len(current_contents)} lines.")
 
+
 # This string corresponds to the start of an output file.
 _string_to_split_on_by_model = {
     "hybrid": "# event 0",
@@ -114,6 +115,7 @@ def entry_point() -> None:
     """Entry point for splitting appended output files."""
     # Setup logging (delayed important to make it more self contained)
     from jetscape_analysis.base import helpers  # noqa: PLC0415
+
     helpers.setup_logging(level=logging.DEBUG)
 
     # Argument parser
@@ -126,7 +128,13 @@ def entry_point() -> None:
         help="Input file to split",
         type=Path,
     )
-    parser.add_argument("-m", "--model", default="hybrid", type=str, help="Model which generated the file that is being split apart.")
+    parser.add_argument(
+        "-m",
+        "--model",
+        default="hybrid",
+        type=str,
+        help="Model which generated the file that is being split apart. Options: ['hybrid', 'jetscape']",
+    )
 
     args = parser.parse_args()
 
@@ -135,9 +143,9 @@ def entry_point() -> None:
         model=args.model,
     )
     if res:
-        logger.info("Success")
+        logger.info("🎉 Success!")
     else:
-        logger.error("Splitting files failed. ")
+        logger.error("❌ Splitting file failed. See log")
 
 
 if __name__ == "__main__":
