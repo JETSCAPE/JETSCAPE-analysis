@@ -14,6 +14,7 @@ from typing import Any
 import awkward as ak
 import numpy as np
 import numpy.typing as npt
+import vector
 
 import jetscape_analysis.analysis.reader._parse_ascii as parse_ascii_base
 from jetscape_analysis.analysis.reader import _parse_ascii_hybrid, _parse_ascii_jetscape
@@ -76,6 +77,7 @@ def determine_format_version_from_file(f: typing.TextIO) -> int:
         # If we haven't found the version, then there's nothing we can do
 
     return file_format_version
+
 
 # Register model specific parsing functions.
 _model_to_module = {
@@ -174,7 +176,10 @@ class FileLikeGenerator:
         return self.g
 
 
-def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
+DEFAULT_EXPECTED_COLUMN_ORDER = ["particle_ID", "status", "E", "px", "py", "pz"]
+
+
+def _parse_with_pandas(chunk_generator: Iterator[str], column_names: list[str]) -> npt.NDArray[Any]:
     """Parse the lines with `pandas.read_csv`
 
     `read_csv` uses a compiled c parser. As of 6 October 2020, it is tested to be the fastest option.
@@ -185,14 +190,20 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
         Array of the particles.
     """
     # Delayed import so we only take the import time if necessary.
-    import pandas as pd
+    import pandas as pd  # noqa: PLC0415
+
+    # If we have mass rather than E, replace it in the expected order.
+    # We'll handle the conversion to write out the energy later
+    expected_column_order = list(DEFAULT_EXPECTED_COLUMN_ORDER)
+    if "E" not in column_names:
+        expected_column_order[expected_column_order.index("E")] = "m"
 
     return pd.read_csv(  # type: ignore[no-any-return]
         FileLikeGenerator(chunk_generator),
-        # NOTE: If the field is missing (such as eta and phi), they will exist, but they will be filled with NaN.
-        #       We actively take advantage of this so we don't have to change the parsing for header v1 (which
+        # NOTE: If a field that is listed here is missing (e.g. eta or phi), they will be created and filled with NaN.
+        #       We could take advantage of this so we don't have to change the parsing for jetscape header v1 (which
         #       includes eta and phi) vs header v2 (which does not)
-        names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+        names=column_names,
         header=None,
         comment="#",
         sep=r"\s+",
@@ -209,7 +220,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
         #
         # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
         #       which will break the header indexing and therefore the conversion to awkward.
-    ).to_numpy()
+    )[expected_column_order].to_numpy()
 
 
 def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
@@ -232,7 +243,7 @@ def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
     """Parse the lines with numpy.
 
-    Unfortunately, this option is surprisingly, presumably because it has so many options.
+    Unfortunately, this option is surprisingly slow, presumably because it has so many options.
     Pure python appears to be about 2x faster. So we keep this as an option for the future,
     but it is not used by default.
 
@@ -244,7 +255,7 @@ def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
     return np.loadtxt(chunk_generator)
 
 
-def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") -> Generator[ak.Array, int | None, None]:
+def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") -> Generator[ak.Array, int | None, None]:  # noqa: C901
     """Read a JETSCAPE FinalState{Hadrons,Partons} ASCII output file in chunks.
 
     This is the primary user function. We read in chunks to keep the memory usage manageable.
@@ -282,7 +293,7 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
 
             # First, parse the lines. We need to make this call before attempt to convert into events because the necessary
             # info (namely, n particles per event) is only available and valid after we've parse the lines.
-            res = parsing_function(iter(chunk_generator))
+            res = parsing_function(iter(chunk_generator), column_names=chunk_generator.model_parameters.column_names)
 
             # Before we do anything else, if our events_per_chunk is a even divisor of the total number of events
             # and we've hit the end of the file, we can return an empty generator after trying to parse the chunk.
@@ -321,6 +332,7 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
                 ),
                 "event_ID": np.array([header.event_number for header in chunk_generator.headers], np.uint16),
             }
+            # And then handle optional values - no point storing the values if they're not meaningful.
             if chunk_generator.headers[0].event_weight > -1:
                 header_level_info["event_weight"] = np.array(
                     [header.event_weight for header in chunk_generator.headers], np.float32
@@ -357,31 +369,45 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
                     header_level_info["event_plane_angle"], chunk_generator.cross_section.error
                 )
 
+            # Handle the particle level fields
+            # Namely, this enables the conversion of particle level fields if necessary (e.g. m -> E)
+            energy_like_label = "E"
+            if "m" in chunk_generator.model_parameters.column_names:
+                energy_like_label = "m"
+            # Order of the columns is determined at the time of parsing
+            particles = vector.Array(
+                ak.zip(
+                    {
+                        "particle_ID": ak.values_astype(array_with_events[:, :, 0], np.int32),
+                        # We're only considering final state hadrons or partons, so status codes are limited to a few values.
+                        # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
+                        # So we can't differentiate the recoil from the signal.
+                        "status": ak.values_astype(array_with_events[:, :, 1], np.int8),
+                        energy_like_label: ak.values_astype(array_with_events[:, :, 2], np.float32),
+                        "px": ak.values_astype(array_with_events[:, :, 3], np.float32),
+                        "py": ak.values_astype(array_with_events[:, :, 4], np.float32),
+                        "pz": ak.values_astype(array_with_events[:, :, 5], np.float32),
+                    },
+                )
+            )
+            # Regardless of what kinematics were provided, we want to write E, px, py, pz.
+            # These are contained in the DEFAULT_EXPECTED_COLUMN_ORDER, so we use that
+            # here, event if we don't care overly much about the order once we've created
+            # the awkward array (i.e. the ordering is not meaningful there)
+            particle_fields_to_write = DEFAULT_EXPECTED_COLUMN_ORDER
+
             # Assemble all of the information in a single awkward array and pass it on.
             _result = yield ak.zip(
                 {
                     # Header level info
                     **header_level_info,
                     # Particle level info
-                    # As I've learned from experience, it's much more convenient to store the particles in separate columns.
-                    # Trying to fit them in alongside the event level info makes life far more difficult.
-                    #"particles": ak.zip(
-                        **{
-                            "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
-                            # We're only considering final state hadrons or partons, so status codes are limited to a few values.
-                            # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
-                            # So we can't differentiate the recoil from the signal.
-                            "status": ak.values_astype(array_with_events[:, :, 2], np.int8),
-                            "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
-                            "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
-                            "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
-                            "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
-                            # We could skip eta and phi since we can always recalculate them. However, since we've already parsed
-                            # them, we may as well pass them along.
-                            "eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
-                            "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
-                        },
-                    #),
+                    # NOTE: We have to decompose this into a dict since we need to rezip
+                    #       at a lower depth limit to match up with the header information.
+                    #       (pandas doesn't properly read a fully zipped particles. If we're working
+                    #       with awkward later, we can always rezip it at full depth then).
+                    # NOTE: We need to use getattr since vector may not instantiate the field otherwise.
+                    **{k: getattr(particles, k) for k in particle_fields_to_write},
                 },
                 depth_limit=1,
             )
@@ -393,41 +419,8 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
         pass
 
 
-def full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Array:
-    columns_to_drop = ["eta", "phi"]
-    columns_to_keep = [field for field in ak.fields(arrays) if field not in columns_to_drop]
-    return ak.zip(
-        {
-            column: arrays[column] for column in columns_to_keep
-        }, depth_limit=1
-    )
-
-## def full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Array:
-##     """Reduce the number of columns to store.
-##
-##     Note:
-##         This only drops particle columns because those are the ones that have redundant info.
-##         This is fairly specialized, but fine for our purposes here.
-##     """
-##     columns_to_drop = ["eta", "phi"]
-##     return ak.zip(
-##         {
-##             **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays), strict=True) if k != "particles"},
-##             "particles": ak.zip(
-##                 {
-##                     name: arrays["particles", name]
-##                     for name in ak.fields(arrays["particles"])
-##                     if name not in columns_to_drop
-##                 }
-##             ),
-##         },
-##         depth_limit=1,
-##     )
-
-
 def parse_to_parquet(
     base_output_filename: Path | str,
-    store_only_necessary_columns: bool,
     input_filename: Path | str,
     events_per_chunk: int,
     parser: str = "pandas",
@@ -435,12 +428,11 @@ def parse_to_parquet(
     compression: str = "zstd",
     compression_level: int | None = None,
 ) -> None:
-    """Parse the JETSCAPE ASCII and convert it to parquet, (potentially) storing only the minimum necessary columns.
+    """Parse the ASCII final state {hadrons,partons} output file and convert it to parquet.
 
     Args:
         base_output_filename: Basic output filename. Should include the entire path.
-        store_only_necessary_columns: If True, store only the necessary columns, rather than all of them.
-        input_filename: Filename of the input JETSCAPE ASCII file.
+        input_filename: Filename of the input ASCII final state {hadrons,partons} file.
         events_per_chunk: Number of events to be read per chunk.
         parser: Name of the parser. Default: "pandas".
         max_chunks: Maximum number of chunks to read. Default: -1.
@@ -456,16 +448,6 @@ def parse_to_parquet(
     base_output_filename.parent.mkdir(parents=True, exist_ok=True)
 
     for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
-        # Reduce to the minimum required data.
-        if store_only_necessary_columns:
-            arrays = full_events_to_only_necessary_columns_E_px_py_pz(arrays)  # noqa: PLW2901
-        else:
-            # To match the steps taken when reducing the columns, we'll re-zip with the depth limited to 1.
-            # As of April 2021, I'm not certainly this is truly required anymore, but it may be needed for
-            # parquet writing to be successful (apparently parquet couldn't handle lists of structs sometime
-            # in 2020. The status in April 2021 is unclear, but not worth digging into now).
-            arrays = ak.zip(dict(zip(ak.fields(arrays), ak.unzip(arrays), strict=True)), depth_limit=1)  # noqa: PLW2901
-
         # If converting in chunks, add an index to the output file so the chunks don't overwrite each other.
         if events_per_chunk > 0:
             suffix = base_output_filename.suffix
@@ -494,15 +476,34 @@ def parse_to_parquet(
 
 
 if __name__ == "__main__":
+    # Setup
+    from jetscape_analysis.base import helpers
+
+    helpers.setup_logging(level=logging.INFO)
+
     # read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
-    for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
-        print(f"Processing pt hat range: {pt_hat_range}")  # noqa: T201
-        directory_name = "OutputFile_Type5_qhatA10_B0_5020_PbPb_0-10_0.30_2.0_1"
-        filename = f"JetscapeHadronListBin{pt_hat_range}"
-        parse_to_parquet(
-            base_output_filename=f"skim/{filename}.parquet",
-            store_only_necessary_columns=True,
-            input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
-            events_per_chunk=20,
-            # max_chunks=3,
-        )
+    # for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
+    #     logger.info(f"Processing pt hat range: {pt_hat_range}")
+    #     directory_name = "OutputFile_Type5_qhatA10_B0_5020_PbPb_0-10_0.30_2.0_1"
+    #     filename = f"JetscapeHadronListBin{pt_hat_range}"
+    #     parse_to_parquet(
+    #         base_output_filename=f"skim/{filename}.parquet",
+    #         input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
+    #         events_per_chunk=20,
+    #         # max_chunks=3,
+    #     )
+
+    ## 0-5%
+    # filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_05_Lres2_kappa_0p428/HYBRID_Hadrons_0000.out")
+    ## 5-10%
+    # filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_510_Lres2_kappa_0p428/HYBRID_Hadrons_0000.out")
+    # Vacuum
+    filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_Vac/HYBRID_Hadrons_0000.out")
+    parse_to_parquet(
+        base_output_filename=f"skim/{filename.parent.name}/{filename.stem}.parquet",
+        input_filename=filename,
+        events_per_chunk=20,
+        max_chunks=3,
+        # events_per_chunk=100000,
+        # max_chunks=1,
+    )

@@ -42,6 +42,7 @@ dependencies = [
     "uproot >=5.3",
     "matplotlib >=3.8",
     "rich>=14.0.0",
+    "vector>=1.6.2",
 ]
 
 [project.optional-dependencies]
