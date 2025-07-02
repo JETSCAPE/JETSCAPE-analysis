@@ -320,7 +320,7 @@ def event_by_event_generator(
     yield from itertools.islice(f, header.n_particles)
 
 
-def initialize_parsing_functions(file_format_version: int) -> parse_ascii_base.ModelParsingFunctions:
+def initialize_parsing_functions(file_format_version: int) -> parse_ascii_base.ModelParameters:
     """Initialize parsing functions for the JETSCAPE output.
 
     Args:
@@ -354,8 +354,9 @@ def initialize_parsing_functions(file_format_version: int) -> parse_ascii_base.M
         parse_header_line=_file_format_version_to_header_parser[file_format_version],
     )
 
-    return parse_ascii_base.ModelParsingFunctions(
+    return parse_ascii_base.ModelParameters(
         model_name="jetscape",
+        column_names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
         extract_x_sec_and_error=extract_x_sec_func,
         event_by_event_generator=e_by_e_generator,
     )

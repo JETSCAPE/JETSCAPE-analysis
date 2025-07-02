@@ -197,17 +197,19 @@ def extract_x_sec_and_error(
 
 
 @attrs.frozen
-class ModelParsingFunctions:
-    """Model dependent parsing functions.
+class ModelParameters:
+    """Model dependent parameters and parsing functions.
 
     Attributes:
         model_name: Name of the model.
+        column_names: List of column names stored in the file, ordered by their column order in the file.
         extract_x_sec_and_error: Function to extract the cross section and cross section error
             from a file-like object.
         event_by_event_generator: Generator to yield event-by-event information, switch back
             and for both between headers and event particles.
     """
     model_name: str = attrs.field()
+    column_names: list[str] = attrs.field()
     extract_x_sec_and_error: Callable[[typing.TextIO, int], CrossSection | None] = attrs.field()
     event_by_event_generator: Callable[[Iterator[str], Callable[[Any], HeaderInfo]], Iterator[HeaderInfo | str]] = attrs.field()
 
@@ -223,12 +225,12 @@ class ChunkGenerator:
     Args:
         g: Iterator over the input file.
         events_per_chunk: Number of events for the chunk.
-        _model_parsing_functions: Model dependent parsing functions.
+        model_parameters: Model dependent parameters and parsing functions.
         cross_section: Cross section information.
     """
     g: Iterator[str] = attrs.field()
     _events_per_chunk: int = attrs.field()
-    _model_parsing_functions: ModelParsingFunctions = attrs.field()
+    model_parameters: ModelParameters = attrs.field()
     cross_section: CrossSection | None = attrs.field(default=None)
     _headers: list[HeaderInfo] = attrs.Factory(list)
     _reached_end_of_file: bool = attrs.field(default=False)
@@ -286,7 +288,7 @@ class ChunkGenerator:
 
     def __iter__(self) -> Iterator[str]:
         # Setup parsing functions
-        event_by_event_generator = self._model_parsing_functions.event_by_event_generator
+        event_by_event_generator = self.model_parameters.event_by_event_generator
 
         for _ in range(self._events_per_chunk):
             # logger.debug(f"i: {i}")
@@ -312,71 +314,6 @@ class ChunkGenerator:
             # NOTE: If we somehow reached StopIteration, it's also fine - just
             #       allow it to propagate through and end the for loop.
 
-
-
-def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5), model: str = "jetscape") -> Iterator[ChunkGenerator]:
-    """ Read events in chunks from stored JETSCAPE FinalState* ASCII files.
-
-    This provides access to the lines of the file itself, but it is up to the user to parse each line.
-    Consequently, many useful features are implemented on top of it. Users are encouraged to use those
-    more full featured functions, such as `read(...)`.
-
-    Args:
-        filename: Path to the file.
-        events_per_chunk: Number of events to store in each chunk. Default: 1e5.
-    Returns:
-        Chunks iterator. When this iterator is consumed, it will generate lines from the file until it
-            hits the number of events mark. The header information is contained inside the object.
-    """
-    # Validation
-    filename = Path(filename)
-
-    # Setup
-    _extract_x_sec_and_error_function = _model_to_cross_section_extractor[model]
-    logger.info(f"Processing outputs from model '{model}'")
-
-    with filename.open() as f:
-        # First step, extract the final cross section and header.
-        cross_section = _extract_x_sec_and_error_function(f)
-
-        # Define an iterator so we can increment it in different locations in the code.
-        # Fine to use if it the entire file fits in memory.
-        #read_lines = iter(f.readlines())
-        # Use this if the file doesn't fit in memory (fairly likely for these type of files)
-        read_lines = iter(f)
-
-        # Check for file format version indicating how we should parse it.
-        file_format_version = -1
-        first_line = next(read_lines)
-        first_line_split = first_line.split("\t")
-        if len(first_line_split) > 3 and first_line_split[1] == "JETSCAPE_FINAL_STATE":
-            # 1: is to remove the "v" in the version
-            file_format_version = int(first_line_split[2][1:])
-        else:
-            # We need to move back to the beginning of the file, since we just burned through
-            # a meaningful line (which almost certainly contains an event header).
-            # NOTE: My initial version of two separate iterators doesn't work because it appears
-            #       that you cannot do so for a file (which I suppose I can make sense of because
-            #       it points to a position in a file, but still unexpected).
-            f.seek(0)
-
-        logger.info(f"Found file format version: {file_format_version}")
-
-        # Now, need to setup chunks.
-        # NOTE: The headers and additional info are passed through the ChunkGenerator.
-        while True:
-            # We keep an explicit reference to the chunk so we can set the end of file state
-            # if we reached the end of the file.
-            chunk = ChunkGenerator(
-                g=read_lines,
-                events_per_chunk=events_per_chunk,
-                cross_section=cross_section,
-                model=model,
-                file_format_version=file_format_version,
-            )
-            yield chunk
-            if chunk.reached_end_of_file:
-                break
 
 
 class FileLikeGenerator:

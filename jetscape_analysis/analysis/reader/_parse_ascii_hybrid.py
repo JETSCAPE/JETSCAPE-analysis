@@ -186,7 +186,7 @@ def event_by_event_generator(
     yield from event_lines[2:]
 
 
-def initialize_parsing_functions(file_format_version: int) -> parse_ascii_base.ModelParsingFunctions:
+def initialize_parsing_functions(file_format_version: int) -> parse_ascii_base.ModelParameters:
     """Initialize parsing functions for the hybrid model.
 
     Args:
@@ -219,8 +219,9 @@ def initialize_parsing_functions(file_format_version: int) -> parse_ascii_base.M
         parse_header_line=_file_format_version_to_header_parser[file_format_version],
     )
 
-    return parse_ascii_base.ModelParsingFunctions(
+    return parse_ascii_base.ModelParameters(
         model_name="hybrid",
+        column_names=["px", "py", "pz", "m", "particle_ID", "status"],
         extract_x_sec_and_error=extract_x_sec_func,
         event_by_event_generator=e_by_e_generator,
     )
@@ -282,21 +283,6 @@ def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
         if not p.startswith("#"):
             particles.append(np.array(p.rstrip("\n").split(), dtype=np.float64))
     return np.stack(particles)
-
-
-def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """Parse the lines with numpy.
-
-    Unfortunately, this option is surprisingly, presumably because it has so many options.
-    Pure python appears to be about 2x faster. So we keep this as an option for the future,
-    but it is not used by default.
-
-    Args:
-        chunk_generator: Generator of chunks of the input file for parsing.
-    Returns:
-        Array of the particles.
-    """
-    return np.loadtxt(chunk_generator)
 
 
 def read(

@@ -87,7 +87,7 @@ _model_to_module = {
 def read_events_in_chunks(
     filename: Path, events_per_chunk: int = DEFAULT_EVENTS_PER_CHUNK_SIZE
 ) -> Generator[ChunkGenerator, int | None, None]:
-    """Read events in chunks from stored JETSCAPE FinalState* ASCII files.
+    """Read events in chunks from stored ASCII output files.
 
     This provides access to the lines of the file itself, but it is up to the user to parse each line.
     Consequently, many useful features are implemented on top of it. Users are encouraged to use those
@@ -114,9 +114,9 @@ def read_events_in_chunks(
         if model not in _model_to_module:
             _msg = f"No parsing module found for {model=}"
             raise RuntimeError(_msg)
-        model_parsing_functions = _model_to_module[model].initialize_parsing_functions(file_format_version=file_format_version)
+        model_parameters = _model_to_module[model].initialize_parsing_functions(file_format_version=file_format_version)
         # And use those parsing functions to extract the final cross section and header.
-        cross_section = model_parsing_functions.extract_x_sec_and_error(f)
+        cross_section = model_parameters.extract_x_sec_and_error(f)
 
         # Now that we've complete the setup, we can move to actually parsing the events.
         # Define an iterator so we can increment it in different locations in the code.
@@ -138,7 +138,7 @@ def read_events_in_chunks(
             chunk = parse_ascii_base.ChunkGenerator(
                 g=read_lines,
                 events_per_chunk=requested_chunk_size,
-                model_parsing_functions=model_parsing_functions,
+                model_parameters=model_parameters,
                 cross_section=cross_section,
             )
             requested_chunk_size = yield chunk
