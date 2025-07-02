@@ -4,7 +4,7 @@ This module is designed to support output files from multiple models.
 The model specific functionality is factored out into individual models,
 which must implement the following API:
 
-- extract_x_sec_and_error: Callable[[typing.TextIO, int], CrossSection | None]:
+- extract_x_sec_and_error(f: typing.TextIO, read_chunk_size: int) -> CrossSection | None:
     Function to extract the cross section and cross section error from a file-like object.
 - event_by_event_generator(f: Iterator[str], parse_header_line: Callable[[Any], HeaderInfo]) -> Iterator[HeaderInfo | str]:
     Generator to yield event-by-event information, switching back and forth both
