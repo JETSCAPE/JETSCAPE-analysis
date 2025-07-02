@@ -1,4 +1,4 @@
-""" Parse hybrid ascii input files in chunks.
+"""Parse hybrid ascii input files in chunks.
 
 .. codeauthor:: Raymond Ehlers
 """
@@ -40,8 +40,8 @@ def parse_cross_section(line: str) -> CrossSection:
         #
         # I _think_ the units are mb^-1
         info = CrossSection(
-            value=float(values[3]),     # Cross section
-            error=float(values[9]),     # Cross section error
+            value=float(values[3]),  # Cross section
+            error=float(values[9]),  # Cross section error
         )
     else:
         _msg = f"Parsing of cross section failed: {values}"
@@ -55,7 +55,7 @@ def _parse_header_hybrid_v1(
     line_two: str,
     n_particles: int,
 ) -> HeaderInfo:
-    """ Parse Hybrid model event header.
+    """Parse Hybrid model event header.
 
     The event header is two lines, so we need to take the full iterator, rather than
 
@@ -108,27 +108,27 @@ def _parse_header_hybrid_v1(
     values = line_two.split(" ")
 
     info = HeaderInfo(
-        event_number=event_number,           # Event number
-        event_plane_angle=-999.0,            # EP angle
-        n_particles=n_particles,             # Number of particles
-        event_weight=float(values[1]),       # Event weight
-        vertex_x=float(values[5]),           # x vertex
-        vertex_y=float(values[7]),           # y vertex
-        vertex_z=-999.0,                     # z vertex
-        centrality=-1.0,                     # centrality
-        pt_hat=float(values[11]),            # pt hat
+        event_number=event_number,  # Event number
+        event_plane_angle=-999.0,  # EP angle
+        n_particles=n_particles,  # Number of particles
+        event_weight=float(values[1]),  # Event weight
+        vertex_x=float(values[5]),  # x vertex
+        vertex_y=float(values[7]),  # y vertex
+        vertex_z=-999.0,  # z vertex
+        centrality=-1.0,  # centrality
+        pt_hat=float(values[11]),  # pt hat
     )
 
     return info  # noqa: RET504
 
 
 # Register header parsing functions
-_file_format_version_to_header_parser = {
-    -1: _parse_header_hybrid_v1
-}
+_file_format_version_to_header_parser = {-1: _parse_header_hybrid_v1}
 
 
-def event_by_event_generator(f: Iterator[str], parse_header_line: Callable[[str, str, int], HeaderInfo]) -> Iterator[HeaderInfo | str]:
+def event_by_event_generator(
+    f: Iterator[str], parse_header_line: Callable[[str, str, int], HeaderInfo]
+) -> Iterator[HeaderInfo | str]:
     """Event-by-event generator using the Hybrid model output file.
 
     It alternates back and forth from yielding headers to the particles and back.
@@ -158,7 +158,7 @@ def event_by_event_generator(f: Iterator[str], parse_header_line: Callable[[str,
             # If we've hit "end", then we're done!
             # NOTE: rstrip() removes the "\n"
             if line.rstrip() == "end":
-                #logger.debug("Do not store end line")
+                # logger.debug("Do not store end line")
                 break
             # We don't want to store "end", so we put it after the check.
             event_lines.append(line)
@@ -227,7 +227,7 @@ def initialize_parsing_functions(file_format_version: int) -> parse_ascii_base.M
 
 
 def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with `pandas.read_csv`
+    """Parse the lines with `pandas.read_csv`
 
     `read_csv` uses a compiled c parser. As of 6 October 2020, it is tested to be the fastest option.
 
@@ -246,7 +246,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
         #       We actively take advantage of this so we don't have to change the parsing for header v1 (which
         #       includes eta and phi) vs header v2 (which does not)
         # TODO: Need to update for hybrid
-        #names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+        # names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
         names=["px", "py", "pz", "m", "particle_ID", "status"],
         header=None,
         comment="#",
@@ -268,7 +268,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
 
 def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with python.
+    """Parse the lines with python.
 
     We have this as an option because np.loadtxt is surprisingly slow.
 
@@ -285,7 +285,7 @@ def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
 
 def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with numpy.
+    """Parse the lines with numpy.
 
     Unfortunately, this option is surprisingly, presumably because it has so many options.
     Pure python appears to be about 2x faster. So we keep this as an option for the future,
@@ -299,8 +299,10 @@ def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
     return np.loadtxt(chunk_generator)
 
 
-def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas", model: str = "jetscape") -> Iterator[ak.Array]:
-    """ Read a JETSCAPE FinalState{Hadrons,Partons} ASCII output file in chunks.
+def read(
+    filename: Path | str, events_per_chunk: int, parser: str = "pandas", model: str = "jetscape"
+) -> Iterator[ak.Array]:
+    """Read a JETSCAPE FinalState{Hadrons,Partons} ASCII output file in chunks.
 
     This is the primary user function. We read in chunks to keep the memory usage manageable.
 
@@ -327,7 +329,9 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas", mo
     parsing_function = parsing_function_map[parser]
 
     # Read the file, creating chunks of events.
-    for i, chunk_generator in enumerate(read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk, model=model)):
+    for i, chunk_generator in enumerate(
+        read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk, model=model)
+    ):
         # Give a notification just in case the parsing is slow...
         logger.debug(f"New chunk {i}")
 
@@ -344,25 +348,25 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas", mo
             break
 
         # Now, convert into the awkward array structure.
-        array_with_events = ak.unflatten(
-            ak.Array(res), chunk_generator.n_particles_per_event()
-        )
+        array_with_events = ak.unflatten(ak.Array(res), chunk_generator.n_particles_per_event())
 
         # Cross checks.
         # Length check that we have as many events as expected based on the number of headers.
         # logger.debug(f"ak.num: {ak.num(array_with_events, axis = 0)}, len headers: {len(chunk_generator.headers)}")
-        assert (ak.num(array_with_events, axis = 0) == len(chunk_generator.headers))
+        assert ak.num(array_with_events, axis=0) == len(chunk_generator.headers)
         # Check that n particles agree
         n_particles_from_header = np.array([header.n_particles for header in chunk_generator.headers])
         # logger.info(f"n_particles from headers: {n_particles_from_header}")
         # logger.info(f"n_particles from array: {ak.num(array_with_events, axis = 1)}")
-        assert (np.asarray(ak.num(array_with_events, axis = 1)) == n_particles_from_header).all()
+        assert (np.asarray(ak.num(array_with_events, axis=1)) == n_particles_from_header).all()
         # State of the chunk
         # logger.debug(f"Reached end of file: {chunk_generator.reached_end_of_file}")
         # logger.debug(f"Incomplete chunk: {chunk_generator.incomplete_chunk}")
         # Let the use know so they're not surprised.
         if chunk_generator.incomplete_chunk:
-            logger.warning(f"Requested {chunk_generator.events_per_chunk} events, but only {chunk_generator.events_contained_in_chunk} are available because we hit the end of the file.")
+            logger.warning(
+                f"Requested {chunk_generator.events_per_chunk} events, but only {chunk_generator.events_contained_in_chunk} are available because we hit the end of the file."
+            )
 
         # Header info
         header_level_info = {
@@ -370,24 +374,38 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas", mo
             "event_ID": np.array([header.event_number for header in chunk_generator.headers], np.uint32),
         }
         if chunk_generator.headers[0].event_weight > -1:
-            header_level_info["event_weight"] = np.array([header.event_weight for header in chunk_generator.headers], np.float32)
+            header_level_info["event_weight"] = np.array(
+                [header.event_weight for header in chunk_generator.headers], np.float32
+            )
         if chunk_generator.headers[0].centrality > -1:
-            header_level_info["centrality"] = np.array([header.centrality for header in chunk_generator.headers], np.float32)
+            header_level_info["centrality"] = np.array(
+                [header.centrality for header in chunk_generator.headers], np.float32
+            )
         if chunk_generator.headers[0].pt_hat > -1:
             header_level_info["pt_hat"] = np.array([header.pt_hat for header in chunk_generator.headers], np.float32)
         if chunk_generator.headers[0].vertex_x > -999:
-            header_level_info["vertex_x"] = np.array([header.vertex_x for header in chunk_generator.headers], np.float32)
+            header_level_info["vertex_x"] = np.array(
+                [header.vertex_x for header in chunk_generator.headers], np.float32
+            )
         if chunk_generator.headers[0].vertex_y > -999:
-            header_level_info["vertex_y"] = np.array([header.vertex_y for header in chunk_generator.headers], np.float32)
+            header_level_info["vertex_y"] = np.array(
+                [header.vertex_y for header in chunk_generator.headers], np.float32
+            )
         if chunk_generator.headers[0].vertex_z > -999:
-            header_level_info["vertex_z"] = np.array([header.vertex_z for header in chunk_generator.headers], np.float32)
+            header_level_info["vertex_z"] = np.array(
+                [header.vertex_z for header in chunk_generator.headers], np.float32
+            )
 
         # Cross section info
         if chunk_generator.cross_section:
             # Even though this is a dataset level quantity, we need to match the structure in order to zip them together for storage.
             # Since we're repeating the value, hopefully this will be compressed effectively.
-            header_level_info["cross_section"] = np.full_like(header_level_info["event_plane_angle"], chunk_generator.cross_section.value)
-            header_level_info["cross_section_error"] = np.full_like(header_level_info["event_plane_angle"], chunk_generator.cross_section.error)
+            header_level_info["cross_section"] = np.full_like(
+                header_level_info["event_plane_angle"], chunk_generator.cross_section.value
+            )
+            header_level_info["cross_section_error"] = np.full_like(
+                header_level_info["event_plane_angle"], chunk_generator.cross_section.error
+            )
 
         # Assemble all of the information in a single awkward array and pass it on.
         # TODO: Update to be compatible with hybrid and jetscape together!
@@ -407,7 +425,7 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas", mo
                 "py": (1, np.float32),
                 "pz": (2, np.float32),
                 "m": (3, np.float32),
-            }
+            },
         }
         yield ak.zip(
             {
@@ -418,15 +436,15 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas", mo
                     for k, v in model_indices_and_types[model].items()
                 },
                 ## Particle level info
-                #"particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
+                # "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
                 ## We're only considering final state hadrons or partons, so status codes are limited to a few values.
                 ## -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
                 ## So we can't differentiate the recoil from the signal.
-                #"status": ak.values_astype(array_with_events[:, :, 2], np.int8),
-                #"E": ak.values_astype(array_with_events[:, :, 3], np.float32),
-                #"px": ak.values_astype(array_with_events[:, :, 4], np.float32),
-                #"py": ak.values_astype(array_with_events[:, :, 5], np.float32),
-                #"pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
+                # "status": ak.values_astype(array_with_events[:, :, 2], np.int8),
+                # "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
+                # "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
+                # "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
+                # "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
                 ### We could skip eta and phi since we can always recalculate them. However, since we've already parsed
                 ### them, we may as well pass them along.
                 ##"eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
@@ -443,9 +461,9 @@ if __name__ == "__main__":
     )
 
     ## 0-5%
-    #filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_05_Lres2_kappa_0p428/HYBRID_Hadrons_0000.out")
+    # filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_05_Lres2_kappa_0p428/HYBRID_Hadrons_0000.out")
     ## 5-10%
-    #filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_510_Lres2_kappa_0p428/HYBRID_Hadrons_0000.out")
+    # filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_510_Lres2_kappa_0p428/HYBRID_Hadrons_0000.out")
     # Vacuum
     filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_Vac/HYBRID_Hadrons_0000.out")
     parse_to_parquet(
@@ -453,8 +471,8 @@ if __name__ == "__main__":
         store_only_necessary_columns=True,
         input_filename=filename,
         model="hybrid",
-        #events_per_chunk=20,
-        #max_chunks=3,
+        # events_per_chunk=20,
+        # max_chunks=3,
         events_per_chunk=100000,
-        #max_chunks=1,
+        # max_chunks=1,
     )

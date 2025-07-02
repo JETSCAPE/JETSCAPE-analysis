@@ -291,7 +291,9 @@ _file_format_version_to_header_parser = {
 }
 
 
-def event_by_event_generator(f: Iterator[str], parse_header_line: Callable[[str], HeaderInfo]) -> Iterator[HeaderInfo | str]:
+def event_by_event_generator(
+    f: Iterator[str], parse_header_line: Callable[[str], HeaderInfo]
+) -> Iterator[HeaderInfo | str]:
     """Event-by-event generator using the JETSCAPE FinalState* model output file.
 
     Raises:
