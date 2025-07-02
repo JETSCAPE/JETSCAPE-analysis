@@ -1,4 +1,4 @@
-""" Parse hybrid ascii input files in chunks.
+"""Parse hybrid ascii input files in chunks.
 
 .. codeauthor:: Raymond Ehlers
 """
@@ -8,7 +8,6 @@ import os
 import typing
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any
 
 import attrs
@@ -38,7 +37,6 @@ class LineIsNotHeader(Exception):
     """Indicates that we expected to find a header line, but we did not."""
 
 
-
 @attrs.frozen
 class CrossSection:
     value: float = attrs.field()
@@ -58,7 +56,9 @@ class HeaderInfo:
     vertex_z: float = attrs.field(default=-999)
 
 
-def retrieve_lines_from_end_of_file(f: typing.TextIO, read_chunk_size: int = 100, character_to_search_for: str = "\n") -> str:
+def retrieve_lines_from_end_of_file(
+    f: typing.TextIO, read_chunk_size: int = 100, character_to_search_for: str = "\n"
+) -> str:
     """Retrieve line(s) from end of file up to a desired character.
 
     We grab chunks from the end of the file towards the beginning until find the character
@@ -102,15 +102,15 @@ def retrieve_lines_from_end_of_file(f: typing.TextIO, read_chunk_size: int = 100
         # in the output).
         # NOTE: We only want to do this if we're searching for newline. It doesn't make sense
         #       to e.g. skip the last "#".
-        if not last_line and character_to_search_for == "\n" and chunk.endswith('\n'):
-            last_line = '\n'
+        if not last_line and character_to_search_for == "\n" and chunk.endswith("\n"):
+            last_line = "\n"
             chunk = chunk[:-1]
 
         # NOTE: What's being searched for will have to be modified if we are dealing with
         # files with non-unix line endings.
         nl_pos = chunk.rfind(character_to_search_for)
 
-        last_line = chunk[nl_pos + 1:] + last_line
+        last_line = chunk[nl_pos + 1 :] + last_line
 
         if nl_pos == -1:
             # The whole chunk is part of the last line.
@@ -141,7 +141,7 @@ def extract_x_sec_and_error(
     search_character_to_find_line_containing_cross_section: str,
     start_of_line_containing_cross_section: str,
     parse_cross_section_line: Callable[[str], CrossSection],
-    read_chunk_size: int = 100
+    read_chunk_size: int = 100,
 ) -> CrossSection | None:
     """Extract cross section and error from the end of the file.
 
@@ -184,7 +184,7 @@ def extract_x_sec_and_error(
         last_event = retrieve_lines_from_end_of_file(
             f=f,
             read_chunk_size=read_chunk_size,
-            character_to_search_for=search_character_to_find_line_containing_cross_section
+            character_to_search_for=search_character_to_find_line_containing_cross_section,
         )
 
     # logger.debug(f"last line: {last_line}")
@@ -205,13 +205,16 @@ class ModelParameters:
         column_names: List of column names stored in the file, ordered by their column order in the file.
         extract_x_sec_and_error: Function to extract the cross section and cross section error
             from a file-like object.
-        event_by_event_generator: Generator to yield event-by-event information, switch back
-            and for both between headers and event particles.
+        event_by_event_generator: Generator to yield event-by-event information, switching back
+            and forth both between headers and event particles.
     """
+
     model_name: str = attrs.field()
     column_names: list[str] = attrs.field()
     extract_x_sec_and_error: Callable[[typing.TextIO, int], CrossSection | None] = attrs.field()
-    event_by_event_generator: Callable[[Iterator[str], Callable[[Any], HeaderInfo]], Iterator[HeaderInfo | str]] = attrs.field()
+    event_by_event_generator: Callable[[Iterator[str], Callable[[Any], HeaderInfo]], Iterator[HeaderInfo | str]] = (
+        attrs.field()
+    )
 
 
 class ChunkNotReadyException(Exception):
@@ -220,7 +223,7 @@ class ChunkNotReadyException(Exception):
 
 @attrs.define
 class ChunkGenerator:
-    """ Generate a chunk of the file.
+    """Generate a chunk of the file.
 
     Args:
         g: Iterator over the input file.
@@ -228,6 +231,7 @@ class ChunkGenerator:
         model_parameters: Model dependent parameters and parsing functions.
         cross_section: Cross section information.
     """
+
     g: Iterator[str] = attrs.field()
     _events_per_chunk: int = attrs.field()
     model_parameters: ModelParameters = attrs.field()
@@ -269,17 +273,13 @@ class ChunkGenerator:
 
     def n_particles_per_event(self) -> npt.NDArray[np.int64]:
         self._require_chunk_ready()
-        return np.array([
-            header.n_particles for header in self._headers
-        ])
+        return np.array([header.n_particles for header in self._headers])
 
     def event_split_index(self) -> npt.NDArray[np.int64]:
         self._require_chunk_ready()
         # NOTE: We skip the last header due to the way that np.split works.
         #       It will go from the last index to the end of the array.
-        return np.cumsum([
-            header.n_particles for header in self._headers
-        ])[:-1]
+        return np.cumsum([header.n_particles for header in self._headers])[:-1]
 
     @property
     def incomplete_chunk(self) -> bool:
@@ -302,7 +302,7 @@ class ChunkGenerator:
                 #       up the _parse_event function, but I find condensing it into a single function
                 #       to be more straightforward from a user perspective.
                 # First, get the header. We know this first line must be a header
-                self._headers.append(next(event_iter))   # type: ignore[arg-type]
+                self._headers.append(next(event_iter))  # type: ignore[arg-type]
                 # Then we yield the rest of the particles in the event
                 yield from event_iter  # type: ignore[misc]
             except (ReachedEndOfFileException, ReachedXSecAtEndOfFileException):
@@ -313,104 +313,3 @@ class ChunkGenerator:
                 break
             # NOTE: If we somehow reached StopIteration, it's also fine - just
             #       allow it to propagate through and end the for loop.
-
-
-
-class FileLikeGenerator:
-    """Wrapper class to make a generator look like a file.
-
-    Pandas requires passing a filename or a file-like object, but we handle the generator externally
-    so we can find each chunk boundary, parse the headers, etc. Consequently, we need to make this
-    generator appear as if it's a file.
-
-    Based on https://stackoverflow.com/a/18916457/12907985
-
-    Args:
-        g: Generator to be wrapped.
-    """
-    def __init__(self, g: Iterator[str]):
-        self.g = g
-
-    def read(self, n: int = 0) -> Any:  # noqa: ARG002
-        """ Read method is required by pandas. """
-        try:
-            return next(self.g)
-        except StopIteration:
-            return ''
-
-    def __iter__(self) -> Iterator[str]:
-        """ Iteration is required by pandas. """
-        return self.g
-
-
-def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with `pandas.read_csv`
-
-    `read_csv` uses a compiled c parser. As of 6 October 2020, it is tested to be the fastest option.
-
-    Args:
-        chunk_generator: Generator of chunks of the input file for parsing.
-    Returns:
-        Array of the particles.
-    """
-    # Delayed import so we only take the import time if necessary.
-    # TODO: Try polars!
-    import pandas as pd
-
-    return pd.read_csv(  # type: ignore[call-overload,no-any-return]
-        FileLikeGenerator(chunk_generator),
-        # NOTE: If the field is missing (such as eta and phi), they will exist, but they will be filled with NaN.
-        #       We actively take advantage of this so we don't have to change the parsing for header v1 (which
-        #       includes eta and phi) vs header v2 (which does not)
-        # TODO: Need to update for hybrid
-        #names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
-        names=["px", "py", "pz", "m", "particle_ID", "status"],
-        header=None,
-        comment="#",
-        sep=r"\s+",
-        # Converting to numpy makes the dtype conversion moot.
-        # dtype={
-        #     "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
-        #     "E": np.float32, "px": np.float32, "py": np.float32, "pz": np.float32,
-        #     "eta": np.float32, "phi": np.float32
-        # },
-        # We can reduce the number of columns when reading.
-        # However, it makes little difference, makes it less general, and we can always drop the columns later.
-        # So we disable it for now.
-        # usecols=["particle_ID", "status", "E", "px", "py", "eta", "phi"],
-        #
-        # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
-        #       which will break the header indexing and therefore the conversion to awkward.
-    ).to_numpy()
-
-
-def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with python.
-
-    We have this as an option because np.loadtxt is surprisingly slow.
-
-    Args:
-        chunk_generator: Generator of chunks of the input file for parsing.
-    Returns:
-        Array of the particles.
-    """
-    particles = []
-    for p in chunk_generator:
-        if not p.startswith("#"):
-            particles.append(np.array(p.rstrip("\n").split(), dtype=np.float64))
-    return np.stack(particles)
-
-
-def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with numpy.
-
-    Unfortunately, this option is surprisingly, presumably because it has so many options.
-    Pure python appears to be about 2x faster. So we keep this as an option for the future,
-    but it is not used by default.
-
-    Args:
-        chunk_generator: Generator of chunks of the input file for parsing.
-    Returns:
-        Array of the particles.
-    """
-    return np.loadtxt(chunk_generator)

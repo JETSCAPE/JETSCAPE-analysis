@@ -1,4 +1,31 @@
-"""Parse JETSCAPE ascii input files in chunks.
+"""Parse ascii final state {hadrons,partons} files into (chunked) parquet files.
+
+This module is designed to support output files from multiple models.
+The model specific functionality is factored out into individual models,
+which must implement the following API:
+
+- extract_x_sec_and_error: Callable[[typing.TextIO, int], CrossSection | None]:
+    Function to extract the cross section and cross section error from a file-like object.
+- event_by_event_generator(f: Iterator[str], parse_header_line: Callable[[Any], HeaderInfo]) -> Iterator[HeaderInfo | str]:
+    Generator to yield event-by-event information, switching back and forth both
+    between headers and event particles.
+- initialize_parsing_functions(file_format_version: int) -> ModelParameters:
+    Initialize the model parameters and parsing functions needed to successfully
+    parse an output file.
+
+Once the module implements this API, it can be included in the following functions
+to be included as a parsing option:
+
+- determine_model_from_file(f: typing.TextIO) -> str:
+    Determine the model based on the file contents. Customize to identify each
+    model output.
+- determine_format_version_from_file(f: typing.TextIO) -> int:
+    Determine the file format version based on the file contents. Customize to
+    identify each model output.
+- Register the module in the _model_to_module dict
+
+Based on this information, the model will automatically be determined and the output
+will be parsed to a standardized and compressed parquet format for further analysis.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
@@ -58,6 +85,8 @@ def determine_model_from_file(f: typing.TextIO) -> str:
 def determine_format_version_from_file(f: typing.TextIO) -> int:
     """Determine the file format version from the file.
 
+    If the version cannot be identified, it defaults to -1.
+
     Args:
         f: File-like object.
     Returns:
@@ -116,7 +145,7 @@ def read_events_in_chunks(
         if model not in _model_to_module:
             _msg = f"No parsing module found for {model=}"
             raise RuntimeError(_msg)
-        model_parameters = _model_to_module[model].initialize_parsing_functions(file_format_version=file_format_version)
+        model_parameters = _model_to_module[model].initialize_model_parameters(file_format_version=file_format_version)
         # And use those parsing functions to extract the final cross section and header.
         cross_section = model_parameters.extract_x_sec_and_error(f)
 
@@ -190,6 +219,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str], column_names: list[str]) 
         Array of the particles.
     """
     # Delayed import so we only take the import time if necessary.
+    # TODO: Try polars
     import pandas as pd  # noqa: PLC0415
 
     # If we have mass rather than E, replace it in the expected order.
@@ -228,6 +258,9 @@ def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
     We have this as an option because np.loadtxt is surprisingly slow.
 
+    NOTE:
+        This only works for jetscape generated files!
+
     Args:
         chunk_generator: Generator of chunks of the input file for parsing.
     Returns:
@@ -247,6 +280,9 @@ def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
     Pure python appears to be about 2x faster. So we keep this as an option for the future,
     but it is not used by default.
 
+    NOTE:
+        This only works for jetscape generated files!
+
     Args:
         chunk_generator: Generator of chunks of the input file for parsing.
     Returns:
@@ -256,7 +292,7 @@ def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
 
 def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") -> Generator[ak.Array, int | None, None]:  # noqa: C901
-    """Read a JETSCAPE FinalState{Hadrons,Partons} ASCII output file in chunks.
+    """Read a FinalState{Hadrons,Partons} ASCII output file in chunks.
 
     This is the primary user function. We read in chunks to keep the memory usage manageable.
 
