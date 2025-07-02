@@ -75,7 +75,6 @@ def test_parsing_with_parquet(header_version: int, events_per_chunk: int, tmp_pa
     # Convert to chunks in a temp directory.
     base_output_filename = tmp_path / "test.parquet"
     parse_ascii.parse_to_parquet(base_output_filename=base_output_filename,
-                                 store_only_necessary_columns=True,
                                  input_filename=input_filename,
                                  events_per_chunk=events_per_chunk)
 
