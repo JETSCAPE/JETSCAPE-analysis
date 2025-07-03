@@ -205,15 +205,30 @@ class FileLikeGenerator:
         return self.g
 
 
-# Defines the required column order, along with the dtypes
-# This standardizes how we write out data.
-DEFAULT_EXPECTED_COLUMN_ORDER_WITH_DTYPES = {
+# Defines the required column order, which standardizes how we write out data.
+DEFAULT_EXPECTED_COLUMN_ORDER = [
+    "particle_ID",
+    "status",
+    "E",
+    "px",
+    "py",
+    "pz",
+]
+# All possible columns with their corresponding dtypes.
+# NOTE: There could be overlapping columns here. It's not meant to provide
+#       a consistent set of columns - it's just to provide the dtype mapping
+#       for any possible columns.
+COLUMN_TO_DTYPE = {
     "particle_ID": np.int32,
     "status": np.int8,
+    "particle_index": np.uint16,
     "E": np.float32,
+    "m": np.float32,
     "px": np.float32,
     "py": np.float32,
     "pz": np.float32,
+    "eta": np.float32,
+    "phi": np.float32,
 }
 
 
@@ -233,11 +248,11 @@ def _parse_with_pandas(chunk_generator: Iterator[str], column_names: list[str]) 
 
     # If we have mass rather than E, replace it in the expected order.
     # We'll handle the conversion to write out the energy later
-    expected_column_order = list(DEFAULT_EXPECTED_COLUMN_ORDER_WITH_DTYPES)
+    expected_column_order = list(DEFAULT_EXPECTED_COLUMN_ORDER)
     if "E" not in column_names:
         expected_column_order[expected_column_order.index("E")] = "m"
 
-    return pd.read_csv(  # type: ignore[no-any-return]
+    return pd.read_csv(  # type: ignore[no-any-return,call-overload]
         FileLikeGenerator(chunk_generator),
         # NOTE: If a field that is listed here is missing (e.g. eta or phi), they will be created and filled with NaN.
         #       We could take advantage of this so we don't have to change the parsing for jetscape header v1 (which
@@ -246,13 +261,10 @@ def _parse_with_pandas(chunk_generator: Iterator[str], column_names: list[str]) 
         header=None,
         comment="#",
         sep=r"\s+",
-        # Converting to numpy makes the dtype conversion moot.
-        # dtype={
-        #     "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
-        #     "E": np.float32, "px": np.float32, "py": np.float32, "pz": np.float32,
-        #     "eta": np.float32, "phi": np.float32
-        # },
-        # We can reduce the number of columns when reading.
+        # NOTE: We do not set a dtype because it actually makes parsing slow (checked with timeit).
+        #       Since we convert to numpy at the end (and then cast the dtype when we do the
+        #       awkward array), there's no need to set the dtype now.
+        # We could reduce the number of columns when reading.
         # However, it makes little difference, makes it less general, and we can always drop the columns later.
         # So we disable it for now.
         # usecols=["particle_ID", "status", "E", "px", "py", "eta", "phi"],
@@ -268,6 +280,10 @@ def _parse_with_polars(chunk_generator: Iterator[str], column_names: list[str]) 
     Note that this approach is quite hacky, but it's unclear how to parse without finding the
     event start indices, so we'll keep the current approach.
 
+    NOTE:
+        As of July 2025, RJE found this approach is about 30-40% faster than pandas for
+        chunks of 5000-10000.
+
     Args:
         chunk_generator: Generator of chunks of the input file for parsing.
         column_names: Name of the columns that are stored in the file.
@@ -281,40 +297,68 @@ def _parse_with_polars(chunk_generator: Iterator[str], column_names: list[str]) 
     # NOTE: This isn't comprehensive, but covers our most common types
     _numpy_dtypes_to_polars_data_types = {
         np.int8: pl.Int8,
+        np.uint8: pl.UInt8,
         np.int16: pl.Int16,
+        np.uint16: pl.UInt16,
         np.int32: pl.Int32,
+        np.uint32: pl.UInt32,
         np.int64: pl.Int64,
+        np.uint64: pl.UInt64,
         np.float32: pl.Float32,
         np.float64: pl.Float64,
     }
-    default_expected_column_order_polars = {
-        k: _numpy_dtypes_to_polars_data_types[v]
-        for k, v in DEFAULT_EXPECTED_COLUMN_ORDER_WITH_DTYPES.items()
-    }
+    # Determine the schema
+    schema = {k: _numpy_dtypes_to_polars_data_types[COLUMN_TO_DTYPE[k]] for k in column_names}
 
-    # Determine the schema for polars
-    # NOTE: We need to handle two cases:
-    #       1. The schema (schema) which polars need to construct the data frame
-    #       2. The column ordering (expected_column_order) once the dataframe is constructed
-    schema = dict(default_expected_column_order_polars)
-    expected_column_order = list(schema)
+    # If we have mass rather than E, replace it in the expected order.
+    # We'll handle the conversion to write out the energy later
+    # NOTE: This is implicitly handled in the schema since the keys are
+    #       set by the column names, which will already have e.g. the mass
+    expected_column_order = list(DEFAULT_EXPECTED_COLUMN_ORDER)
     if "E" not in column_names:
-        # If we have mass rather than E, replace it in the expected order.
-        # We'll handle the conversion to write out the energy later
         expected_column_order[expected_column_order.index("E")] = "m"
-        schema["m"] = schema.pop("E")
-        # The schema needs a reorder since we've disrupted it in switching from "E" -> "m"
-        schema = {k: schema[k] for k in column_names}
 
-    return pl.DataFrame(
-        # We need to parse the space separate values by hand. This is probably not particularly fast...
-        # NOTE: This only handles spaces (i.e. not general whitespace like tabs)
-        [v.rstrip().split(" ") for v in chunk_generator],
-        schema=schema,
-        orient="row",
-        # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
-        #       which will break the header indexing and therefore the conversion to awkward.
-    )[expected_column_order].to_numpy()
+    # An explanation of the steps here:
+    return (
+        pl.DataFrame(
+            # 1. Ingest the generator into a dataframe in the column "raw_lines"
+            {"raw_lines": list(chunk_generator)}
+        )
+        .with_columns(
+            # 2. Parse raw_lines by stripping whitespace (strip_chars) and splitting into exactly `len(column_names) - 1`
+            #    splits. We need the -1 since e.g. 6 columns have 5 spaces in between them.
+            pl.col("raw_lines").str.strip_chars().str.split_exact(" ", n=len(column_names) - 1).alias("split")
+        )
+        .unnest(
+            # 3. Splits the parsed columns (in a struct) into separate columns for each field
+            "split"
+        )
+        .rename(
+            # 4. Renames the default column names (assigned by unnest) into their proper names
+            {f"field_{i}": name for i, name in enumerate(list(schema))}
+        )
+        .cast(
+            # 5. Casts them to their proper dtype
+            schema  # type: ignore[arg-type]
+            # 6. And selects only the columns that we would like to return, putting them in
+            #    the expected order.
+            # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
+            #       which will break the header indexing and therefore the conversion to awkward.
+        )[expected_column_order]
+        .to_numpy()
+    )
+
+    # The alternative approach below uses the pl.DataFrame constructor, but parses the strings in python.
+    # It's substantially slower (e.g. factor of two slower), so better to stick with the above!!
+    # return pl.DataFrame(
+    #     # We need to parse the space separate values by hand. This is probably not particularly fast...
+    #     # NOTE: This only handles spaces (i.e. not general whitespace like tabs)
+    #     [v.rstrip().split(" ") for v in chunk_generator],
+    #     schema=schema,
+    #     orient="row",
+    #     # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
+    #     #       which will break the header indexing and therefore the conversion to awkward.
+    # )[expected_column_order].to_numpy()
 
 
 def _parse_with_python(chunk_generator: Iterator[str], column_names: list[str]) -> npt.NDArray[Any]:  # noqa: ARG001
@@ -481,15 +525,17 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
             particles = vector.Array(
                 ak.zip(
                     {
-                        "particle_ID": ak.values_astype(array_with_events[:, :, 0], np.int32),
+                        "particle_ID": ak.values_astype(array_with_events[:, :, 0], COLUMN_TO_DTYPE["particle_ID"]),
                         # We're only considering final state hadrons or partons, so status codes are limited to a few values.
                         # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
                         # So we can't differentiate the recoil from the signal.
-                        "status": ak.values_astype(array_with_events[:, :, 1], np.int8),
-                        energy_like_label: ak.values_astype(array_with_events[:, :, 2], np.float32),
-                        "px": ak.values_astype(array_with_events[:, :, 3], np.float32),
-                        "py": ak.values_astype(array_with_events[:, :, 4], np.float32),
-                        "pz": ak.values_astype(array_with_events[:, :, 5], np.float32),
+                        "status": ak.values_astype(array_with_events[:, :, 1], COLUMN_TO_DTYPE["status"]),
+                        energy_like_label: ak.values_astype(
+                            array_with_events[:, :, 2], COLUMN_TO_DTYPE[energy_like_label]
+                        ),
+                        "px": ak.values_astype(array_with_events[:, :, 3], COLUMN_TO_DTYPE["px"]),
+                        "py": ak.values_astype(array_with_events[:, :, 4], COLUMN_TO_DTYPE["py"]),
+                        "pz": ak.values_astype(array_with_events[:, :, 5], COLUMN_TO_DTYPE["pz"]),
                     },
                 )
             )
@@ -497,7 +543,7 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
             # These are contained in the DEFAULT_EXPECTED_COLUMN_ORDER, so we use that
             # here, event if we don't care overly much about the order once we've created
             # the awkward array (i.e. the ordering is not meaningful there)
-            particle_fields_to_write = list(DEFAULT_EXPECTED_COLUMN_ORDER_WITH_DTYPES)
+            particle_fields_to_write = list(DEFAULT_EXPECTED_COLUMN_ORDER)
 
             # Assemble all of the information in a single awkward array and pass it on.
             _result = yield ak.zip(

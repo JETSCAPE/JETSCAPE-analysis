@@ -118,6 +118,13 @@ def _parse_header_hybrid_v1(
 
 # Register header parsing functions
 _file_format_version_to_header_parser = {-1: _parse_header_hybrid_v1}
+# Associated column names to file format version.
+# This is needed since polars requires knowledge about all of the columns
+# in the file, and that can potentially vary by version.
+# NOTE: The order here must match the order in the ascii file! We use this to label the columns in file.
+_file_format_version_to_column_names = {
+    -1: ["px", "py", "pz", "m", "particle_ID", "status"],
+}
 
 
 def event_by_event_generator(
@@ -215,8 +222,7 @@ def initialize_model_parameters(file_format_version: int) -> parse_ascii_base.Mo
 
     return parse_ascii_base.ModelParameters(
         model_name="hybrid",
-        # NOTE: The order here must match the order in the ascii file! We use this to label the columns in file.
-        column_names=["px", "py", "pz", "m", "particle_ID", "status"],
+        column_names=_file_format_version_to_column_names[file_format_version],
         extract_x_sec_and_error=extract_x_sec_func,
         event_by_event_generator=e_by_e_generator,
     )

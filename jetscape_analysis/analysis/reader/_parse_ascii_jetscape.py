@@ -283,6 +283,15 @@ _file_format_version_to_header_parser = {
     3: _parse_header_line_format_v3,
     -1: _parse_header_line_format_unspecified,
 }
+# Associated column names to file format version.
+# This is needed since polars requires knowledge about all of the columns
+# in the file, and that can potentially vary by version.
+# NOTE: The order here must match the order in the ascii file! We use this to label the columns in file.
+_file_format_version_to_column_names = {
+    3: ["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+    2: ["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+    -1: ["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+}
 
 
 def event_by_event_generator(
@@ -350,7 +359,7 @@ def initialize_model_parameters(file_format_version: int) -> parse_ascii_base.Mo
 
     return parse_ascii_base.ModelParameters(
         model_name="jetscape",
-        column_names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+        column_names=_file_format_version_to_column_names[file_format_version],
         extract_x_sec_and_error=extract_x_sec_func,
         event_by_event_generator=e_by_e_generator,
     )
