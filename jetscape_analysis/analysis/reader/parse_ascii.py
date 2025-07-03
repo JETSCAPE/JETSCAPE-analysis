@@ -438,6 +438,11 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
             # Give a notification just in case the parsing is slow...
             logger.debug(f"New chunk {i}")
 
+            # Optionally skip the very first line containing the file format version information
+            if i == 0 and chunk_generator.model_parameters.has_file_format_line_at_beginning_of_file:
+                line_to_skip = next(chunk_generator.g)
+                logger.debug(f"Skipping very first line, as request. Line: {line_to_skip}")
+
             # First, parse the lines. We need to make this call before attempt to convert into events because the necessary
             # info (namely, n particles per event) is only available and valid after we've parse the lines.
             res = parsing_function(iter(chunk_generator), column_names=chunk_generator.model_parameters.column_names)

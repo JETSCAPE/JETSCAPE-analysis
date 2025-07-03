@@ -148,7 +148,7 @@ def _parse_header_line_format_unspecified(line: str) -> HeaderInfo:
         raise parse_ascii_base.ReachedXSecAtEndOfFileException(parse_cross_section(line))
     else:
         _msg = f"Parsing of comment line failed: {values}"
-        raise ValueError(_msg)
+        raise parse_ascii_base.FailedToParseHeader(_msg)
 
     return info
 
@@ -208,7 +208,7 @@ def _parse_header_line_format_v2(line: str) -> HeaderInfo:
         raise parse_ascii_base.ReachedXSecAtEndOfFileException(parse_cross_section(line))
     else:
         _msg = f"Parsing of comment line failed: {values}"
-        raise ValueError(_msg)
+        raise parse_ascii_base.FailedToParseHeader(_msg)
 
     return info
 
@@ -271,8 +271,8 @@ def _parse_header_line_format_v3(line: str) -> HeaderInfo:
         #       we've raised an exception here.
         raise parse_ascii_base.ReachedXSecAtEndOfFileException(parse_cross_section(line))
     else:
-        msg = f"Parsing of comment line failed: {values}"
-        raise ValueError(msg)
+        _msg = f"Parsing of comment line failed: {values}"
+        raise parse_ascii_base.FailedToParseHeader(_msg)
 
     return info
 
@@ -362,4 +362,6 @@ def initialize_model_parameters(file_format_version: int) -> parse_ascii_base.Mo
         column_names=_file_format_version_to_column_names[file_format_version],
         extract_x_sec_and_error=extract_x_sec_func,
         event_by_event_generator=e_by_e_generator,
+        # There is a file format line for v2 and above
+        has_file_format_line_at_beginning_of_file=file_format_version >= 2,
     )

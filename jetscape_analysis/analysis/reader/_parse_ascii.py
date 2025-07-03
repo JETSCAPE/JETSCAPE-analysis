@@ -218,6 +218,10 @@ class ModelParameters:
             from a file-like object.
         event_by_event_generator: Generator to yield event-by-event information, switching back
             and forth both between headers and event particles.
+        has_file_format_line_at_beginning_of_file: If True, the first line of the file denotes
+            the file format. We need to skip the file format line when performing the full parsing
+            of the file. This is needed since the file format line at the start of the file is not
+            expected by the event-by-event parsing function.
     """
 
     model_name: str = attrs.field()
@@ -226,6 +230,7 @@ class ModelParameters:
     event_by_event_generator: Callable[[Iterator[str]], Iterator[HeaderInfo | str]] = (
         attrs.field()
     )
+    has_file_format_line_at_beginning_of_file: bool = attrs.field()
 
 
 class ChunkNotReadyException(Exception):

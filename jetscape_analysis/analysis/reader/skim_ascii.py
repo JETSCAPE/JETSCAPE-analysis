@@ -7,10 +7,11 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
 from jetscape_analysis.analysis.reader import parse_ascii
-from jetscape_analysis.base import common_base
+from jetscape_analysis.base import common_base, helpers
 
 
 ################################################################
@@ -39,6 +40,9 @@ class SkimAscii(common_base.CommonBase):
 
 ##################################################################
 if __name__ == "__main__":
+    # Setup
+    helpers.setup_logging(level=logging.INFO)
+
     # Define arguments
     parser = argparse.ArgumentParser(description="Convert (skim) ascii output files to parquet")
     parser.add_argument(

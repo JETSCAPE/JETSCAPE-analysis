@@ -239,4 +239,5 @@ def initialize_model_parameters(file_format_version: int) -> parse_ascii_base.Mo
         column_names=_file_format_version_to_column_names[file_format_version],
         extract_x_sec_and_error=extract_x_sec_func,
         event_by_event_generator=e_by_e_generator,
+        has_file_format_line_at_beginning_of_file=False,
     )
