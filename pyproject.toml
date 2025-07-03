@@ -43,6 +43,7 @@ dependencies = [
     "matplotlib >=3.8",
     "rich>=14.0.0",
     "vector>=1.6.2",
+    "polars>=1.31.0",
 ]
 
 [project.optional-dependencies]
