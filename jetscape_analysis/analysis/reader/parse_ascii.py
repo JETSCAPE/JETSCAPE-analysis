@@ -572,7 +572,7 @@ def parse_to_parquet(
     base_output_filename: Path | str,
     input_filename: Path | str,
     events_per_chunk: int,
-    parser: str = "pandas",
+    parser: str = "polars",
     max_chunks: int = -1,
     compression: str = "zstd",
     compression_level: int | None = None,
