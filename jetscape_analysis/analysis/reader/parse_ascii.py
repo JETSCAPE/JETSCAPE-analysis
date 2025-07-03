@@ -477,7 +477,8 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
                 "event_plane_angle": np.array(
                     [header.event_plane_angle for header in chunk_generator.headers], np.float32
                 ),
-                "event_ID": np.array([header.event_number for header in chunk_generator.headers], np.uint16),
+                # NOTE: Since the event ID is continuous, a long running simulation could overflow uint16, so we take uint32
+                "event_ID": np.array([header.event_number for header in chunk_generator.headers], np.uint32),
             }
             # And then handle optional values - no point storing the values if they're not meaningful.
             if chunk_generator.headers[0].event_weight > -1:
