@@ -1,65 +1,62 @@
-#!/usr/bin/env python3
+"""Skim a large ascii output file and split into smaller compressed files.
 
-""" Skim a large ascii file and split into smaller files
+.. codeauthor:: James Mulligan <james.mulligan@berkeley.edu>, LBL/UCB
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
-from __future__ import print_function
+from __future__ import annotations
 
-# General
-import os
-import sys
 import argparse
-sys.path.append('.')
+from pathlib import Path
 
 from jetscape_analysis.analysis.reader import parse_ascii
 from jetscape_analysis.base import common_base
 
+
 ################################################################
 class SkimAscii(common_base.CommonBase):
-
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(self, input_file="", output_dir="", events_per_chunk=50000, **kwargs):
-        super(SkimAscii, self).__init__(**kwargs)
+    def __init__(self, input_file: Path, output_dir: Path, events_per_chunk: int = 50000, **kwargs):
+        super().__init__(**kwargs)
         self.input_file = input_file
         self.output_dir = output_dir
 
-        self.event_id = 0
+        self.event_id: int = 0
         self.events_per_chunk = events_per_chunk
 
     # ---------------------------------------------------------------
     # Main processing function for a single pt-hat bin
     # ---------------------------------------------------------------
-    def skim(self):
+    def skim(self) -> None:
+        # The parser writes out a parquet file containing the ascii events,
+        # reformatted and compressed.
+        parse_ascii.parse_to_parquet(
+            base_output_filename=self.output_dir, input_filename=self.input_file, events_per_chunk=self.events_per_chunk
+        )
 
-        # Create reader class for each chunk of events, and iterate through each chunk
-        # The parser returns an awkward array of events
-        parse_ascii.parse_to_parquet(base_output_filename=self.output_dir,
-                                     store_only_necessary_columns=True,
-                                     input_filename=self.input_file,
-                                     events_per_chunk=self.events_per_chunk)
 
 ##################################################################
 if __name__ == "__main__":
     # Define arguments
-    parser = argparse.ArgumentParser(description="Generate JETSCAPE events")
+    parser = argparse.ArgumentParser(description="Convert (skim) ascii output files to parquet")
     parser.add_argument(
         "-i",
         "--inputFile",
         action="store",
-        type=str,
+        type=Path,
         metavar="inputDir",
-        default="/home/jetscape-user/JETSCAPE-analysis/test.out",
+        default=Path("/home/jetscape-user/JETSCAPE-analysis/test.out"),
         help="Input directory containing JETSCAPE output files",
     )
     parser.add_argument(
         "-o",
         "--outputDir",
         action="store",
-        type=str,
+        type=Path,
         metavar="outputDir",
-        default="/home/jetscape-user/JETSCAPE-analysis/TestOutput",
+        default=Path("/home/jetscape-user/JETSCAPE-analysis/TestOutput.parquet"),
         help="Output directory and filename template for output to be written to",
     )
     parser.add_argument(
@@ -71,14 +68,14 @@ if __name__ == "__main__":
         default=50000,
         help="Number of events to store in each parquet file",
     )
- 
+
     # Parse the arguments
     args = parser.parse_args()
 
     # If invalid inputDir is given, exit
-    if not os.path.exists(args.inputFile):
-        print('File "{0}" does not exist! Exiting!'.format(args.inputFile))
-        sys.exit(0)
+    if not args.inputFile.exists():
+        _msg = f'File "{args.inputFile}" does not exist! Exiting!'
+        raise RuntimeError(_msg)
 
     analysis = SkimAscii(input_file=args.inputFile, output_dir=args.outputDir, events_per_chunk=args.nEventsPerFile)
     analysis.skim()

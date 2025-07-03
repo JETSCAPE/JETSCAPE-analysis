@@ -1,521 +1,124 @@
-""" Parse JETSCAPE ascii input files in chunks.
+"""Parse ascii final state {hadrons,partons} files into (chunked) parquet files.
 
-.. codeauthor:: Raymond Ehlers
+This module is designed to support output files from multiple models.
+The model specific functionality is factored out into individual models,
+which must implement the following API:
+
+- extract_x_sec_and_error(f: typing.TextIO, read_chunk_size: int) -> CrossSection | None:
+    Function to extract the cross section and cross section error from a file-like object.
+- event_by_event_generator(f: Iterator[str], parse_header_line: Callable[[Any], HeaderInfo]) -> Iterator[HeaderInfo | str]:
+    Generator to yield event-by-event information, switching back and forth both
+    between headers and event particles.
+- initialize_parsing_functions(file_format_version: int) -> ModelParameters:
+    Initialize the model parameters and parsing functions needed to successfully
+    parse an output file.
+
+Once the module implements this API, it can be included in the following functions
+to be included as a parsing option:
+
+- determine_model_from_file(f: typing.TextIO) -> str:
+    Determine the model based on the file contents. Customize to identify each
+    model output.
+- determine_format_version_from_file(f: typing.TextIO) -> int:
+    Determine the file format version based on the file contents. Customize to
+    identify each model output.
+- Register the module in the _model_to_module dict
+
+Based on this information, the model will automatically be determined and the output
+will be parsed to a standardized and compressed parquet format for further analysis.
+
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
-import itertools
+from __future__ import annotations
+
 import logging
-import os
 import typing
-from collections.abc import Callable, Iterator
+from collections.abc import Generator, Iterator
 from pathlib import Path
 from typing import Any
 
-import attrs
 import awkward as ak
 import numpy as np
 import numpy.typing as npt
+import vector
+
+import jetscape_analysis.analysis.reader._parse_ascii as parse_ascii_base
+from jetscape_analysis.analysis.reader import _parse_ascii_hybrid, _parse_ascii_jetscape
+from jetscape_analysis.analysis.reader._parse_ascii import ChunkGenerator
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_EVENTS_PER_CHUNK_SIZE = int(1e5)
 
-class ReachedEndOfFileException(Exception):
-    """Indicates that we've somehow hit the end of the file.
 
-    We have a separate exception so we can pass additional information
-    about the context if desired.
+class UnrecognizedFileFormat(Exception):
+    """Indicates that we cannot determine the file format."""
+
+
+def determine_model_from_file(f: typing.TextIO) -> str:
+    """Determine which model create the output file based on peeking at the beginning of the file.
+
+    Args:
+        f: The file iterator.
+
+    Returns:
+        Name of the model that was used to create the output file..
     """
+    # Default to jetscape since it's most common.
+    model_which_created_file = "jetscape"
+
+    with parse_ascii_base.save_file_position(f):
+        # For both jetscape and hybrid, the file should start with a comment.
+        line_1 = next(f)
+        if not line_1.startswith("#"):
+            msg = f"Unable to determine file type due to unexpected file structure. Expected to start file with comment, but received {line_1}"
+            raise UnrecognizedFileFormat(msg)
+        # For the next line, JETSCAPE immediately goes into the particles, while the Hybrid has a second header line.
+        line_2 = next(f)
+        if line_2.startswith("weight"):
+            model_which_created_file = "hybrid"
+
+    return model_which_created_file
 
 
-class ReachedXSecAtEndOfFileException(ReachedEndOfFileException):
-    """Indicates that we've hit the cross section in the last line of the file."""
+def determine_format_version_from_file(f: typing.TextIO) -> int:
+    """Determine the file format version from the file.
 
-
-@attrs.frozen
-class CrossSection:
-    value: float = attrs.field()
-    error: float = attrs.field()
-
-
-@attrs.frozen
-class HeaderInfo:
-    event_number: int = attrs.field()
-    event_plane_angle: float = attrs.field()
-    n_particles: int = attrs.field()
-    event_weight: float = attrs.field(default=-1)
-    centrality: float = attrs.field(default=-1)
-    pt_hat: float = attrs.field(default=-1)
-    vertex_x: float = attrs.field(default=-999)
-    vertex_y: float = attrs.field(default=-999)
-    vertex_z: float = attrs.field(default=-999)
-
-
-def _retrieve_last_line_of_file(f: typing.TextIO, read_chunk_size: int = 100) -> str:
-    """ Retrieve the last line of the file.
-
-    From: https://stackoverflow.com/a/7167316/12907985
+    If the version cannot be identified, it defaults to -1.
 
     Args:
         f: File-like object.
-        read_chunk_size: Size of step in bytes to read backwards into the file. Default: 100.
-
     Returns:
-        Last line of file, assuming it's found.
+        The version of the file format.
     """
-    last_line = ""
-    while True:
-        # We grab chunks from the end of the file towards the beginning until we
-        # get a new line
-        # However, we need to be more careful because seeking directly from the end
-        # of a text file is apparently undefined behavior. To address this, we
-        # follow the approach from here: https://stackoverflow.com/a/51131242/12907985
-        # First, move to the end of the file.
-        f.seek(0, os.SEEK_END)
-        # Then, just back from the current position (based on SEEK_SET and tell()
-        # of the current position).
-        f.seek(f.tell() - len(last_line) - read_chunk_size, os.SEEK_SET)
-        # NOTE: This chunk isn't necessarily going back read_chunk_size characters, but
-        #       rather just some number of bytes. Depending on the encoding, it may be.
-        #       In any case, we don't care - we're just looking for the last line.
-        chunk = f.read(read_chunk_size)
+    # Setup
+    file_format_version = -1
 
-        if not chunk:
-            # The whole file is one big line
-            return last_line
+    with parse_ascii_base.save_file_position(f):
+        # Check for the file format version indicating how we should parse it.
+        first_line = next(f)
+        first_line_split = first_line.split("\t")
+        if len(first_line_split) > 3 and first_line_split[1] == "JETSCAPE_FINAL_STATE":
+            # 1: is to remove the "v" in the version
+            file_format_version = int(first_line_split[2][1:])
 
-        if not last_line and chunk.endswith('\n'):
-            # Ignore the trailing newline at the end of the file (but include it
-            # in the output).
-            last_line = '\n'
-            chunk = chunk[:-1]
+        # If we haven't found the version, then there's nothing we can do
 
-        nl_pos = chunk.rfind('\n')
-        # What's being searched for will have to be modified if you are searching
-        # files with non-unix line endings.
-
-        last_line = chunk[nl_pos + 1:] + last_line
-
-        if nl_pos == -1:
-            # The whole chunk is part of the last line.
-            continue
-
-        return last_line
+    return file_format_version
 
 
-def _parse_cross_section(line: str) -> CrossSection:
-    # Parse the string.
-    values = line.split("\t")
-    if len(values) == 5 and values[1] == "sigmaGen":
-        ###################################
-        # Cross section info specification:
-        ###################################
-        # The cross section info is formatted as follows, with each entry separated by a `\t` character:
-        # # sigmaGen 182.423 sigmaErr 11.234
-        # 0 1        2       3        4
-        #
-        # I _think_ the units are mb^-1
-        info = CrossSection(
-            value=float(values[2]),     # Cross section
-            error=float(values[4]),     # Cross section error
-        )
-    else:
-        msg = f"Parsing of comment line failed: {values}"
-        raise ValueError(msg)
-
-    return info
-
-
-def _extract_x_sec_and_error(f: typing.TextIO, read_chunk_size: int = 100) -> CrossSection | None:
-    """ Extract cross section and error from the end of the file.
-
-    Args:
-        f: File-like object.
-        read_chunk_size: Size of step in bytes to read backwards into the file. Default: 100.
-
-    Returns:
-        Cross section and error, if found.
-    """
-    # Retrieve the last line of the file.
-    last_line = _retrieve_last_line_of_file(f=f, read_chunk_size=read_chunk_size)
-    # Move the file back to the start to reset it for later use.
-    f.seek(0)
-
-    # logger.debug(f"last line: {last_line}")
-    if last_line.startswith("#\tsigmaGen"):
-        # logger.debug("Parsing xsec")
-        return _parse_cross_section(line = last_line)
-
-    return None
-
-
-def _parse_optional_header_values(optional_values: list[str]) -> tuple[float, float]:
-    """ Parse optional header values.
-
-    As of April 2025, the centrality and pt_hat are optionally included in the output.
-    The centrality will always be
-
-    Args:
-        optional_values: Optional values parsed from splitting the lines. It is expected
-            to contain both the name of the arguments *AND* the values themselves. So if
-            the file contains one optional values, it will translate to `len(optional_values) == 2`
-
-    Returns:
-        The optional values: (centrality, pt_hat). If they weren't provided in the values,
-            they will be their default values.
-    """
-    pt_hat = -1.0
-    centrality = -1.0
-
-    n_optional_values = len(optional_values)
-
-    if n_optional_values == 4:
-        # Both centrality and pt_hat are present
-        if optional_values[-4] == "centrality":
-            centrality = float(optional_values[-3])
-        if optional_values[-2] == "pt_hat":
-            pt_hat = float(optional_values[-1])
-    elif n_optional_values == 2:
-        # Only one of centrality or pt_hat is present
-        if optional_values[-2] == "centrality":
-            centrality = float(optional_values[-1])
-        elif optional_values[-2] == "pt_hat":
-            pt_hat = float(optional_values[-1])
-    # If there are no optional values, then there's nothing to be done!
-
-    return centrality, pt_hat
-
-
-def _parse_header_line_format_unspecified(line: str) -> HeaderInfo:
-    """Parse line that is expected to be a header.
-
-    The most common case is that it's a header, in which case we parse the line. If it's not a header,
-    we also check if it's a cross section, which we note as having found at the end of the file via
-    an exception.
-
-    Args:
-        line: Line to be parsed.
-    Returns:
-        The HeaderInfo information that was extracted.
-    Raises:
-        ReachedXSecAtEndOfFileException: If we find the cross section.
-    """
-    # Parse the string.
-    values = line.split("\t")
-    # Compare by length first so we can short circuit immediately if it doesn't match, which should
-    # save some string comparisons.
-    info: HeaderInfo | CrossSection
-    if (len(values) == 19 and values[1] == "Event") or (len(values) == 17 and values[1] == "Event"):
-        ##########################
-        # Header v2 specification:
-        ##########################
-        # As of 20 April 2021, the formatting of the header has been improved.
-        # This function was developed to parse it.
-        # The header is defined as follows, with each entry separated by a `\t` character:
-        # `# Event 1 weight 0.129547 EPangle 0.0116446 N_hadrons 236 | N  pid status E Px Py Pz Eta Phi`
-        #  0 1     2 3      4        5       6         7         8   9 10 11  12    13 14 15 16 17  18
-        #
-        # NOTE: Everything after the "|" is just documentation for the particle entries stored below.
-        #
-        info = HeaderInfo(
-            event_number=int(values[2]),            # Event number
-            event_plane_angle=float(values[6]),     # EP angle
-            n_particles=int(values[8]),             # Number of particles
-            event_weight=float(values[4]),          # Event weight
-        )
-    elif len(values) == 9 and "Event" in values[2]:
-        ##########################
-        # Header v1 specification:
-        ##########################
-        # The header v1 specification is as follows, with ">" followed by same spaces indicating a "\t" character:
-        # #>  0.0116446>  Event1ID>   236>pstat-EPx>  Py> Pz> Eta>Phi
-        # 0   1           2           3   4           5   6   7   8
-        #
-        # NOTE: There are some difficulties in parsing this header due to inconsistent spacing.
-        #
-        # The values that we want to extract are:
-        # index: Meaning
-        #   1: Event plane angle. float, potentially in scientific notation.
-        #   2: Event number, of the from "EventNNNNID". Can be parsed as val[5:-2] to generically extract `NNNN`. int.
-        #   3: Number of particles. int.
-        info = HeaderInfo(
-            event_number=int(values[2][5:-2]),      # Event number
-            event_plane_angle=float(values[1]),     # EP angle
-            n_particles=int(values[3]),             # Number of particles
-        )
-    elif len(values) == 5 and values[1] == "sigmaGen":
-        # If we've hit the cross section, and we're not doing the initial extraction of the cross
-        # section, this means that we're at the last line of the file, and should notify as such.
-        # NOTE: By raising with the cross section, we make it possible to retrieve it, even though
-        #       we've raised an exception here.
-        raise ReachedXSecAtEndOfFileException(_parse_cross_section(line))
-    else:
-        msg = f"Parsing of comment line failed: {values}"
-        raise ValueError(msg)
-
-    return info
-
-
-def _parse_header_line_format_v2(line: str) -> HeaderInfo:
-    """Parse line that is expected to be a header according to the v2 file format.
-
-    The most common case is that it's a header, in which case we parse the line. If it's not a header,
-    we also check if it's a cross section, which we note as having found at the end of the file via
-    an exception.
-
-    Args:
-        line: Line to be parsed.
-    Returns:
-        The HeaderInfo information that was extracted.
-    Raises:
-        ReachedXSecAtEndOfFileException: If we find the cross section.
-    """
-    # Parse the string.
-    values = line.split("\t")
-    # Compare by length first so we can short circuit immediately if it doesn't match, which should
-    # save some string comparisons.
-    info: HeaderInfo | CrossSection
-    if (len(values) == 9 or len(values) == 11 or len(values) == 13) and values[1] == "Event":
-        ##########################
-        # Header v2 specification:
-        ##########################
-        # As of 22 June 2021, the formatting of the header is as follows:
-        # This function was developed to parse it.
-        # The header is defined as follows, with each entry separated by a `\t` character:
-        # `# Event 1 weight 0.129547 EPangle 0.0116446 N_hadrons 236 (centrality 12.5) (pt_hat 47)`
-        #  0 1     2 3      4        5       6         7         8    9          10     11     12
-        # NOTE: pt_hat and centrality are optional (centrality added in Jan. 2025)
-        #
-        # The base length (i.e. with no optional values) is 9
-        _base_line_length = 9
-
-        # Extract optional values. They will be any beyond the base line length
-        centrality, pt_hat = _parse_optional_header_values(
-            optional_values=values[_base_line_length:],
-        )
-
-        # And store...
-        info = HeaderInfo(
-            event_number=int(values[2]),            # Event number
-            event_plane_angle=float(values[6]),     # EP angle
-            n_particles=int(values[8]),             # Number of particles
-            event_weight=float(values[4]),          # Event weight
-            centrality=centrality,                  # centrality
-            pt_hat=pt_hat                           # pt hat
-        )
-    elif len(values) == 5 and values[1] == "sigmaGen":
-        # If we've hit the cross section, and we're not doing the initial extraction of the cross
-        # section, this means that we're at the last line of the file, and should notify as such.
-        # NOTE: By raising with the cross section, we make it possible to retrieve it, even though
-        #       we've raised an exception here.
-        raise ReachedXSecAtEndOfFileException(_parse_cross_section(line))
-    else:
-        msg = f"Parsing of comment line failed: {values}"
-        raise ValueError(msg)
-
-    return info
-
-def _parse_header_line_format_v3(line: str) -> HeaderInfo:
-    """Parse line that is expected to be a header according to the v3 file format.
-    The most common case is that it's a header, in which case we parse the line. If it's not a header,
-    we also check if it's a cross section, which we note as having found at the end of the file via
-    an exception.
-    Args:
-        line: Line to be parsed.
-    Returns:
-        The HeaderInfo information that was extracted.
-    Raises:
-        ReachedXSecAtEndOfFileException: If we find the cross section.
-    """
-    # Parse the string.
-    values = line.split("\t")
-    # Compare by length first so we can short circuit immediately if it doesn't match, which should
-    # save some string comparisons.
-    info: HeaderInfo | CrossSection
-    if (len(values) == 15 or len(values) == 17) and values[1] == "Event":
-        ##########################
-        # Header v3 specification:
-        ##########################
-        # format including the vertex position and pt_hat
-        # This function was developed to parse it.
-        # The header is defined as follows, with each entry separated by a `\t` character:
-        #  # Event 1 weight  1 EPangle 0 N_hadrons 169 vertex_x  0.6 vertex_y  -1.2  vertex_z  0 (centrality 12.5) (pt_hat  11.564096)
-        #  0 1     2 3       4 5       6 7         8   9         10  11        12    13        14 15         16     17      18
-        #
-        # NOTE: pt_hat and centrality are optional (centrality added in Jan. 2025)
-        #
-        # The base length (i.e. with no optional values) is 15
-        _base_line_length = 15
-
-        # Extract optional values. They will be any beyond the base line length
-        centrality, pt_hat = _parse_optional_header_values(
-            optional_values=values[_base_line_length:],
-        )
-
-        # And store...
-        info = HeaderInfo(
-            event_number=int(values[2]),            # Event number
-            event_plane_angle=float(values[6]),     # EP angle
-            n_particles=int(values[8]),             # Number of particles
-            event_weight=float(values[4]),          # Event weight
-            vertex_x=float(values[10]),             # x vertex
-            vertex_y=float(values[12]),             # y vertex
-            vertex_z=float(values[14]),             # z vertex
-            centrality=centrality,                  # centrality
-            pt_hat=pt_hat,                          # pt hat
-        )
-    elif len(values) == 5 and values[1] == "sigmaGen":
-        # If we've hit the cross section, and we're not doing the initial extraction of the cross
-        # section, this means that we're at the last line of the file, and should notify as such.
-        # NOTE: By raising with the cross section, we make it possible to retrieve it, even though
-        #       we've raised an exception here.
-        raise ReachedXSecAtEndOfFileException(_parse_cross_section(line))
-    else:
-        msg = f"Parsing of comment line failed: {values}"
-        raise ValueError(msg)
-
-    return info
-
-
-# Register header parsing functions
-_file_format_version_to_header_parser = {
-    2: _parse_header_line_format_v2,
-    3: _parse_header_line_format_v3,
-    -1: _parse_header_line_format_unspecified,
+# Register model specific parsing functions.
+_model_to_module = {
+    "jetscape": _parse_ascii_jetscape,
+    "hybrid": _parse_ascii_hybrid,
 }
 
 
-def _parse_event(f: Iterator[str], parse_header_line: Callable[[str], HeaderInfo]) -> Iterator[HeaderInfo | str]:
-    """Parse a single event in a FinalState* file.
-
-    Raises:
-        ReachedXSecAtEndOfFileException: We've found the line with the xsec and error at the
-            end of the file. Effectively, we've exhausted the iterator.
-        ReachedEndOfFileException: We've hit the end of file without finding the xsec and
-            error. This may be totally fine, depending on the version of the FinalState*
-            output.
-    """
-    # Our first line should be the header, which will be denoted by a "#".
-    # Let the calling know if there are no events left due to exhausting the iterator.
-    try:
-        header = parse_header_line(next(f))
-        # logger.info(f"header: {header}")
-        yield header
-    except StopIteration:
-        # logger.debug("Hit end of file exception!")
-        raise ReachedEndOfFileException() from None
-
-    # From the header, we know how many particles we have in the event, so we can
-    # immediately yield the next n_particles lines. And this will leave the generator
-    # at the next event, or (if we've exhausted the iterator) at the end of file (either
-    # at the xsec and error, or truly exhausted).
-    yield from itertools.islice(f, header.n_particles)
-
-
-class ChunkNotReadyException(Exception):
-    """Indicate that the chunk hasn't been parsed yet, and therefore is not ready."""
-
-
-@attrs.define
-class ChunkGenerator:
-    """ Generate a chunk of the file.
-
-    Args:
-        g: Iterator over the input file.
-        events_per_chunk: Number of events for the chunk.
-        cross_section: Cross section information.
-        file_format_version: File format version. Default: -1, which corresponds to before the format
-            was defined, and it will try it's best to guess the format.
-    """
-    g: Iterator[str] = attrs.field()
-    _events_per_chunk: int = attrs.field()
-    cross_section: CrossSection | None = attrs.field(default=None)
-    _file_format_version: int = attrs.field(default=-1)
-    _headers: list[HeaderInfo] = attrs.field(factory=list)
-    _reached_end_of_file: bool = attrs.field(default=False)
-
-    def _is_chunk_ready(self) -> bool:
-        """True if the chunk is ready"""
-        return not (len(self._headers) == 0 and not self._reached_end_of_file)
-
-    def _require_chunk_ready(self) -> None:
-        """Require that the chunk is ready (ie. been parsed).
-
-        Raises:
-            ChunkNotReadyException: Raised if the chunk isn't ready.
-        """
-        if not self._is_chunk_ready():
-            raise ChunkNotReadyException()
-
-    @property
-    def events_per_chunk(self) -> int:
-        return self._events_per_chunk
-
-    @property
-    def reached_end_of_file(self) -> bool:
-        self._require_chunk_ready()
-        return self._reached_end_of_file
-
-    @property
-    def events_contained_in_chunk(self) -> int:
-        self._require_chunk_ready()
-        return len(self._headers)
-
-    @property
-    def headers(self) -> list[HeaderInfo]:
-        self._require_chunk_ready()
-        return self._headers
-
-    def n_particles_per_event(self) -> npt.NDArray[np.int64]:
-        self._require_chunk_ready()
-        return np.array([
-            header.n_particles for header in self._headers
-        ])
-
-    def event_split_index(self) -> npt.NDArray[np.int64]:
-        self._require_chunk_ready()
-        # NOTE: We skip the last header due to the way that np.split works.
-        #       It will go from the last index to the end of the array.
-        return np.cumsum([
-            header.n_particles for header in self._headers
-        ])[:-1]
-
-    @property
-    def incomplete_chunk(self) -> bool:
-        self._require_chunk_ready()
-        return len(self._headers) != self._events_per_chunk
-
-    def __iter__(self) -> Iterator[str]:
-        _parse_header_line = _file_format_version_to_header_parser[self._file_format_version]
-        for _ in range(self._events_per_chunk):
-            # logger.debug(f"i: {i}")
-            try:
-                event_iter = _parse_event(
-                    self.g,
-                    parse_header_line=_parse_header_line,
-                )
-                # NOTE: Typing gets ignored here because I don't know how to encode the additional
-                #       information that the first yielded line will be the header, and then the rest
-                #       will be strings. So we just ignore typing here. In principle, we could split
-                #       up the _parse_event function, but I find condensing it into a single function
-                #       to be more straightforward from a user perspective.
-                # First, get the header. We know this first line must be a header
-                self._headers.append(
-                    next(event_iter)  # type: ignore[arg-type]
-                )
-                # Then we yield the rest of the particles in the event
-                yield from event_iter  # type: ignore[misc]
-            except (ReachedEndOfFileException, ReachedXSecAtEndOfFileException):
-                # If we're reached the end of file, we should note that inside the chunk
-                # because it may not have reached the full set of events per chunk.
-                self._reached_end_of_file = True
-                # Since we've reached this point, we need to stop.
-                break
-            # NOTE: If we somehow reached StopIteration, it's also fine - just
-            #       allow it to propagate through and end the for loop.
-
-
-def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> Iterator[ChunkGenerator]:
-    """ Read events in chunks from stored JETSCAPE FinalState* ASCII files.
+def read_events_in_chunks(
+    filename: Path, events_per_chunk: int = DEFAULT_EVENTS_PER_CHUNK_SIZE
+) -> Generator[ChunkGenerator, int | None, None]:
+    """Read events in chunks from stored ASCII output files.
 
     This provides access to the lines of the file itself, but it is up to the user to parse each line.
     Consequently, many useful features are implemented on top of it. Users are encouraged to use those
@@ -532,50 +135,50 @@ def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> I
     filename = Path(filename)
 
     with filename.open() as f:
-        # First step, extract the final cross section and header.
-        cross_section = _extract_x_sec_and_error(f)
+        # First step, extract the model and the file format version
+        model = determine_model_from_file(f)
+        file_format_version = determine_format_version_from_file(f)
+        logger.info(f"Found {model=}, {file_format_version=}")
 
+        # And use that information to determine the parsing functions.
+        # Validation
+        if model not in _model_to_module:
+            _msg = f"No parsing module found for {model=}"
+            raise RuntimeError(_msg)
+        model_parameters = _model_to_module[model].initialize_model_parameters(file_format_version=file_format_version)
+        # And use those parsing functions to extract the final cross section and header.
+        cross_section = model_parameters.extract_x_sec_and_error(f)
+
+        # Now that we've complete the setup, we can move to actually parsing the events.
         # Define an iterator so we can increment it in different locations in the code.
-        # Fine to use if it the entire file fits in memory.
-        #read_lines = iter(f.readlines())
-        # Use this if the file doesn't fit in memory (fairly likely for these type of files)
+        # `readlines()` is fine to use if it the entire file fits in memory.
+        # read_lines = iter(f.readlines())
+        # Use the iterator if the file doesn't fit in memory (fairly likely for these type of files)
         read_lines = iter(f)
-
-        # Check for file format version indicating how we should parse it.
-        file_format_version = -1
-        first_line = next(read_lines)
-        first_line_split = first_line.split("\t")
-        if len(first_line_split) > 3 and first_line_split[1] == "JETSCAPE_FINAL_STATE":
-            # 1: is to remove the "v" in the version
-            file_format_version = int(first_line_split[2][1:])
-        else:
-            # We need to move back to the beginning of the file, since we just burned through
-            # a meaningful line (which almost certainly contains an event header).
-            # NOTE: My initial version of two separate iterators doesn't work because it appears
-            #       that you cannot do so for a file (which I suppose I can make sense of because
-            #       it points to a position in a file, but still unexpected).
-            f.seek(0)
-
-        logger.info(f"Found file format version: {file_format_version}")
 
         # Now, need to setup chunks.
         # NOTE: The headers and additional info are passed through the ChunkGenerator.
+        requested_chunk_size: int | None = events_per_chunk
         while True:
+            # This check is only needed for subsequent iterations - not the first
+            if requested_chunk_size is None:
+                requested_chunk_size = events_per_chunk
+
             # We keep an explicit reference to the chunk so we can set the end of file state
             # if we reached the end of the file.
-            chunk = ChunkGenerator(
+            chunk = parse_ascii_base.ChunkGenerator(
                 g=read_lines,
-                events_per_chunk=events_per_chunk,
+                events_per_chunk=requested_chunk_size,
+                model_parameters=model_parameters,
                 cross_section=cross_section,
-                file_format_version=file_format_version,
             )
-            yield chunk
+            requested_chunk_size = yield chunk
             if chunk.reached_end_of_file:
                 break
 
 
 class FileLikeGenerator:
-    """ Wrapper class to make a generator look like a file.
+    """Wrapper class to make a generator look like a file.
 
     Pandas requires passing a filename or a file-like object, but we handle the generator externally
     so we can find each chunk boundary, parse the headers, etc. Consequently, we need to make this
@@ -586,66 +189,189 @@ class FileLikeGenerator:
     Args:
         g: Generator to be wrapped.
     """
+
     def __init__(self, g: Iterator[str]):
         self.g = g
 
     def read(self, n: int = 0) -> Any:  # noqa: ARG002
-        """ Read method is required by pandas. """
+        """Read method is required by pandas."""
         try:
             return next(self.g)
         except StopIteration:
-            return ''
+            return ""
 
     def __iter__(self) -> Iterator[str]:
-        """ Iteration is required by pandas. """
+        """Iteration is required by pandas."""
         return self.g
 
 
-def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with `pandas.read_csv`
+# Defines the required column order, which standardizes how we write out data.
+DEFAULT_EXPECTED_COLUMN_ORDER = [
+    "particle_ID",
+    "status",
+    "E",
+    "px",
+    "py",
+    "pz",
+]
+# All possible columns with their corresponding dtypes.
+# NOTE: There could be overlapping columns here. It's not meant to provide
+#       a consistent set of columns - it's just to provide the dtype mapping
+#       for any possible columns.
+COLUMN_TO_DTYPE = {
+    "particle_ID": np.int32,
+    "status": np.int8,
+    "particle_index": np.uint16,
+    "E": np.float32,
+    "m": np.float32,
+    "px": np.float32,
+    "py": np.float32,
+    "pz": np.float32,
+    "eta": np.float32,
+    "phi": np.float32,
+}
+
+
+def _parse_with_pandas(chunk_generator: Iterator[str], column_names: list[str]) -> npt.NDArray[Any]:
+    """Parse the lines with `pandas.read_csv`
 
     `read_csv` uses a compiled c parser. As of 6 October 2020, it is tested to be the fastest option.
 
     Args:
         chunk_generator: Generator of chunks of the input file for parsing.
+        column_names: Name of the columns that are stored in the file.
     Returns:
         Array of the particles.
     """
     # Delayed import so we only take the import time if necessary.
-    import pandas as pd
+    import pandas as pd  # noqa: PLC0415
 
-    return pd.read_csv(  # type: ignore[call-overload,no-any-return]
+    # If we have mass rather than E, replace it in the expected order.
+    # We'll handle the conversion to write out the energy later
+    expected_column_order = list(DEFAULT_EXPECTED_COLUMN_ORDER)
+    if "E" not in column_names:
+        expected_column_order[expected_column_order.index("E")] = "m"
+
+    return pd.read_csv(  # type: ignore[no-any-return,call-overload]
         FileLikeGenerator(chunk_generator),
-        # NOTE: If the field is missing (such as eta and phi), they will exist, but they will be filled with NaN.
-        #       We actively take advantage of this so we don't have to change the parsing for header v1 (which
+        # NOTE: If a field that is listed here is missing (e.g. eta or phi), they will be created and filled with NaN.
+        #       We could take advantage of this so we don't have to change the parsing for jetscape header v1 (which
         #       includes eta and phi) vs header v2 (which does not)
-        names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+        names=column_names,
         header=None,
         comment="#",
         sep=r"\s+",
-        # Converting to numpy makes the dtype conversion moot.
-        # dtype={
-        #     "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
-        #     "E": np.float32, "px": np.float32, "py": np.float32, "pz": np.float32,
-        #     "eta": np.float32, "phi": np.float32
-        # },
-        # We can reduce the number of columns when reading.
+        # NOTE: We do not set a dtype because it actually makes parsing slow (checked with timeit).
+        #       Since we convert to numpy at the end (and then cast the dtype when we do the
+        #       awkward array), there's no need to set the dtype now.
+        # We could reduce the number of columns when reading.
         # However, it makes little difference, makes it less general, and we can always drop the columns later.
         # So we disable it for now.
         # usecols=["particle_ID", "status", "E", "px", "py", "eta", "phi"],
         #
         # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
         #       which will break the header indexing and therefore the conversion to awkward.
-    ).to_numpy()
+    )[expected_column_order].to_numpy()
 
 
-def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with python.
+def _parse_with_polars(chunk_generator: Iterator[str], column_names: list[str]) -> npt.NDArray[Any]:
+    """Parse the lines with polars.
 
-    We have this as an option because np.loadtxt is surprisingly slow.
+    Note that this approach is quite hacky, but it's unclear how to parse without finding the
+    event start indices, so we'll keep the current approach.
+
+    NOTE:
+        As of July 2025, RJE found this approach is about 30-40% faster than pandas for
+        chunks of 5000-10000.
 
     Args:
         chunk_generator: Generator of chunks of the input file for parsing.
+        column_names: Name of the columns that are stored in the file.
+    Returns:
+        Array of the particles.
+    """
+    # Delayed import so we only take the import time if necessary.
+    import polars as pl  # noqa: PLC0415
+
+    # Polars need polars data types
+    # NOTE: This isn't comprehensive, but covers our most common types
+    _numpy_dtypes_to_polars_data_types = {
+        np.int8: pl.Int8,
+        np.uint8: pl.UInt8,
+        np.int16: pl.Int16,
+        np.uint16: pl.UInt16,
+        np.int32: pl.Int32,
+        np.uint32: pl.UInt32,
+        np.int64: pl.Int64,
+        np.uint64: pl.UInt64,
+        np.float32: pl.Float32,
+        np.float64: pl.Float64,
+    }
+    # Determine the schema
+    schema = {k: _numpy_dtypes_to_polars_data_types[COLUMN_TO_DTYPE[k]] for k in column_names}
+
+    # If we have mass rather than E, replace it in the expected order.
+    # We'll handle the conversion to write out the energy later
+    # NOTE: This is implicitly handled in the schema since the keys are
+    #       set by the column names, which will already have e.g. the mass
+    expected_column_order = list(DEFAULT_EXPECTED_COLUMN_ORDER)
+    if "E" not in column_names:
+        expected_column_order[expected_column_order.index("E")] = "m"
+
+    # An explanation of the steps here:
+    return (
+        pl.DataFrame(
+            # 1. Ingest the generator into a dataframe in the column "raw_lines"
+            {"raw_lines": list(chunk_generator)}
+        )
+        .with_columns(
+            # 2. Parse raw_lines by stripping whitespace (strip_chars) and splitting into exactly `len(column_names) - 1`
+            #    splits. We need the -1 since e.g. 6 columns have 5 spaces in between them.
+            pl.col("raw_lines").str.strip_chars().str.split_exact(" ", n=len(column_names) - 1).alias("split")
+        )
+        .unnest(
+            # 3. Splits the parsed columns (in a struct) into separate columns for each field
+            "split"
+        )
+        .rename(
+            # 4. Renames the default column names (assigned by unnest) into their proper names
+            {f"field_{i}": name for i, name in enumerate(list(schema))}
+        )
+        .cast(
+            # 5. Casts them to their proper dtype
+            schema  # type: ignore[arg-type]
+            # 6. And selects only the columns that we would like to return, putting them in
+            #    the expected order.
+            # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
+            #       which will break the header indexing and therefore the conversion to awkward.
+        )[expected_column_order]
+        .to_numpy()
+    )
+
+    # The alternative approach below uses the pl.DataFrame constructor, but parses the strings in python.
+    # It's substantially slower (e.g. factor of two slower), so better to stick with the above!!
+    # return pl.DataFrame(
+    #     # We need to parse the space separate values by hand. This is probably not particularly fast...
+    #     # NOTE: This only handles spaces (i.e. not general whitespace like tabs)
+    #     [v.rstrip().split(" ") for v in chunk_generator],
+    #     schema=schema,
+    #     orient="row",
+    #     # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
+    #     #       which will break the header indexing and therefore the conversion to awkward.
+    # )[expected_column_order].to_numpy()
+
+
+def _parse_with_python(chunk_generator: Iterator[str], column_names: list[str]) -> npt.NDArray[Any]:  # noqa: ARG001
+    """Parse the lines with python.
+
+    We have this as an option because np.loadtxt is surprisingly slow.
+
+    NOTE:
+        This only works for jetscape generated files!
+
+    Args:
+        chunk_generator: Generator of chunks of the input file for parsing.
+        column_names: Name of the columns that are stored in the file.
     Returns:
         Array of the particles.
     """
@@ -656,23 +382,27 @@ def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
     return np.stack(particles)
 
 
-def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with numpy.
+def _parse_with_numpy(chunk_generator: Iterator[str], column_names: list[str]) -> npt.NDArray[Any]:  # noqa: ARG001
+    """Parse the lines with numpy.
 
-    Unfortunately, this option is surprisingly, presumably because it has so many options.
+    Unfortunately, this option is surprisingly slow, presumably because it has so many options.
     Pure python appears to be about 2x faster. So we keep this as an option for the future,
     but it is not used by default.
 
+    NOTE:
+        This only works for jetscape generated files!
+
     Args:
         chunk_generator: Generator of chunks of the input file for parsing.
+        column_names: Name of the columns that are stored in the file.
     Returns:
         Array of the particles.
     """
     return np.loadtxt(chunk_generator)
 
 
-def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") -> Iterator[ak.Array]:
-    """ Read a JETSCAPE FinalState{Hadrons,Partons} ASCII output file in chunks.
+def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") -> Generator[ak.Array, int | None, None]:  # noqa: C901
+    """Read a FinalState{Hadrons,Partons} ASCII output file in chunks.
 
     This is the primary user function. We read in chunks to keep the memory usage manageable.
 
@@ -693,124 +423,165 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
     # Setup
     parsing_function_map = {
         "pandas": _parse_with_pandas,
+        "polars": _parse_with_polars,
         "python": _parse_with_python,
         "numpy": _parse_with_numpy,
     }
     parsing_function = parsing_function_map[parser]
 
     # Read the file, creating chunks of events.
-    for i, chunk_generator in enumerate(read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
-        # Give a notification just in case the parsing is slow...
-        logger.debug(f"New chunk {i}")
+    event_generator = read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)
+    try:
+        i = 0
+        chunk_generator = next(event_generator)
+        while True:
+            # Give a notification just in case the parsing is slow...
+            logger.debug(f"New chunk {i}")
 
-        # First, parse the lines. We need to make this call before attempt to convert into events because the necessary
-        # info (namely, n particles per event) is only available and valid after we've parse the lines.
-        res = parsing_function(iter(chunk_generator))
+            # First, parse the lines. We need to make this call before attempt to convert into events because the necessary
+            # info (namely, n particles per event) is only available and valid after we've parse the lines.
+            res = parsing_function(iter(chunk_generator), column_names=chunk_generator.model_parameters.column_names)
 
-        # Before we do anything else, if our events_per_chunk is a even divisor of the total number of events
-        # and we've hit the end of the file, we can return an empty generator after trying to parse the chunk.
-        # In that case, we're done - just break.
-        # NOTE: In the case where we've reached the end of file, but we've parsed some events, we want to continue
-        #       on so we don't lose any events.
-        if chunk_generator.reached_end_of_file and len(chunk_generator.headers) == 0:
-            break
+            # Before we do anything else, if our events_per_chunk is a even divisor of the total number of events
+            # and we've hit the end of the file, we can return an empty generator after trying to parse the chunk.
+            # In that case, we're done - just break.
+            # NOTE: In the case where we've reached the end of file, but we've parsed some events, we want to continue
+            #       on so we don't lose any events.
+            if chunk_generator.reached_end_of_file and len(chunk_generator.headers) == 0:
+                break
 
-        # Now, convert into the awkward array structure.
-        array_with_events = ak.unflatten(
-            ak.Array(res), chunk_generator.n_particles_per_event()
-        )
+            # Now, convert into the awkward array structure.
+            # logger.info(f"n_particles_per_event len: {len(chunk_generator.n_particles_per_event())}, array: {chunk_generator.n_particles_per_event()}")
+            array_with_events = ak.unflatten(ak.Array(res), chunk_generator.n_particles_per_event())
 
-        # Cross checks.
-        # Length check that we have as many events as expected based on the number of headers.
-        # logger.debug(f"ak.num: {ak.num(array_with_events, axis = 0)}, len headers: {len(chunk_generator.headers)}")
-        assert (ak.num(array_with_events, axis = 0) == len(chunk_generator.headers))
-        # Check that n particles agree
-        n_particles_from_header = np.array([header.n_particles for header in chunk_generator.headers])
-        # logger.info(f"n_particles from headers: {n_particles_from_header}")
-        # logger.info(f"n_particles from array: {ak.num(array_with_events, axis = 1)}")
-        assert (np.asarray(ak.num(array_with_events, axis = 1)) == n_particles_from_header).all()
-        # State of the chunk
-        # logger.debug(f"Reached end of file: {chunk_generator.reached_end_of_file}")
-        # logger.debug(f"Incomplete chunk: {chunk_generator.incomplete_chunk}")
-        # Let the use know so they're not surprised.
-        if chunk_generator.incomplete_chunk:
-            logger.warning(f"Requested {chunk_generator.events_per_chunk} events, but only {chunk_generator.events_contained_in_chunk} are available because we hit the end of the file.")
+            # Cross checks.
+            # Length check that we have as many events as expected based on the number of headers.
+            # logger.debug(f"ak.num: {ak.num(array_with_events, axis = 0)}, len headers: {len(chunk_generator.headers)}")
+            assert ak.num(array_with_events, axis=0) == len(chunk_generator.headers)
+            # Check that n particles agree
+            n_particles_from_header = np.array([header.n_particles for header in chunk_generator.headers])
+            # logger.info(f"n_particles from headers: {n_particles_from_header}")
+            # logger.info(f"n_particles from array: {ak.num(array_with_events, axis = 1)}")
+            assert (np.asarray(ak.num(array_with_events, axis=1)) == n_particles_from_header).all()
+            # State of the chunk
+            # logger.debug(f"Reached end of file: {chunk_generator.reached_end_of_file}")
+            # logger.debug(f"Incomplete chunk: {chunk_generator.incomplete_chunk}")
+            # Let the use know so they're not surprised.
+            if chunk_generator.incomplete_chunk:
+                logger.warning(
+                    f"Requested {chunk_generator.events_per_chunk} events, but only {chunk_generator.events_contained_in_chunk} are available because we hit the end of the file."
+                )
 
-        # Header info
-        header_level_info = {
-            "event_plane_angle": np.array([header.event_plane_angle for header in chunk_generator.headers], np.float32),
-            "event_ID": np.array([header.event_number for header in chunk_generator.headers], np.uint16),
-        }
-        if chunk_generator.headers[0].event_weight > -1:
-            header_level_info["event_weight"] = np.array([header.event_weight for header in chunk_generator.headers], np.float32)
-        if chunk_generator.headers[0].centrality > -1:
-            header_level_info["centrality"] = np.array([header.centrality for header in chunk_generator.headers], np.float32)
-        if chunk_generator.headers[0].pt_hat > -1:
-            header_level_info["pt_hat"] = np.array([header.pt_hat for header in chunk_generator.headers], np.float32)
-        if chunk_generator.headers[0].vertex_x > -999:
-            header_level_info["vertex_x"] = np.array([header.vertex_x for header in chunk_generator.headers], np.float32)
-        if chunk_generator.headers[0].vertex_y > -999:
-            header_level_info["vertex_y"] = np.array([header.vertex_y for header in chunk_generator.headers], np.float32)
-        if chunk_generator.headers[0].vertex_z > -999:
-            header_level_info["vertex_z"] = np.array([header.vertex_z for header in chunk_generator.headers], np.float32)
+            # Header info
+            header_level_info = {
+                "event_plane_angle": np.array(
+                    [header.event_plane_angle for header in chunk_generator.headers], np.float32
+                ),
+                "event_ID": np.array([header.event_number for header in chunk_generator.headers], np.uint16),
+            }
+            # And then handle optional values - no point storing the values if they're not meaningful.
+            if chunk_generator.headers[0].event_weight > -1:
+                header_level_info["event_weight"] = np.array(
+                    [header.event_weight for header in chunk_generator.headers], np.float32
+                )
+            if chunk_generator.headers[0].centrality > -1:
+                header_level_info["centrality"] = np.array(
+                    [header.centrality for header in chunk_generator.headers], np.float32
+                )
+            if chunk_generator.headers[0].pt_hat > -1:
+                header_level_info["pt_hat"] = np.array(
+                    [header.pt_hat for header in chunk_generator.headers], np.float32
+                )
+            if chunk_generator.headers[0].vertex_x > -999:
+                header_level_info["vertex_x"] = np.array(
+                    [header.vertex_x for header in chunk_generator.headers], np.float32
+                )
+            if chunk_generator.headers[0].vertex_y > -999:
+                header_level_info["vertex_y"] = np.array(
+                    [header.vertex_y for header in chunk_generator.headers], np.float32
+                )
+            if chunk_generator.headers[0].vertex_z > -999:
+                header_level_info["vertex_z"] = np.array(
+                    [header.vertex_z for header in chunk_generator.headers], np.float32
+                )
 
-        # Cross section info
-        if chunk_generator.cross_section:
-            # Even though this is a dataset level quantity, we need to match the structure in order to zip them together for storage.
-            # Since we're repeating the value, hopefully this will be compressed effectively.
-            header_level_info["cross_section"] = np.full_like(header_level_info["event_plane_angle"], chunk_generator.cross_section.value)
-            header_level_info["cross_section_error"] = np.full_like(header_level_info["event_plane_angle"], chunk_generator.cross_section.error)
+            # Cross section info
+            if chunk_generator.cross_section:
+                # Even though this is a dataset level quantity, we need to match the structure in order to zip them together for storage.
+                # Since we're repeating the value, hopefully this will be compressed effectively.
+                header_level_info["cross_section"] = np.full_like(
+                    header_level_info["event_plane_angle"], chunk_generator.cross_section.value
+                )
+                header_level_info["cross_section_error"] = np.full_like(
+                    header_level_info["event_plane_angle"], chunk_generator.cross_section.error
+                )
 
-        # Assemble all of the information in a single awkward array and pass it on.
-        yield ak.zip(
-            {
-                # Header level info
-                **header_level_info,
-                # Particle level info
-                "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
-                # We're only considering final state hadrons or partons, so status codes are limited to a few values.
-                # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
-                # So we can't differentiate the recoil from the signal.
-                "status": ak.values_astype(array_with_events[:, :, 2], np.int8),
-                "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
-                "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
-                "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
-                "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
-                # We could skip eta and phi since we can always recalculate them. However, since we've already parsed
-                # them, we may as well pass them along.
-                "eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
-                "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
-            },
-            depth_limit=1,
-        )
+            # Handle the particle level fields
+            # Namely, this enables the conversion of particle level fields if necessary (e.g. m -> E)
+            energy_like_label = "E"
+            if "m" in chunk_generator.model_parameters.column_names:
+                energy_like_label = "m"
+            # Order of the columns is determined at the time of parsing
+            particles = vector.Array(
+                ak.zip(
+                    {
+                        "particle_ID": ak.values_astype(array_with_events[:, :, 0], COLUMN_TO_DTYPE["particle_ID"]),
+                        # We're only considering final state hadrons or partons, so status codes are limited to a few values.
+                        # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
+                        # So we can't differentiate the recoil from the signal.
+                        "status": ak.values_astype(array_with_events[:, :, 1], COLUMN_TO_DTYPE["status"]),
+                        energy_like_label: ak.values_astype(
+                            array_with_events[:, :, 2], COLUMN_TO_DTYPE[energy_like_label]
+                        ),
+                        "px": ak.values_astype(array_with_events[:, :, 3], COLUMN_TO_DTYPE["px"]),
+                        "py": ak.values_astype(array_with_events[:, :, 4], COLUMN_TO_DTYPE["py"]),
+                        "pz": ak.values_astype(array_with_events[:, :, 5], COLUMN_TO_DTYPE["pz"]),
+                    },
+                )
+            )
+            # Regardless of what kinematics were provided, we want to write E, px, py, pz.
+            # These are contained in the DEFAULT_EXPECTED_COLUMN_ORDER, so we use that
+            # here, event if we don't care overly much about the order once we've created
+            # the awkward array (i.e. the ordering is not meaningful there)
+            particle_fields_to_write = list(DEFAULT_EXPECTED_COLUMN_ORDER)
 
+            # Assemble all of the information in a single awkward array and pass it on.
+            _result = yield ak.zip(
+                {
+                    # Header level info
+                    **header_level_info,
+                    # Particle level info
+                    # NOTE: We have to decompose this into a dict since we need to rezip
+                    #       at a lower depth limit to match up with the header information.
+                    #       (pandas doesn't properly read a fully zipped particles. If we're working
+                    #       with awkward later, we can always rezip it at full depth then).
+                    # NOTE: We need to use getattr since vector may not instantiate the field otherwise.
+                    **{k: getattr(particles, k) for k in particle_fields_to_write},
+                },
+                depth_limit=1,
+            )
 
-def full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Array:
-    columns_to_drop = ["eta", "phi"]
-    columns_to_keep = [field for field in ak.fields(arrays) if field not in columns_to_drop]
-    return ak.zip(
-        {
-            column: arrays[column] for column in columns_to_keep
-        }, depth_limit=1
-    )
+            # Update for next step
+            chunk_generator = event_generator.send(_result)
+            i += 1
+    except StopIteration:
+        pass
 
 
 def parse_to_parquet(
     base_output_filename: Path | str,
-    store_only_necessary_columns: bool,
     input_filename: Path | str,
     events_per_chunk: int,
-    parser: str = "pandas",
+    parser: str = "polars",
     max_chunks: int = -1,
     compression: str = "zstd",
     compression_level: int | None = None,
 ) -> None:
-    """Parse the JETSCAPE ASCII and convert it to parquet, (potentially) storing only the minimum necessary columns.
+    """Parse the ASCII final state {hadrons,partons} output file and convert it to parquet.
 
     Args:
         base_output_filename: Basic output filename. Should include the entire path.
-        store_only_necessary_columns: If True, store only the necessary columns, rather than all of them.
-        input_filename: Filename of the input JETSCAPE ASCII file.
+        input_filename: Filename of the input ASCII final state {hadrons,partons} file.
         events_per_chunk: Number of events to be read per chunk.
         parser: Name of the parser. Default: "pandas".
         max_chunks: Maximum number of chunks to read. Default: -1.
@@ -826,16 +597,6 @@ def parse_to_parquet(
     base_output_filename.parent.mkdir(parents=True, exist_ok=True)
 
     for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
-        # Reduce to the minimum required data.
-        if store_only_necessary_columns:
-            arrays = full_events_to_only_necessary_columns_E_px_py_pz(arrays)  # noqa: PLW2901
-        else:
-            # To match the steps taken when reducing the columns, we'll re-zip with the depth limited to 1.
-            # As of April 2021, I'm not certainly this is truly required anymore, but it may be needed for
-            # parquet writing to be successful (apparently parquet couldn't handle lists of structs sometime
-            # in 2020. The status in April 2021 is unclear, but not worth digging into now).
-            arrays = ak.zip(dict(zip(ak.fields(arrays), ak.unzip(arrays), strict=True)), depth_limit=1)  # noqa: PLW2901
-
         # If converting in chunks, add an index to the output file so the chunks don't overwrite each other.
         if events_per_chunk > 0:
             suffix = base_output_filename.suffix
@@ -864,15 +625,35 @@ def parse_to_parquet(
 
 
 if __name__ == "__main__":
-    #read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
-    for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
-        print(f"Processing pt hat range: {pt_hat_range}")  # noqa: T201
-        directory_name = "OutputFile_Type5_qhatA10_B0_5020_PbPb_0-10_0.30_2.0_1"
-        filename = f"JetscapeHadronListBin{pt_hat_range}"
-        parse_to_parquet(
-            base_output_filename=f"skim/{filename}.parquet",
-            store_only_necessary_columns=True,
-            input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
-            events_per_chunk=20,
-            #max_chunks=3,
-        )
+    # Setup
+    from jetscape_analysis.base import helpers
+
+    helpers.setup_logging(level=logging.INFO)
+
+    # read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
+    # for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
+    #     logger.info(f"Processing pt hat range: {pt_hat_range}")
+    #     directory_name = "OutputFile_Type5_qhatA10_B0_5020_PbPb_0-10_0.30_2.0_1"
+    #     filename = f"JetscapeHadronListBin{pt_hat_range}"
+    #     parse_to_parquet(
+    #         base_output_filename=f"skim/{filename}.parquet",
+    #         input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
+    #         events_per_chunk=20,
+    #         # max_chunks=3,
+    #     )
+
+    ## 0-5%
+    # filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_05_Lres2_kappa_0p428/HYBRID_Hadrons_0000.out")
+    ## 5-10%
+    # filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_510_Lres2_kappa_0p428/HYBRID_Hadrons_0000.out")
+    # Vacuum
+    filename = Path("/Users/REhlers/software/dev/jetscape/hybrid-bayesian/HYBRID_Hadrons_Vac/HYBRID_Hadrons_0000.out")
+    parse_to_parquet(
+        base_output_filename=f"skim/{filename.parent.name}/{filename.stem}.parquet",
+        input_filename=filename,
+        events_per_chunk=20,
+        max_chunks=3,
+        parser="polars",
+        # events_per_chunk=100000,
+        # max_chunks=1,
+    )
