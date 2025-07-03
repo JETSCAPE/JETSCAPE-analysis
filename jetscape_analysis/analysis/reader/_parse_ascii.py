@@ -8,7 +8,7 @@ import os
 import typing
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import Protocol
 
 import attrs
 import numpy as np
@@ -135,12 +135,23 @@ def save_file_position(file_obj: typing.TextIO) -> Iterator[None]:
         file_obj.seek(pos)
 
 
+class ParseCrossSection(Protocol):
+    """Functional interface for parsing the cross section from a line.
+
+    Args:
+        line: Line to be parsed.
+    Returns:
+        Cross section extracted from the line.
+    """
+    def __call__(self, line: str) -> CrossSection: ...
+
+
 def extract_x_sec_and_error(
     f: typing.TextIO,
     *,
     search_character_to_find_line_containing_cross_section: str,
     start_of_line_containing_cross_section: str,
-    parse_cross_section_line: Callable[[str], CrossSection],
+    parse_cross_section_line: ParseCrossSection,
     read_chunk_size: int = 100,
 ) -> CrossSection | None:
     """Extract cross section and error from the end of the file.
@@ -211,8 +222,8 @@ class ModelParameters:
 
     model_name: str = attrs.field()
     column_names: list[str] = attrs.field()
-    extract_x_sec_and_error: Callable[[typing.TextIO, int], CrossSection | None] = attrs.field()
-    event_by_event_generator: Callable[[Iterator[str], Callable[[Any], HeaderInfo]], Iterator[HeaderInfo | str]] = (
+    extract_x_sec_and_error: Callable[[typing.TextIO], CrossSection | None] = attrs.field()
+    event_by_event_generator: Callable[[Iterator[str]], Iterator[HeaderInfo | str]] = (
         attrs.field()
     )
 

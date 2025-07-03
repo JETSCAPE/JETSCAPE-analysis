@@ -5,7 +5,8 @@
 
 import functools
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
+from typing import Protocol
 
 import jetscape_analysis.analysis.reader._parse_ascii as parse_ascii_base
 from jetscape_analysis.analysis.reader._parse_ascii import CrossSection, HeaderInfo
@@ -44,6 +45,19 @@ def parse_cross_section(line: str) -> CrossSection:
     return info
 
 
+class ParseHeaderLine(Protocol):
+    """Interface for parsing a header line from a hybrid model output.
+
+    Args:
+        line_one: The first line of the header.
+        line_two: The second line of the header.
+        n_particles: Number of particles in the event.
+    Returns:
+        The HeaderInfo information that was extracted.
+    """
+    def __call__(self, line_one: str, line_two: str, *, n_particles: int) -> HeaderInfo: ...
+
+
 def _parse_header_hybrid_v1(
     line_one: str,
     line_two: str,
@@ -58,11 +72,11 @@ def _parse_header_hybrid_v1(
     an exception.
 
     Args:
-        f: The file iterator.
+        line_one: The first line of the header.
+        line_two: The second line of the header.
+        n_particles: Number of particles in the event.
     Returns:
         The HeaderInfo information that was extracted.
-    Raises:
-        ReachedXSecAtEndOfFileException: If we find the cross section.
     """
     # Parse the string.
     values = line_one.split(" ")
@@ -128,7 +142,7 @@ _file_format_version_to_column_names = {
 
 
 def event_by_event_generator(
-    f: Iterator[str], parse_header_line: Callable[[str, str, int], HeaderInfo]
+    f: Iterator[str], parse_header_line: ParseHeaderLine
 ) -> Iterator[HeaderInfo | str]:
     """Event-by-event generator using the Hybrid model output file.
 
