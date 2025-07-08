@@ -1326,15 +1326,18 @@ gamma_trigger_jet:
     dPhi: 7./8. # dPhi > 7/8*pi
     xtitle: '#it{p}_{T,jet} (GeV/#it{c})'
     logy: True
+    hepdata: 'HEPData-ins2648097-v1-root.root'
 
     # Fig 3
     # https://www.hepdata.net/record/ins2648097?version=1&table=Figure%203
+    hepdata_pp_dir: 'Figure 3'
     hepdata_pp_gname: 'Graph1D_y1'
+    hepdata_pp_hname: 'Hist1D_y1'
     ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]'
     y_min_pp: 3e-4
     y_max_pp: 2e-2
 
-    bins: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
+    # bins: [50., 56., 63., 70., 79., 89., 100., 112., 125., 141., 158., 177., 199., 223., 251., 281., 360.]
 
     # Isolation in PbPb (text from paper): “Thus, in Pb+Pb collisions, the isolation energy requirement depends
     # continuously on the centrality of the event and is chosen so that its efficiency for prompt
@@ -1345,7 +1348,9 @@ gamma_trigger_jet:
     centrality: [[0,10], [10,30], [30,80]]
     # Fig 4 (PbPb)
     # https://www.hepdata.net/record/ins2648097?version=1&table=Figure%204
-    hepdata_AA_gname: 'Graph1D_y1'
+    hepdata_AA_dir: 'Figure 4'
+    hepdata_AA_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3'] # one per centrality bin
+    hepdata_AA_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3']
     ytitle_AA: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]'
     y_min_AA: 3e-6
     y_max_AA: 10.
@@ -1371,45 +1376,54 @@ gamma_trigger_jet:
     jet_deltaphi: 7./8. # dPhi > 7/8*pi
 
 
+    hepdata: 'HEPData-ins1694678-v1-root.root'
+    # one table per pt gamma bin
+    pt_gamma_bins: [[63., 80.], [80., 100.], [100., 158.], [158., 200.]]
+    hepdata_pt_bin_dir: ['Table 1', 'Table 2', 'Table 3', 'Table 4']
+    # in each dir, one graph per centrality bin
+    hepdata_AA_gname: ['Graph1D_y6', 'Graph1D_y5', 'Graph1D_y4', 'Graph1D_y3', 'Graph1D_y2']
+    hepdata_AA_hname: ['Hist1D_y6', 'Hist1D_y5', 'Hist1D_y4', 'Hist1D_y3', 'Hist1D_y2']
+    hepdata_pp_gname: 'Graph1D_y1'
+    hepdata_pp_hname: 'Hist1D_y1'
+
+    # TODO FJ: not sure how we should handle the HEP data for this. They provide like normal one PbPb distribution per centrality, however, they also provide one pp distribution per centrality (since they smear the pp). I suggest to skip this for now
+  
+
     # Fig 4; pt_gamma=63-80 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%201
+    pt_gamma_bin1: [63., 80.]
     xtitle: '#it{x}_{J,#gamma}'
     logy: False
     hepdata_pp_gname: 'Graph1D_y1'
     ytitle_pp: '#frac{1}{N_#gamma}#frac{dN}{dx_{J#gamma}}'
-    y_min_pp: 0
-    y_max_pp: 2
-    bins: [.50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
+    xj_gamma_bins_1: [.50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
 
     # Fig 5; pt_gamma=80-100 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%202
     xtitle: '#it{x}_{J,#gamma}'
+    pt_gamma_bin2: [80., 100.]
     logy: False
     hepdata_pp_gname: 'Graph1D_y1'
     ytitle_pp: '#frac{1}{N_#gamma}#frac{dN}{dx_{J#gamma}}'
-    y_min_pp: 0
-    y_max_pp: 2
-    bins: [0.40, 0.45, .50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
+    xj_gamma_bins_2: [0.40, 0.45, .50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
 
     # Fig 6; pt_gamma=100-158 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%203
     xtitle: '#it{x}_{J,#gamma}'
+    pt_gamma_bin3: [100., 158.]
     logy: False
     hepdata_pp_gname: 'Graph1D_y1'
     ytitle_pp: '#frac{1}{N_#gamma}#frac{dN}{dx_{J#gamma}}'
-    y_min_pp: 0
-    y_max_pp: 2
-    bins: [0.32, 0.35, 0.40, 0.45, .50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
+    xj_gamma_bins_3: [0.32, 0.35, 0.40, 0.45, .50, .56, .63, .71, .79, .89, 1.00, 1.12, 1.26, 1.41, 1.58, 1.78, 2.00]
 
     # Fig 7; pt_gamma=158-200 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%204
     xtitle: '#it{x}_{J,#gamma}'
+    pt_gamma_bin4: [158.,200]
     logy: False
     hepdata_pp_gname: 'Graph1D_y1'
     ytitle_pp: '#frac{1}{N_#gamma}#frac{dN}{dx_{J#gamma}}'
-    y_min_pp: 0
-    y_max_pp: 2
-    bins: [0.20, 0.25, 0.32, 0.40, 0.50, 0.63, 0.79, 1.00, 1.26, 1.58, 2.00]
+    xj_gamma_bins_4: [0.20, 0.25, 0.32, 0.40, 0.50, 0.63, 0.79, 1.00, 1.26, 1.58, 2.00]
 
   # CMS xj_gamma
   # paper: https://inspirehep.net/literature/1638996
@@ -1425,6 +1439,7 @@ gamma_trigger_jet:
   # pp: sqrt(sNN) =5.02 TeV
   # PbPb: sqrt(sNN) =5.02 TeV
   xj_gamma_cms:
+    centrality: [[0,30]] # There is also centrality 30-100, but skipping that for now!
     enabled: false
     gamma_eta: [-1.48, 1.48]
     gamma_pT: [40.,100.]
@@ -1434,41 +1449,20 @@ gamma_trigger_jet:
     isolation_type: 'full'
     jet_R: [0.3]
     jet_eta: [-1.6, 1.6]
-    jet_pT: [30., 1000.]
+    jet_pT: [30., 9999.]
     jet_deltaphi: 7./8. # dPhi > 7/8*pi
+    hepdata: 'HEPData-ins1638996-v1-root.root'
 
-    # Fig 2; dphi_xj_gamma
-    # https://www.hepdata.net/record/ins1638996?version=1&table=Table%202
-    xtitle: '#Delta#varphi_{J,#gamma}'
-    logy: True
-    hepdata_pp_gname: 'Graph1D_y1'
-    ytitle_pp: '#frac{1}{N_#gamma}#frac{dN}{dx_{J#gamma}}'
-    y_min_pp: 5.e-3
-    y_max_pp: 5.0
-    bins: [0.00, 0.94, 1.57, 1.89, 2.04, 2.20, 2.36, 2.51, 2.67, 2.83, 2.99, 3.14]
+    # dphi distributions, in array, one per pt photon bin
+    hepdata_dphi_dir: ['Table 2']
+    hepdata_xjg_dir: ['Table 3']
+    # each entry in array is one gamma pt bin
+    pt_gamma_bins: [[40.,50.], [50.,60.], [60.,80],[80,100],[100,9999]]
+    hepdata_pp_gname: ['Graph1D_y2', 'Graph1D_y4', 'Graph1D_y6', 'Graph1D_y8', 'Graph1D_y10']
+    hepdata_pp_hname: ['Hist1D_y2', 'Hist1D_y4', 'Hist1D_y6', 'Hist1D_y8', 'Hist1D_y10']
+    hepdata_AA_gname: ['Graph1D_y1', 'Graph1D_y3', 'Graph1D_y5', 'Graph1D_y7', 'Graph1D_y9']
+    hepdata_AA_hname: ['Hist1D_y1', 'Hist1D_y3', 'Hist1D_y5', 'Hist1D_y7', 'Hist1D_y9']
 
-    # Fig 3; pt_gamma; pt_gamma dependence
-    # https://www.hepdata.net/record/ins1638996?version=1&table=Table%203
-    xtitle: '#it{x}_{J,#gamma}'
-    centrality: [[0,30]]
-    jet_deltaphi: [7pi/8, pi]
-    logy: False
-    hepdata_pp_gname: 'Graph1D_y1'
-    ytitle_pp: '#frac{1}{N_#gamma}#frac{dN}{dx_{J#gamma}}'
-    y_min_pp: 0.0
-    y_max_pp: 2.0
-    bins: [0.000, 0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.000, 1.125, 1.250, 1.375, 1.500, 1.625, 1.750, 1.875, 2.000]
-
-    # Fig 6; pt_gamma; centrality dependence
-    # https://www.hepdata.net/record/ins1638996?version=1&table=Table%206
-    xtitle: '#it{x}_{J,#gamma}'
-    jet_deltaphi: [7pi/8, pi]
-    logy: False
-    hepdata_pp_gname: 'Graph1D_y1'
-    ytitle_pp: '#frac{1}{N_#gamma}#frac{dN}{dx_{J#gamma}}'
-    y_min_pp: 0
-    y_max_pp: 1.4
-    bins: [0.000, 0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875, 1.000, 1.125, 1.250, 1.375, 1.500, 1.625, 1.750, 1.875, 2.000]
 
   # Correlation of a photon trigger with a charged or full jet
   # Paper: https://inspirehep.net/literature/1722028
@@ -1512,8 +1506,6 @@ gamma_trigger_jet:
     # which is: deltaR < 0.4 and sum of all partons within cone required to be below 5 GeV.
     # Probably what we should do in jetscape is calculated for all charged and neutral particles
     # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of.
-    # This will of course give us a sample of isolated gammas and not isolated prompt gammas,
-    # so we in principle need to do some purity correction or find a way to ignore decay gammas in the prediction
     isolation_type: 'full'
     isolation_R: 0.4
     isolation_Et_max: 5 # GeV
@@ -1523,6 +1515,9 @@ gamma_trigger_jet:
     jet_pt_min: 30 # GeV
     jet_eta: 1.6 # |eta| < 1.6
     centrality: [[0,10],[10,30],[30,50],[50,100]]
+
+    # TODO FJ: not sure how we should handle the HEP data for this. They provide like normal one PbPb distribution per centrality, however, they also provide one pp distribution per centrality (since they smear the pp). I suggest to skip this for now
+    hepdata: 'HEPData-ins1648162-v1-root.root'
 
     # track selection
     # TODO check if track selections (pt cut) also has to be done for jet finding?

@@ -789,7 +789,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #------------------------------------------------------------
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             acceptable_particles_isolation = []
-            # TODO what happens with "centrality accepted" in pp case
             if self.centrality_accepted(self.gamma_jet_observables['pt_atlas']['centrality']):
                 gamma_Pt_min = self.gamma_jet_observables['pt_atlas']['gamma_pT_min']
                 gamma_eta_min, gamma_eta_max = self.gamma_jet_observables['pt_atlas']['gamma_eta']
@@ -918,9 +917,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and photon.delta_phi(jet) > (gamma_jet_dPhi * np.pi)):
                                     xj = jet_pt / photon.Et()
                                     xj_uncorrected = jet_pt_uncorrected / photon.Et()
-                                    self.observable_dict_event[f'gamma_jet_xj_atlas_R{jetR}{jet_collection_label}_xj'].append(jet_pt, xj)
+                                    self.observable_dict_event[f'gamma_jet_xj_atlas_R{jetR}{jet_collection_label}_xj'].append(photon.Et(), xj)
                                     if jet_collection_label in ['_shower_recoil']:
-                                        self.observable_dict_event[f'gamma_jet_xj_atlas_R{jetR}{jet_collection_label}_xj_unsubtracted'].append(jet_pt, xj_uncorrected)
+                                        self.observable_dict_event[f'gamma_jet_xj_atlas_R{jetR}{jet_collection_label}_xj_unsubtracted'].append(photon.Et(), xj_uncorrected)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
@@ -993,15 +992,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             and abs(jet.eta()) > jet_eta_min
                             and jet_pt > jet_pt_min):
                             # No delta phi requirement just jet, first append deltaPhi vs jet pt
-                            self.observable_dict_event[f'gamma_jet_dphi_cms_R{jetR}{jet_collection_label}'].append([jet_pt, highest_pt_photon.delta_phi(jet)])
+                            self.observable_dict_event[f'gamma_jet_dphi_cms_R{jetR}{jet_collection_label}'].append([highest_pt_photon.Et(), highest_pt_photon.delta_phi(jet)])
 
                             # check if back to back
                             if abs(highest_pt_photon.delta_phi(jet)) < (gamma_jet_dPhi * np.pi):
                                 xj = jet_pt / highest_pt_photon.Et()
                                 xj_uncorrected = jet_pt_uncorrected / highest_pt_photon.Et()
-                                self.observable_dict_event[f'gamma_jet_xj_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xj)
+                                self.observable_dict_event[f'gamma_jet_xj_cms_R{jetR}{jet_collection_label}'].append(highest_pt_photon.Et(), xj)
                                 if jet_collection_label in ['_shower_recoil']:
-                                    self.observable_dict_event[f'gamma_jet_xj_cms_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt, xj_uncorrected)
+                                    self.observable_dict_event[f'gamma_jet_xj_cms_R{jetR}{jet_collection_label}_unsubtracted'].append(highest_pt_photon.Et(), xj_uncorrected)
 
             #------------------------------------------------------------
             #------------------------------------------------------------

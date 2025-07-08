@@ -126,7 +126,7 @@ facilities = ['bridges2', 'expanse']
 #-----------------------------------------------------------------
 stat_xsede_2021_dir = '/software/flo/myJETSCAPE/STAT-XSEDE-2021'
 jetscape_analysis_dir = '/software/flo/myJETSCAPE/JETSCAPE-analysis'
-local_base_outputdir = '/alf/data/flo/jetscape/reAnalysisOutput/20250617'
+local_base_outputdir = '/alf/data/flo/jetscape/reAnalysisOutput/20250627'
 analyis_container_path = '/software/flo/myJETSCAPE/STAT-XSEDE-2021/containers/stat_local_gcc_v3.6.sif'
 
 # re-analysisdebug options
