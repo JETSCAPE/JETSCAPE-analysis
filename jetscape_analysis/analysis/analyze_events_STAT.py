@@ -101,6 +101,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             self.dijet_observables = config['dijet']
         if 'photon_jet' in config:
             self.photon_jet_observables = config['photon_jet']
+        if 'hadron_trigger_chjet' in config:
+            self.hadron_trigger_chjet_observables = config['hadron_trigger_chjet']
         if 'Z_boson_triggered' in config:
             self.Z_boson_triggered_observables = config['Z_boson_triggered']
 
@@ -526,21 +528,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.fill_dijet_trigger_jet_observables(jets_selected, hadrons_negative, jetR,
                                             jet_collection_label=jet_collection_label)
             # Gamma triggered observables
-            if self.gamma_jet_observables:
+            if self.photon_jet_observables:
                 if self.sqrts == 5020:
                     # Gamma-tagged observables
-                    jetR_list_photon = self.gamma_jet_observables['Dz_atlas']['jet_R']
-                    jetR_list_photon += self.gamma_jet_observables['xi_cms']['jet_R']
-                    jetR_list_photon += self.gamma_jet_observables['pt_atlas']['jet_R']
-                    jetR_list_photon += self.gamma_jet_observables['xj_gamma_atlas']['jet_R']
-                    jetR_list_photon += self.gamma_jet_observables['xj_gamma_cms']['jet_R']
-                    jetR_list_photon += self.gamma_jet_observables['axis_cms']['jet_R']
+                    jetR_list_photon = self.photon_jet_observables['Dz_atlas']['jet_R']
+                    jetR_list_photon += self.photon_jet_observables['xi_cms']['jet_R']
+                    jetR_list_photon += self.photon_jet_observables['pt_atlas']['jet_R']
+                    jetR_list_photon += self.photon_jet_observables['xj_gamma_atlas']['jet_R']
+                    jetR_list_photon += self.photon_jet_observables['xj_gamma_cms']['jet_R']
+                    jetR_list_photon += self.photon_jet_observables['axis_cms']['jet_R']
                     # Groomed observables
-                    jetR_list_groomed_photon = self.gamma_jet_observables['rg_cms']['jet_R']
-                    jetR_list_groomed_photon += self.gamma_jet_observables['g_cms']['jet_R']
+                    jetR_list_groomed_photon = self.photon_jet_observables['rg_cms']['jet_R']
+                    jetR_list_groomed_photon += self.photon_jet_observables['g_cms']['jet_R']
                     # run analysis for all jet R
                 if self.sqrts == 200:
-                    for jetR in self.gamma_jet_observables['IAA_gammatrigger_star']['jet_R']:
+                    for jetR in self.photon_jet_observables['IAA_gammatrigger_star']['jet_R']:
                         jetR_list_photon += [jetR]
                 if jetR in set(jetR_list_photon):
                     # TODO discuss with Raymond what to watch out for with holes
@@ -559,16 +561,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if self.sqrts == 2760:
                         jetR_list += self.hadron_trigger_chjet_observables['nsubjettiness_alice']['jet_R']
                 elif self.sqrts == 200:
-<<<<<<< HEAD
                     jetR_list = self.hadron_trigger_chjet_observables['IAA_pt_star']['jet_R']
                 if jetR in jetR_list:
-                    self.fill_hadron_trigger_chjet_observables(jets_selected, hadrons_for_jet_finding, hadrons_negative,
-=======
-                    jetR_list = self.semi_inclusive_chjet_observables['IAA_star']['jet_R']
-                if jetR in set(jetR_list):
-                    self.fill_semi_inclusive_chjet_observables(jets_selected, hadrons_for_jet_finding, hadrons_negative,
->>>>>>> c90f35c (implementation of first batch of photon observabled (WIP))
-                                                                jetR, jet_collection_label=jet_collection_label)
+                    self.fill_hadron_trigger_chjet_observables(jets_selected, hadrons_for_jet_finding, hadrons_negative,jetR, jet_collection_label=jet_collection_label)
 
     # ---------------------------------------------------------------
     # Fill photon correlation observables
@@ -584,22 +579,22 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # TODO check with Raymond how to handle the jet pt correction? (see analyze_inclusive_jet)
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             acceptable_particles_isolation = []
-            if self.centrality_accepted(self.gamma_jet_observables['Dz_atlas']['centrality']):
+            if self.centrality_accepted(self.photon_jet_observables['Dz_atlas']['centrality']):
 
                 # Load all settings for D(z) and D(pt)
-                gamma_Et_min, gamma_Et_max = self.gamma_jet_observables['Dz_atlas']['gamma_Et']
-                gamma_eta = self.gamma_jet_observables['Dz_atlas']['gamma_eta']
-                isolation_type = self.gamma_jet_observables['Dz_atlas']['isolation_type']
-                isolation_R = self.gamma_jet_observables['Dz_atlas']['isolation_R']
-                isolation_Et_max = self.gamma_jet_observables['Dz_atlas']['isolation_Et_max_AA']
-                jet_R = self.gamma_jet_observables['Dz_atlas']['jet_R']
-                jet_eta = self.gamma_jet_observables['Dz_atlas']['jet_eta']
-                jet_pt_min, jet_pt_max = self.gamma_jet_observables['Dz_atlas']['jet_pt']
-                dPhi = self.gamma_jet_observables['Dz_atlas']['dPhi']
-                track_pt = self.gamma_jet_observables['Dz_atlas']['track_pt']
-                track_dR = self.gamma_jet_observables['Dz_atlas']['track_dR']
+                gamma_Et_min, gamma_Et_max = self.photon_jet_observables['Dz_atlas']['gamma_Et']
+                gamma_eta = self.photon_jet_observables['Dz_atlas']['gamma_eta']
+                isolation_type = self.photon_jet_observables['Dz_atlas']['isolation_type']
+                isolation_R = self.photon_jet_observables['Dz_atlas']['isolation_R']
+                isolation_Et_max = self.photon_jet_observables['Dz_atlas']['isolation_Et_max_AA']
+                jet_R = self.photon_jet_observables['Dz_atlas']['jet_R']
+                jet_eta = self.photon_jet_observables['Dz_atlas']['jet_eta']
+                jet_pt_min, jet_pt_max = self.photon_jet_observables['Dz_atlas']['jet_pt']
+                dPhi = self.photon_jet_observables['Dz_atlas']['dPhi']
+                track_pt = self.photon_jet_observables['Dz_atlas']['track_pt']
+                track_dR = self.photon_jet_observables['Dz_atlas']['track_dR']
                 if not self.is_AA:
-                    isolation_Et_max = self.gamma_jet_observables['Dz_atlas']['isolation_Et_max_pp']
+                    isolation_Et_max = self.photon_jet_observables['Dz_atlas']['isolation_Et_max_pp']
                 # isolation is determined by sum(Et) of all accepted pos particles. sum(Et) of holes is subtracted
                 # Check what tpe of isolation is used, full, charged or neutral
                 if isolation_type == 'full':
@@ -650,7 +645,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and jet_pt > jet_pt_min
                                 and jet_pt < jet_pt_max):
                                 # TODO double check if Njet is really the number of jets or if it should be normalized to number of jet pairs
-                                #self.observable_dict_event[f'gamma_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
+                                #self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
                                 if photon.delta_phi(jet) > (dPhi * np.pi):
                                     # Fill Njet, which is number of jets back to back
                                     # Loop over all primary_hadrons and select those that are back to back with the jet
@@ -659,41 +654,41 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                             continue
                                         pid = pid_hadrons_positive[np.abs(hadron.user_index())-1]
                                         if (jet.delta_R(hadron) < track_dR) and (hadron.pt() > track_pt) and (pid in acceptable_hadrons):
-                                            self.observable_dict_event[f'gamma_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njch'].append(jet_pt)
+                                            self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njch'].append(jet_pt)
                                             z = hadron.pt() * np.cos(jet.delta_R(hadron)) / jet_pt
-                                            self.observable_dict_event[f'gamma_jet_Dz_atlas_R{jetR}{jet_collection_label}'].append(jet_pt, z)
-                                            self.observable_dict_event[f'gamma_jet_Dpt_atlas_R{jetR}{jet_collection_label}'].append(jet_pt, hadron.pt())
+                                            self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}{jet_collection_label}'].append(jet_pt, z)
+                                            self.observable_dict_event[f'photon_jet_Dpt_atlas_R{jetR}{jet_collection_label}'].append(jet_pt, hadron.pt())
                                     if jet_collection_label in ['_shower_recoil', '_negative_recombiner']:
                                         for hadron in holes_in_jet:
                                             if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() > 0 :
                                                 continue
                                             pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
                                             if (jet.delta_R(hadron) < track_dR) and (hadron.pt() > track_pt) and (pid in acceptable_hadrons):
-                                                self.observable_dict_event[f'gamma_jet_Dz_atlas_R{jetR}_holes{jet_collection_label}_Njch'].append(jet_pt)
+                                                self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}_holes{jet_collection_label}_Njch'].append(jet_pt)
                                                 z = hadron.pt() * np.cos(jet.delta_R(hadron)) / jet_pt
-                                                self.observable_dict_event[f'gamma_jet_Dz_atlas_R{jetR}_holes{jet_collection_label}'].append(jet_pt, z)
-                                                self.observable_dict_event[f'gamma_jet_Dpt_atlas_R{jetR}_holes{jet_collection_label}'].append(jet_pt, hadron.pt())
+                                                self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}_holes{jet_collection_label}'].append(jet_pt, z)
+                                                self.observable_dict_event[f'photon_jet_Dpt_atlas_R{jetR}_holes{jet_collection_label}'].append(jet_pt, hadron.pt())
             # CMS Xi
             # ---------------------------------------------------------------
             # description electron, muon, pi, K, p, Sigma, Sigma-, Xi, Omega
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-            if self.centrality_accepted(self.gamma_jet_observables['xi_cms']['centrality']):
+            if self.centrality_accepted(self.photon_jet_observables['xi_cms']['centrality']):
                 # Load all settings for xi_cms
                 # photon selection
-                gamma_min_Et = self.gamma_jet_observables['xi_cms']['gamma_min_Et']
-                gamma_eta = self.gamma_jet_observables['xi_cms']['gamma_eta']
+                gamma_min_Et = self.photon_jet_observables['xi_cms']['gamma_min_Et']
+                gamma_eta = self.photon_jet_observables['xi_cms']['gamma_eta']
                 # isolation selection
-                isolation_type = self.gamma_jet_observables['xi_cms']['isolation_type']
-                isolation_R = self.gamma_jet_observables['xi_cms']['isolation_R']
-                isolation_Et_max = self.gamma_jet_observables['xi_cms']['isolation_Et_max']
+                isolation_type = self.photon_jet_observables['xi_cms']['isolation_type']
+                isolation_R = self.photon_jet_observables['xi_cms']['isolation_R']
+                isolation_Et_max = self.photon_jet_observables['xi_cms']['isolation_Et_max']
                 # jet selection
-                jet_R = self.gamma_jet_observables['xi_cms']['jet_R']
-                jet_eta = self.gamma_jet_observables['xi_cms']['jet_eta']
-                jet_pt_min = self.gamma_jet_observables['xi_cms']['jet_pt_min']
+                jet_R = self.photon_jet_observables['xi_cms']['jet_R']
+                jet_eta = self.photon_jet_observables['xi_cms']['jet_eta']
+                jet_pt_min = self.photon_jet_observables['xi_cms']['jet_pt_min']
 
                 # track selection
-                track_pt = self.gamma_jet_observables['xi_cms']['track_pt']
-                track_dR = self.gamma_jet_observables['xi_cms']['track_dR']
+                track_pt = self.photon_jet_observables['xi_cms']['track_pt']
+                track_dR = self.photon_jet_observables['xi_cms']['track_dR']
 
                 # isolation is determined by sum(Et) of all accepted pos particles. sum(Et) of holes is subtracted
                 if isolation_type == 'full':
@@ -746,14 +741,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             and jet_pt > jet_pt_min
                             and highest_pt_photon.delta_phi(jet) > (dPhi * np.pi)):
                             # TODO double check if Njet is really the number of jets or if it should be normalized to number of jet pairs
-                            self.observable_dict_event[f'gamma_jet_xi_cms_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
+                            self.observable_dict_event[f'photon_jet_xi_cms_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
                             # loop over all primary_hadrons that fulfill cuts
                             for hadron in hadrons_for_jet_finding:
                                 if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() < 0 :
                                     continue
                                 pid = pid_hadrons_positive[np.abs(hadron.user_index())-1]
                                 if (jet.delta_R(hadron) < track_dR) and (hadron.pt() > track_pt) and (pid in acceptable_hadrons):
-                                    self.observable_dict_event[f'gamma_jet_xi_cms_R{jetR}{jet_collection_label}_Njch'].append(jet_pt)
+                                    self.observable_dict_event[f'photon_jet_xi_cms_R{jetR}{jet_collection_label}_Njch'].append(jet_pt)
                                     # everything needs to be with three vectors!
                                     jet_vec3_abs = (jet.px()**2 + jet.py()**2 + jet.pz()**2)**0.5
                                     scl_product_jet_track = jet.px()*hadron.px() + jet.py()*hadron.py() + jet.pz()*hadron.pz()
@@ -762,15 +757,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     xi_jet = np.log((jet_vec3_abs * jet_vec3_abs) / (scl_product_jet_track))
                                     # TODO check why we need negative sign here
                                     xi_gamma = np.log((-1)*(photon_vec3_abs * photon_vec3_abs) / (scl_product_jet_photon))
-                                    self.observable_dict_event[f'gamma_jet_xi_jet_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xi_jet)
-                                    self.observable_dict_event[f'gamma_jet_xi_gamma_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xi_gamma)
+                                    self.observable_dict_event[f'photon_jet_xi_jet_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xi_jet)
+                                    self.observable_dict_event[f'photon_jet_xi_gamma_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xi_gamma)
                             if jet_collection_label in ['_shower_recoil', '_negative_recombiner']:
                                 for hadron in holes_in_jet:
                                     if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() > 0 :
                                         continue
                                     pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
                                     if (jet.delta_R(hadron) < track_dR) and (hadron.pt() > track_pt) and (pid in acceptable_hadrons):
-                                        self.observable_dict_event[f'gamma_jet_xi_cms_R{jetR}_holes{jet_collection_label}_Njch'].append(jet_pt)
+                                        self.observable_dict_event[f'photon_jet_xi_cms_R{jetR}_holes{jet_collection_label}_Njch'].append(jet_pt)
                                         # everything needs to be with three vectors!
                                         jet_vec3_abs = (jet.px()**2 + jet.py()**2 + jet.pz()**2)**0.5
                                         scl_product_jet_track = jet.px()*hadron.px() + jet.py()*hadron.py() + jet.pz()*hadron.pz()
@@ -779,8 +774,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         xi_jet = np.log((jet_vec3_abs * jet_vec3_abs) / (scl_product_jet_track))
                                         # TODO check why we need negative sign here
                                         xi_gamma = np.log((-1)*(photon_vec3_abs * photon_vec3_abs) / (scl_product_jet_photon))
-                                        self.observable_dict_event[f'gamma_jet_xi_jet_cms_R{jetR}_holes{jet_collection_label}'].append(jet_pt, xi_jet)
-                                        self.observable_dict_event[f'gamma_jet_xi_gamma_cms_R{jetR}_holes{jet_collection_label}'].append(jet_pt, xi_gamma)
+                                        self.observable_dict_event[f'photon_jet_xi_jet_cms_R{jetR}_holes{jet_collection_label}'].append(jet_pt, xi_jet)
+                                        self.observable_dict_event[f'photon_jet_xi_gamma_cms_R{jetR}_holes{jet_collection_label}'].append(jet_pt, xi_gamma)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
@@ -789,20 +784,20 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #------------------------------------------------------------
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             acceptable_particles_isolation = []
-            if self.centrality_accepted(self.gamma_jet_observables['pt_atlas']['centrality']):
-                gamma_Pt_min = self.gamma_jet_observables['pt_atlas']['gamma_pT_min']
-                gamma_eta_min, gamma_eta_max = self.gamma_jet_observables['pt_atlas']['gamma_eta']
-                isolation_type = self.gamma_jet_observables['pt_atlas']['isolation_type']
-                isolation_R = self.gamma_jet_observables['pt_atlas']['isolation_R']
-                isolation_Et_max = self.gamma_jet_observables['pt_atlas']['isolation_Et_max_AA']
+            if self.centrality_accepted(self.photon_jet_observables['pt_atlas']['centrality']):
+                gamma_Pt_min = self.photon_jet_observables['pt_atlas']['gamma_pT_min']
+                gamma_eta_min, gamma_eta_max = self.photon_jet_observables['pt_atlas']['gamma_eta']
+                isolation_type = self.photon_jet_observables['pt_atlas']['isolation_type']
+                isolation_R = self.photon_jet_observables['pt_atlas']['isolation_R']
+                isolation_Et_max = self.photon_jet_observables['pt_atlas']['isolation_Et_max_AA']
                 if not self.is_AA:
-                    isolation_Et_max = self.gamma_jet_observables['pt_atlas']['isolation_Et_max_pp']
+                    isolation_Et_max = self.photon_jet_observables['pt_atlas']['isolation_Et_max_pp']
 
-                jet_R = self.gamma_jet_observables['pt_atlas']['jet_R']
-                jet_eta_min, jet_eta_max = self.gamma_jet_observables['pt_atlas']['jet_eta']
-                jet_pt_min, jet_pt_max = self.gamma_jet_observables['pt_atlas']['jet_pT']
+                jet_R = self.photon_jet_observables['pt_atlas']['jet_R']
+                jet_eta_min, jet_eta_max = self.photon_jet_observables['pt_atlas']['jet_eta']
+                jet_pt_min, jet_pt_max = self.photon_jet_observables['pt_atlas']['jet_pT']
 
-                gamma_jet_dPhi = self.gamma_jet_observables['pt_atlas']['dPhi']
+                photon_jet_dPhi = self.photon_jet_observables['pt_atlas']['dPhi']
 
                 # determine relevant particles for isolation calculation
                 if isolation_type == 'full':
@@ -846,10 +841,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and abs(jet.eta()) > jet_eta_min
                                 and jet_pt > jet_pt_min
                                 and jet_pt < jet_pt_max
-                                and photon.delta_phi(jet) > (gamma_jet_dPhi * np.pi)):
-                                    self.observable_dict_event[f'gamma_jet_pt_atlas_R{jetR}{jet_collection_label}'].append(jet_pt)
+                                and photon.delta_phi(jet) > (photon_jet_dPhi * np.pi)):
+                                    self.observable_dict_event[f'photon_jet_pt_atlas_R{jetR}{jet_collection_label}'].append(jet_pt)
                                     if jet_collection_label in ['_shower_recoil']:
-                                        self.observable_dict_event[f'gamma_jet_pt_atlas_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
+                                        self.observable_dict_event[f'photon_jet_pt_atlas_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
@@ -858,18 +853,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #------------------------------------------------------------
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             acceptable_particles_isolation = []
-            if self.centrality_accepted(self.gamma_jet_observables['xj_gamma_atlas']['centrality']):
-                gamma_Pt_min, gamma_Pt_max = self.gamma_jet_observables['xj_gamma_atlas']['gamma_pT']
-                gamma_eta_min, gamma_eta_max = self.gamma_jet_observables['xj_gamma_atlas']['gamma_eta']
-                isolation_R = self.gamma_jet_observables['xj_gamma_atlas']['isolation_R']
-                isolation_Et_max = self.gamma_jet_observables['xj_gamma_atlas']['isolation_Et_max_AA']
-                isolation_type = self.gamma_jet_observables['xj_gamma_atlas']['isolation_type']
+            if self.centrality_accepted(self.photon_jet_observables['xj_gamma_atlas']['centrality']):
+                gamma_Pt_min, gamma_Pt_max = self.photon_jet_observables['xj_gamma_atlas']['gamma_pT']
+                gamma_eta_min, gamma_eta_max = self.photon_jet_observables['xj_gamma_atlas']['gamma_eta']
+                isolation_R = self.photon_jet_observables['xj_gamma_atlas']['isolation_R']
+                isolation_Et_max = self.photon_jet_observables['xj_gamma_atlas']['isolation_Et_max_AA']
+                isolation_type = self.photon_jet_observables['xj_gamma_atlas']['isolation_type']
                 if not self.is_AA:
-                    isolation_Et_max = self.gamma_jet_observables['xj_gamma_atlas']['isolation_Et_max_pp']
-                jet_R = self.gamma_jet_observables['xj_gamma_atlas']['jet_R']
-                jet_eta_min, jet_eta_max = self.gamma_jet_observables['xj_gamma_atlas']['jet_eta']
-                jet_pt_min, jet_pt_max = self.gamma_jet_observables['xj_gamma_atlas']['jet_pT']
-                gamma_jet_dPhi = self.gamma_jet_observables['xj_gamma_atlas']['jet_deltaphi']
+                    isolation_Et_max = self.photon_jet_observables['xj_gamma_atlas']['isolation_Et_max_pp']
+                jet_R = self.photon_jet_observables['xj_gamma_atlas']['jet_R']
+                jet_eta_min, jet_eta_max = self.photon_jet_observables['xj_gamma_atlas']['jet_eta']
+                jet_pt_min, jet_pt_max = self.photon_jet_observables['xj_gamma_atlas']['jet_pT']
+                photon_jet_dPhi = self.photon_jet_observables['xj_gamma_atlas']['jet_deltaphi']
 
                 # determine relevant particles for isolation calculation
                 if isolation_type == 'full':
@@ -905,7 +900,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         and self.is_prompt_photon(photon)):
 
                         # for normalization purposes, we also need to keep track of the number of photons
-                        self.observable_dict_event[f'gamma_jet_xj_atlas_R{jetR}{jet_collection_label}_Ngamma'].append(photon.Et())
+                        self.observable_dict_event[f'photon_jet_xj_atlas_R{jetR}{jet_collection_label}_Ngamma'].append(photon.Et())
 
                         for jet in jets_selected:
                             jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
@@ -914,12 +909,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and abs(jet.eta()) > jet_eta_min
                                 and jet_pt > jet_pt_min
                                 and jet_pt < jet_pt_max
-                                and photon.delta_phi(jet) > (gamma_jet_dPhi * np.pi)):
+                                and photon.delta_phi(jet) > (photon_jet_dPhi * np.pi)):
                                     xj = jet_pt / photon.Et()
                                     xj_uncorrected = jet_pt_uncorrected / photon.Et()
-                                    self.observable_dict_event[f'gamma_jet_xj_atlas_R{jetR}{jet_collection_label}_xj'].append(photon.Et(), xj)
+                                    self.observable_dict_event[f'photon_jet_xj_atlas_R{jetR}{jet_collection_label}_xj'].append(photon.Et(), xj)
                                     if jet_collection_label in ['_shower_recoil']:
-                                        self.observable_dict_event[f'gamma_jet_xj_atlas_R{jetR}{jet_collection_label}_xj_unsubtracted'].append(photon.Et(), xj_uncorrected)
+                                        self.observable_dict_event[f'photon_jet_xj_atlas_R{jetR}{jet_collection_label}_xj_unsubtracted'].append(photon.Et(), xj_uncorrected)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
@@ -928,18 +923,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #------------------------------------------------------------
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             acceptable_particles_isolation = []
-            if self.centrality_accepted(self.gamma_jet_observables['xj_gamma_cms']['centrality']):
-                gamma_Pt_min, gamma_Pt_max = self.gamma_jet_observables['xj_gamma_cms']['gamma_pT']
-                gamma_eta_min, gamma_eta_max = self.gamma_jet_observables['xj_gamma_cms']['gamma_eta']
-                isolation_R = self.gamma_jet_observables['xj_gamma_cms']['isolation_R']
-                isolation_Et_max = self.gamma_jet_observables['xj_gamma_cms']['isolation_Et_max_AA']
+            if self.centrality_accepted(self.photon_jet_observables['xj_gamma_cms']['centrality']):
+                gamma_Pt_min, gamma_Pt_max = self.photon_jet_observables['xj_gamma_cms']['gamma_pT']
+                gamma_eta_min, gamma_eta_max = self.photon_jet_observables['xj_gamma_cms']['gamma_eta']
+                isolation_R = self.photon_jet_observables['xj_gamma_cms']['isolation_R']
+                isolation_Et_max = self.photon_jet_observables['xj_gamma_cms']['isolation_Et_max_AA']
                 if not self.is_AA:
-                    isolation_Et_max = self.gamma_jet_observables['xj_gamma_cms']['isolation_Et_max_pp']
-                isolation_type = self.gamma_jet_observables['xj_gamma_cms']['isolation_type']
-                jet_R = self.gamma_jet_observables['xj_gamma_cms']['jet_R']
-                jet_eta_min, jet_eta_max = self.gamma_jet_observables['xj_gamma_cms']['jet_eta']
-                jet_pt_min, jet_pt_max = self.gamma_jet_observables['xj_gamma_cms']['jet_pT']
-                gamma_jet_dPhi = self.gamma_jet_observables['xj_gamma_cms']['jet_deltaphi']
+                    isolation_Et_max = self.photon_jet_observables['xj_gamma_cms']['isolation_Et_max_pp']
+                isolation_type = self.photon_jet_observables['xj_gamma_cms']['isolation_type']
+                jet_R = self.photon_jet_observables['xj_gamma_cms']['jet_R']
+                jet_eta_min, jet_eta_max = self.photon_jet_observables['xj_gamma_cms']['jet_eta']
+                jet_pt_min, jet_pt_max = self.photon_jet_observables['xj_gamma_cms']['jet_pT']
+                photon_jet_dPhi = self.photon_jet_observables['xj_gamma_cms']['jet_deltaphi']
 
                 # determine relevant particles for isolation calculation
                 if isolation_type == 'full':
@@ -983,7 +978,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # now that we hav the trigger, we can perform the combination with jets
                 if highest_pt_photon is not None:
                     # count the number of triggers for normalization purposes
-                    self.observable_dict_event[f'gamma_jet_xj_cms_R{jetR}{jet_collection_label}_Ngamma'].append(highest_pt_photon.Et())
+                    self.observable_dict_event[f'photon_jet_xj_cms_R{jetR}{jet_collection_label}_Ngamma'].append(highest_pt_photon.Et())
 
                     for jet in jets_selected:
                         jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
@@ -992,34 +987,34 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             and abs(jet.eta()) > jet_eta_min
                             and jet_pt > jet_pt_min):
                             # No delta phi requirement just jet, first append deltaPhi vs jet pt
-                            self.observable_dict_event[f'gamma_jet_dphi_cms_R{jetR}{jet_collection_label}'].append([highest_pt_photon.Et(), highest_pt_photon.delta_phi(jet)])
+                            self.observable_dict_event[f'photon_jet_dphi_cms_R{jetR}{jet_collection_label}'].append([highest_pt_photon.Et(), highest_pt_photon.delta_phi(jet)])
 
                             # check if back to back
-                            if abs(highest_pt_photon.delta_phi(jet)) < (gamma_jet_dPhi * np.pi):
+                            if abs(highest_pt_photon.delta_phi(jet)) < (photon_jet_dPhi * np.pi):
                                 xj = jet_pt / highest_pt_photon.Et()
                                 xj_uncorrected = jet_pt_uncorrected / highest_pt_photon.Et()
-                                self.observable_dict_event[f'gamma_jet_xj_cms_R{jetR}{jet_collection_label}'].append(highest_pt_photon.Et(), xj)
+                                self.observable_dict_event[f'photon_jet_xj_cms_R{jetR}{jet_collection_label}'].append(highest_pt_photon.Et(), xj)
                                 if jet_collection_label in ['_shower_recoil']:
-                                    self.observable_dict_event[f'gamma_jet_xj_cms_R{jetR}{jet_collection_label}_unsubtracted'].append(highest_pt_photon.Et(), xj_uncorrected)
+                                    self.observable_dict_event[f'photon_jet_xj_cms_R{jetR}{jet_collection_label}_unsubtracted'].append(highest_pt_photon.Et(), xj_uncorrected)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
             #                 CMS gamma-tagged girth
             #------------------------------------------------------------
             #------------------------------------------------------------
-            if self.centrality_accepted(self.gamma_jet_observables['g_cms']['centrality']) \
-                and self.gamma_jet_observables["g_cms"]["enabled"]:
+            if self.centrality_accepted(self.photon_jet_observables['g_cms']['centrality']) \
+                and self.photon_jet_observables["g_cms"]["enabled"]:
 
                 # MARK: Copied from xj_gamma_cms!
-                gamma_Pt_min, gamma_Pt_max = self.gamma_jet_observables['g_cms']['gamma_pT']
-                gamma_eta_min, gamma_eta_max = self.gamma_jet_observables['g_cms']['gamma_eta']
-                isolation_R = self.gamma_jet_observables['g_cms']['isolation_R']
-                isolation_Et_max = self.gamma_jet_observables['g_cms']['isolation_Et_max_AA']
+                gamma_Pt_min, gamma_Pt_max = self.photon_jet_observables['g_cms']['gamma_pT']
+                gamma_eta_min, gamma_eta_max = self.photon_jet_observables['g_cms']['gamma_eta']
+                isolation_R = self.photon_jet_observables['g_cms']['isolation_R']
+                isolation_Et_max = self.photon_jet_observables['g_cms']['isolation_Et_max_AA']
                 if not self.is_AA:
-                    isolation_Et_max = self.gamma_jet_observables['g_cms']['isolation_Et_max_pp']
-                isolation_type = self.gamma_jet_observables['g_cms']['isolation_type']
-                jet_pt_min, jet_pt_max = self.gamma_jet_observables['g_cms']['jet_pT']
-                gamma_jet_dPhi = self.gamma_jet_observables['g_cms']['jet_deltaphi']
+                    isolation_Et_max = self.photon_jet_observables['g_cms']['isolation_Et_max_pp']
+                isolation_type = self.photon_jet_observables['g_cms']['isolation_type']
+                jet_pt_min, jet_pt_max = self.photon_jet_observables['g_cms']['jet_pT']
+                photon_jet_dPhi = self.photon_jet_observables['g_cms']['jet_deltaphi']
 
                 # determine relevant particles for isolation calculation
                 if isolation_type == 'full':
@@ -1066,7 +1061,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     # count the number of triggers for normalization purposes
                     self.observable_dict_event[f'gamma_trigger_jet_g_cms_R{jetR}{jet_collection_label}_Ngamma'].append(highest_pt_photon.Et())
 
-                    # TODO(RJE): Need xj_gamma selection. Or may do at histogram level?
                     for jet in jets_selected:
                         jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
 
@@ -1075,8 +1069,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         #    - For negative_recombiner case, subtract the hole contribution within R to the angularity
                         #    - For constituent_subtraction, no subtraction is needed
                         # TODO: delta_phi needs an abs! (it ranges from -pi to pi)
-                        if abs(jet.eta()) < (self.gamma_jet_observables['g_cms']['eta_cut_jet']):
-                            if jetR in self.gamma_jet_observables['g_cms']['jet_R']:
+                        if abs(jet.eta()) < (self.photon_jet_observables['g_cms']['eta_cut_jet']):
+                            if jetR in self.photon_jet_observables['g_cms']['jet_R']:
                                 if jet_pt_min < jet_pt < jet_pt_max:
                                     g = 0
                                     for constituent in jet.constituents():
@@ -1097,19 +1091,19 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #                 CMS gamma-tagged jet-axis difference
             #------------------------------------------------------------
             #------------------------------------------------------------
-            if self.centrality_accepted(self.gamma_jet_observables['axis_cms']['centrality']) \
-                and self.gamma_jet_observables["axis_cms"]["enabled"]:
+            if self.centrality_accepted(self.photon_jet_observables['axis_cms']['centrality']) \
+                and self.photon_jet_observables["axis_cms"]["enabled"]:
 
                 # MARK: Copied from xj_gamma_cms!
-                gamma_Pt_min, gamma_Pt_max = self.gamma_jet_observables['axis_cms']['gamma_pT']
-                gamma_eta_min, gamma_eta_max = self.gamma_jet_observables['axis_cms']['gamma_eta']
-                isolation_R = self.gamma_jet_observables['axis_cms']['isolation_R']
-                isolation_Et_max = self.gamma_jet_observables['axis_cms']['isolation_Et_max_AA']
+                gamma_Pt_min, gamma_Pt_max = self.photon_jet_observables['axis_cms']['gamma_pT']
+                gamma_eta_min, gamma_eta_max = self.photon_jet_observables['axis_cms']['gamma_eta']
+                isolation_R = self.photon_jet_observables['axis_cms']['isolation_R']
+                isolation_Et_max = self.photon_jet_observables['axis_cms']['isolation_Et_max_AA']
                 if not self.is_AA:
-                    isolation_Et_max = self.gamma_jet_observables['axis_cms']['isolation_Et_max_pp']
-                isolation_type = self.gamma_jet_observables['axis_cms']['isolation_type']
-                jet_pt_min, jet_pt_max = self.gamma_jet_observables['axis_cms']['jet_pT']
-                gamma_jet_dPhi = self.gamma_jet_observables['axis_cms']['jet_deltaphi']
+                    isolation_Et_max = self.photon_jet_observables['axis_cms']['isolation_Et_max_pp']
+                isolation_type = self.photon_jet_observables['axis_cms']['isolation_type']
+                jet_pt_min, jet_pt_max = self.photon_jet_observables['axis_cms']['jet_pT']
+                photon_jet_dPhi = self.photon_jet_observables['axis_cms']['jet_deltaphi']
 
                 # determine relevant particles for isolation calculation
                 if isolation_type == 'full':
@@ -1190,15 +1184,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #                 STAR gamma-jet observables
             # ---------------------------------------------------------------
             # ---------------------------------------------------------------
-            if self.centrality_accepted(self.gamma_jet_observables['IAA_gammatrigger_star']['centrality']):
+            if self.centrality_accepted(self.photon_jet_observables['IAA_gammatrigger_star']['centrality']):
                 # get cuts
-                gamma_Pt_min, gamma_Pt_max = self.gamma_jet_observables['IAA_gammatrigger_star']['trigger_range']
-                gamma_eta_max = self.gamma_jet_observables['IAA_gammatrigger_star']['gamma_eta_cut']
-                jet_eta_max = self.gamma_jet_observables['IAA_gammatrigger_star']['eta_cut_R'] # etamax - R
+                gamma_Pt_min, gamma_Pt_max = self.photon_jet_observables['IAA_gammatrigger_star']['trigger_range']
+                gamma_eta_max = self.photon_jet_observables['IAA_gammatrigger_star']['gamma_eta_cut']
+                jet_eta_max = self.photon_jet_observables['IAA_gammatrigger_star']['eta_cut_R'] # etamax - R
                 jet_R = jetR # Use the jetR passed into the function since we loop over jet_R values in find_jets_and_fill()
-                jet_eta_min, jet_eta_max = self.gamma_jet_observables['IAA_gammatrigger_star']['jet_eta']
-                jet_pt_min, jet_pt_max = self.gamma_jet_observables['IAA_gammatrigger_star']['pt']
-                gamma_jet_dPhi = self.gamma_jet_observables['IAA_gammatrigger_star']['jet_deltaphi']
+                jet_eta_min, jet_eta_max = self.photon_jet_observables['IAA_gammatrigger_star']['jet_eta']
+                jet_pt_min, jet_pt_max = self.photon_jet_observables['IAA_gammatrigger_star']['pt']
+                photon_jet_dPhi = self.photon_jet_observables['IAA_gammatrigger_star']['jet_deltaphi']
 
                 hadrons_above_pt_threshold = []
                 for hadron in hadrons_for_jet_finding:
@@ -1227,7 +1221,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             continue
 
                         # count the number of triggers for normalization purposes
-                        self.observable_dict_event[f'gamma_jet_IAA_star_R{jetR}{jet_collection_label}_Ngamma'].append(photon.Et())
+                        self.observable_dict_event[f'photon_jet_IAA_star_R{jetR}{jet_collection_label}_Ngamma'].append(photon.Et())
 
                         for jet in jets_selected:
                             jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
@@ -1237,13 +1231,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and jet_pt < jet_pt_max):
 
                                 # plot dPhi vs jet pt
-                                self.observable_dict_event[f'gamma_jet_dphi_star_R{jetR}{jet_collection_label}'].append([jet_pt, photon.delta_phi(jet)])
+                                self.observable_dict_event[f'photon_jet_dphi_star_R{jetR}{jet_collection_label}'].append([jet_pt, photon.delta_phi(jet)])
 
                                 # plot IAA vs jet pt
-                                if photon.delta_phi(jet) > (gamma_jet_dPhi * np.pi):
-                                    self.observable_dict_event[f'gamma_jet_IAA_star_R{jetR}{jet_collection_label}'].append(jet_pt)
+                                if photon.delta_phi(jet) > (photon_jet_dPhi * np.pi):
+                                    self.observable_dict_event[f'photon_jet_IAA_star_R{jetR}{jet_collection_label}'].append(jet_pt)
                                     if jet_collection_label in ['_shower_recoil']:
-                                        self.observable_dict_event[f'gamma_jet_IAA_star_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
+                                        self.observable_dict_event[f'photon_jet_IAA_star_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
 
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             # ---------------------------------------------------------------
@@ -1251,15 +1245,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #                 STAR IAA pi0 trigger
             # ---------------------------------------------------------------
             # ---------------------------------------------------------------
-            if self.centrality_accepted(self.gamma_jet_observables['IAA_pi0trigger_star']['centrality']):
+            if self.centrality_accepted(self.photon_jet_observables['IAA_pi0trigger_star']['centrality']):
                 # get cuts
-                pi0_Pt_min, pi0_Pt_max = self.gamma_jet_observables['IAA_pi0trigger_star']['trigger_range']
-                pi0_eta_max = self.gamma_jet_observables['IAA_pi0trigger_star']['gamma_eta_cut']
-                jet_eta_max = self.gamma_jet_observables['IAA_pi0trigger_star']['eta_cut_R'] # etamax - R
+                pi0_Pt_min, pi0_Pt_max = self.photon_jet_observables['IAA_pi0trigger_star']['trigger_range']
+                pi0_eta_max = self.photon_jet_observables['IAA_pi0trigger_star']['gamma_eta_cut']
+                jet_eta_max = self.photon_jet_observables['IAA_pi0trigger_star']['eta_cut_R'] # etamax - R
                 jet_R = jetR # Use the jetR passed into the function since we loop over jet_R values in find_jets_and_fill()
-                jet_eta_min, jet_eta_max = self.gamma_jet_observables['IAA_pi0trigger_star']['jet_eta']
-                jet_pt_min, jet_pt_max = self.gamma_jet_observables['IAA_pi0trigger_star']['pt']
-                pi0_jet_dPhi = self.gamma_jet_observables['IAA_pi0trigger_star']['jet_deltaphi']
+                jet_eta_min, jet_eta_max = self.photon_jet_observables['IAA_pi0trigger_star']['jet_eta']
+                jet_pt_min, jet_pt_max = self.photon_jet_observables['IAA_pi0trigger_star']['pt']
+                pi0_jet_dPhi = self.photon_jet_observables['IAA_pi0trigger_star']['jet_deltaphi']
 
                 pi0_particles = []
                 for hadron in hadrons_for_jet_finding:
@@ -1275,7 +1269,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if (pi0.Et() > pi0_Pt_min and pi0.Et() < pi0_Pt_max
                         and abs(pi0.eta()) < pi0_eta_max):
                         # count the number of triggers for normalization purposes
-                        self.observable_dict_event[f'gamma_jet_IAA_pi0_star_R{jetR}{jet_collection_label}_Npi0'].append(pi0.Et())
+                        self.observable_dict_event[f'photon_jet_IAA_pi0_star_R{jetR}{jet_collection_label}_Npi0'].append(pi0.Et())
 
                         for jet in jets_selected:
                             jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
@@ -1298,19 +1292,19 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #                 CMS gamma-tagged Rg
             # -----------------------------------------------------------
             #------------------------------------------------------------
-            if self.centrality_accepted(self.gamma_jet_observables['rg_cms']['centrality']) \
-                and self.gamma_jet_observables["rg_cms"]["enabled"]:
+            if self.centrality_accepted(self.photon_jet_observables['rg_cms']['centrality']) \
+                and self.photon_jet_observables["rg_cms"]["enabled"]:
 
                 # MARK: Copied from xj_gamma_cms!
-                gamma_Pt_min, gamma_Pt_max = self.gamma_jet_observables['rg_cms']['gamma_pT']
-                gamma_eta_min, gamma_eta_max = self.gamma_jet_observables['rg_cms']['gamma_eta']
-                isolation_R = self.gamma_jet_observables['rg_cms']['isolation_R']
-                isolation_Et_max = self.gamma_jet_observables['rg_cms']['isolation_Et_max_AA']
+                gamma_Pt_min, gamma_Pt_max = self.photon_jet_observables['rg_cms']['gamma_pT']
+                gamma_eta_min, gamma_eta_max = self.photon_jet_observables['rg_cms']['gamma_eta']
+                isolation_R = self.photon_jet_observables['rg_cms']['isolation_R']
+                isolation_Et_max = self.photon_jet_observables['rg_cms']['isolation_Et_max_AA']
                 if not self.is_AA:
-                    isolation_Et_max = self.gamma_jet_observables['rg_cms']['isolation_Et_max_pp']
-                isolation_type = self.gamma_jet_observables['rg_cms']['isolation_type']
-                jet_pt_min = self.gamma_jet_observables['rg_cms']['jet_pt_min']
-                gamma_jet_dPhi = self.gamma_jet_observables['rg_cms']['jet_deltaphi']
+                    isolation_Et_max = self.photon_jet_observables['rg_cms']['isolation_Et_max_pp']
+                isolation_type = self.photon_jet_observables['rg_cms']['isolation_type']
+                jet_pt_min = self.photon_jet_observables['rg_cms']['jet_pt_min']
+                photon_jet_dPhi = self.photon_jet_observables['rg_cms']['jet_deltaphi']
 
                 # determine relevant particles for isolation calculation
                 if isolation_type == 'full':
@@ -1381,9 +1375,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         #    - For shower_recoil case, correct the pt only
                         #    - For negative_recombiner case, no subtraction is needed
                         #    - For constituent_subtraction, no subtraction is needed
-                        if grooming_setting in self.gamma_jet_observables['rg_cms']['SoftDrop']:
-                            if abs(jet.eta()) < (self.gamma_jet_observables['rg_cms']['eta_cut_jet']):
-                                if jetR in self.gamma_jet_observables['rg_cms']['jet_R']:
+                        if grooming_setting in self.photon_jet_observables['rg_cms']['SoftDrop']:
+                            if abs(jet.eta()) < (self.photon_jet_observables['rg_cms']['eta_cut_jet']):
+                                if jetR in self.photon_jet_observables['rg_cms']['jet_R']:
                                     if jet_pt > jet_pt_min:
                                         r_g = jet_groomed_lund.Delta()
                                         # Note: untagged jets will return negative value
