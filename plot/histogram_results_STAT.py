@@ -102,18 +102,17 @@ class HistogramResults(common_base.CommonBase):
 
         if len(self.observables_df) != 0:
             # Hadron histograms
-            # self.histogram_hadron_observables(observable_type='hadron')
+            self.histogram_hadron_observables(observable_type='hadron')
 
-            # self.histogram_hadron_correlation_observables(observable_type='hadron_correlations')
+            self.histogram_hadron_correlation_observables(observable_type='hadron_correlations')
 
             # Jet histograms: loop through different hole subtraction treatments
             for jet_collection_label in self.jet_collection_labels:
 
-                # self.histogram_jet_observables(observable_type='inclusive_chjet', jet_collection_label=jet_collection_label)
+                self.histogram_jet_observables(observable_type='inclusive_chjet', jet_collection_label=jet_collection_label)
 
                 if 'inclusive_jet' in self.config:
-                    print('inclusive_jet')
-                    # self.histogram_jet_observables(observable_type='inclusive_jet', jet_collection_label=jet_collection_label)
+                    self.histogram_jet_observables(observable_type='inclusive_jet', jet_collection_label=jet_collection_label)
 
                 if 'hadron_trigger_chjet' in self.config:
                     self.histogram_hadron_trigger_chjet_observables(observable_type='hadron_trigger_chjet', jet_collection_label=jet_collection_label)
@@ -121,8 +120,8 @@ class HistogramResults(common_base.CommonBase):
                 if 'dijet_trigger_jet' in self.config:
                     self.histogram_jet_observables(observable_type='dijet_trigger_jet', jet_collection_label=jet_collection_label)
 
-                if 'gamma_jet' in self.config:
-                    self.histogram_gamma_jet_observables(observable_type='gamma_jet', jet_collection_label=jet_collection_label)
+                if 'photon_jet' in self.config:
+                    self.histogram_photon_jet_observables(observable_type='photon_jet', jet_collection_label=jet_collection_label)
 
         else:
             print("\tWARNING: There are no entries in the observables df. Will only write event level QA.")
@@ -256,7 +255,7 @@ class HistogramResults(common_base.CommonBase):
     #-------------------------------------------------------------------------------------------
     # Histograms for gamma-jet observables
     #-------------------------------------------------------------------------------------------
-    def histogram_gamma_jet_observables(self, observable_type='', jet_collection_label=''):
+    def histogram_photon_jet_observables(self, observable_type='', jet_collection_label=''):
         print()
         print(f'Histogram {observable_type} observables...')
 
@@ -285,7 +284,7 @@ class HistogramResults(common_base.CommonBase):
                 if observable == 'xj_gamma_atlas':
 
                     # Get NGamma for normalisation
-                    column_name_ngamma = f'gamma_jet_xj_atlas_R{jet_R}{jet_collection_label}_Ngamma'
+                    column_name_ngamma = f'photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_Ngamma'
                     bins_pt = np.arange(0, 1000, 1)
                     if column_name_ngamma in self.observables_df.columns:
                         col = self.observables_df[column_name_ngamma]
@@ -300,7 +299,7 @@ class HistogramResults(common_base.CommonBase):
                         self.output_list.append(h)
 
                     # loop over the different pt_gamma_bins_i for i=1 to 4
-                    column_names = ['gamma_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj', 'gamma_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj_unsubtracted']
+                    column_names = ['photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj', 'photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj_unsubtracted']
                     
                     # loop over the pt_gamma_bins
                     for i,pt_gamma_bin in enumerate(pt_gamma_bins):
@@ -323,12 +322,12 @@ class HistogramResults(common_base.CommonBase):
                         
                 if observable == 'xj_gamma_cms':
                     # Get NGamma for normalisation
-                    column_name_ngamma = f'gamma_jet_xj_cms_R{jet_R}{jet_collection_label}_Ngamma'
+                    column_name_ngamma = f'photon_jet_xj_cms_R{jet_R}{jet_collection_label}_Ngamma'
                     #array from 0 to 1000 in 1 GeV steps
                     bins_pt = np.arange(0, 1000, 1)
                     if column_name_ngamma in self.observables_df.columns:
                         col = self.observables_df[column_name_ngamma]
-                        hname = f'h_{column_name_ngamma}_{centrality}_photonPt_{k}'
+                        hname = f'h_{column_name_ngamma}_{centrality}'
                         h = ROOT.TH1F(hname, hname, len(bins_pt)-1, bins_pt)
                         h.Sumw2()
                         for i,_ in enumerate(col):
@@ -345,8 +344,8 @@ class HistogramResults(common_base.CommonBase):
 
                     # get the pt_gamma_bins from config and loop over them
                     pt_gamma_bins = block['pt_gamma_bins']
-                    column_names_dphi = [f'gamma_jet_dphi_cms_R{jet_R}{jet_collection_label}']
-                    column_names_xj = [f'gamma_jet_xj_cms_R{jet_R}{jet_collection_label}', f'gamma_jet_xj_cms_R{jet_R}{jet_collection_label}_unsubtracted']
+                    column_names_dphi = [f'photon_jet_dphi_cms_R{jet_R}{jet_collection_label}']
+                    column_names_xj = [f'photon_jet_xj_cms_R{jet_R}{jet_collection_label}', f'photon_jet_xj_cms_R{jet_R}{jet_collection_label}_unsubtracted']
                     # loop over the pt_gamma_bins
                     for i,pt_gamma_bin in enumerate(pt_gamma_bins):
                         # get the dphi dphi bins

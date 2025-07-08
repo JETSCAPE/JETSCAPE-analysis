@@ -388,7 +388,7 @@ pion_trigger_chjet:
 #------------------------------------------------------------------
 # gamma triggered charged-particle jet observables
 # (e.g. semi-inclusive gamma-jet)
-gamma_trigger_chjet:
+photon_jet:
 
   # pmj 1/23/25 PRL (accepted): https://inspirehep.net/literature/2693040
   # pmj 1/23/25 PRC (in journal review): https://inspirehep.net/literature/2693062

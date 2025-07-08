@@ -1305,7 +1305,7 @@ hadron_trigger_chjet:
 
 #------------------------------------------------------------------
 # coincidence observables – gamma+jet
-gamma_trigger_jet:
+photon_jet:
 
   # ATLAS gamma-tagged RAA
   # paper: https://inspirehep.net/literature/2648097
