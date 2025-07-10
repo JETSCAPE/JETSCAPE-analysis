@@ -77,7 +77,9 @@ def setup_logging(
         level=level,
         format=FORMAT,
         datefmt="[%X]",
-        handlers=[RichModuleNameHandler(level=level, console=rich_console, rich_tracebacks=True)],
+        # NOTE(RJE): Intentionally disabled the RichModuleNameHandler to save horizontal space with the module name in the log.
+        #            Module names are mostly clear for this package, so better to use the standard appraoch.
+        handlers=[RichHandler(level=level, console=rich_console, rich_tracebacks=True)],
     )
 
     # Capture warnings into logging
