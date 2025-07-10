@@ -143,6 +143,7 @@ class ParseCrossSection(Protocol):
     Returns:
         Cross section extracted from the line.
     """
+
     def __call__(self, line: str) -> CrossSection: ...
 
 
@@ -227,9 +228,7 @@ class ModelParameters:
     model_name: str = attrs.field()
     column_names: list[str] = attrs.field()
     extract_x_sec_and_error: Callable[[typing.TextIO], CrossSection | None] = attrs.field()
-    event_by_event_generator: Callable[[Iterator[str]], Iterator[HeaderInfo | str]] = (
-        attrs.field()
-    )
+    event_by_event_generator: Callable[[Iterator[str]], Iterator[HeaderInfo | str]] = attrs.field()
     has_file_format_line_at_beginning_of_file: bool = attrs.field()
 
 

@@ -55,6 +55,7 @@ class ParseHeaderLine(Protocol):
     Returns:
         The HeaderInfo information that was extracted.
     """
+
     def __call__(self, line_one: str, line_two: str, *, n_particles: int) -> HeaderInfo: ...
 
 
@@ -141,9 +142,7 @@ _file_format_version_to_column_names = {
 }
 
 
-def event_by_event_generator(
-    f: Iterator[str], parse_header_line: ParseHeaderLine
-) -> Iterator[HeaderInfo | str]:
+def event_by_event_generator(f: Iterator[str], parse_header_line: ParseHeaderLine) -> Iterator[HeaderInfo | str]:
     """Event-by-event generator using the Hybrid model output file.
 
     It alternates back and forth from yielding headers to the particles and back.

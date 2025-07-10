@@ -463,10 +463,14 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
             #       (this is only necessary for polars, as July 2025). We'll address this in the next clause just below here,
             #       so to keep a single breakout point, we just catch it here and do nothing.
             try:
-                res = parsing_function(iter(chunk_generator), column_names=chunk_generator.model_parameters.column_names)
-            except parse_ascii_base.ReachedEndOfFileException as e:
+                res = parsing_function(
+                    iter(chunk_generator), column_names=chunk_generator.model_parameters.column_names
+                )
+            except parse_ascii_base.ReachedEndOfFileException:
                 # Just log and keep going. See the note above.
-                logger.debug(f"Reached end of file and had to raise explicit exception. {chunk_generator.reached_end_of_file=}, {len(chunk_generator.headers)=}")
+                logger.debug(
+                    f"Reached end of file and had to raise explicit exception. {chunk_generator.reached_end_of_file=}, {len(chunk_generator.headers)=}"
+                )
 
             # Before we do anything else, if our events_per_chunk is a even divisor of the total number of events
             # and we've hit the end of the file, we can return an empty generator after trying to parse the chunk.
