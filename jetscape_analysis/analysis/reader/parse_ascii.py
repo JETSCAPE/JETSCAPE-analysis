@@ -318,11 +318,22 @@ def _parse_with_polars(chunk_generator: Iterator[str], column_names: list[str]) 
     if "E" not in column_names:
         expected_column_order[expected_column_order.index("E")] = "m"
 
+    # Begin the parsing process.
+    # First, we need everything all of the lines in the chunk to be available in to get started.
+    raw_lines = list(chunk_generator)
+    # NOTE: By using `list(...)`, if we hit a StopIteration immediately (i.e. this means that we've
+    #       reached the end of the file), we'll just get an empty list. The empty list will cause problems
+    #       when trying to initialize the DataFrame, so we need to explicitly handle the case first.
+    if not raw_lines:
+        # Pass on that we've reached the end of the file.
+        raise parse_ascii_base.ReachedEndOfFileException()
+
+    # Now we have content, so we can parse it.
     # An explanation of the steps here:
     return (
         pl.DataFrame(
             # 1. Ingest the generator into a dataframe in the column "raw_lines"
-            {"raw_lines": list(chunk_generator)}
+            {"raw_lines": raw_lines}
         )
         .with_columns(
             # 2. Parse raw_lines by stripping whitespace (strip_chars) and splitting into exactly `len(column_names) - 1`
@@ -441,11 +452,21 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
             # Optionally skip the very first line containing the file format version information
             if i == 0 and chunk_generator.model_parameters.has_file_format_line_at_beginning_of_file:
                 line_to_skip = next(chunk_generator.g)
-                logger.debug(f"Skipping very first line, as request. Line: {line_to_skip}")
+                logger.debug(f"Skipping very first line, as requested. Line: {line_to_skip}")
+
+            if chunk_generator._is_chunk_ready():
+                logger.info(f"{chunk_generator.reached_end_of_file=}")
 
             # First, parse the lines. We need to make this call before attempt to convert into events because the necessary
             # info (namely, n particles per event) is only available and valid after we've parse the lines.
-            res = parsing_function(iter(chunk_generator), column_names=chunk_generator.model_parameters.column_names)
+            # NOTE: There are certain parsers where we need to re-raise that we've reached the end of the file
+            #       (this is only necessary for polars, as July 2025). We'll address this in the next clause just below here,
+            #       so to keep a single breakout point, we just catch it here and do nothing.
+            try:
+                res = parsing_function(iter(chunk_generator), column_names=chunk_generator.model_parameters.column_names)
+            except parse_ascii_base.ReachedEndOfFileException as e:
+                # Just log and keep going. See the note above.
+                logger.debug(f"Reached end of file and had to raise explicit exception. {chunk_generator.reached_end_of_file=}, {len(chunk_generator.headers)=}")
 
             # Before we do anything else, if our events_per_chunk is a even divisor of the total number of events
             # and we've hit the end of the file, we can return an empty generator after trying to parse the chunk.
@@ -573,6 +594,8 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
     except StopIteration:
         pass
 
+    logger.info("Done with reading...")
+
 
 def parse_to_parquet(
     base_output_filename: Path | str,
@@ -628,6 +651,8 @@ def parse_to_parquet(
         # Break now so we don't have to read the next chunk.
         if (i + 1) == max_chunks:
             break
+
+    logger.info("Done with parsing.")
 
 
 if __name__ == "__main__":
