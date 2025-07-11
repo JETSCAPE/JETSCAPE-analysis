@@ -466,13 +466,13 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
                 res = parsing_function(
                     iter(chunk_generator), column_names=chunk_generator.model_parameters.column_names
                 )
-            except parse_ascii_base.ReachedEndOfFileException:
+            except parse_ascii_base.ReachedEndOfFileException as e:
                 # Just log and keep going. See the note above.
                 _msg = f"Reached end of file and had to raise explicit exception. {chunk_generator.reached_end_of_file=}, {len(chunk_generator.headers)=}, {parser=}"
                 logger.debug(_msg)
                 if parser != "polars":
                     _msg += f"\nThis is only expected for the polars parser, but this happened for the '{parser}' parser - please check the outputs carefully!"
-                    raise RuntimeError(_msg)
+                    raise RuntimeError(_msg) from e
 
             # Before we do anything else, if our events_per_chunk is a even divisor of the total number of events
             # and we've hit the end of the file, we can return an empty generator after trying to parse the chunk.

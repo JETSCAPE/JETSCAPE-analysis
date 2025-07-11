@@ -1,6 +1,6 @@
-""" Tests for v2 parser.
+"""Tests for parsers.
 
-.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
 from pathlib import Path
@@ -17,21 +17,24 @@ _rename_columns = {
     "hydro_event_id": "event_ID",
 }
 
-@pytest.mark.parametrize(
-    "header_version",
-    [1, 2],
-    ids=["Header v1", "Header v2"]
-)
+
+@pytest.mark.parametrize("header_version", [1, 2], ids=["Header v1", "Header v2"])
 @pytest.mark.parametrize(
     "events_per_chunk",
     [
-        5, 16, 50, 5000,
-    ], ids=["Multiple, divisible: 5", "Multiple, indivisible: 16", "Equal: 50", "Larger: 5000"]
+        5,
+        16,
+        50,
+        5000,
+    ],
+    ids=["Multiple, divisible: 5", "Multiple, indivisible: 16", "Equal: 50", "Larger: 5000"],
 )
 def test_parsing(header_version: int, events_per_chunk: int) -> None:
     input_filename = _here / "parsing" / f"final_state_hadrons_header_v{header_version}.dat"
 
-    for i, arrays in enumerate(parse_ascii.read(filename=input_filename, events_per_chunk=events_per_chunk, parser="pandas")):
+    for i, arrays in enumerate(
+        parse_ascii.read(filename=input_filename, events_per_chunk=events_per_chunk, parser="pandas")
+    ):
         # Get the reference array
         # Create the reference arrays by checking out the parser v1 (e477e0277fa560f9aba82310c02da8177e61c9e4), setting
         # the chunk size in skim_ascii, and then calling:
@@ -55,16 +58,16 @@ def test_parsing(header_version: int, events_per_chunk: int) -> None:
             assert "cross_section_error" in ak.fields(arrays)
 
 
-@pytest.mark.parametrize(
-    "header_version",
-    [1, 2],
-    ids=["Header v1", "Header v2"]
-)
+@pytest.mark.parametrize("header_version", [1, 2], ids=["Header v1", "Header v2"])
 @pytest.mark.parametrize(
     "events_per_chunk",
     [
-        5, 16, 50, 5000,
-    ], ids=["Multiple, divisible: 5", "Multiple, indivisible: 16", "Equal: 50", "Larger: 5000"]
+        5,
+        16,
+        50,
+        5000,
+    ],
+    ids=["Multiple, divisible: 5", "Multiple, indivisible: 16", "Equal: 50", "Larger: 5000"],
 )
 def test_parsing_with_parquet(header_version: int, events_per_chunk: int, tmp_path: Path) -> None:
     """Parse to parquet, read back, and compare."""
@@ -72,9 +75,9 @@ def test_parsing_with_parquet(header_version: int, events_per_chunk: int, tmp_pa
 
     # Convert to chunks in a temp directory.
     base_output_filename = tmp_path / "test.parquet"
-    parse_ascii.parse_to_parquet(base_output_filename=base_output_filename,
-                                 input_filename=input_filename,
-                                 events_per_chunk=events_per_chunk)
+    parse_ascii.parse_to_parquet(
+        base_output_filename=base_output_filename, input_filename=input_filename, events_per_chunk=events_per_chunk
+    )
 
     output_filenames = tmp_path.glob("*.parquet")
 
@@ -105,12 +108,17 @@ def test_parsing_with_parquet(header_version: int, events_per_chunk: int, tmp_pa
 
 @pytest.mark.parametrize(
     "model_input",
-    [("JETSCAPE", Path("final_state_hadrons_header_v2_with_file_version.dat")), ("Hybrid", Path("HYBRID_Med_0000.out"))],
+    [
+        ("JETSCAPE", Path("final_state_hadrons_header_v2_with_file_version.dat")),
+        ("Hybrid", Path("HYBRID_Med_0000.out")),
+    ],
     ids=["JETSCAPE v2 header", "Hybrid model"],
 )
 @pytest.mark.parametrize("parser", ["polars", "pandas"])
 @pytest.mark.parametrize("events_per_chunk", [10, 30, 50])
-def test_parsing_methods_and_models(model_input: tuple[str, Path], parser: str, events_per_chunk: int, tmp_path: Path) -> None:
+def test_parsing_methods_and_models(
+    model_input: tuple[str, Path], parser: str, events_per_chunk: int, tmp_path: Path
+) -> None:
     """Test parsing methods and models.
 
     We want to confirm that the parsing works for a variety of inputs:
@@ -149,10 +157,11 @@ def test_parsing_methods_and_models(model_input: tuple[str, Path], parser: str, 
         # Hybrid:
         # $ python3 -m jetscape_analysis.analysis.reader.skim_ascii -i tests/parsing/HYBRID_Med_0000.out -o tests/parsing/methods_and_models/hybrid/events_per_chunk_10/reference.parquet -n 10
         # NOTE: These were last (re)created in July 2025 by RJE
-        ref_path = _here / f"parsing/methods_and_models/{model_name.lower()}/events_per_chunk_{events_per_chunk}/reference_{i:02}.parquet"
-        reference_arrays = ak.from_parquet(
-            ref_path
+        ref_path = (
+            _here
+            / f"parsing/methods_and_models/{model_name.lower()}/events_per_chunk_{events_per_chunk}/reference_{i:02}.parquet"
         )
+        reference_arrays = ak.from_parquet(ref_path)
         # NOTE: We have to compare the fields one-by-one because the shapes of the fields
         #       are different, and apparently don't broadcast nicely with `__eq__`
         for field in ak.fields(reference_arrays):
@@ -165,7 +174,10 @@ def test_parsing_methods_and_models(model_input: tuple[str, Path], parser: str, 
 
 @pytest.mark.parametrize(
     "model_input",
-    [("JETSCAPE", Path("final_state_hadrons_header_v2_with_file_version.dat")), ("Hybrid", Path("HYBRID_Med_0000.out"))],
+    [
+        ("JETSCAPE", Path("final_state_hadrons_header_v2_with_file_version.dat")),
+        ("Hybrid", Path("HYBRID_Med_0000.out")),
+    ],
     ids=["JETSCAPE v2 header", "Hybrid model"],
 )
 @pytest.mark.parametrize("parser", ["polars", "pandas"])
@@ -193,4 +205,3 @@ def test_parsing_benchmark(model_input: tuple[str, Path], parser: str, benchmark
         max_chunks=1,
         parser=parser,
     )
-
