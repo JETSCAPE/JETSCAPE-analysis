@@ -84,11 +84,11 @@ simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 # To edit the set of observables that are plotted, see the self.analysis variable in plot_results_STAT.py
 # Note: all observables that are plotted are saved to hdf5, and are then written to tables
 # Note: plotting script may have warnings about missing histograms, this is usually due to some missing centrality bins for certain design points
-analysis_name = 'Analysis1'
-download_runinfo = False # if true, download all run_info.yaml files specified in DataManagement (runs.yaml)
+analysis_name = 'Analysis3'
+download_runinfo = True # if true, download all run_info.yaml files specified in DataManagement (runs.yaml)
 download_histograms = False # if true, download all histogram files from OSN
 list_paths_for_selected_design_points = False
-merge_histograms = False # if true, merge all histograms for each run into a single file
+merge_histograms = True # if true, merge all histograms for each run into a single file
 aggregate_histograms = False # if true, aggregate all histograms for each design point into a single file
 plot_and_save_histograms = False # if true, plot and save all histograms
 write_tables = False # if true, write tables for input to Bayesian analysis
@@ -96,17 +96,17 @@ plot_global_QA = True # if true, plot global QA
 
 # re-analysis parameters
 #-----------------------------------------------------------------
-download_final_state_hadrons = False # if False, final_state_hadrons.parquet files for local analysis
-analysis_final_state_hadrons = False  # if true, analyze final_state_hadrons.parquet files locally
-local_analysis_facility = "test_hiccup" # facililty to run local re-analysis as defined in cluster config of STAT-XSEDE-2021
+download_final_state_hadrons = True # if False, final_state_hadrons.parquet files for local analysis
+analysis_final_state_hadrons = True  # if true, analyze final_state_hadrons.parquet files locally
+local_analysis_facility = "test_587cluster" # facililty to run local re-analysis as defined in cluster config of STAT-XSEDE-2021
 
 # version number used to identify the version of the analysis. Histograms and observables are stored on OSN in facility/RunX/histograms/versionY
 # if version -1 is specified, histogram files for download will be downloaded from faclity/RunX/histograms without version specifier
 # if version -1 is specified, no upload of the results from reanalysis is possible
 analysis_version = -1
-force_reanalysis = False # force to analyse and download again, even if histogram files are present
+force_reanalysis = True # force to analyse and download again, even if histogram files are present
 delete_local_final_state_hadrons_after_analysis = True # delete final state hadron files after analysis is done
-randomize_run_order = True  # if true, runs will be shuffled into random order. This should be on by default, especially for benchmarking
+randomize_run_order = False  # if true, runs will be shuffled into random order. This should be on by default, especially for benchmarking
 
 
 # Processing options
@@ -114,8 +114,8 @@ randomize_run_order = True  # if true, runs will be shuffled into random order. 
 force_download = False
 download_threads = 5 # number of threads to download from OSN
 n_cores = 20 # only used for merging with hadd
-ntasks = 140 # number of analysis tasks to be submitted to local_analysis_facility
-max_n_slurm_jobs = 140
+ntasks = 50 # number of analysis tasks to be submitted to local_analysis_facility
+max_n_slurm_jobs = 50
 skip_run_binomial = False
 
 # Location where histogram files and final state hadron files are stored on OSN
@@ -124,10 +124,10 @@ facilities = ['bridges2', 'expanse']
 
 # Settings related to software and data locations
 #-----------------------------------------------------------------
-stat_xsede_2021_dir = '/software/users/fjonas/myJETSCAPE/STAT-XSEDE-2021'
-jetscape_analysis_dir = '/software/users/fjonas/myJETSCAPE/JETSCAPE-analysis'
-local_base_outputdir = '/rstorage/jetscape/STAT-Bayesian/Analysis1/20230116'
-analyis_container_path = '/rstorage/jetscape/containers/local/stat_local_gcc_v3.6.sif'
+stat_xsede_2021_dir = '/software/flo/myJETSCAPE/STAT-XSEDE-2021'
+jetscape_analysis_dir = '/software/flo/myJETSCAPE/JETSCAPE-analysis'
+local_base_outputdir = '/alf/data/flo/jetscape/reAnalysisOutput/20250627'
+analyis_container_path = '/software/flo/myJETSCAPE/STAT-XSEDE-2021/containers/stat_local_gcc_v3.6.sif'
 
 # re-analysisdebug options
 #-----------------------------------------------------------------
@@ -204,7 +204,7 @@ def download_server(facilities, runs, buffer_size=5):
                 script = os.path.join(stat_xsede_2021_dir, f'scripts/js_stat_xsede_steer/count_files_on_OSN.py')
                 cmd = f'python3 {script} -s {facility}/{run}/ -f final_state_hadrons'
                 proc = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
-                output = proc.stdout.read()
+                output = proc.stdout
                 n_parquet_expected = int(output.split()[-1])
 
             # Download all files we are missing (or force download, if requested)

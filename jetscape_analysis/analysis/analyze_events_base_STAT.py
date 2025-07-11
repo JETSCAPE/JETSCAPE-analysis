@@ -313,6 +313,134 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             raise RuntimeError(msg)
 
         return fj_particles, pid
+    def is_prompt_photon(self, photon):
+        # TODO we currently do not have the informmation to handle this properly 
+        # since the information is missing in the MC. Return True for now.
+        return True
+    # find out if the particle is isolated or not
+    def is_isolated(self, trigger_particle, iso_particles_charged_pos,iso_particles_charged_neg,iso_R, iso_Et_max):
+        """Find out if the particle is isolated or not.
+        
+        Args:
+            event: Event containing particle information
+            trigger_particle: fastjet::PseudoJet of the particle to check isolation for
+            iso_particles_charged: list of fastjet::PseudoJets for the charged particles to consider for calculation of particles in cone
+            iso_particles_neutral: list of fastjet::PseudoJets for the neutral particles to consider for calculation of particles in cone
+            iso_R: radius of the isolation cone
+            iso_Et_max: maximum sum pt of particles in cone in order for trigger_particle to be considered isolated
+            isolation_type: type of isolation to use, either 'full' or 'charged' or 'neutral'
+        Returns:
+            bool: True if the particle is isolated, False otherwise
+        """
+        # Calculate sum Et of particles in cone around trigger particle
+        sum_Et = 0.
+        for particle in iso_particles_charged_pos:
+            if trigger_particle.delta_R(particle) < iso_R:
+                # Skip the trigger particle itself
+                if particle.user_index() == trigger_particle.user_index():
+                    continue
+                sum_Et += particle.Et()
+        for particle in iso_particles_charged_neg:
+            if trigger_particle.delta_R(particle) < iso_R:
+                # Skip the trigger particle itself
+                if particle.user_index() == trigger_particle.user_index():
+                    continue
+                sum_Et -= particle.Et() # subtract holes
+        # Return whether sum Et is below threshold
+        return sum_Et < iso_Et_max
+    # TODO implement this after asking Peter
+    def build_trigger_response_matrix_STAR(self):
+        # create a 2D matrix from 6 to 30 GeV/c in bine of 1 GeV
+        Et_part_bins = np.arange(6, 30, 1)
+        Et_det_bins = np.arange(9, 20, 1)
+        # create a 2D matrix of size Et_bins x Et_bins
+        trigger_response_matrix = np.zeros((len(Et_det_bins), len(Et_part_bins)))
+        # fill the matrix with the trigger response
+        # For each Et_det bin, calculate probability distribution for Et_part
+        TES = 1
+        TER = 1
+        for i, Et_det in enumerate(Et_det_bins):
+            # For each Et_part bin, calculate probability that this Et_part gives the Et_det
+            if Et_det > 9 and Et_det <= 11:
+                TES = 0.9797
+                TER = 0.0812
+            elif Et_det > 11 and Et_det <= 15:
+                TES = 0.9777
+                TER = 0.0783
+            elif Et_det > 15 and Et_det <= 20:
+                TES = 0.9774
+                TER = 0.0756
+            for j, Et_part in enumerate(Et_part_bins):
+                # Probability is given by Gaussian with:
+                # mean = TES * Et_part (expected detector response)
+                # sigma = TER * Et_part (detector resolution)
+                mean = TES * Et_part
+                sigma = TER * Et_part
+                
+                # Calculate probability that this Et_part gives the Et_det bin
+                # Using error function (erf) for Gaussian integral over bin width
+                bin_low = Et_det - 0.5  # Lower edge of Et_det bin
+                bin_high = Et_det + 0.5 # Upper edge of Et_det bin
+                
+                prob = 0.5 * (scipy.special.erf((bin_high - mean)/(sigma * np.sqrt(2))) - 
+                             scipy.special.erf((bin_low - mean)/(sigma * np.sqrt(2))))
+                
+                trigger_response_matrix[i,j] = prob
+                
+        # Normalize each Et_det row to sum to 1
+        row_sums = trigger_response_matrix.sum(axis=1)
+        trigger_response_matrix = trigger_response_matrix / row_sums[:, np.newaxis]
+        return 
+
+    # ---------------------------------------------------------------
+    # Function to find all final state photons in event
+    # ---------------------------------------------------------------
+    def fill_photons(self, event):
+        """Find all final state photons in the event and return as fastjet particles.
+        
+        Args:
+            event: Event containing particle information
+            
+        Returns:
+            tuple: (fj_photons, photon_indices) where:
+                - fj_photons is list of fastjet::PseudoJets for photons
+                - photon_indices are the indices of the photons in the original event
+        """
+        # Select photons (PID = 22) with positive status (TODO ask raymond what status exactly means)
+        # TODO check with Raymond how to handle holes 
+        photon_mask = (event['particle_ID'] == 22) & (event['status'] > -1)
+        
+        # Get photon kinematics
+        px = event['px'][photon_mask]
+        py = event['py'][photon_mask]
+        pz = event['pz'][photon_mask]
+        e = event['E'][photon_mask]
+        
+        # Create fastjet particles
+        fj_photons = fjext.vectorize_px_py_pz_e(px, py, pz, e)
+            
+        return fj_photons
+    # Function to obtain jet_pt and jet_pt_uncorrected according to jet collection
+    def get_jet_pt(self,jet,jetR,hadrons_negative,jet_collection_label=''):
+        jet_pt, jet_pt_uncorrected = 0., 0.
+        holes_in_jet = []
+        if jet_collection_label in ['_shower_recoil', '_negative_recombiner']:
+            for hadron in hadrons_negative:
+                if jet.delta_R(hadron) < jetR:
+                    holes_in_jet.append(hadron)
+        # Correct the pt of the jet, if applicable
+        # For pp or negative recombiner or constituent subtraction case, we do not need to adjust the pt
+        # For the shower+recoil case, we need to subtract the hole pt
+        if jet_collection_label in ['', '_negative_recombiner', '_constituent_subtraction']:
+                jet_pt = jet_pt_uncorrected = jet.pt()
+        elif jet_collection_label in ['_shower_recoil']:
+                negative_pt = 0.
+                for hadron in holes_in_jet:
+                    negative_pt += hadron.pt()
+                jet_pt_uncorrected = jet.pt()               # uncorrected pt: shower+recoil
+                jet_pt = jet_pt_uncorrected - negative_pt   # corrected pt: shower+recoil-holes
+        return jet_pt, jet_pt_uncorrected
+
 
     # ---------------------------------------------------------------
     # This function is called once per event

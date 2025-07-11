@@ -119,6 +119,10 @@ class HistogramResults(common_base.CommonBase):
 
                 if 'dijet_trigger_jet' in self.config:
                     self.histogram_jet_observables(observable_type='dijet_trigger_jet', jet_collection_label=jet_collection_label)
+
+                if 'photon_jet' in self.config:
+                    self.histogram_photon_jet_observables(observable_type='photon_jet', jet_collection_label=jet_collection_label)
+
         else:
             print("\tWARNING: There are no entries in the observables df. Will only write event level QA.")
 
@@ -128,6 +132,7 @@ class HistogramResults(common_base.CommonBase):
         self.histogram_event_qa()
 
         # Write output to ROOT file
+        print(f'Writing output to {self.output_dir}')
         self.write_output_objects()
 
     #-------------------------------------------------------------------------------------------
@@ -246,6 +251,147 @@ class HistogramResults(common_base.CommonBase):
                 self.histogram_observable(column_name=f'{observable_type}_{observable}', bins=bins, centrality=centrality)
                 if self.is_AA:
                     self.histogram_observable(column_name=f'{observable_type}_{observable}_holes', bins=bins, centrality=centrality)
+
+    #-------------------------------------------------------------------------------------------
+    # Histograms for gamma-jet observables
+    #-------------------------------------------------------------------------------------------
+    def histogram_photon_jet_observables(self, observable_type='', jet_collection_label=''):
+        print()
+        print(f'Histogram {observable_type} observables...')
+
+        for observable, block in self.config[observable_type].items():
+            for centrality_index,centrality in enumerate(block['centrality']):
+
+                # Add centrality bin to list, if needed
+                if self.is_AA and centrality not in self.observable_centrality_list:
+                    self.observable_centrality_list.append(centrality)
+
+                # gamma-tagged jet RAA ATLAS
+                if observable == 'pt_atlas':
+                    # Construct appropriate binning
+                    bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable, centrality, centrality_index)
+                    if not bins.any():
+                        continue
+                    for jet_R in block['jet_R']:
+                        print(f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}')
+                        self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}', bins=bins, centrality=centrality)
+                        if jet_collection_label in ['_shower_recoil']:
+                            self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}_unsubtracted', bins=bins, centrality=centrality)
+                if observable == 'Dz_atlas':
+                    # TODO implement once we have HEPdata
+                    pass
+            
+                if observable == 'xj_gamma_atlas':
+
+                    # Get NGamma for normalisation
+                    column_name_ngamma = f'photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_Ngamma'
+                    bins_pt = np.arange(0, 1000, 1)
+                    if column_name_ngamma in self.observables_df.columns:
+                        col = self.observables_df[column_name_ngamma]
+                        hname = f'h_{column_name_ngamma}_{centrality}'
+                        h = ROOT.TH1F(hname, hname, len(bins_pt)-1, bins_pt)
+                        h.Sumw2()
+                        for i,_ in enumerate(col):
+                            if col[i] is not None:
+                                for value in col[i]:
+                                    h.Fill(value)
+                                    self.output_list.append(h)
+                        self.output_list.append(h)
+
+                    # loop over the different pt_gamma_bins_i for i=1 to 4
+                    column_names = ['photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj', 'photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj_unsubtracted']
+                    
+                    # loop over the pt_gamma_bins
+                    for i,pt_gamma_bin in enumerate(pt_gamma_bins):
+                        # get the xj bins
+                        h_xj_hepdata = f.Get(block['hepdata_pt_bin_dir'][i]).Get(block[f'hepdata_AA_hname'][centrality_index]) if self.is_AA else f.Get(block['hepdata_pt_bin_dir'][i]).Get(block[f'hepdata_pp_hname'][0])
+                        binsxj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
+                        
+                        for column_name in column_names:
+                            hname = f'h_{column_name}_{centrality}_photonPt_{i}'
+                            h = ROOT.TH1F(hname, hname, len(binsxj)-1, binsxj)
+                            h.Sumw2()
+                            if column_name in self.observables_df.columns:
+                                col = self.observables_df[column_name]
+                                for i,_ in enumerate(col):
+                                    if col[i] is not None:
+                                        for value in col[i]:
+                                            if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
+                                                h.Fill(value[1])
+                            self.output_list.append(h)
+                        
+                if observable == 'xj_gamma_cms':
+                    # Get NGamma for normalisation
+                    column_name_ngamma = f'photon_jet_xj_cms_R{jet_R}{jet_collection_label}_Ngamma'
+                    #array from 0 to 1000 in 1 GeV steps
+                    bins_pt = np.arange(0, 1000, 1)
+                    if column_name_ngamma in self.observables_df.columns:
+                        col = self.observables_df[column_name_ngamma]
+                        hname = f'h_{column_name_ngamma}_{centrality}'
+                        h = ROOT.TH1F(hname, hname, len(bins_pt)-1, bins_pt)
+                        h.Sumw2()
+                        for i,_ in enumerate(col):
+                            if col[i] is not None:
+                                for value in col[i]:
+                                    h.Fill(value)
+                                    self.output_list.append(h)
+                        self.output_list.append(h)
+                    
+                    # load hep data (loading manually because structure is unusual)
+                    hepdata_dir = f'data/STAT/{self.sqrts}/{observable_type}/{observable}'
+                    hepdata_filename = os.path.join(hepdata_dir, block['hepdata'])
+                    f = ROOT.TFile(hepdata_filename, 'READ')
+
+                    # get the pt_gamma_bins from config and loop over them
+                    pt_gamma_bins = block['pt_gamma_bins']
+                    column_names_dphi = [f'photon_jet_dphi_cms_R{jet_R}{jet_collection_label}']
+                    column_names_xj = [f'photon_jet_xj_cms_R{jet_R}{jet_collection_label}', f'photon_jet_xj_cms_R{jet_R}{jet_collection_label}_unsubtracted']
+                    # loop over the pt_gamma_bins
+                    for i,pt_gamma_bin in enumerate(pt_gamma_bins):
+                        # get the dphi dphi bins
+                        system = 'AA' if self.is_AA else 'pp'
+                        h_dphi_hepdata = f.Get(block['hepdata_dphi_dir'][0]).Get(block[f'hepdata_{system}_hname'][i])
+                        binsdPhi = np.array(h_dphi_hepdata.GetXaxis().GetXbins())
+                        h_xj_hepdata = f.Get(block['hepdata_xjg_dir'][0]).Get(block[f'hepdata_{system}_hname'][i])
+                        binsxj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
+                        
+                        for column_name in column_names_dphi:
+                            hname = f'h_{column_name}_{centrality}_photonPt_{i}'
+                            h = ROOT.TH1F(hname, hname, len(binsdPhi)-1, binsdPhi)
+                            h.Sumw2()
+                            if column_name in self.observables_df.columns:
+                                col = self.observables_df[column_name]
+                                for i,_ in enumerate(col):
+                                    if col[i] is not None:
+                                        for value in col[i]:
+                                            if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
+                                                h.Fill(value[1])
+                            self.output_list.append(h)
+                        for column_name in column_names_xj:
+                            hname = f'h_{column_name}_{centrality}_photonPt_{i}'
+                            h = ROOT.TH1F(hname, hname, len(binsxj)-1, binsxj)
+                            h.Sumw2()
+                            if column_name in self.observables_df.columns:
+                                col = self.observables_df[column_name]
+                                for i,_ in enumerate(col):
+                                    if col[i] is not None:
+                                        for value in col[i]:
+                                            if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
+                                                h.Fill(value[1])
+                            self.output_list.append(h)
+                if observable == 'xi_cms':
+                    # TODO implement once we know if we want to deal with the fact that they provide smeared pp data (one per centrality)
+                    pass
+                        
+
+                        
+                        
+                    
+                        
+                        
+
+
+
 
     #-------------------------------------------------------------------------------------------
     # Histogram hadron correlation observables
@@ -491,10 +637,14 @@ class HistogramResults(common_base.CommonBase):
                              pt_bin=None, block=None, observable=''):
 
         # Check if event centrality is within observable centrality bin
+        print(f'Checking if centrality {centrality} is accepted')
         if not self.centrality_accepted(centrality):
             return
+        print(f'Centrality {centrality} is accepted')
 
         # Get column
+        print(f'Column name: {column_name}')
+        print(f'Keys: {self.observables_df.keys()}')
         if column_name in self.observables_df.keys():
             col = self.observables_df[column_name]
         else:
@@ -509,6 +659,7 @@ class HistogramResults(common_base.CommonBase):
 
         # Construct histogram
         if dim_observable == 1:
+            print(f'Histogramming 1D observable {column_name}')
             self.histogram_1d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix, observable=observable)
         elif dim_observable == 2:
             self.histogram_2d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix, block=block)
@@ -584,6 +735,9 @@ class HistogramResults(common_base.CommonBase):
         pt_min = block['pt'][pt_index]
         pt_max = block['pt'][pt_index+1]
 
+        # block is everything in config for the observable
+        # look at example form axis_alice
+
         # Fill histogram
         for i,_ in enumerate(col):
             if col[i] is not None:
@@ -600,6 +754,7 @@ class HistogramResults(common_base.CommonBase):
     def centrality_accepted(self, observable_centrality):
 
         # AA
+        print(f'Comparing to full centrality range {self.full_centrality_range}')
         if self.is_AA:
 
             if self.full_centrality_range[0] >= observable_centrality[0]:
@@ -622,7 +777,7 @@ class HistogramResults(common_base.CommonBase):
         fout = ROOT.TFile(output_path, 'recreate')
         fout.cd()
         for obj in self.output_list:
-
+            print(f'Writing {obj.GetName()} to {output_path}')
             types = (ROOT.TH1, ROOT.THnBase)
             if isinstance(obj, types):
                 obj.Write()

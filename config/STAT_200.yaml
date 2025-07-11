@@ -388,7 +388,7 @@ pion_trigger_chjet:
 #------------------------------------------------------------------
 # gamma triggered charged-particle jet observables
 # (e.g. semi-inclusive gamma-jet)
-gamma_trigger_chjet:
+photon_jet:
 
   # pmj 1/23/25 PRL (accepted): https://inspirehep.net/literature/2693040
   # pmj 1/23/25 PRC (in journal review): https://inspirehep.net/literature/2693062
@@ -396,12 +396,14 @@ gamma_trigger_chjet:
 
   # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here:
   # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
-  # Includes R(0.2)/R(0.5) ratio, which we will construct after measuring the individual spectra.
-  IAA_pt_star:
-    enabled: false
+
+  # FJ TODO waiting for refolding matrix to be available before we include detector effects
+  IAA_gammatrigger_star:
+    enabled: true
     jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0
+    eta_cut_R: 1.0 # value gives eta that one still has to subtract R from
     pt: [5., 20.]
+    jet_deltaphi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
     centrality: [[0,15]]
     gamma_eta_cut: 1.0
     trigger_range: [15., 20.]
@@ -414,8 +416,40 @@ gamma_trigger_chjet:
     skip_pp: true
 
     hepdata: "TODO: see above link"
+  IAA_pi0trigger_star:
+    jet_R: [0.2, 0.5]
+    eta_cut_R: 1.0
+    pt: 10., 20.]
+    centrality: [[0,15]]
+    gamma_eta_cut: 1.0
+    trigger_range: [11., 15.]
+    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    logy: True
+    ytitle_pp: 'I_{AA}'
+    y_min_pp: 0.1
+    y_max_pp: 1.2
+    skip_pp: True # TODO FJ: why is skip_pp true?
 
-    # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+    # Figure that shows IAA as function of dPhi
+    ytitle_pp: 'I_{AA}(#Delta#varphi)'
+    y_min_pp: 1.e-2
+    y_max_pp: 50.
+    skip_pp: True # TODO FJ: why is skip_pp true?
+
+    bins:
+    bin_centroid: {1.9,2.35,2.65,2.9,3.07}
+    bin_width: {0.3,0.15,0.15,0.1,0.07}
+
+  # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
+  # maybe define a different field?
+  # FJ TODO probably not needed, ratio will just be an additional histogram for plotting!
+  R25_star:
+    jet_R: [0.2, 0.5]
+    eta_cut_R: 1.0
+    pt: [5., 20.]
+    centrality: [[0,15]]
+    gamma_eta_cut: 1.0
+    # pmj 1/23/25: per discussionn at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
     # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
     # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
     # it with the experimentally specified weighting
