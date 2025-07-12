@@ -58,22 +58,21 @@ class ObservableInfo:
         return pretty_print_name("_".join(self.name.split("_")[:-1]))
 
 
-def validate_yaml(filename: Path) -> dict[str, list]:
-    logger.info(f"Validating {filename}...")
+def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
+    """Extract observable info from the configuration file.
 
-    # Setup
-    validation_issues = defaultdict(list)
-
-    with filename.open() as f:
-        config = yaml.safe_load(f)
-
+    Args:
+        config: YAML analysis config.
+    Returns:
+        Observable info extracted from the configuration file.
+    """
     # Need to determine which keys are valid classes of observables.
     observable_classes = []
     for k in config:
+        # By convention, we always start observables with the simple hadron class
         if "hadron" in k or observable_classes:
             observable_classes.append(k)
 
-        # Now extract all of the observables
     observables = {}
     for observable_class in observable_classes:
         for observable_key in config[observable_class]:
@@ -102,10 +101,53 @@ def validate_yaml(filename: Path) -> dict[str, list]:
                     config=observable_info,
                 )
 
+    return observables
+
+def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, list]:
+    """Validate the observable configuration.
+
+    NOTE:
+        This **IS NOT** a full specification. Validation checks are just added as
+        they come up.
+
+    Args:
+        observables: Observable info extracted from an analysis config.
+    Returns:
+        List of validation issues by observable.
+    """
+    # Setup
+    validation_issues = defaultdict(list)
+
     for key, observable_info in observables.items():
         config = observable_info.config
         if "enabled" not in config:
             validation_issues[key].append("Missing 'enabled' key")
+        if "urls" not in config:
+            validation_issues[key].append("Missing 'urls'")
+        else:
+            required_url_keys = ["inspire_hep", "hepdata"]
+            possible_url_keys = ["custom"]
+            all_possible_url_keys = required_url_keys + possible_url_keys
+
+            urls = config["urls"]
+            unexpected_keys = [v for v in urls if v not in all_possible_url_keys]
+
+            # Unexpected keys
+            if any(unexpected_keys):
+                validation_issues[key].append(f"Unexpected URL key: {unexpected_keys}")
+
+            # Required keys
+            if not all(v in urls for v in required_url_keys):
+                validation_issues[key].append(f"Missing required URL key: {required_url_keys=}, provided: {list(urls.keys())}")
+
+            # Validate what's stored. Needs to be either: N/A, TODO, or start with "http"
+            invalid_urls = {}
+            for k, v in urls.items():
+                if v not in ["N/A", "TODO"] and not v.startswith("http"):
+                    invalid_urls[k] = v
+            if invalid_urls:
+                validation_issues[key].append(f"Invalid URLs. Must be N/A or a URL. Problematic value: {invalid_urls}")
+
         if "jet" in observable_info.observable_class and "jet_R" not in observable_info.config:
             validation_issues[key].append("Missing jet_R")
         if not any(v in config for v in ["eta_cut", "eta_cut_R"]):
@@ -113,6 +155,26 @@ def validate_yaml(filename: Path) -> dict[str, list]:
 
     # Convert to standard dict just to avoid confusion
     return dict(validation_issues)
+
+
+def validate_yaml(filename: Path) -> dict[str, list]:
+    """Driver function for validating an analysis config.
+
+    Args:
+        filename: Path to the analysis config.
+    Returns:
+        List of validation issues by observable.
+    """
+    logger.info(f"Validating {filename}...")
+
+    with filename.open() as f:
+        config = yaml.safe_load(f)
+
+    # First extract all of the observables from the config
+    observables = extract_observables(config=config)
+
+    # And then validate the conditions
+    return validate_observables(observables=observables)
 
 
 def validate_yaml_entry_point() -> None:
