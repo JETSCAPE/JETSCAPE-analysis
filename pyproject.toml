@@ -177,3 +177,6 @@ messages_control.disable = [
   "wrong-import-position",
   "logging-fstring-interpolation",  # See above. I use it too much
 ]
+
+[tool.codespell]
+ignore-words-list = "subjet, UE"
