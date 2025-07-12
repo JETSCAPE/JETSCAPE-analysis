@@ -76,7 +76,7 @@ constituent_subtractor:
   max_eta: 3.
   ghost_area: 0.01
   bge_rho_grid_size: 1.
-thermal_rejection_fraction: 0.33
+
 #------------------------------------------------------------------
 #------------------------------------------------------------------
 # Hadron spectra
@@ -1388,7 +1388,7 @@ photon_jet:
     hepdata_pp_hname: 'Hist1D_y1'
 
     # TODO FJ: not sure how we should handle the HEP data for this. They provide like normal one PbPb distribution per centrality, however, they also provide one pp distribution per centrality (since they smear the pp). I suggest to skip this for now
-  
+
 
     # Fig 4; pt_gamma=63-80 GeV, both pp and PbPb
     # https://www.hepdata.net/record/ins1694678?version=1&table=Table%201

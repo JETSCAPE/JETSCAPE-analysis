@@ -49,8 +49,6 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             else:
                 self.n_event_max = -1
 
-            self.thermal_rejection_fraction = config.get('thermal_rejection_fraction', 0.)
-
         # Check whether pp or AA
         if 'PbPb' in self.input_file_hadrons or 'AuAu' in self.input_file_hadrons:
             self.is_AA = True
@@ -314,13 +312,13 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         return fj_particles, pid
     def is_prompt_photon(self, photon):
-        # TODO we currently do not have the informmation to handle this properly 
+        # TODO we currently do not have the informmation to handle this properly
         # since the information is missing in the MC. Return True for now.
         return True
     # find out if the particle is isolated or not
     def is_isolated(self, trigger_particle, iso_particles_charged_pos,iso_particles_charged_neg,iso_R, iso_Et_max):
         """Find out if the particle is isolated or not.
-        
+
         Args:
             event: Event containing particle information
             trigger_particle: fastjet::PseudoJet of the particle to check isolation for
@@ -376,49 +374,49 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 # sigma = TER * Et_part (detector resolution)
                 mean = TES * Et_part
                 sigma = TER * Et_part
-                
+
                 # Calculate probability that this Et_part gives the Et_det bin
                 # Using error function (erf) for Gaussian integral over bin width
                 bin_low = Et_det - 0.5  # Lower edge of Et_det bin
                 bin_high = Et_det + 0.5 # Upper edge of Et_det bin
-                
-                prob = 0.5 * (scipy.special.erf((bin_high - mean)/(sigma * np.sqrt(2))) - 
+
+                prob = 0.5 * (scipy.special.erf((bin_high - mean)/(sigma * np.sqrt(2))) -
                              scipy.special.erf((bin_low - mean)/(sigma * np.sqrt(2))))
-                
+
                 trigger_response_matrix[i,j] = prob
-                
+
         # Normalize each Et_det row to sum to 1
         row_sums = trigger_response_matrix.sum(axis=1)
         trigger_response_matrix = trigger_response_matrix / row_sums[:, np.newaxis]
-        return 
+        return
 
     # ---------------------------------------------------------------
     # Function to find all final state photons in event
     # ---------------------------------------------------------------
     def fill_photons(self, event):
         """Find all final state photons in the event and return as fastjet particles.
-        
+
         Args:
             event: Event containing particle information
-            
+
         Returns:
             tuple: (fj_photons, photon_indices) where:
                 - fj_photons is list of fastjet::PseudoJets for photons
                 - photon_indices are the indices of the photons in the original event
         """
         # Select photons (PID = 22) with positive status (TODO ask raymond what status exactly means)
-        # TODO check with Raymond how to handle holes 
+        # TODO check with Raymond how to handle holes
         photon_mask = (event['particle_ID'] == 22) & (event['status'] > -1)
-        
+
         # Get photon kinematics
         px = event['px'][photon_mask]
         py = event['py'][photon_mask]
         pz = event['pz'][photon_mask]
         e = event['E'][photon_mask]
-        
+
         # Create fastjet particles
         fj_photons = fjext.vectorize_px_py_pz_e(px, py, pz, e)
-            
+
         return fj_photons
     # Function to obtain jet_pt and jet_pt_uncorrected according to jet collection
     def get_jet_pt(self,jet,jetR,hadrons_negative,jet_collection_label=''):
