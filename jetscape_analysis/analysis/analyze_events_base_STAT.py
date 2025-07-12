@@ -11,6 +11,7 @@ See README for pre-requisites.
 
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 
@@ -25,6 +26,8 @@ import yaml
 from numba import jit
 
 from jetscape_analysis.base import common_base
+
+logger = logging.getLogger(__name__)
 
 
 ################################################################
@@ -311,10 +314,19 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             raise RuntimeError(msg)
 
         return fj_particles, pid
-    def is_prompt_photon(self, photon):
-        # TODO we currently do not have the informmation to handle this properly
+    def is_prompt_photon(self, photon) -> bool:
+        """Check whether the given photon is prompt.
+
+        Args:
+            photon: Photon to check.
+        Returns:
+            True if the photon is prompt.
+        """
+        # TODO we currently do not have the information to handle this properly
         # since the information is missing in the MC. Return True for now.
+        logger.warning("is_prompt_photon is not yet implemented!")
         return True
+
     # find out if the particle is isolated or not
     def is_isolated(self, trigger_particle, iso_particles_charged_pos,iso_particles_charged_neg,iso_R, iso_Et_max):
         """Find out if the particle is isolated or not.
