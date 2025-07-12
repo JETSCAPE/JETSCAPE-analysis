@@ -1,4 +1,4 @@
-""" Validation for analysis yaml file.
+"""Validation for analysis yaml file.
 
 This isn't comprehensive - it's just what needs to be minimally supported.
 
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Translate names as needed
 _name_translation_map = {}
 
+
 def pretty_print_name(name: str) -> str:
     """Translates encoded name into something more readable.
 
@@ -37,6 +38,7 @@ def pretty_print_name(name: str) -> str:
         if k in name:
             working_str = working_str.replace(k, v)
     return working_str.replace("_", " ")
+
 
 @attrs.define
 class ObservableInfo:
@@ -76,7 +78,7 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
     observables = {}
     for observable_class in observable_classes:
         for observable_key in config[observable_class]:
-            #if "v2" in observable_key and observable_class != "dijet":
+            # if "v2" in observable_key and observable_class != "dijet":
             if False:
                 # need to go a level deeper for the v2 since they're nested...
                 for sub_observable_key in config[observable_class][observable_key]:
@@ -87,12 +89,10 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
                     observable_name = "_".join(base_observable_name)
                     observable_name += f"_{sub_observable_key}_{experiment_name}"
 
-                    observables[f"{observable_class}_{observable_key}_{sub_observable_key}"] = (
-                        ObservableInfo(
-                            observable_class=observable_class,
-                            name=observable_name,
-                            config=observable_info,
-                        )
+                    observables[f"{observable_class}_{observable_key}_{sub_observable_key}"] = ObservableInfo(
+                        observable_class=observable_class,
+                        name=observable_name,
+                        config=observable_info,
                     )
             else:
                 observable_info = config[observable_class][observable_key]
@@ -103,6 +103,7 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
                 )
 
     return observables
+
 
 def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, list]:
     """Validate the observable configuration.
@@ -139,7 +140,9 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
 
             # Required keys
             if not all(v in urls for v in required_url_keys):
-                validation_issues[key].append(f"Missing required URL key: {required_url_keys=}, provided: {list(urls.keys())}")
+                validation_issues[key].append(
+                    f"Missing required URL key: {required_url_keys=}, provided: {list(urls.keys())}"
+                )
 
             # Validate what's stored. Needs to be either: N/A, TODO, or start with "http"
             invalid_urls = {}
@@ -151,8 +154,11 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
 
         if "jet" in observable_info.observable_class and "jet_R" not in observable_info.config:
             validation_issues[key].append("Missing jet_R")
-        if not any(v in config for v in ["eta_cut", "eta_cut_R", "y_cut"]):
-            validation_issues[key].append("Missing eta_cut, eta_cut_R, or y_cut (as appropriate for the observable)")
+        if not any(v in config for v in ["eta_cut", "eta_cut_R", "y_cut", "eta_cut_jet", "eta_cut_hadron"]):
+            # eta_cut_jet and eta_cut_hadron is for when we need to specify between the trigger and the recoil
+            validation_issues[key].append(
+                "Missing eta_cut, eta_cut_R, y_cut, eta_cut_jet, or eta_cut_hadron (as appropriate for the observable)"
+            )
 
     # Convert to standard dict just to avoid confusion
     return dict(validation_issues)

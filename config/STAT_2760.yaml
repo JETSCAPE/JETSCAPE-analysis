@@ -273,9 +273,6 @@ pion_trigger_hadron:
 
 #------------------------------------------------------------------
 # Hadron correlations
-#
-# The v2 observables include an additional layer for various methods, such as event-plane,
-# scalar-product, and four-particle cumulants. These are the only observables with this extra layer.
 #------------------------------------------------------------------
 hadron_correlations:
   # ALICE scalar-product v2
