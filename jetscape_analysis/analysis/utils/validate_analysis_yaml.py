@@ -76,7 +76,8 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
     observables = {}
     for observable_class in observable_classes:
         for observable_key in config[observable_class]:
-            if "v2" in observable_key and observable_class != "dijet":
+            #if "v2" in observable_key and observable_class != "dijet":
+            if False:
                 # need to go a level deeper for the v2 since they're nested...
                 for sub_observable_key in config[observable_class][observable_key]:
                     observable_info = config[observable_class][observable_key][sub_observable_key]
@@ -150,8 +151,8 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
 
         if "jet" in observable_info.observable_class and "jet_R" not in observable_info.config:
             validation_issues[key].append("Missing jet_R")
-        if not any(v in config for v in ["eta_cut", "eta_cut_R"]):
-            validation_issues[key].append("Missing eta_cut or eta_cut_R (as appropriate)")
+        if not any(v in config for v in ["eta_cut", "eta_cut_R", "y_cut"]):
+            validation_issues[key].append("Missing eta_cut, eta_cut_R, or y_cut (as appropriate for the observable)")
 
     # Convert to standard dict just to avoid confusion
     return dict(validation_issues)
@@ -200,8 +201,9 @@ def validate_yaml_entry_point() -> None:
     if not res:
         logger.info("🎉 Success!")
     else:
-        logger.error(res)
-        logger.error("❌ Validation failed. Issues are listed above!")
+        logger.error("Validation issues:")
+        helpers.rich_console.print(res)
+        logger.error("❌ Validation failed!")
 
 
 if __name__ == "__main__":
