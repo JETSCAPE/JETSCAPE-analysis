@@ -1,3 +1,4 @@
+---
 #------------------------------------------------------------------
 # We group observables into blocks according to type of observable
 # for convenience, e.g. {type}: {observable}_{experiment}
@@ -61,7 +62,7 @@ max_jet_y: 3.
 
 # If AA, set different options for hole subtraction treatment
 # If pp, defaults will override this: ['']
-jet_collection_labels: ['_shower_recoil', '_negative_recombiner', '_constituent_subtraction']
+jet_collection_labels: ["_shower_recoil", "_negative_recombiner", "_constituent_subtraction"]
 
 # Constituent subtractor, for hole treatment
 constituent_subtractor:
@@ -78,7 +79,6 @@ constituent_subtractor:
 # Unless otherwise noted: Primary charged particles (w/ mean proper lifetime τ larger than 1 cm/c )
 #------------------------------------------------------------------
 hadron:
-
   # PHENIX pi0 spectra
   # Fig 11
   pt_pi0_phenix:
@@ -90,28 +90,28 @@ hadron:
 
     eta_cut: 0.35
     pt: [5., 20.]
-    centrality: [[0,10], [10,20], [20,30], [30,40], [40,50]]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    centrality: [[0, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    hepdata: 'HEPData-ins1127262-v2-root.root'
-    ytitle_pp: '#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]'
+    hepdata: "HEPData-ins1127262-v2-root.root"
+    ytitle_pp: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
     y_min_pp: 2e-12
     y_max_pp: 1e-4
-    scale_by: '1/pt'
+    scale_by: "1/pt"
     skip_pp: true
 
-    hepdata_AA_dir: 'Figure 11'
-    hepdata_AA_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4', 'Graph1D_y5']
-    hepdata_AA_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4', 'Hist1D_y5']
-    ytitle_AA: '#it{R}_{AA}'
+    hepdata_AA_dir: "Figure 11"
+    hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
+    hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4", "Hist1D_y5"]
+    ytitle_AA: "#it{R}_{AA}"
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_AA_distribution_dir: 'Figure 5'
-    hepdata_AA_distribution_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4', 'Graph1D_y5']
-    hepdata_AA_distribution_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4', 'Hist1D_y5']
-    ytitle_AA_distribution: '#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]'
+    hepdata_AA_distribution_dir: "Figure 5"
+    hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
+    hepdata_AA_distribution_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4", "Hist1D_y5"]
+    ytitle_AA_distribution: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
     y_min_AA_distribution: 2e-10
     y_max_AA_distribution: 2e2
 
@@ -124,27 +124,27 @@ hadron:
 
     eta_cut: 0.5
     pt: [5., 12.]
-    centrality: [[0,5], [10,20], [20,30], [30,40]]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    centrality: [[0, 5], [10, 20], [20, 30], [30, 40]]
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    hepdata: 'HEPData-ins619063-v1-root.root'
-    hepdata_pp_dir: 'Table 1'
-    hepdata_pp_gname: 'Graph1D_y8'
-    ytitle_pp: 'E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]'
+    hepdata: "HEPData-ins619063-v1-root.root"
+    hepdata_pp_dir: "Table 1"
+    hepdata_pp_gname: "Graph1D_y8"
+    ytitle_pp: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
     y_min_pp: 2e-10
     y_max_pp: 2e2
-    scale_by: '1/pt'
+    scale_by: "1/pt"
 
-    hepdata_AA_dir: 'Table 3'
-    hepdata_AA_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    hepdata_AA_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4']
-    ytitle_AA: '#it{R}_{AA}'
+    hepdata_AA_dir: "Table 3"
+    hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    ytitle_AA: "#it{R}_{AA}"
 
-    hepdata_AA_distribution_dir: 'Table 1'
-    hepdata_AA_distribution_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    hepdata_AA_distribution_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4']
-    ytitle_AA_distribution: 'E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]'
+    hepdata_AA_distribution_dir: "Table 1"
+    hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_distribution_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    ytitle_AA_distribution: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
     y_min_AA_distribution: 2e-10
     y_max_AA_distribution: 2e2
 
@@ -152,7 +152,6 @@ hadron:
 # Hadron correlations
 #------------------------------------------------------------------
 hadron_correlations:
-
   # Di-hadron correlations -- delta-phi and D(z)
   # See Fig 3 here: https://arxiv.org/pdf/nucl-th/0701045.pdf
   # pmj 13/1/22: incomplete. This is a key RHIC paper imho (based on the analysis of Xin-Nian et al., which formed the basis of a lot of developments)
@@ -170,16 +169,17 @@ hadron_correlations:
     #       If we use 0.63, ROOT will include the full next bin, which is for sure too much.
     yield_range: [-0.62, 0.62]
     # They appear to have 40 bins between [-pi/2, 3pi/2], so generated with `np.linspace(-np.pi/2, 3*np.pi/2, 41)`
+    # prettier-ignore
     dphi_bins: [-1.5707963267948966, -1.413716694115407, -1.2566370614359172, -1.0995574287564276, -0.9424777960769379, -0.7853981633974483, -0.6283185307179586, -0.47123889803846897, -0.3141592653589793, -0.15707963267948966, 0.0, 0.15707963267948966, 0.3141592653589793, 0.47123889803846897, 0.6283185307179586, 0.7853981633974483, 0.9424777960769379, 1.0995574287564276, 1.2566370614359172, 1.413716694115407, 1.5707963267948966, 1.7278759594743862, 1.8849555921538759, 2.0420352248333655, 2.199114857512855, 2.356194490192345, 2.5132741228718345, 2.670353755551324, 2.827433388230814, 2.9845130209103035, 3.141592653589793, 3.2986722862692828, 3.4557519189487724, 3.612831551628262, 3.7699111843077517, 3.9269908169872414, 4.084070449666731, 4.241150082346221, 4.39822971502571, 4.5553093477052, 4.71238898038469]
     # NOTE: Need to convert from N_part to centrality, which is available in Table 2 in https://inspirehep.net/literature/588808
     # NOTE: They also report 40-60%, but that goes outside of our centrality range, so we skip it here
-    centrality: [[0,5], [5, 10], [10, 20], [20, 30], [30, 40]]
+    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40]]
     # The yield bins are based on a centrality index since plotting as properly labeled centrality isn't
     # worth the additional complexity. The first five bins are the near side, while the latter five are the away side.
-    yield_bins: [0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10.]
+    yield_bins: [0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10.]
     xtitle: "Centrality bin index"
 
-    custom_data: 'custom_data.yaml'
+    custom_data: "custom_data.yaml"
     # We default to enabling skip_pp. In this case, we draw the deltaPhi correlations.
     # If skip_pp is set to false, it will extract the yields and plot them.
     # In the case of AA, we always extract and draw the yields
@@ -201,7 +201,6 @@ hadron_correlations:
 # (e.g. semi-inclusive gamma-hadron)
 #------------------------------------------------------------------
 gamma_trigger_hadron:
-
   # The observable is calculated as a function of zeta.
   # Multiple choice of the integration over d_phi are provided, the one with |d_phi| between pi/2 and pi is implemented in yaml
   # Direct photon selected by subtracting pi_zero from total.
@@ -214,26 +213,25 @@ gamma_trigger_hadron:
 
     eta_cut_R: 1.
     pt: [5., 7.]
-    centrality: [[0,40]]
+    centrality: [[0, 40]]
     hadron_eta_cut: 0.35
     trigger_range: [5., 9.]
-    xtitle: '#zeta'
+    xtitle: "#zeta"
     logy: true
 
-    ytitle_pp: 'I_{AA}'
+    ytitle_pp: "I_{AA}"
     skip_pp: true
 
-    hepdata: 'HEPData-ins1512115-v1-root.root'
-    hepdata_AA_dir: 'Figure 4b'
-    hepdata_AA_gname: ['Graph1D_y1']
-    hepdata_AA_hname: ['Hist1D_y1']
-    ytitle_AA: 'I_{AA}'
+    hepdata: "HEPData-ins1512115-v1-root.root"
+    hepdata_AA_dir: "Figure 4b"
+    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_hname: ["Hist1D_y1"]
+    ytitle_AA: "I_{AA}"
 
 #------------------------------------------------------------------
 # Inclusive jet observables -- charged jets
 #------------------------------------------------------------------
 inclusive_chjet:
-
   # STAR charged jet RAA and RCP
   # Cuts:
   #   - pT^{ch lead} > 5 GeV
@@ -246,38 +244,38 @@ inclusive_chjet:
     jet_R: [0.2, 0.3, 0.4]
     eta_cut_R: 1.0
     pt: [5., 30]
-    centrality: [[0,10]]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    centrality: [[0, 10]]
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right'
+    ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right"
     y_min_pp: 2e-8
     y_max_pp: 1e-1
     skip_pp: true
 
-    hepdata: 'HEPData-ins1798665-v1-root.root'
-    hepdata_AA_dir: 'Table 10'
-    hepdata_AA_dir_R0.2: 'Table 10'
-    hepdata_AA_dir_R0.3: 'Table 10'
-    hepdata_AA_dir_R0.4: 'Table 10'
-    hepdata_AA_gname_R0.2: ['Graph1D_y1']
-    hepdata_AA_hname_R0.2: ['Hist1D_y1']
-    hepdata_AA_gname_R0.3: ['Graph1D_y2']
-    hepdata_AA_hname_R0.3: ['Hist1D_y2']
-    hepdata_AA_gname_R0.4: ['Graph1D_y3']
-    hepdata_AA_hname_R0.4: ['Hist1D_y3']
-    ytitle_AA: '#it{R}_{AA}'
+    hepdata: "HEPData-ins1798665-v1-root.root"
+    hepdata_AA_dir: "Table 10"
+    hepdata_AA_dir_R0.2: "Table 10"
+    hepdata_AA_dir_R0.3: "Table 10"
+    hepdata_AA_dir_R0.4: "Table 10"
+    hepdata_AA_gname_R0.2: ["Graph1D_y1"]
+    hepdata_AA_hname_R0.2: ["Hist1D_y1"]
+    hepdata_AA_gname_R0.3: ["Graph1D_y2"]
+    hepdata_AA_hname_R0.3: ["Hist1D_y2"]
+    hepdata_AA_gname_R0.4: ["Graph1D_y3"]
+    hepdata_AA_hname_R0.4: ["Hist1D_y3"]
+    ytitle_AA: "#it{R}_{AA}"
     y_min_AA: 0.
     y_max_AA: 2.
 
-    hepdata_AA_distribution_dir: 'Table 1'
-    hepdata_AA_distribution_gname_R0.2: ['Graph1D_y1']
-    hepdata_AA_distribution_hname_R0.2: ['Hist1D_y1']
-    hepdata_AA_distribution_gname_R0.3: ['Graph1D_y2']
-    hepdata_AA_distribution_hname_R0.3: ['Hist1D_y2']
-    hepdata_AA_distribution_gname_R0.4: ['Graph1D_y3']
-    hepdata_AA_distribution_hname_R0.4: ['Hist1D_y3']
-    ytitle_AA_distribution: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]'
+    hepdata_AA_distribution_dir: "Table 1"
+    hepdata_AA_distribution_gname_R0.2: ["Graph1D_y1"]
+    hepdata_AA_distribution_hname_R0.2: ["Hist1D_y1"]
+    hepdata_AA_distribution_gname_R0.3: ["Graph1D_y2"]
+    hepdata_AA_distribution_hname_R0.3: ["Hist1D_y2"]
+    hepdata_AA_distribution_gname_R0.4: ["Graph1D_y3"]
+    hepdata_AA_distribution_hname_R0.4: ["Hist1D_y3"]
+    ytitle_AA_distribution: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]"
     y_min_AA_distribution: 2e-8
     y_max_AA_distribution: 1e-1
 
@@ -286,7 +284,6 @@ inclusive_chjet:
 # (e.g. semi-inclusive h-jet)
 #------------------------------------------------------------------
 hadron_trigger_chjet:
-
   # Note: no pp reference -- RCP and R02/R05 -- we include only R02/R05 for now
   # pmj 13/1/22: QA OK other than issues with hepdata that you identify.
   # pmj 13/1/22: Please formulate your questions about the hepdata entries and I will send them to Alex (I thought they had been fixed ;-( )
@@ -299,23 +296,23 @@ hadron_trigger_chjet:
     jet_R: [0.2, 0.5]
     eta_cut_R: 1.
     pt: [5., 30.]
-    centrality: [[0,10]]
+    centrality: [[0, 10]]
     hadron_eta_cut: 0.9
     trigger_range: [9., 30.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    ytitle_pp: 'I_{AA}'
+    ytitle_pp: "I_{AA}"
     y_min_pp: 2e-5
     y_max_pp: 2.
     skip_pp: true
 
-    hepdata: 'HEPData-ins1512115-v1-root.root'
-    hepdata_AA_dir: 'Table 38'
-    hepdata_AA_dir_R02_R05: 'Table 38'
-    hepdata_AA_gname: ['Graph1D_y1']
-    hepdata_AA_hname: ['Hist1D_y1']
-    ytitle_AA: '#it{R}_{AA}'
+    hepdata: "HEPData-ins1512115-v1-root.root"
+    hepdata_AA_dir: "Table 38"
+    hepdata_AA_dir_R02_R05: "Table 38"
+    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_hname: ["Hist1D_y1"]
+    ytitle_AA: "#it{R}_{AA}"
 
   # The bin width is constant at 0.1256.  For the most left two data points, there are really missing in HEP
   # PMJ 1/21/25: data points not recoverable without some effort.
@@ -329,29 +326,25 @@ hadron_trigger_chjet:
     jet_R: [0.3]
     eta_cut_R: 1.
     pt: [9., 13.]
-    centrality: [[0,10]]
+    centrality: [[0, 10]]
     hadron_eta_cut: 0.9
     trigger_range: [9., 30.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    hepdata: 'HEPData-ins1512115-v1-root.root'
-    hepdata_pp_dir:  'Table 42'
-    hepdata_pp_gname: 'Graph1D_y1'
-    ytitle_pp: '#Phi(#Delta#it{#varphi})'
+    hepdata: "HEPData-ins1512115-v1-root.root"
+    hepdata_pp_dir: "Table 42"
+    hepdata_pp_gname: "Graph1D_y1"
+    ytitle_pp: "#Phi(#Delta#it{#varphi})"
     y_min_pp: 0.
     y_max_pp: 1.
 
-    bins: [1.57079633, 1.69646003, 1.82212374, 1.94778745, 2.07345115,
-       2.19911486, 2.32477856, 2.45044227, 2.57610598, 2.70176968,
-       2.82743339, 2.95309709, 3.0787608 , 3.20442451, 3.33008821,
-       3.45575192, 3.58141563, 3.70707933, 3.83274304, 3.95840674,
-       4.08407045, 4.20973416, 4.33539786, 4.46106157, 4.58672527,
-       4.71238898]
-    hepdata_AA_dir: 'Table 39'
-    hepdata_AA_gname: ['Graph1D_y1']
-    hepdata_AA_hname: ['Hist1D_y1']
-    ytitle_AA: '#it{R}_{AA}'
+    # prettier-ignore
+    bins: [1.57079633, 1.69646003, 1.82212374, 1.94778745, 2.07345115, 2.19911486, 2.32477856, 2.45044227, 2.57610598, 2.70176968, 2.82743339, 2.95309709, 3.0787608, 3.20442451, 3.33008821, 3.45575192, 3.58141563, 3.70707933, 3.83274304, 3.95840674, 4.08407045, 4.20973416, 4.33539786, 4.46106157, 4.58672527, 4.71238898]
+    hepdata_AA_dir: "Table 39"
+    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_hname: ["Hist1D_y1"]
+    ytitle_AA: "#it{R}_{AA}"
     y_min_AA: 0.
     y_max_AA: 2.
 
@@ -360,7 +353,6 @@ hadron_trigger_chjet:
 # (e.g. semi-inclusive pi_zero-jet)
 #------------------------------------------------------------------
 pion_trigger_chjet:
-
   # Includes R(0.2)/R(0.5) ratio, which we will construct after measuring the individual spectra.
   # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
   IAA_pt_star:
@@ -375,13 +367,13 @@ pion_trigger_chjet:
     jet_R: [0.2, 0.5]
     eta_cut_R: 1.0 # LDu 6/4/2025: implement 1-jet_R in the code
     pt: [5., 25.]
-    centrality: [[0,15]]
+    centrality: [[0, 15]]
     pi_zero_eta_cut: 1.0
     trigger_range: [11., 15.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    ytitle_pp: 'I_{AA}'
+    ytitle_pp: "I_{AA}"
     y_min_pp: 0.1
     y_max_pp: 1.2
     skip_pp: true
@@ -407,28 +399,27 @@ pion_trigger_chjet:
       custom: TODO
 
     jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0  # 1.0 - R
+    eta_cut_R: 1.0 # 1.0 - R
     pt: [10., 20.]
-    centrality: [[0,15]]
+    centrality: [[0, 15]]
     pi_zero_eta_cut: 1.0
     trigger_range: [11., 15.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    ytitle_pp: 'I_{AA}(#Delta#varphi)'
+    ytitle_pp: "I_{AA}(#Delta#varphi)"
     y_min_pp: 1.e-2
     y_max_pp: 50.
     skip_pp: true
 
-    bin_centroid: {1.9,2.35,2.65,2.9,3.07}
-    bin_width: {0.3,0.15,0.15,0.1,0.07}
+    bin_centroid: [1.9, 2.35, 2.65, 2.9, 3.07]
+    bin_width: [0.3, 0.15, 0.15, 0.1, 0.07]
 
 #------------------------------------------------------------------
 # gamma triggered charged-particle jet observables
 # (e.g. semi-inclusive gamma-jet)
 #------------------------------------------------------------------
 gamma_trigger_chjet:
-
   # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
   # FJ TODO waiting for refolding matrix to be available before we include detector effects
   # Includes R(0.2)/R(0.5) ratio, which we will construct after measuring the individual spectra.
@@ -445,13 +436,13 @@ gamma_trigger_chjet:
     eta_cut_R: 1.0 # value gives eta that one still has to subtract R from
     pt: [5., 20.]
     jet_deltaphi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
-    centrality: [[0,15]]
+    centrality: [[0, 15]]
     gamma_eta_cut: 1.0
     trigger_range: [15., 20.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    ytitle_pp: 'I_{AA}'
+    ytitle_pp: "I_{AA}"
     y_min_pp: 0.1
     y_max_pp: 1.2
     skip_pp: true
@@ -477,18 +468,18 @@ gamma_trigger_chjet:
       custom: TODO
 
     jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0  # 1.0 - R
+    eta_cut_R: 1.0 # 1.0 - R
     pt: [10., 20.]
-    centrality: [[0,15]]
+    centrality: [[0, 15]]
     gamma_eta_cut: 1.0
     trigger_range: [11., 15.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    ytitle_pp: 'I_{AA}(#Delta#varphi)'
+    ytitle_pp: "I_{AA}(#Delta#varphi)"
     y_min_pp: 1.e-2
     y_max_pp: 50.
     skip_pp: true
 
-    bin_centroid: {1.9,2.35,2.65,2.9,3.07}
-    bin_width: {0.3,0.15,0.15,0.1,0.07}
+    bin_centroid: [1.9, 2.35, 2.65, 2.9, 3.07]
+    bin_width: [0.3, 0.15, 0.15, 0.1, 0.07]

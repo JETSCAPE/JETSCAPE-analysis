@@ -16,7 +16,9 @@ ENV/
 **/*.stdout
 **/*HTEX.block*
 
-
 .vscode/
 
 .DS_Store
+
+# Linting
+node_modules/
