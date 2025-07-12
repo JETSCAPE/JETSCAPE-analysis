@@ -1,0 +1,146 @@
+""" Validation for analysis yaml file.
+
+This isn't comprehensive - it's just what needs to be minimally supported.
+
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
+"""
+
+import argparse
+import logging
+from collections import defaultdict
+from pathlib import Path
+from typing import Any
+
+import attrs
+import yaml
+
+from jetscape_analysis.base import helpers
+
+logger = logging.getLogger(__name__)
+
+
+# Translate names as needed
+_name_translation_map = {}
+
+def pretty_print_name(name: str) -> str:
+    """Translates encoded name into something more readable.
+
+    Args:
+        name_substr: Name split into it's substrings for parsing. We don't do this
+            automatically because sometimes you need to e.g. remove the experiment name.
+
+    Returns:
+        Readable name
+    """
+    working_str = name
+    for k, v in _name_translation_map.items():
+        if k in name:
+            working_str = working_str.replace(k, v)
+    return working_str.replace("_", " ")
+
+@attrs.define
+class ObservableInfo:
+    observable_class: str = attrs.field()
+    name: str = attrs.field()
+    config: dict[str, Any] = attrs.field()
+
+    @property
+    def identifier(self) -> str:
+        return f"{self.observable_class}_{self.name}"
+
+    @property
+    def experiment(self) -> str:
+        return self.name.split("_")[-1].upper()
+
+    def display_name(self) -> str:
+        """Pretty print of the observable name"""
+        # -1 removes the experiment name
+        return pretty_print_name("_".join(self.name.split("_")[:-1]))
+
+
+def validate_yaml(filename: Path) -> dict[str, list]:
+    logger.info(f"Validating {filename}...")
+
+    # Setup
+    validation_issues = defaultdict(list)
+
+    with filename.open() as f:
+        config = yaml.safe_load(f)
+
+    # Need to determine which keys are valid classes of observables.
+    observable_classes = []
+    for k in config:
+        if "hadron" in k or observable_classes:
+            observable_classes.append(k)
+
+        # Now extract all of the observables
+    observables = {}
+    for observable_class in observable_classes:
+        for observable_key in config[observable_class]:
+            if "v2" in observable_key and observable_class != "dijet":
+                # need to go a level deeper for the v2 since they're nested...
+                for sub_observable_key in config[observable_class][observable_key]:
+                    observable_info = config[observable_class][observable_key][sub_observable_key]
+
+                    # Move the experiment to the end of the name to match the convention
+                    *base_observable_name, experiment_name = observable_key.split("_")
+                    observable_name = "_".join(base_observable_name)
+                    observable_name += f"_{sub_observable_key}_{experiment_name}"
+
+                    observables[f"{observable_class}_{observable_key}_{sub_observable_key}"] = (
+                        ObservableInfo(
+                            observable_class=observable_class,
+                            name=observable_name,
+                            config=observable_info,
+                        )
+                    )
+            else:
+                observable_info = config[observable_class][observable_key]
+                observables[f"{observable_class}_{observable_key}"] = ObservableInfo(
+                    observable_class=observable_class,
+                    name=observable_key,
+                    config=observable_info,
+                )
+
+    for key, observable_info in observables.items():
+        config = observable_info.config
+        if "enabled" not in config:
+            validation_issues[key].append("Missing 'enabled' key")
+        if "jet" in observable_info.observable_class and "jet_R" not in observable_info.config:
+            validation_issues[key].append("Missing jet_R")
+        if not any(v in config for v in ["eta_cut", "eta_cut_R"]):
+            validation_issues[key].append("Missing eta_cut or eta_cut_R (as appropriate)")
+
+    # Convert to standard dict just to avoid confusion
+    return dict(validation_issues)
+
+
+def validate_yaml_entry_point() -> None:
+    """Entry point for validation of the analysis config."""
+    # Setup
+    helpers.setup_logging(level=logging.DEBUG)
+
+    # Argument parser
+    parser = argparse.ArgumentParser(
+        description="Validate a given analysis config",
+    )
+    parser.add_argument(
+        "analysis_config",
+        help="Analysis config file to validate",
+        type=Path,
+    )
+
+    args = parser.parse_args()
+
+    res = validate_yaml(
+        filename=args.analysis_config,
+    )
+    if not res:
+        logger.info("🎉 Success!")
+    else:
+        logger.error(res)
+        logger.error("❌ Validation failed. Issues are listed above!")
+
+
+if __name__ == "__main__":
+    validate_yaml_entry_point()

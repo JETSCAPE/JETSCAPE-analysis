@@ -358,18 +358,11 @@ pion_trigger_chjet:
 
     hepdata: "TODO: see above link"
 
-  # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
-  # maybe define a different field?
-  R25_star:
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0
-    pt: [11., 15.]
-    centrality: [[0,15]]
-    pizero_eta_cut: 1.0
     # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
     # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
     # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
     # it with the experimentally specified weighting
+    # TODO(FJ): Ratio will just be an additional histogram for plotting!
     trigger_range_det: [11., 15.]
     trigger_range_part: [9., 22.]
 
