@@ -1,4 +1,4 @@
-""" Base class to analyze a JETSCAPE output file
+"""Base class to analyze a JETSCAPE output file
 
 You should create a user class that inherits from this one. See analyze_events_STAT.py for an example.
 
@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 ################################################################
 class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
-
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
@@ -47,13 +46,13 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         with Path(self.config_file).open() as f:
             config = yaml.safe_load(f)
 
-            if 'n_event_max' in config:
-                self.n_event_max = config['n_event_max']
+            if "n_event_max" in config:
+                self.n_event_max = config["n_event_max"]
             else:
                 self.n_event_max = -1
 
         # Check whether pp or AA
-        if 'PbPb' in self.input_file_hadrons or 'AuAu' in self.input_file_hadrons:
+        if "PbPb" in self.input_file_hadrons or "AuAu" in self.input_file_hadrons:
             self.is_AA = True
         else:
             self.is_AA = False
@@ -69,11 +68,11 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 # We're using a standard production with a run number - look for the run info file.
                 _run_number = _job_identifier
                 # - the file index is at index 4 (in the example, it extracts `1` as an int)
-                _file_index = int(_final_state_hadrons_path.name.split('_')[4])
+                _file_index = int(_final_state_hadrons_path.name.split("_")[4])
                 run_info_path = _final_state_hadrons_path.parent / f"{_run_number}_info.yaml"
                 with run_info_path.open() as f:
                     _run_info = yaml.safe_load(f)
-                    centrality_string = _run_info["index_to_hydro_event"][_file_index].split('/')[0].split('_')
+                    centrality_string = _run_info["index_to_hydro_event"][_file_index].split("/")[0].split("_")
                     # index of 1 and 2 based on an example entry of "cent_00_01"
                     self.centrality = [int(centrality_string[1]), int(centrality_string[2])]
             else:
@@ -83,12 +82,12 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # If AA, initialize constituent subtractor
         self.constituent_subtractor = None
         if self.is_AA:
-            print('Constituent subtractor is enabled.')  # noqa: T201
-            constituent_subtractor = config['constituent_subtractor']
-            max_distance = constituent_subtractor['R_max']
-            max_eta = constituent_subtractor['max_eta']
-            ghost_area = constituent_subtractor['ghost_area']
-            bge_rho_grid_size = constituent_subtractor['bge_rho_grid_size']
+            print("Constituent subtractor is enabled.")  # noqa: T201
+            constituent_subtractor = config["constituent_subtractor"]
+            max_distance = constituent_subtractor["R_max"]
+            max_eta = constituent_subtractor["max_eta"]
+            ghost_area = constituent_subtractor["ghost_area"]
+            bge_rho_grid_size = constituent_subtractor["bge_rho_grid_size"]
             self.bge_rho = fj.GridMedianBackgroundEstimator(max_eta, bge_rho_grid_size)
             self.constituent_subtractor = fjcontrib.ConstituentSubtractor()
             self.constituent_subtractor.set_background_estimator(self.bge_rho)
@@ -98,14 +97,13 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             self.constituent_subtractor.initialize()
             print(dir(self.constituent_subtractor))  # noqa: T201
         else:
-            print('Constituent subtractor is disabled.')  # noqa: T201
+            print("Constituent subtractor is disabled.")  # noqa: T201
 
     # ---------------------------------------------------------------
     # Main processing function
     # ---------------------------------------------------------------
     def analyze_jetscape_events(self):
-
-        print('Analyzing events ...')  # noqa: T201
+        print("Analyzing events ...")  # noqa: T201
 
         # Initialize output objects
         self.initialize_output_objects()
@@ -122,22 +120,20 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Write analysis task output to ROOT file
         self.write_output_objects()
 
-        print('Done!')  # noqa: T201
+        print("Done!")  # noqa: T201
 
     # ---------------------------------------------------------------
     # Analyze event chunk
     # ---------------------------------------------------------------
     def analyze_event_chunk(self, df_event_chunk):
-
         # Loop through events
         start = time.time()
-        weight_sum = 0.
+        weight_sum = 0.0
         # Track the overall centrality range
         centrality_range_min, centrality_range_max = 100, 0
         for i, event in df_event_chunk.iterrows():
-
             if i % 1000 == 0:
-                print(f'event: {i}    (time elapsed: {time.time() - start} s)')  # noqa: T201
+                print(f"event: {i}    (time elapsed: {time.time() - start} s)")  # noqa: T201
 
             if i > self.n_event_max:
                 break
@@ -152,24 +148,26 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 if i == 0 and "centrality" not in event:
                     msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
                     raise ValueError(msg)
-                self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
+                self.centrality = [
+                    int(np.floor(event["centrality"])),
+                    int(np.ceil(event["centrality"])),
+                ]  # Dynamically set centrality; values are passed from the parquet file
 
             # Call user-defined function to analyze event
             self.analyze_event(event)
 
             # Fill the observables dict to a new entry in the event list
-            event_weight = event['event_weight']
+            event_weight = event["event_weight"]
             weight_sum += event_weight
             if self.event_has_entries(self.observable_dict_event):
-
                 # Fill event cross-section weight
-                self.observable_dict_event['event_weight'] = event_weight
-                self.observable_dict_event['pt_hat'] = event['pt_hat']
+                self.observable_dict_event["event_weight"] = event_weight
+                self.observable_dict_event["pt_hat"] = event["pt_hat"]
 
                 # Add event-wise centrality (same for all events in pre-computed hydro; varies event-by-event for real_time_hydro)
                 if self.is_AA:
-                    self.observable_dict_event['centrality_min'] = self.centrality[0]
-                    self.observable_dict_event['centrality_max'] = self.centrality[1]
+                    self.observable_dict_event["centrality_min"] = self.centrality[0]
+                    self.observable_dict_event["centrality_max"] = self.centrality[1]
                     # This is trivially the same for each event for the pre-computed hydro,
                     # but it varies for the on-the-fly case.
                     centrality_range_min = min(self.centrality[0], centrality_range_min)
@@ -178,19 +176,18 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 self.output_event_list.append(self.observable_dict_event)
 
         # Get total cross-section (same for all events at this point), weight sum, and centrality
-        self.cross_section_dict['cross_section'] = event['cross_section']
-        self.cross_section_dict['cross_section_error'] = event['cross_section_error']
-        self.cross_section_dict['n_events'] = self.n_event_max
-        self.cross_section_dict['weight_sum'] = weight_sum
+        self.cross_section_dict["cross_section"] = event["cross_section"]
+        self.cross_section_dict["cross_section_error"] = event["cross_section_error"]
+        self.cross_section_dict["n_events"] = self.n_event_max
+        self.cross_section_dict["weight_sum"] = weight_sum
         if self.is_AA:
-            self.cross_section_dict['centrality_range_min'] = int(np.floor(centrality_range_min))
-            self.cross_section_dict['centrality_range_max'] = int(np.ceil(centrality_range_max))
+            self.cross_section_dict["centrality_range_min"] = int(np.floor(centrality_range_min))
+            self.cross_section_dict["centrality_range_max"] = int(np.ceil(centrality_range_max))
 
     # ---------------------------------------------------------------
     # Initialize output objects
     # ---------------------------------------------------------------
     def initialize_output_objects(self):
-
         # Initialize list to store observables
         # Each entry in the list stores a dict for a given event
         self.output_event_list = []
@@ -202,17 +199,14 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # Save output event list into a dataframe
     # ---------------------------------------------------------------
     def event_has_entries(self, event_dict):
-
         return bool([obs for obs in event_dict.values() if obs != []])
 
     # ---------------------------------------------------------------
     # Check if event centrality is within observable's centrality
     # ---------------------------------------------------------------
     def centrality_accepted(self, observable_centrality_list):
-
         # AA
         if self.is_AA:
-
             for observable_centrality in observable_centrality_list:
                 if self.centrality[0] >= observable_centrality[0] and self.centrality[1] <= observable_centrality[1]:
                     return True
@@ -225,10 +219,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # Save output event list into a dataframe
     # ---------------------------------------------------------------
     def write_output_objects(self):
-
         # Convert to pandas, and then arrow.
         self.output_dataframe = pd.DataFrame(self.output_event_list)
-        #self.output_dataframe = ak.Array(self.output_event_list)
+        # self.output_dataframe = ak.Array(self.output_event_list)
         table = pa.Table.from_pandas(self.output_dataframe)
 
         # Write to parquet
@@ -243,7 +236,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         print(f"float_columns: {float_columns}")  # noqa: T201
         print(f"other_columns: {other_columns}")  # noqa: T201
         pq.write_table(
-            table, self.output_dir / self.output_file, compression="zstd",
+            table,
+            self.output_dir / self.output_file,
+            compression="zstd",
             use_dictionary=other_columns,
             use_byte_stream_split=float_columns,
         )
@@ -251,7 +246,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Write cross-section to separate file
         cross_section_dataframe = pd.DataFrame(self.cross_section_dict, index=[0])
         cross_section_table = pa.Table.from_pandas(cross_section_dataframe)
-        filename = self.output_file.replace('observables', 'cross_section')
+        filename = self.output_file.replace("observables", "cross_section")
         pq.write_table(cross_section_table, self.output_dir / filename, compression="zstd")
 
     # ---------------------------------------------------------------
@@ -267,37 +262,36 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # We also return the list of PID values, so that it can later be determined from the index i
     # ---------------------------------------------------------------
     def fill_fastjet_constituents(self, event, select_status=None, select_charged=False):
-
         # Construct indices according to particle status
-        if select_status == '-':
-            status_mask = (event['status'] < 0)
-        elif select_status == '+':
-            status_mask = (event['status'] > -1)
+        if select_status == "-":
+            status_mask = event["status"] < 0
+        elif select_status == "+":
+            status_mask = event["status"] > -1
         else:
             # Picked a value to make an all true mask. We don't select anything
-            status_mask = event['status'] > -1e6
+            status_mask = event["status"] > -1e6
 
         # Construct indices according to charge
-        charged_mask = get_charged_mask(event['particle_ID'], select_charged)
+        charged_mask = get_charged_mask(event["particle_ID"], select_charged)
 
         # Get selected particles
         full_mask = status_mask & charged_mask
-        px = event['px'][full_mask]
-        py = event['py'][full_mask]
-        pz = event['pz'][full_mask]
-        e = event['E'][full_mask]
-        pid = event['particle_ID'][full_mask]
+        px = event["px"][full_mask]
+        py = event["py"][full_mask]
+        pz = event["pz"][full_mask]
+        e = event["E"][full_mask]
+        pid = event["particle_ID"][full_mask]
 
         # Define status_factor -- either +1 (positive status) or -1 (negative status)
-        status_selected = event['status'][full_mask] # Either 0 (positive) or -1 (negative)
-        status_factor = 2*status_selected + 1 # Change to +1 (positive) or -1 (negative)
+        status_selected = event["status"][full_mask]  # Either 0 (positive) or -1 (negative)
+        status_factor = 2 * status_selected + 1  # Change to +1 (positive) or -1 (negative)
         # NOTE: Need to explicitly convert to np.int8 -> np.int32 so that the status factor can be
         #       set properly below. Otherwise, it will overflow when setting the user index if there
         #       are too many particles.
         status_factor = status_factor.astype(np.int32)
-        for status in np.unique(status_selected): # Check that we only encounter expected statuses
-            if status not in [0,-1]:
-                msg = f'ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}'
+        for status in np.unique(status_selected):  # Check that we only encounter expected statuses
+            if status not in [0, -1]:
+                msg = f"ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}"
                 raise RuntimeError(msg)
 
         # Create a vector of fastjet::PseudoJets from arrays of px,py,pz,e
@@ -308,12 +302,13 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # We then have: pid_index = abs(user_index) - 1
         # In this way, user_index > 0 corresponds to positive status particles, and user_index < 0 corresponds to negative status particles
         if len(fj_particles) == len(status_factor):
-            [fj_particles[i].set_user_index(int(status_factor[i]*(i+1))) for i,_ in enumerate(fj_particles)]
+            [fj_particles[i].set_user_index(int(status_factor[i] * (i + 1))) for i, _ in enumerate(fj_particles)]
         else:
-            msg = f'ERROR: fill_fastjet_constituents -- len(fj_particles) != {len(status_factor)} -- {len(fj_particles)} vs. {len(status_factor)}'
+            msg = f"ERROR: fill_fastjet_constituents -- len(fj_particles) != {len(status_factor)} -- {len(fj_particles)} vs. {len(status_factor)}"
             raise RuntimeError(msg)
 
         return fj_particles, pid
+
     def is_prompt_photon(self, photon) -> bool:
         """Check whether the given photon is prompt.
 
@@ -328,7 +323,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         return True
 
     # find out if the particle is isolated or not
-    def is_isolated(self, trigger_particle, iso_particles_charged_pos,iso_particles_charged_neg,iso_R, iso_Et_max):
+    def is_isolated(self, trigger_particle, iso_particles_charged_pos, iso_particles_charged_neg, iso_R, iso_Et_max):
         """Find out if the particle is isolated or not.
 
         Args:
@@ -343,7 +338,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             bool: True if the particle is isolated, False otherwise
         """
         # Calculate sum Et of particles in cone around trigger particle
-        sum_Et = 0.
+        sum_Et = 0.0
         for particle in iso_particles_charged_pos:
             if trigger_particle.delta_R(particle) < iso_R:
                 # Skip the trigger particle itself
@@ -355,9 +350,10 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 # Skip the trigger particle itself
                 if particle.user_index() == trigger_particle.user_index():
                     continue
-                sum_Et -= particle.Et() # subtract holes
+                sum_Et -= particle.Et()  # subtract holes
         # Return whether sum Et is below threshold
         return sum_Et < iso_Et_max
+
     # TODO implement this after asking Peter
     def build_trigger_response_matrix_STAR(self):
         # create a 2D matrix from 6 to 30 GeV/c in bine of 1 GeV
@@ -390,12 +386,14 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 # Calculate probability that this Et_part gives the Et_det bin
                 # Using error function (erf) for Gaussian integral over bin width
                 bin_low = Et_det - 0.5  # Lower edge of Et_det bin
-                bin_high = Et_det + 0.5 # Upper edge of Et_det bin
+                bin_high = Et_det + 0.5  # Upper edge of Et_det bin
 
-                prob = 0.5 * (scipy.special.erf((bin_high - mean)/(sigma * np.sqrt(2))) -
-                             scipy.special.erf((bin_low - mean)/(sigma * np.sqrt(2))))
+                prob = 0.5 * (
+                    scipy.special.erf((bin_high - mean) / (sigma * np.sqrt(2)))
+                    - scipy.special.erf((bin_low - mean) / (sigma * np.sqrt(2)))
+                )
 
-                trigger_response_matrix[i,j] = prob
+                trigger_response_matrix[i, j] = prob
 
         # Normalize each Et_det row to sum to 1
         row_sums = trigger_response_matrix.sum(axis=1)
@@ -418,54 +416,55 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         """
         # Select photons (PID = 22) with positive status (TODO ask raymond what status exactly means)
         # TODO check with Raymond how to handle holes
-        photon_mask = (event['particle_ID'] == 22) & (event['status'] > -1)
+        photon_mask = (event["particle_ID"] == 22) & (event["status"] > -1)
 
         # Get photon kinematics
-        px = event['px'][photon_mask]
-        py = event['py'][photon_mask]
-        pz = event['pz'][photon_mask]
-        e = event['E'][photon_mask]
+        px = event["px"][photon_mask]
+        py = event["py"][photon_mask]
+        pz = event["pz"][photon_mask]
+        e = event["E"][photon_mask]
 
         # Create fastjet particles
         fj_photons = fjext.vectorize_px_py_pz_e(px, py, pz, e)
 
         return fj_photons
+
     # Function to obtain jet_pt and jet_pt_uncorrected according to jet collection
-    def get_jet_pt(self,jet,jetR,hadrons_negative,jet_collection_label=''):
-        jet_pt, jet_pt_uncorrected = 0., 0.
+    def get_jet_pt(self, jet, jetR, hadrons_negative, jet_collection_label=""):
+        jet_pt, jet_pt_uncorrected = 0.0, 0.0
         holes_in_jet = []
-        if jet_collection_label in ['_shower_recoil', '_negative_recombiner']:
+        if jet_collection_label in ["_shower_recoil", "_negative_recombiner"]:
             for hadron in hadrons_negative:
                 if jet.delta_R(hadron) < jetR:
                     holes_in_jet.append(hadron)
         # Correct the pt of the jet, if applicable
         # For pp or negative recombiner or constituent subtraction case, we do not need to adjust the pt
         # For the shower+recoil case, we need to subtract the hole pt
-        if jet_collection_label in ['', '_negative_recombiner', '_constituent_subtraction']:
-                jet_pt = jet_pt_uncorrected = jet.pt()
-        elif jet_collection_label in ['_shower_recoil']:
-                negative_pt = 0.
-                for hadron in holes_in_jet:
-                    negative_pt += hadron.pt()
-                jet_pt_uncorrected = jet.pt()               # uncorrected pt: shower+recoil
-                jet_pt = jet_pt_uncorrected - negative_pt   # corrected pt: shower+recoil-holes
+        if jet_collection_label in ["", "_negative_recombiner", "_constituent_subtraction"]:
+            jet_pt = jet_pt_uncorrected = jet.pt()
+        elif jet_collection_label in ["_shower_recoil"]:
+            negative_pt = 0.0
+            for hadron in holes_in_jet:
+                negative_pt += hadron.pt()
+            jet_pt_uncorrected = jet.pt()  # uncorrected pt: shower+recoil
+            jet_pt = jet_pt_uncorrected - negative_pt  # corrected pt: shower+recoil-holes
         return jet_pt, jet_pt_uncorrected
-
 
     # ---------------------------------------------------------------
     # This function is called once per event
     # You must implement this
     # ---------------------------------------------------------------
     def analyze_event(self, event):
-        msg = 'You must implement analyze_event()!'
+        msg = "You must implement analyze_event()!"
         raise NotImplementedError(msg)
+
 
 # ---------------------------------------------------------------
 # Construct charged particle mask
 # ---------------------------------------------------------------
 @jit(nopython=True)
 def get_charged_mask(pid, select_charged: bool):
-    """ Create mask for selected a set of charged particles based on PID.
+    """Create mask for selected a set of charged particles based on PID.
 
     Note:
         This function assumes that the same set of charged particles are selected
@@ -495,8 +494,10 @@ def get_charged_mask(pid, select_charged: bool):
 
 
 @jit(nopython=True)
-def dphi_in_range_for_hadron_correlations(dphi: float, min_phi: float = -np.pi / 2, max_phi: float = 3 * np.pi / 2) -> float:
-    """ Put dphi in range min_phi <= dphi < max_phi
+def dphi_in_range_for_hadron_correlations(
+    dphi: float, min_phi: float = -np.pi / 2, max_phi: float = 3 * np.pi / 2
+) -> float:
+    """Put dphi in range min_phi <= dphi < max_phi
 
     Args:
         dphi: phi value to normalize.
