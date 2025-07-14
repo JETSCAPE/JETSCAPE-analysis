@@ -662,7 +662,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and jet_pt > jet_pt_min
                                 and jet_pt < jet_pt_max):
                                 # TODO double check if Njet is really the number of jets or if it should be normalized to number of jet pairs
-                                #self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
+                                #self.observable_dict_event[f'gamma_trigger_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
                                 if photon.delta_phi(jet) > (dPhi * np.pi):
                                     # Fill Njet, which is number of jets back to back
                                     # Loop over all primary_hadrons and select those that are back to back with the jet
@@ -671,20 +671,20 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                             continue
                                         pid = pid_hadrons_positive[np.abs(hadron.user_index())-1]
                                         if (jet.delta_R(hadron) < track_dR) and (hadron.pt() > track_pt) and (pid in acceptable_hadrons):
-                                            self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njch'].append(jet_pt)
+                                            self.observable_dict_event[f'gamma_trigger_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njch'].append(jet_pt)
                                             z = hadron.pt() * np.cos(jet.delta_R(hadron)) / jet_pt
-                                            self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}{jet_collection_label}'].append(jet_pt, z)
-                                            self.observable_dict_event[f'photon_jet_Dpt_atlas_R{jetR}{jet_collection_label}'].append(jet_pt, hadron.pt())
+                                            self.observable_dict_event[f'gamma_trigger_jet_Dz_atlas_R{jetR}{jet_collection_label}'].append(jet_pt, z)
+                                            self.observable_dict_event[f'gamma_trigger_jet_Dpt_atlas_R{jetR}{jet_collection_label}'].append(jet_pt, hadron.pt())
                                     if jet_collection_label in ['_shower_recoil', '_negative_recombiner']:
                                         for hadron in holes_in_jet:
                                             if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() > 0 :
                                                 continue
                                             pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
                                             if (jet.delta_R(hadron) < track_dR) and (hadron.pt() > track_pt) and (pid in acceptable_hadrons):
-                                                self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}_holes{jet_collection_label}_Njch'].append(jet_pt)
+                                                self.observable_dict_event[f'gamma_trigger_jet_Dz_atlas_R{jetR}_holes{jet_collection_label}_Njch'].append(jet_pt)
                                                 z = hadron.pt() * np.cos(jet.delta_R(hadron)) / jet_pt
-                                                self.observable_dict_event[f'photon_jet_Dz_atlas_R{jetR}_holes{jet_collection_label}'].append(jet_pt, z)
-                                                self.observable_dict_event[f'photon_jet_Dpt_atlas_R{jetR}_holes{jet_collection_label}'].append(jet_pt, hadron.pt())
+                                                self.observable_dict_event[f'gamma_trigger_jet_Dz_atlas_R{jetR}_holes{jet_collection_label}'].append(jet_pt, z)
+                                                self.observable_dict_event[f'gamma_trigger_jet_Dpt_atlas_R{jetR}_holes{jet_collection_label}'].append(jet_pt, hadron.pt())
             # CMS Xi
             # ---------------------------------------------------------------
             # description electron, muon, pi, K, p, Sigma, Sigma-, Xi, Omega
@@ -758,14 +758,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             and jet_pt > jet_pt_min
                             and highest_pt_photon.delta_phi(jet) > (dPhi * np.pi)):
                             # TODO double check if Njet is really the number of jets or if it should be normalized to number of jet pairs
-                            self.observable_dict_event[f'photon_jet_xi_cms_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
+                            self.observable_dict_event[f'gamma_trigger_jet_xi_cms_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
                             # loop over all primary_hadrons that fulfill cuts
                             for hadron in hadrons_for_jet_finding:
                                 if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() < 0 :
                                     continue
                                 pid = pid_hadrons_positive[np.abs(hadron.user_index())-1]
                                 if (jet.delta_R(hadron) < track_dR) and (hadron.pt() > track_pt) and (pid in acceptable_hadrons):
-                                    self.observable_dict_event[f'photon_jet_xi_cms_R{jetR}{jet_collection_label}_Njch'].append(jet_pt)
+                                    self.observable_dict_event[f'gamma_trigger_jet_xi_cms_R{jetR}{jet_collection_label}_Njch'].append(jet_pt)
                                     # everything needs to be with three vectors!
                                     jet_vec3_abs = (jet.px()**2 + jet.py()**2 + jet.pz()**2)**0.5
                                     scl_product_jet_track = jet.px()*hadron.px() + jet.py()*hadron.py() + jet.pz()*hadron.pz()
@@ -774,15 +774,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     xi_jet = np.log((jet_vec3_abs * jet_vec3_abs) / (scl_product_jet_track))
                                     # TODO check why we need negative sign here
                                     xi_gamma = np.log((-1)*(photon_vec3_abs * photon_vec3_abs) / (scl_product_jet_photon))
-                                    self.observable_dict_event[f'photon_jet_xi_jet_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xi_jet)
-                                    self.observable_dict_event[f'photon_jet_xi_gamma_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xi_gamma)
+                                    self.observable_dict_event[f'gamma_trigger_jet_xi_jet_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xi_jet)
+                                    self.observable_dict_event[f'gamma_trigger_jet_xi_gamma_cms_R{jetR}{jet_collection_label}'].append(jet_pt, xi_gamma)
                             if jet_collection_label in ['_shower_recoil', '_negative_recombiner']:
                                 for hadron in holes_in_jet:
                                     if jet_collection_label in ['_negative_recombiner'] and hadron.user_index() > 0 :
                                         continue
                                     pid = pid_hadrons_negative[np.abs(hadron.user_index())-1]
                                     if (jet.delta_R(hadron) < track_dR) and (hadron.pt() > track_pt) and (pid in acceptable_hadrons):
-                                        self.observable_dict_event[f'photon_jet_xi_cms_R{jetR}_holes{jet_collection_label}_Njch'].append(jet_pt)
+                                        self.observable_dict_event[f'gamma_trigger_jet_xi_cms_R{jetR}_holes{jet_collection_label}_Njch'].append(jet_pt)
                                         # everything needs to be with three vectors!
                                         jet_vec3_abs = (jet.px()**2 + jet.py()**2 + jet.pz()**2)**0.5
                                         scl_product_jet_track = jet.px()*hadron.px() + jet.py()*hadron.py() + jet.pz()*hadron.pz()
@@ -791,8 +791,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         xi_jet = np.log((jet_vec3_abs * jet_vec3_abs) / (scl_product_jet_track))
                                         # TODO check why we need negative sign here
                                         xi_gamma = np.log((-1)*(photon_vec3_abs * photon_vec3_abs) / (scl_product_jet_photon))
-                                        self.observable_dict_event[f'photon_jet_xi_jet_cms_R{jetR}_holes{jet_collection_label}'].append(jet_pt, xi_jet)
-                                        self.observable_dict_event[f'photon_jet_xi_gamma_cms_R{jetR}_holes{jet_collection_label}'].append(jet_pt, xi_gamma)
+                                        self.observable_dict_event[f'gamma_trigger_jet_xi_jet_cms_R{jetR}_holes{jet_collection_label}'].append(jet_pt, xi_jet)
+                                        self.observable_dict_event[f'gamma_trigger_jet_xi_gamma_cms_R{jetR}_holes{jet_collection_label}'].append(jet_pt, xi_gamma)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
@@ -859,9 +859,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and jet_pt > jet_pt_min
                                 and jet_pt < jet_pt_max
                                 and photon.delta_phi(jet) > (photon_jet_dPhi * np.pi)):
-                                    self.observable_dict_event[f'photon_jet_pt_atlas_R{jetR}{jet_collection_label}'].append(jet_pt)
+                                    self.observable_dict_event[f'gamma_trigger_jet_pt_atlas_R{jetR}{jet_collection_label}'].append(jet_pt)
                                     if jet_collection_label in ['_shower_recoil']:
-                                        self.observable_dict_event[f'photon_jet_pt_atlas_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
+                                        self.observable_dict_event[f'gamma_trigger_jet_pt_atlas_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
@@ -917,7 +917,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         and self.is_prompt_photon(photon)):
 
                         # for normalization purposes, we also need to keep track of the number of photons
-                        self.observable_dict_event[f'photon_jet_xj_atlas_R{jetR}{jet_collection_label}_Ngamma'].append(photon.Et())
+                        self.observable_dict_event[f'gamma_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}_Ngamma'].append(photon.Et())
 
                         for jet in jets_selected:
                             jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
@@ -929,9 +929,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and photon.delta_phi(jet) > (photon_jet_dPhi * np.pi)):
                                     xj = jet_pt / photon.Et()
                                     xj_uncorrected = jet_pt_uncorrected / photon.Et()
-                                    self.observable_dict_event[f'photon_jet_xj_atlas_R{jetR}{jet_collection_label}_xj'].append(photon.Et(), xj)
+                                    self.observable_dict_event[f'gamma_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}_xj'].append(photon.Et(), xj)
                                     if jet_collection_label in ['_shower_recoil']:
-                                        self.observable_dict_event[f'photon_jet_xj_atlas_R{jetR}{jet_collection_label}_xj_unsubtracted'].append(photon.Et(), xj_uncorrected)
+                                        self.observable_dict_event[f'gamma_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}_xj_unsubtracted'].append(photon.Et(), xj_uncorrected)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
@@ -995,7 +995,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # now that we hav the trigger, we can perform the combination with jets
                 if highest_pt_photon is not None:
                     # count the number of triggers for normalization purposes
-                    self.observable_dict_event[f'photon_jet_xj_cms_R{jetR}{jet_collection_label}_Ngamma'].append(highest_pt_photon.Et())
+                    self.observable_dict_event[f'gamma_trigger_jet_xj_cms_R{jetR}{jet_collection_label}_Ngamma'].append(highest_pt_photon.Et())
 
                     for jet in jets_selected:
                         jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
@@ -1004,15 +1004,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             and abs(jet.eta()) > jet_eta_min
                             and jet_pt > jet_pt_min):
                             # No delta phi requirement just jet, first append deltaPhi vs jet pt
-                            self.observable_dict_event[f'photon_jet_dphi_cms_R{jetR}{jet_collection_label}'].append([highest_pt_photon.Et(), highest_pt_photon.delta_phi(jet)])
+                            self.observable_dict_event[f'gamma_trigger_jet_dphi_cms_R{jetR}{jet_collection_label}'].append([highest_pt_photon.Et(), highest_pt_photon.delta_phi(jet)])
 
                             # check if back to back
                             if abs(highest_pt_photon.delta_phi(jet)) < (photon_jet_dPhi * np.pi):
                                 xj = jet_pt / highest_pt_photon.Et()
                                 xj_uncorrected = jet_pt_uncorrected / highest_pt_photon.Et()
-                                self.observable_dict_event[f'photon_jet_xj_cms_R{jetR}{jet_collection_label}'].append(highest_pt_photon.Et(), xj)
+                                self.observable_dict_event[f'gamma_trigger_jet_xj_cms_R{jetR}{jet_collection_label}'].append(highest_pt_photon.Et(), xj)
                                 if jet_collection_label in ['_shower_recoil']:
-                                    self.observable_dict_event[f'photon_jet_xj_cms_R{jetR}{jet_collection_label}_unsubtracted'].append(highest_pt_photon.Et(), xj_uncorrected)
+                                    self.observable_dict_event[f'gamma_trigger_jet_xj_cms_R{jetR}{jet_collection_label}_unsubtracted'].append(highest_pt_photon.Et(), xj_uncorrected)
 
             #------------------------------------------------------------
             #------------------------------------------------------------
@@ -1238,7 +1238,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             continue
 
                         # count the number of triggers for normalization purposes
-                        self.observable_dict_event[f'photon_jet_IAA_star_R{jetR}{jet_collection_label}_Ngamma'].append(photon.Et())
+                        self.observable_dict_event[f'gamma_trigger_jet_IAA_star_R{jetR}{jet_collection_label}_Ngamma'].append(photon.Et())
 
                         for jet in jets_selected:
                             jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
@@ -1248,13 +1248,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and jet_pt < jet_pt_max):
 
                                 # plot dPhi vs jet pt
-                                self.observable_dict_event[f'photon_jet_dphi_star_R{jetR}{jet_collection_label}'].append([jet_pt, photon.delta_phi(jet)])
+                                self.observable_dict_event[f'gamma_trigger_jet_dphi_star_R{jetR}{jet_collection_label}'].append([jet_pt, photon.delta_phi(jet)])
 
                                 # plot IAA vs jet pt
                                 if photon.delta_phi(jet) > (photon_jet_dPhi * np.pi):
-                                    self.observable_dict_event[f'photon_jet_IAA_star_R{jetR}{jet_collection_label}'].append(jet_pt)
+                                    self.observable_dict_event[f'gamma_trigger_jet_IAA_star_R{jetR}{jet_collection_label}'].append(jet_pt)
                                     if jet_collection_label in ['_shower_recoil']:
-                                        self.observable_dict_event[f'photon_jet_IAA_star_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
+                                        self.observable_dict_event[f'gamma_trigger_jet_IAA_star_R{jetR}{jet_collection_label}_unsubtracted'].append(jet_pt_uncorrected)
 
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
             # ---------------------------------------------------------------
@@ -1286,7 +1286,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     if (pi0.Et() > pi0_Pt_min and pi0.Et() < pi0_Pt_max
                         and abs(pi0.eta()) < pi0_eta_max):
                         # count the number of triggers for normalization purposes
-                        self.observable_dict_event[f'photon_jet_IAA_pi0_star_R{jetR}{jet_collection_label}_Npi0'].append(pi0.Et())
+                        self.observable_dict_event[f'gamma_trigger_jet_IAA_pi0_star_R{jetR}{jet_collection_label}_Npi0'].append(pi0.Et())
 
                         for jet in jets_selected:
                             jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet,jetR,hadrons_negative,jet_collection_label)
