@@ -694,6 +694,20 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         jetR,
                         jet_collection_label=jet_collection_label,
                     )
+            if self.pion_trigger_chjet_observables:
+                if self.sqrts == 200:
+                    jetR_list = self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet_R"]
+                    # NOTE: No need to repeat to STAR dphi, since the values are the same
+                if jetR in jetR_list:
+                    self.fill_pion_trigger_chjet_observables(
+                        jets_selected,
+                        hadrons_for_jet_finding,
+                        hadrons_negative,
+                        jetR,
+                        jet_collection_label=jet_collection_label,
+                    )
+
+
 
     # ---------------------------------------------------------------
     # Fill photon correlation observables
@@ -2964,7 +2978,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Fill semi-inclusive pi zero jet observables
     # ---------------------------------------------------------------
-    def fill_semi_inclusive_pizerojet_observables(
+    def fill_pion_trigger_chjet_observables(
         self,
         jets_selected,
         hadrons_for_jet_finding,
@@ -2972,16 +2986,28 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         pid_hadrons_negative,
         jetR,
         jet_collection_label="",
-    ):
+    ) -> None:
+        """Measure and record pi-zero triggered charged-particle jet observables.
+
+        By definition, these observables are semi-inclusive.
+
+        Args:
+            ...
+        Returns:
+            None
+        """
         if self.sqrts == 200:
-            IAA_settings = self.semi_inclusive_pizerojet_observables["IAA_star"]
-            R25_settings = self.semi_inclusive_pizerojet_observables.get("R25_star", {})
+            # Pion-triggered chjet semi-inclusive IAA, dphi
+            # TODO(RJE): Hole subtraction
+            # TODO(RJE): Cleanup ratio construction
+            IAA_settings = self.pion_trigger_chjet_observables["IAA_star"]
+            # R25_settings = self.pion_trigger_chjet_observables.get("R25_star", {})
 
             trigger_range = IAA_settings["trigger_range"]
             pt_IAA = IAA_settings["pt"]
-            pt_R25 = R25_settings.get("pt", [0.0, 999.0])
+            # pt_R25 = R25_settings.get("pt", [0.0, 999.0])
 
-            eta_cut_trigger = IAA_settings["pizero_eta_cut"]
+            eta_cut_trigger = IAA_settings["pi_zero_eta_cut"]
             eta_cut_R = IAA_settings["eta_cut_R"]  # assumes same order
 
             trigger_array_pi0 = []
@@ -3004,7 +3030,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # Record trigger pt for normalization
                 if jetR == min(IAA_settings["jet_R"]):
                     self.observable_dict_event[
-                        f"semi_inclusive_pizerojet_IAA_star_trigger_pt{jet_collection_label}"
+                        f"pion_trigger_chjet_IAA_pt_star_trigger_pt{jet_collection_label}"
                     ].append(trigger.pt())
 
                 for jet in jets_selected:
@@ -3025,24 +3051,24 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
                                     if pt_IAA[0] < jet_pt < pt_IAA[1]:
                                         self.observable_dict_event[
-                                            f"semi_inclusive_pizerojet_IAA_star_R{jetR}{jet_collection_label}"
+                                            f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
                                         ].append(jet_pt)
                                         if jet_collection_label in ["_shower_recoil"]:
                                             self.observable_dict_event[
-                                                f"semi_inclusive_pizerojet_IAA_star_R{jetR}{jet_collection_label}_unsubtracted"
+                                                f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
                                             ].append(jet_pt_unsubtracted)
 
-                            # R(0.2/0.5)
-                            if jetR in R25_settings.get("jet_R", []):
-                                if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                    if pt_R25[0] < jet_pt < pt_R25[1]:
-                                        self.observable_dict_event[
-                                            f"semi_inclusive_pizerojet_R25_star_R{jetR}{jet_collection_label}"
-                                        ].append(jet_pt)
-                                        if jet_collection_label in ["_shower_recoil"]:
-                                            self.observable_dict_event[
-                                                f"semi_inclusive_pizerojet_R25_star_R{jetR}{jet_collection_label}_unsubtracted"
-                                            ].append(jet_pt_unsubtracted)
+                            # # R(0.2/0.5)
+                            # if jetR in R25_settings.get("jet_R", []):
+                            #     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
+                            #         if pt_R25[0] < jet_pt < pt_R25[1]:
+                            #             self.observable_dict_event[
+                            #                 f"semi_inclusive_pizerojet_R25_star_R{jetR}{jet_collection_label}"
+                            #             ].append(jet_pt)
+                            #             if jet_collection_label in ["_shower_recoil"]:
+                            #                 self.observable_dict_event[
+                            #                     f"semi_inclusive_pizerojet_R25_star_R{jetR}{jet_collection_label}_unsubtracted"
+                            #                 ].append(jet_pt_unsubtracted)
 
     # ---------------------------------------------------------------
     # Fill dijet observables
