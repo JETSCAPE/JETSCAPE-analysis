@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
+from typing import Any
 
 import fastjet as fj  # pyright: ignore [reportMissingImports]
 import fjcontrib  # pyright: ignore [reportMissingImports]
@@ -203,7 +204,18 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # ---------------------------------------------------------------
     # Check if event centrality is within observable's centrality
     # ---------------------------------------------------------------
-    def centrality_accepted(self, observable_centrality_list):
+    def centrality_accepted(self, observable_centrality_list) -> bool:
+        """True if the observable should be measured based on it's required centrality.
+
+        Note:
+            We provide a list since many observables are binned in, and we want to measure the
+            observable if the current centrality is within **any** of those ranges.
+
+        Args:
+            observable_centrality_list: List of centrality ranges that the observable is measured in.
+        Returns:
+            True if the centrality is accepted.
+        """
         # AA
         if self.is_AA:
             for observable_centrality in observable_centrality_list:
@@ -213,6 +225,25 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         # pp
         return True
+
+    def measure_observable_for_current_event(self, observable_config: dict[str, Any]) -> bool:
+        """True if the provided observable configuration should be measured for the current event.
+
+        More specific observable selections are left for the particular implementation, but
+
+        Args:
+            observable_config: Configuration for the observable of interest.
+        Returns:
+            True if the observable should be measured for the current event.
+        """
+        return_values = []
+        # Check the required centrality range(s).
+        return_values.append(self.centrality_accepted(observable_config["centrality"]))
+        # The observable must be explicitly enabled.
+        return_values.append(observable_config["enabled"])
+
+        # Only measure the observable if all conditions are met
+        return all(return_values)
 
     # ---------------------------------------------------------------
     # Save output event list into a dataframe
