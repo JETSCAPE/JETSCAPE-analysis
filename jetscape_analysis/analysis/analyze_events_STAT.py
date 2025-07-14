@@ -26,7 +26,10 @@
 .. codeauthor:: Raymond Ehlers (raymond.ehlers@cern.ch)
 """
 
+from __future__ import annotations
+
 import argparse
+import logging
 import random
 from collections import defaultdict
 from pathlib import Path
@@ -39,6 +42,9 @@ import numpy as np
 import yaml
 
 from jetscape_analysis.analysis import analyze_events_base_STAT
+from jetscape_analysis.base import helpers
+
+logger = logging.getLogger(__name__)
 
 
 ################################################################
@@ -3186,7 +3192,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
 
 ##################################################################
-if __name__ == "__main__":
+def main_entry_point() -> None:
     # Define arguments
     parser = argparse.ArgumentParser(description="Generate JETSCAPE events")
     parser.add_argument(
@@ -3216,9 +3222,22 @@ if __name__ == "__main__":
         default="/home/jetscape-user/JETSCAPE-analysis/TestOutput",
         help="Output directory for output to be written to",
     )
+    # Add logging level and pass to function below
+    parser.add_argument(
+        "-l",
+        "--logLevel",
+        action="store",
+        type=str,
+        metavar="logLevel",
+        default="INFO",
+        help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
 
     # Parse the arguments
     args = parser.parse_args()
+
+    # Setup logging
+    helpers.setup_logging(level=args.logLevel)
 
     # If invalid configFile is given, exit
     if not Path(args.configFile).exists():
@@ -3234,3 +3253,7 @@ if __name__ == "__main__":
         config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir
     )
     analysis.analyze_jetscape_events()
+
+
+if __name__ == "__main__":
+    main_entry_point()
