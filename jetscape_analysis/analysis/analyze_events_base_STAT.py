@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import scipy.special
 import yaml
 from numba import jit
 
@@ -46,10 +47,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         with Path(self.config_file).open() as f:
             config = yaml.safe_load(f)
 
-            if "n_event_max" in config:
-                self.n_event_max = config["n_event_max"]
-            else:
-                self.n_event_max = -1
+        # Allow an early stop to the analysis (if desired).
+        self.n_event_max = config.get("n_event_max", -1)
 
         # Check whether pp or AA
         if "PbPb" in self.input_file_hadrons or "AuAu" in self.input_file_hadrons:
@@ -82,7 +81,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # If AA, initialize constituent subtractor
         self.constituent_subtractor = None
         if self.is_AA:
-            print("Constituent subtractor is enabled.")  # noqa: T201
+            logger.info("Constituent subtractor is enabled.")
             constituent_subtractor = config["constituent_subtractor"]
             max_distance = constituent_subtractor["R_max"]
             max_eta = constituent_subtractor["max_eta"]
@@ -95,15 +94,15 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             self.constituent_subtractor.set_ghost_area(ghost_area)
             self.constituent_subtractor.set_max_eta(max_eta)
             self.constituent_subtractor.initialize()
-            print(dir(self.constituent_subtractor))  # noqa: T201
+            logger.info(dir(self.constituent_subtractor))
         else:
-            print("Constituent subtractor is disabled.")  # noqa: T201
+            logger.info("Constituent subtractor is disabled.")
 
     # ---------------------------------------------------------------
     # Main processing function
     # ---------------------------------------------------------------
     def analyze_jetscape_events(self):
-        print("Analyzing events ...")  # noqa: T201
+        logger.info("Analyzing events ...")
 
         # Initialize output objects
         self.initialize_output_objects()
@@ -120,7 +119,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Write analysis task output to ROOT file
         self.write_output_objects()
 
-        print("Done!")  # noqa: T201
+        logger.info("Done!")
 
     # ---------------------------------------------------------------
     # Analyze event chunk
@@ -133,7 +132,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         centrality_range_min, centrality_range_max = 100, 0
         for i, event in df_event_chunk.iterrows():
             if i % 1000 == 0:
-                print(f"event: {i}    (time elapsed: {time.time() - start} s)")  # noqa: T201
+                logger.info(f"event: {i}    (time elapsed: {time.time() - start} s)")
 
             if i > self.n_event_max:
                 break
@@ -233,8 +232,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # NOTE: As of 27 April 2021, this doesn't really work right because too many columns
         #       are of the "object" type. We may need to revise the output format to optimize
         #       the output size.
-        print(f"float_columns: {float_columns}")  # noqa: T201
-        print(f"other_columns: {other_columns}")  # noqa: T201
+        logger.info(f"float_columns: {float_columns}")
+        logger.info(f"other_columns: {other_columns}")
         pq.write_table(
             table,
             self.output_dir / self.output_file,
@@ -291,7 +290,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         status_factor = status_factor.astype(np.int32)
         for status in np.unique(status_selected):  # Check that we only encounter expected statuses
             if status not in [0, -1]:
-                msg = f"ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}"
+                msg = f"unexpected particle status -- {status}"
+                logger.error(msg)
                 raise RuntimeError(msg)
 
         # Create a vector of fastjet::PseudoJets from arrays of px,py,pz,e
@@ -304,12 +304,13 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         if len(fj_particles) == len(status_factor):
             [fj_particles[i].set_user_index(int(status_factor[i] * (i + 1))) for i, _ in enumerate(fj_particles)]
         else:
-            msg = f"ERROR: fill_fastjet_constituents -- len(fj_particles) != {len(status_factor)} -- {len(fj_particles)} vs. {len(status_factor)}"
+            msg = f"len(fj_particles) != {len(status_factor)} -- {len(fj_particles)} vs. {len(status_factor)}"
+            logger.error(msg)
             raise RuntimeError(msg)
 
         return fj_particles, pid
 
-    def is_prompt_photon(self, photon) -> bool:
+    def is_prompt_photon(self, photon) -> bool:  # noqa: ARG002
         """Check whether the given photon is prompt.
 
         Args:
@@ -398,7 +399,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Normalize each Et_det row to sum to 1
         row_sums = trigger_response_matrix.sum(axis=1)
         trigger_response_matrix = trigger_response_matrix / row_sums[:, np.newaxis]
-        return
+        return trigger_response_matrix  # noqa: RET504
 
     # ---------------------------------------------------------------
     # Function to find all final state photons in event
@@ -427,7 +428,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Create fastjet particles
         fj_photons = fjext.vectorize_px_py_pz_e(px, py, pz, e)
 
-        return fj_photons
+        return fj_photons  # noqa: RET504
 
     # Function to obtain jet_pt and jet_pt_uncorrected according to jet collection
     def get_jet_pt(self, jet, jetR, hadrons_negative, jet_collection_label=""):

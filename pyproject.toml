@@ -24,6 +24,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
   "Typing :: Typed",
 ]
@@ -44,6 +45,7 @@ dependencies = [
     "rich>=14.0.0",
     "vector>=1.6.2",
     "polars>=1.31.0",
+    "scipy>=1.15.3",
 ]
 
 [project.optional-dependencies]
