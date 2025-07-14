@@ -101,8 +101,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # pion-trigger
         if "pion_trigger_hadron" in config:
             self.pion_trigger_hadron_observables = config["pion_trigger_hadron"]
-        if "pion_trigger_jet" in config:
-            self.pion_trigger_jet_observables = config["pion_trigger_jet"]
+        if "pion_trigger_chjet" in config:
+            self.pion_trigger_chjet_observables = config["pion_trigger_jet"]
         # gamma-trigger
         if "gamma_trigger_hadron" in config:
             self.gamma_trigger_hadron_observables = config["gamma_trigger_hadron"]
@@ -696,7 +696,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     )
             if self.pion_trigger_chjet_observables:
                 if self.sqrts == 200:
-                    jetR_list = self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet_R"]
+                    jetR_list = self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_R"]
                     # NOTE: No need to repeat to STAR dphi, since the values are the same
                 if jetR in jetR_list:
                     self.fill_pion_trigger_chjet_observables(
@@ -2698,7 +2698,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         self, jets_selected, hadrons_for_jet_finding, hadrons_negative, jetR, jet_collection_label=""
     ):
         # split events into signal and reference-classed events
-        # majority signal to optimise stat. unc.
+        # majority signal to optimize stat. unc.
         frac_signal = 0.8
         is_signal_event = True
         if random.random() > frac_signal:
@@ -2762,6 +2762,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             self.centrality_accepted(
                                 self.hadron_trigger_chjet_observables["IAA_pt_alice"]["centrality"]
                             )
+                            # NOTE: We're using the IAA as a proxy for the dphi being enabled here!
+                            #       (This should be a reasonable assumption - just noting to be explicit)
                             and self.hadron_trigger_chjet_observables["IAA_pt_alice"]["enabled"]
                         ):
                             if is_signal_event:
@@ -2998,17 +3000,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         """
         if self.sqrts == 200:
             # Pion-triggered chjet semi-inclusive IAA, dphi
+            # NOTE: We're using the IAA as a proxy for a number of the dphi settings!
+            #       They're a shared analysis, so this should be a reasonable assumption.
+            #       (just noting to avoid confusion).
             # TODO(RJE): Hole subtraction
             # TODO(RJE): Cleanup ratio construction
-            IAA_settings = self.pion_trigger_chjet_observables["IAA_star"]
-            # R25_settings = self.pion_trigger_chjet_observables.get("R25_star", {})
 
-            trigger_range = IAA_settings["trigger_range"]
-            pt_IAA = IAA_settings["pt"]
-            # pt_R25 = R25_settings.get("pt", [0.0, 999.0])
+            pt_IAA = self.pion_trigger_chjet_observables["IAA_pt_star"]
+            pt_dphi = self.pion_trigger_chjet_observables["dphi_star"]["pt"]
 
-            eta_cut_trigger = IAA_settings["pi_zero_eta_cut"]
-            eta_cut_R = IAA_settings["eta_cut_R"]  # assumes same order
+            trigger_range = self.pion_trigger_chjet_observables["trigger_range"]
+            eta_cut_trigger = self.pion_trigger_chjet_observables["pi_zero_eta_cut"]
+            eta_cut_jet_R = self.pion_trigger_chjet_observables["eta_cut_R"]  # assumes same order
 
             trigger_array_pi0 = []
 
@@ -3028,13 +3031,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 trigger = trigger_array_pi0[random.randrange(len(trigger_array_pi0))]
 
                 # Record trigger pt for normalization
-                if jetR == min(IAA_settings["jet_R"]):
+                if jetR == min(self.pion_trigger_chjet_observables["IAA_pt_STAR"]["jet_R"]):
                     self.observable_dict_event[
                         f"pion_trigger_chjet_IAA_pt_star_trigger_pt{jet_collection_label}"
                     ].append(trigger.pt())
 
                 for jet in jets_selected:
-                    if abs(jet.eta()) < (eta_cut_R - jetR):
+                    if abs(jet.eta()) < (eta_cut_jet_R - jetR):
                         if jet_collection_label in ["_shower_recoil"]:
                             jet_pt_unsubtracted = jet.pt()
                             jet_pt_holes = 0
@@ -3045,9 +3048,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         else:
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
-                        if self.centrality_accepted(IAA_settings["centrality"]):
+                        if (
+                            self.centrality_accepted(self.pion_trigger_chjet_observables["IAA_pt_star"]["centrality"])
+                            and self.pion_trigger_chjet_observables["IAA_pt_star"]["enabled"]
+                        ):
                             # IAA
-                            if jetR in IAA_settings["jet_R"]:
+                            if jetR in self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_R"]:
                                 if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
                                     if pt_IAA[0] < jet_pt < pt_IAA[1]:
                                         self.observable_dict_event[
@@ -3058,17 +3064,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                                 f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
                                             ].append(jet_pt_unsubtracted)
 
-                            # # R(0.2/0.5)
-                            # if jetR in R25_settings.get("jet_R", []):
-                            #     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                            #         if pt_R25[0] < jet_pt < pt_R25[1]:
-                            #             self.observable_dict_event[
-                            #                 f"semi_inclusive_pizerojet_R25_star_R{jetR}{jet_collection_label}"
-                            #             ].append(jet_pt)
-                            #             if jet_collection_label in ["_shower_recoil"]:
-                            #                 self.observable_dict_event[
-                            #                     f"semi_inclusive_pizerojet_R25_star_R{jetR}{jet_collection_label}_unsubtracted"
-                            #                 ].append(jet_pt_unsubtracted)
+                            # dphi
+                            if jetR in self.pion_trigger_chjet_observables["dphi_star"]["jet_R"]:
+                                if pt_dphi[0] < jet_pt < pt_dphi[-1]:
+                                    self.observable_dict_event[
+                                        f"pion_trigger_chjet_dphi_star_R{jetR}_lowTrigger{jet_collection_label}"
+                                    ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+
 
     # ---------------------------------------------------------------
     # Fill dijet observables
