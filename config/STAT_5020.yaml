@@ -1774,18 +1774,18 @@ gamma_trigger_jet:
 #------------------------------------------------------------------
 z_trigger_hadron:
   # ATLAS z boson-hadron correlations
-  hadron_IAA_atlas:
+  IAA_pt_atlas:
     enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1812957
       hepdata: N/A
 
     centrality: [[0, 10]]
-    pt_hadron_min: 1.
-    eta_cut_hadron: 2.5
-    pt_Z_min: 15.
-    eta_Z_max: 2.5 # TODO They write nowhere what the eta acceptance of reconstructed Z boson is. They write requirements for decay products but not for the Z. They say they correct for reconstruction efficiency but do not specify the region for Z Boson. The written value is a blind guess
-    dPhiMin: 3./4. # dPhi > 3/4*pi
+    z_eta_cut: 2.5 # TODO They write nowhere what the eta acceptance of reconstructed Z boson is. They write requirements for decay products but not for the Z. They say they correct for reconstruction efficiency but do not specify the region for Z Boson. The written value is a blind guess
+    z_pt_min: 15.0
+    recoil_hadron_eta_cut: 2.5
+    recoil_hadron_pt_min: 1.
+    dPhi: 3./4. # dPhi > 3/4*pi
 
 #------------------------------------------------------------------
 # Z boson triggered jet observables
