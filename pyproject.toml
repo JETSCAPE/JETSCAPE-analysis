@@ -54,7 +54,6 @@ dev = [
     "pytest-cov >=3",
     "pytest-sugar >=1.0.0",
     "pytest-benchmark >=5.1.0",
-    "pre-commit >=2.13.0",
     "ruff >=0.0.209",
     "mypy >=0.931",
     "pandas-stubs>=2.2.3.250527",
