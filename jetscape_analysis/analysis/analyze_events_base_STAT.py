@@ -292,15 +292,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     #   where i is the index in the list, and is weighted by (+/-) for positive/negative status particles
     # We also return the list of PID values, so that it can later be determined from the index i
     # ---------------------------------------------------------------
-    def fill_fastjet_constituents(self, event, select_status=None, select_charged=False):
-        # Construct indices according to particle status
-        if select_status == "-":
-            status_mask = event["status"] < 0
-        elif select_status == "+":
-            status_mask = event["status"] > -1
-        else:
-            # Picked a value to make an all true mask. We don't select anything
-            status_mask = event["status"] > -1e6
+    def fill_fastjet_constituents(self, event, select_status: str | None = None, select_charged: bool = False):
+        status_mask = mask_from_select_status(event, select_status)
 
         # Construct indices according to charge
         charged_mask = get_charged_mask(event["particle_ID"], select_charged)
@@ -433,23 +426,27 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         trigger_response_matrix = trigger_response_matrix / row_sums[:, np.newaxis]
         return trigger_response_matrix  # noqa: RET504
 
-    # ---------------------------------------------------------------
-    # Function to find all final state photons in event
-    # ---------------------------------------------------------------
-    def fill_photons(self, event):
-        """Find all final state photons in the event and return as fastjet particles.
+    def fill_photon_candidates(self, event, select_status: str | None = None):
+        """Find all final state photons in the event.
+
+        Note:
+            The returned values are all photons. However, we will refer to them as photon
+            candidates until we make further analysis selections since it may include many
+            photons which are otherwise unmeasurable.
 
         Args:
-            event: Event containing particle information
+            event: Event record
+            select_status: Particle status to select. Options: ["+", "-", anything else].
+                If it's anything other than "+" or "-", it will select all particles.
 
         Returns:
-            tuple: (fj_photons, photon_indices) where:
-                - fj_photons is list of fastjet::PseudoJets for photons
-                - photon_indices are the indices of the photons in the original event
+            Photon candidates.
         """
-        # Select photons (PID = 22) with positive status (TODO ask raymond what status exactly means)
-        # TODO check with Raymond how to handle holes
-        photon_mask = (event["particle_ID"] == 22) & (event["status"] > -1)
+        # Setup
+        status_mask = mask_from_select_status(event, select_status=select_status)
+
+        # Select photons (PID = 22)
+        photon_mask = (event["particle_ID"] == 22) & status_mask
 
         # Get photon kinematics
         px = event["px"][photon_mask]
@@ -462,8 +459,50 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         return fj_photons  # noqa: RET504
 
-    # Function to obtain jet_pt and jet_pt_uncorrected according to jet collection
+    def fill_z_boson_candidates(self, event, select_status: str | None = None):
+        """Find all final state Z bosons in the event.
+
+        Note:
+            The returned values are all Z bosons. However, we will refer to them as Z boson
+            candidates until we make further analysis selections since it may include many
+            Z bosons which are otherwise unmeasurable.
+
+        Args:
+            event: Event record
+            select_status: Particle status to select. Options: ["+", "-", anything else].
+                If it's anything other than "+" or "-", it will select all particles.
+
+        Returns:
+            Z boson candidates.
+        """
+        # Setup
+        status_mask = mask_from_select_status(event, select_status=select_status)
+
+        # Select Z bosons (PID = 23)
+        z_boson_mask = (event["particle_ID"] == 23) & status_mask
+
+        # Get Z boson kinematics
+        px = event["px"][z_boson_mask]
+        py = event["py"][z_boson_mask]
+        pz = event["pz"][z_boson_mask]
+        e = event["E"][z_boson_mask]
+
+        # Create fastjet particles
+        fj_z_bosons = fjext.vectorize_px_py_pz_e(px, py, pz, e)
+
+        return fj_z_bosons  # noqa: RET504
+
     def get_jet_pt(self, jet, jetR, hadrons_negative, jet_collection_label=""):
+        """Calculate the jet_pt and jet_pt_uncorrected according to jet collection.
+
+        Args:
+            jet: Jet of interest.
+            jetR: Jet R.
+            hadrons_negative: Array of holes.
+            jet_collection_label: Name of the jet collection.
+        Returns:
+            (jet_pt, jet_pt_uncorrected)
+        """
         jet_pt, jet_pt_uncorrected = 0.0, 0.0
         holes_in_jet = []
         if jet_collection_label in ["_shower_recoil", "_negative_recombiner"]:
@@ -546,3 +585,30 @@ def dphi_in_range_for_hadron_correlations(
     elif dphi >= max_phi:
         dphi -= 2 * np.pi
     return dphi
+
+
+def mask_from_select_status(event, select_status: str) -> npt.NDArray[np.bool_]:
+    """Construct mask according to particle status.
+
+    If select_status='+', select only positive status particles.
+    If select_status='-', select only negative status particles.
+    If anything else is provided, the mask will select all particles.
+
+    Args:
+        event: Event record
+        select_status: Particle status to select. Options: ["+", "-", anything else].
+            If it's anything other than "+" or "-", it will select all particles.
+
+    Returns:
+        Mask to select particles of the requested status
+    """
+    # Select the indices based on the requested status
+    if select_status == "-":
+        status_mask = event["status"] < 0
+    elif select_status == "+":
+        status_mask = event["status"] > -1
+    else:
+        # Picked a value to make an all true mask. We don't select anything
+        status_mask = event["status"] > -1e6
+
+    return status_mask
