@@ -20,6 +20,7 @@ import fastjet as fj  # pyright: ignore [reportMissingImports]
 import fjcontrib  # pyright: ignore [reportMissingImports]
 import fjext  # pyright: ignore [reportMissingImports]
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -495,14 +496,16 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 # Construct charged particle mask
 # ---------------------------------------------------------------
 @jit(nopython=True)
-def get_charged_mask(pid, select_charged: bool):
+def get_charged_mask(pid: npt.NDArray[np.int32], select_charged: bool) -> npt.NDArray[np.bool_]:
     """Create mask for selected a set of charged particles based on PID.
 
     Note:
         This function assumes that the same set of charged particles are selected
         for all charged-particle jets (ie. ALICE and STAR). Although the charged
         particle selections for some of the hadron observables vary between experiments,
-        this seems like
+        this seems like a reasonable combination of plausible selections.
+
+    TODO(RJE): Verify...
 
     Args:
         pid: PID values associated with the charged particles in an event.
@@ -515,8 +518,8 @@ def get_charged_mask(pid, select_charged: bool):
     # Default to an all true mask
     charged_mask = np.ones(len(pid)) > 0
     if select_charged:
-        # Create an all false mask. We'll fill it in with the charged constituents
-        charged_mask = np.ones(len(pid)) < 0
+        # We only want to explicitly select particles, so we'll invert to an all negative mask.
+        charged_mask = ~charged_mask
         for i, pid_value in enumerate(pid):
             # (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             if np.abs(pid_value) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]:
