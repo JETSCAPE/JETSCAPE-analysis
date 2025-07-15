@@ -93,6 +93,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         self.pion_trigger_hadron_observables = {}
         self.pion_trigger_chjet_observables = {}
         self.gamma_trigger_hadron_observables = {}
+        self.gamma_trigger_chjet_observables = {}
         self.gamma_trigger_jet_observables = {}
         self.z_trigger_hadron_observables = {}
         self.z_trigger_jet_observables = {}
@@ -112,6 +113,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # gamma-trigger
         if "gamma_trigger_hadron" in config:
             self.gamma_trigger_hadron_observables = config["gamma_trigger_hadron"]
+        if "gamma_trigger_chjet" in config:
+            self.gamma_trigger_chjet_observables = config["gamma_trigger_chjet"]
         if "gamma_trigger_jet" in config:
             self.gamma_trigger_jet_observables = config["gamma_trigger_jet"]
         # z-trigger
@@ -139,7 +142,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Analyze a single event -- fill user-defined output objects
     # ---------------------------------------------------------------
-    def analyze_event(self, event):
+    def analyze_event(self, event) -> None:
         # Initialize a dictionary that will store a list of calculated values for each output observable
         self.observable_dict_event = defaultdict(list)
 
@@ -155,13 +158,31 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             event, select_status="-", select_charged=True
         )
 
-        # Find all photons
-        fj_photons = self.fill_photons(event)
         # call event selection function, run jet finder R=0.4, take highest pt_jet, require pt_jet <= 3 * pthat, otherwise return false
         pt_hat = event["pt_hat"]
         if self.do_event_outlier_rejection:
             if self.is_event_outlier(fj_hadrons_positive, pt_hat, self.outlier_pt_hat_cut):
                 return
+
+        # Fill photon triggered observables
+        # Skip if we have no photon-based observables
+        # NOTE: This type isn't quite right - they'll be vector of fj::PseudoJet, but
+        #       it's quite inconvenient to type, so we compromise here.
+        fj_photon_candidates_positive = None
+        fj_photon_candidates_negative = None
+        if self.gamma_trigger_hadron_observables or self.gamma_trigger_chjet_observables or self.gamma_trigger_jet_observables:
+            # First, we'll collect any photons triggers, since they should be relatively rare.
+            # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
+            fj_photon_candidates_positive = self.fill_photon_candidates(event, select_status="+")
+            # TODO(RJE): Can we get photon holes in practice?
+            fj_photon_candidates_negative = self.fill_photon_candidates(event, select_status="-")
+            # If there are triggers, we can fill the trigger-hadron correlations. If not, we can simply move on
+            if len(fj_photon_candidates_positive) > 0 and self.gamma_trigger_hadron_observables:
+                self.fill_photon_hadron_observables(fj_photon_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+")
+                if self.AA:
+                    self.fill_photon_hadron_observables(fj_photon_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-")
+
+
         # Fill hadron observables for jet shower particles
         self.fill_hadron_observables(fj_hadrons_positive, pid_hadrons_positive, status="+")
         if self.is_AA:
@@ -176,6 +197,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             self.fill_hadron_correlation_observables(
                 fj_hadrons_negative, pid_hadrons_negative, event_plane_angle, status="-"
             )
+
+        # Fill z triggered hadron observables
+        fj_z_boson_candidates = None
+        if self.z_trigger_hadron_observables:
+            # First, we'll collect any z triggers, since they should be relatively rare.
+            # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
+            # NOTE: In practice, there's no way that we can get a Z boson hole, so we don't consider them as possible triggers.
+            fj_z_boson_candidates = self.fill_z_boson_candidates(event, select_status="+")
+            # If there are triggers, we can fill the trigger-hadron correlations. If not, we can simply move on
+            # NOTE: Strictly the z_trigger_hadron_observables check is redundant, but we keep it here for parallel structure with other cases.
+            if len(fj_z_boson_candidates) > 0 and self.z_trigger_hadron_observables:
+                self.fill_z_trigger_hadron_observables(fj_z_boson_candidates, fj_hadrons_positive, pid_hadrons_positive, status="+")
+                if self.AA:
+                    # Although we cannot get a Z boson hole, we can correlate the Z boson with hole particles, so we'll do that here.
+                    self.fill_z_trigger_hadron_observables(fj_z_boson_candidates, fj_hadrons_negative, pid_hadrons_negative, status="-")
 
         # Fill jet observables
         for jet_collection_label in self.jet_collection_labels:
@@ -206,7 +242,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 pid_hadrons_negative,
                 pid_hadrons_positive_charged,
                 pid_hadrons_negative_charged,
-                fj_photons,
+                fj_photon_candidates_positive,
                 jet_collection_label=jet_collection_label,
             )
 
@@ -629,7 +665,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             jetR,
                             jet_collection_label,
                         )
-            if self.Z_boson_triggered_observables:
+            if self.z_trigger_jet_observables:
                 self.fill_z_trigger_jet_observables(
                     jets_selected,
                     hadrons_for_jet_finding,
