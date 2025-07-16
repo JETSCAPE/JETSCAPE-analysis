@@ -105,7 +105,7 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
     return observables
 
 
-def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, list]:
+def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, list]:  # noqa: C901
     """Validate the observable configuration.
 
     NOTE:
@@ -151,6 +151,17 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
                     invalid_urls[k] = v
             if invalid_urls:
                 validation_issues[key].append(f"Invalid URLs. Must be N/A or a URL. Problematic value: {invalid_urls}")
+
+            # Check we haven't transposed URLs (i.e. stored hepdata in inspire_hep or vise-versa)
+            if "hepdata" in urls["inspire_hep"]:
+                validation_issues[key].append(
+                    f"inspire_hep link contains hepdata url. Probably transposed? {urls['inspire_hep']=}"
+                )
+
+            if "inspire" in urls["hepdata"]:
+                validation_issues[key].append(
+                    f"hepdata link contains inspire url. Probably transposed? {urls['hepdata']=}"
+                )
 
         if "jet" in observable_info.observable_class and "jet_R" not in observable_info.config:
             validation_issues[key].append("Missing jet_R")
