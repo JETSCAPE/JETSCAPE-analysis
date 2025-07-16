@@ -1805,16 +1805,19 @@ z_trigger_jet:
       hepdata: https://www.hepdata.net/record/ins1512112
 
     centrality: [[0, 30]]
-    pt_jet_min: 30.
-    eta_cut_jet: 1.6 # |eta| < 1.6
-    jet_R: [0.3]
-    pt_Z_min: 60.
-    eta_Z_max: 2.5 # TODO not given explicitly but i assume this is the case
-    dPhiMin: 7./8. # dPhi > 7/8*pi
+    z_trigger:
+      # TODO not given explicitly but i assume this is the case
+      eta_cut: 2.5
+      pt_min: 60.
+    recoil_jet:
+      jet_R: [0.3]
+      eta_cut: 1.6  # |eta| < 1.6
+      pt_min: 30.
+    dPhi: 7./8.  # dPhi > 7/8*pi
 
     hepdata: "HEPData-ins1512112-v1-root.root"
 
-    # TODO add figures and binning later, but we need xjz distribution normalized by number of Z boson triggers,
+    # TODO add figures and binning later, but we need xj_z distribution normalized by number of Z boson triggers,
     # as well as dPhi distribution
 
   dphi_cms:
@@ -1824,12 +1827,15 @@ z_trigger_jet:
       hepdata: https://www.hepdata.net/record/ins1512112
 
     centrality: [[0, 30]]
-    pt_jet_min: 30.
-    eta_cut_jet: 1.6 # |eta| < 1.6
-    jet_R: [0.3]
-    pt_Z_min: 60.
-    eta_Z_max: 2.5 # TODO not given explicitly but i assume this is the case
-    dPhiMin: 7./8. # dPhi > 7/8*pi
+    z_trigger:
+      # TODO not given explicitly but i assume this is the case
+      eta_cut: 2.5
+      pt_min: 60.
+    recoil_jet:
+      jet_R: [0.3]
+      eta_cut: 1.6  # |eta| < 1.6
+      pt_min: 30.
+    dPhi: 7./8.  # dPhi > 7/8*pi
 
     hepdata: "HEPData-ins1512112-v1-root.root"
 

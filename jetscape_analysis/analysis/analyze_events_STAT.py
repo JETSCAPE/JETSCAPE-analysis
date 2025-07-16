@@ -39,6 +39,7 @@ import fastjet as fj  # pyright: ignore [reportMissingImports]
 import fjcontrib  # pyright: ignore [reportMissingImports]
 import fjext  # pyright: ignore [reportMissingImports]
 import numpy as np
+import numpy.typing as npt
 import yaml
 
 from jetscape_analysis.analysis import analyze_events_base_STAT
@@ -162,6 +163,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.do_event_outlier_rejection and self.is_event_outlier(fj_hadrons_positive, event["pt_hat"], self.outlier_pt_hat_cut):
             return
 
+        # Fill hadron observables for jet shower particles
+        self.fill_hadron_observables(fj_hadrons_positive, pid_hadrons_positive, status="+")
+        if self.is_AA:
+            self.fill_hadron_observables(fj_hadrons_negative, pid_hadrons_negative, status="-")
+
+        # Fill hadron correlation observables
+        event_plane_angle = event["event_plane_angle"]
+        self.fill_hadron_correlation_observables(
+            fj_hadrons_positive, pid_hadrons_positive, event_plane_angle, status="+"
+        )
+        if self.is_AA:
+            self.fill_hadron_correlation_observables(
+                fj_hadrons_negative, pid_hadrons_negative, event_plane_angle, status="-"
+            )
+
         # Fill photon triggered observables
         # Skip if we have no photon-based observables
         # NOTE: This type isn't quite right - they'll be vector of fj::PseudoJet, but
@@ -179,21 +195,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.fill_photon_hadron_observables(fj_photon_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+")
                 if self.AA:
                     self.fill_photon_hadron_observables(fj_photon_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-")
-
-        # Fill hadron observables for jet shower particles
-        self.fill_hadron_observables(fj_hadrons_positive, pid_hadrons_positive, status="+")
-        if self.is_AA:
-            self.fill_hadron_observables(fj_hadrons_negative, pid_hadrons_negative, status="-")
-
-        # Fill hadron correlation observables
-        event_plane_angle = event["event_plane_angle"]
-        self.fill_hadron_correlation_observables(
-            fj_hadrons_positive, pid_hadrons_positive, event_plane_angle, status="+"
-        )
-        if self.is_AA:
-            self.fill_hadron_correlation_observables(
-                fj_hadrons_negative, pid_hadrons_negative, event_plane_angle, status="-"
-            )
 
         # Fill z triggered hadron observables
         fj_z_boson_candidates = None
@@ -3067,7 +3068,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     ].append([leading_jet_pt, xj])
 
 
-    def fill_z_trigger_hadron_observables(self, fj_z_boson_candidates, fj_particles, pid_hadrons, status: str = "+") -> None:
+    def fill_z_trigger_hadron_observables(self, fj_z_boson_candidates, fj_particles, pid_hadrons: npt.NDArray[np.int32], status: str = "+") -> None:
         """Measure and record Z-triggered hadron observables.
 
         Args:
@@ -3127,59 +3128,71 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     def fill_z_trigger_jet_observables(
         self,
+        fj_z_boson_candidates,
         jets_selected,
         hadrons_for_jet_finding,
         hadrons_negative,
-        pid_hadrons_positive,
-        pid_hadrons_negative,
-        jetR,
-        jet_collection_label,
+        pid_hadrons_positive: npt.NDArray[np.int32],
+        pid_hadrons_negative: npt.NDArray[np.int32],
+        jetR: float,
+        jet_collection_label: str,
     ) -> None:
-        if self.sqrts in [5020]:
-            # -----------------------------------------------------------
-            # Z-jet correlation x_{Zj} CNS
-            # -----------------------------------------------------------
-            if self.centrality_accepted(self.Z_boson_triggered_observables["xj_z_cms"]["centrality"]):
-                pt_jet_min = self.Z_boson_triggered_observables["xj_z_cms"]["pt_jet_min"]
-                pt_Z_min = self.Z_boson_triggered_observables["xj_z_cms"]["pt_Z_min"]
-                eta_Z_max = self.Z_boson_triggered_observables["xj_z_cms"]["eta_Z_max"]
-                eta_jet_max = self.Z_boson_triggered_observables["xj_z_cms"]["eta_jet_max"]
-                dPhiMin = self.Z_boson_triggered_observables["xj_z_cms"]["dPhiMin"]
+        """Measure and record Z-triggered jet observables.
 
-                #  Z bosons within acceptance
-                Z_bosons = []
-                for hadron in hadrons_for_jet_finding:
-                    if hadron.user_index() < 0:
-                        continue
-                    pid = pid_hadrons_positive[np.abs(hadron.user_index()) - 1]
-                    if pid != 23:
-                        continue
-                    if hadron.pt() > pt_Z_min and abs(hadron.eta()) < eta_Z_max:
-                        Z_bosons.append(hadron)
+        Args:
+            fj_z_boson_candidates: Z boson candidates, as an array of fj::PseudoJet.
+            jets_selected: Jets which pass general selections, as an array of fj::PseudoJet.
+            hadrons_for_jet_finding: Particles used for jet finding, as an array of fj::PseudoJet.
+            hadrons_negative: Hole particles.
+            pid_hadrons_positive: Corresponding PID of the hadrons_for_jet_finding.
+            pid_hadrons_negative: Corresponding PID of the hadrons_negative.
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
+        Returns:
+            None.
+        """
+        if self.sqrts in [5020] and self.measure_observable_for_current_event(self.z_trigger_jet_observables["xj_z_cms"]):
+            # -----------------------------------------------------------
+            # Z-trigger jet x_{j,z} CNS
+            # NOTE: We use the xj_z parameters as a proxy for the d_phi acoplanarity.
+            #       They're measured together in the same analysis, so the parameters
+            #       are the same, and thus this is just fine.
+            # -----------------------------------------------------------
+            z_pt_min = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["pt_min"]
+            z_eta_cut = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["eta_cut"]
+            recoil_jet_pt_min = self.z_trigger_jet_observables["xj_z_cms"]["recoil_jet"]["pt_min"]
+            recoil_jet_eta_cut = self.z_trigger_jet_observables["xj_z_cms"]["recoil_jet"]["eta_cut"]
+            d_phi = self.z_trigger_jet_observables["xj_z_cms"]["dPhi"]
 
-                # loop over trigger Z bosons
-                for ZBoson in Z_bosons:
-                    # count the number of triggers for normalization purposes
-                    self.observable_dict_event[f"Z_jet_xj_cms_R{jetR}{jet_collection_label}_NZBoson"].append(
-                        ZBoson.pt()
-                    )
-                    # loop over jets
-                    for jet in jets_selected:
-                        jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
-                        if jet.R() == jetR and abs(jet.eta()) < eta_jet_max and jet_pt > pt_jet_min:
-                            # plot dPhi vs jet pt
-                            self.observable_dict_event[f"Z_jet_xj_cms_R{jetR}{jet_collection_label}_dPhi"].append(
-                                [ZBoson.delta_phi(jet)]
-                            )
-                            # plot xj vs jet pt
-                            if ZBoson.delta_phi(jet) > (dPhiMin * np.pi):
-                                xj = jet_pt / ZBoson.pt()
-                                xj_uncorrected = jet_pt_uncorrected / ZBoson.pt()
-                                self.observable_dict_event[f"Z_jet_xj_cms_R{jetR}{jet_collection_label}_xj"].append(xj)
-                                if jet_collection_label in ["_shower_recoil"]:
-                                    self.observable_dict_event[
-                                        f"Z_jet_xj_cms_R{jetR}{jet_collection_label}_xj_unsubtracted"
-                                    ].append(xj_uncorrected)
+            # get all Z bosons that fulfill analysis cuts
+            z_bosons = []
+            for trigger in fj_z_boson_candidates:
+                if trigger.pt > z_pt_min and abs(trigger.eta()) < z_eta_cut:
+                    z_bosons.append(trigger)
+
+            # loop over trigger Z bosons
+            for z_boson in z_bosons:
+                # count the number of triggers for normalization purposes
+                self.observable_dict_event[f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_NZBoson"].append(
+                    z_boson.pt()
+                )
+                # loop over jets
+                for jet in jets_selected:
+                    jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
+                    if jet.R() == jetR and abs(jet.eta()) < recoil_jet_eta_cut and jet_pt > recoil_jet_pt_min:
+                        # dPhi vs jet pt
+                        self.observable_dict_event[f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_dPhi"].append(
+                            [jet_pt, z_boson.delta_phi(jet)]
+                        )
+                        # xj vs jet pt
+                        if z_boson.delta_phi(jet) > (d_phi * np.pi):
+                            xj = jet_pt / z_boson.pt()
+                            xj_uncorrected = jet_pt_uncorrected / z_boson.pt()
+                            self.observable_dict_event[f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_xj"].append([jet_pt, xj])
+                            if jet_collection_label in ["_shower_recoil"]:
+                                self.observable_dict_event[
+                                    f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_xj_unsubtracted"
+                                ].append([jet_pt, xj_uncorrected])
 
 
     def leading_jet(self, jets, fj_hadrons_negative, jetR):
