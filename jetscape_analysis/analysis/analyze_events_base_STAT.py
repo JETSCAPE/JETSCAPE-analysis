@@ -7,6 +7,7 @@ The output_dir should contain a JETSCAPE output file in parquet format
 See README for pre-requisites.
 
 .. codeauthor:: James Mulligan <james.mulligan@berkeley.edu>, UC Berkeley
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
 from __future__ import annotations
@@ -540,11 +541,13 @@ def get_charged_mask(pid: npt.NDArray[np.int32], select_charged: bool) -> npt.ND
 
     Note:
         This function assumes that the same set of charged particles are selected
-        for all charged-particle jets (ie. ALICE and STAR). Although the charged
-        particle selections for some of the hadron observables vary between experiments,
-        this seems like a reasonable combination of plausible selections.
-
-    TODO(RJE): Verify...
+        for all charged-particle jets (ie. that they match between ALICE and STAR).
+        Although the charged particle selections for some of the hadron-only
+        observables vary between experiments (namely, some are narrower/more specific),
+        the selections of charged particles for charged-particle jets appear to be the
+        same across the experiments. Thus, we are able to use the same definition for
+        all charged-particle jets. That is to say, we don't need to separately find
+        charged particle jets per experiment.
 
     Args:
         pid: PID values associated with the charged particles in an event.
