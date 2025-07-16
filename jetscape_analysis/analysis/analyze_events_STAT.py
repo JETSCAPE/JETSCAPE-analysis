@@ -250,6 +250,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 pid_hadrons_positive_charged,
                 pid_hadrons_negative_charged,
                 fj_photon_candidates_positive,
+                fj_z_boson_candidates,
                 jet_collection_label=jet_collection_label,
             )
 
@@ -537,7 +538,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         pid_hadrons_negative,
         pid_hadrons_positive_charged,
         pid_hadrons_negative_charged,
-        photons,
+        fj_photons_candidates,
+        fj_z_boson_candidates,
         jet_collection_label="",
     ):
         # Set the appropriate lists of hadrons to input to the jet finding
@@ -563,7 +565,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 hadrons_negative,
                 pid_hadrons_positive,
                 pid_hadrons_negative,
-                photons,
+                fj_photons_candidates,
+                fj_z_boson_candidates,
                 jet_def,
                 jet_selector,
                 jetR,
@@ -577,7 +580,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 hadrons_negative_charged,
                 pid_hadrons_positive_charged,
                 pid_hadrons_negative_charged,
-                photons,
+                fj_photons_candidates,
+                fj_z_boson_candidates,
                 jet_def,
                 jet_selector,
                 jetR,
@@ -594,7 +598,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         hadrons_negative,
         pid_hadrons_positive,
         pid_hadrons_negative,
-        photons,
+        fj_photon_candidates,
+        fj_z_boson_candidates,
         jet_def,
         jet_selector,
         jetR,
@@ -647,7 +652,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     # TODO discuss with Raymond what to watch out for with holes
                     self.fill_photon_correlation_observables(
                         jets_selected,
-                        photons,
+                        fj_photon_candidates,
                         hadrons_for_jet_finding,
                         hadrons_negative,
                         pid_hadrons_positive,
@@ -661,7 +666,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         self.fill_photon_correlation_groomed_observables(
                             grooming_setting,
                             jets_selected,
-                            photons,
+                            fj_photon_candidates,
                             hadrons_for_jet_finding,
                             hadrons_negative,
                             pid_hadrons_positive,
@@ -671,6 +676,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         )
             if self.z_trigger_jet_observables:
                 self.fill_z_trigger_jet_observables(
+                    fj_z_boson_candidates,
                     jets_selected,
                     hadrons_for_jet_finding,
                     hadrons_negative,
