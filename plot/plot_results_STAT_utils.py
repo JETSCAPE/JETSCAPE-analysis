@@ -1,24 +1,25 @@
-"""
-utils for histogramming / plotting
+"""Utils for histogramming / plotting
 
-Author: James Mulligan (james.mulligan@berkeley.edu)
+.. codeauthor:: James Mulligan <james.mulligan@berkeley.edu>, UC Berkeley
 """
+
+from __future__ import annotations
 
 import ctypes
-import os
-import sys
+import logging
+from pathlib import Path
 from typing import Any
 
 import numpy as np
-import ROOT
+import numpy.typing as npt
+import ROOT  # pyright: ignore [reportMissingImports]
 import yaml
-
-# Base class
-sys.path.append(".")
 from jetscape_analysis.base import common_base
 
 # Prevent ROOT from stealing focus when plotting
 ROOT.gROOT.SetBatch(True)
+
+logger = logging.getLogger(__name__)
 
 
 def available_hepdata_files_in_block(block: dict[str, Any]) -> list[str]:
@@ -47,24 +48,25 @@ class PlotUtils(common_base.CommonBase):
     # ---------------------------------------------------------------
     # Get bin array specified in config block
     # ---------------------------------------------------------------
-    def bins_from_config(self, block, sqrts, observable_type, observable, centrality, centrality_index, suffix=""):
+    def bins_from_config(
+        self, block, sqrts, observable_type, observable, centrality, centrality_index, suffix=""
+    ) -> npt.NDarray[np.int32] | npt.NDArray[np.int64]:
         if "bins" in block:
-            print(f"  Histogram with custom binning found for {observable} {centrality} {suffix}")
+            logger.info(f"  Histogram with custom binning found for {observable} {centrality} {suffix}")
             return np.array(block["bins"])
-        elif f"hepdata" in block:
-            print(f"  Histogram with hepdata binning found for {observable} {centrality} {suffix}")
+        if "hepdata" in block:
+            logger.info(f"  Histogram with hepdata binning found for {observable} {centrality} {suffix}")
             return self.bins_from_hepdata(block, sqrts, observable_type, observable, centrality_index, suffix)
-        else:
-            print(f"  Warning: No binning found for {observable} {centrality} {suffix}")
-            return np.array([])
+        logger.warning(f"\tNo binning found for {observable} {centrality} {suffix}")
+        return np.array([])
 
     # ---------------------------------------------------------------
     # Get bin array from hepdata file specified in config block
     # ---------------------------------------------------------------
     def bins_from_hepdata(self, block, sqrts, observable_type, observable, centrality_index, suffix=""):
         # Open the HEPData file
-        hepdata_dir = f"data/STAT/{sqrts}/{observable_type}/{observable}"
-        hepdata_filename = os.path.join(hepdata_dir, block["hepdata"])
+        hepdata_dir = Path(f"data/STAT/{sqrts}/{observable_type}/{observable}")
+        hepdata_filename = hepdata_dir / block["hepdata"]
         f = ROOT.TFile(hepdata_filename, "READ")
 
         # Find the relevant directory:
@@ -77,18 +79,18 @@ class PlotUtils(common_base.CommonBase):
         # First, check for dir names in config
         if f"hepdata_AA_dir{suffix}" in block:
             dir_key = f"hepdata_AA_dir{suffix}"
-        elif f"hepdata_AA_dir" in block:
-            dir_key = f"hepdata_AA_dir"
+        elif "hepdata_AA_dir" in block:
+            dir_key = "hepdata_AA_dir"
         else:
-            print(f"hepdata_AA_dir{suffix} not found!")
+            logger.info(f"hepdata_AA_dir{suffix} not found!")
 
         # Check for hist names in config
         if f"hepdata_AA_hname{suffix}" in block:
             h_key = f"hepdata_AA_hname{suffix}"
-        elif f"hepdata_AA_hname" in block:
-            h_key = f"hepdata_AA_hname"
+        elif "hepdata_AA_hname" in block:
+            h_key = "hepdata_AA_hname"
         else:
-            print(f"hepdata_AA_hname{suffix} not found!")
+            logger.info(f"hepdata_AA_hname{suffix} not found!")
             return np.array([])
 
         # Get the appropriate centrality entry in the dir/hist list
@@ -135,9 +137,9 @@ class PlotUtils(common_base.CommonBase):
         hepdata_files_in_block = available_hepdata_files_in_block(block)
         if len(hepdata_files_in_block) > 1:
             hepdata_file_key = "hepdata_AA" if is_AA else "hepdata_pp"
-        hepdata_dir = f"data/STAT/{sqrts}/{observable_type}/{observable}"
-        hepdata_filename = os.path.join(hepdata_dir, block[hepdata_file_key])
-        f = ROOT.TFile(hepdata_filename, "READ")
+        hepdata_dir = Path(f"data/STAT/{sqrts}/{observable_type}/{observable}")
+        hepdata_filename = hepdata_dir / block[hepdata_file_key]
+        f = ROOT.TFile(str(hepdata_filename), "READ")
 
         # Find the relevant directory:
         # - The list of dir/hist names may contain a suffix,
@@ -153,7 +155,7 @@ class PlotUtils(common_base.CommonBase):
         elif f"hepdata_{system}_dir" in block:
             dir_key = f"hepdata_{system}_dir"
         else:
-            # print(f'hepdata_pp_dir{suffix} not found!')
+            # logger.info(f'hepdata_pp_dir{suffix} not found!')
             return None
 
         # Check for hist names in config
@@ -164,7 +166,7 @@ class PlotUtils(common_base.CommonBase):
         elif f"hepdata_{system}_gname" in block:
             g_key = f"hepdata_{system}_gname"
         else:
-            # print(f'hepdata_{system}_gname{suffix} not found!')
+            # logger.info(f'hepdata_{system}_gname{suffix} not found!')
             return None
 
         # Get the appropriate centrality entry in the dir/hist list
@@ -202,9 +204,9 @@ class PlotUtils(common_base.CommonBase):
         self, block, is_AA, sqrts, observable_type, observable, centrality_index, suffix="", pt_suffix=""
     ):
         # Load yaml file containing the data
-        data_dir = f"data/STAT/{sqrts}/{observable_type}/{observable}"
-        data_filename = os.path.join(data_dir, block["custom_data"])
-        with open(data_filename, "r") as stream:
+        data_dir = Path(f"data/STAT/{sqrts}/{observable_type}/{observable}")
+        data_filename = data_dir / block["custom_data"]
+        with data_filename.open() as stream:
             data = yaml.safe_load(stream)
 
         # Find the relevant config block:
@@ -221,7 +223,7 @@ class PlotUtils(common_base.CommonBase):
         elif f"data_{system}" in data:
             key = f"data_{system}"
         else:
-            # print(f'data_pp_dir{suffix} not found!')
+            # logger.info(f'data_pp_dir{suffix} not found!')
             return None
 
         # Get the appropriate centrality entry in the list
@@ -235,7 +237,7 @@ class PlotUtils(common_base.CommonBase):
         if isinstance(data[key]["y"][0], list):
             if len(data[key]["y"]) > centrality_index:
                 y = np.array(data[key]["y"][centrality_index])
-                if "y_err" in data[key]:
+                if "y_err" in data[key]:  # noqa: SIM108
                     y_err = np.array(data[key]["y_err"][centrality_index])
                 else:
                     y_err = np.zeros(n)
@@ -243,7 +245,7 @@ class PlotUtils(common_base.CommonBase):
                 return None
         else:
             y = np.array(data[key]["y"])
-            if "y_err" in data[key]:
+            if "y_err" in data[key]:  # noqa: SIM108
                 y_err = np.array(data[key]["y_err"])
             else:
                 y_err = np.zeros(n)
@@ -251,15 +253,15 @@ class PlotUtils(common_base.CommonBase):
         # Construct TGraph
         g = ROOT.TGraphAsymmErrors(n, x, y, np.zeros(n), np.zeros(n), y_err, y_err)
 
-        return g
+        return g  # noqa: RET504
 
     # ---------------------------------------------------------------
     # Truncate data tgraph to histogram binning range
     # ---------------------------------------------------------------
     def truncate_tgraph(self, g, h, is_AA=False):
-        # print('truncate_tgraph')
-        # print(h.GetName())
-        # print(np.array(h.GetXaxis().GetXbins()))
+        # logger.debug('truncate_tgraph')
+        # logger.debug(h.GetName())
+        # logger.debug(np.array(h.GetXaxis().GetXbins()))
 
         # Create new TGraph with number of points equal to number of histogram bins
         nBins = h.GetNbinsX()
@@ -274,27 +276,26 @@ class PlotUtils(common_base.CommonBase):
             # Get TGraph (x,y) and errors
             gx, gy, yErrLow, yErrUp = self.get_gx_gy(g, bin - 1)
 
-            # print(f'h_x: {h_x}')
-            # print(f'gx: {gx}')
-            # print(f'gy: {gy}')
+            # logger.debug(f'h_x: {h_x}')
+            # logger.debug(f'gx: {gx}')
+            # logger.debug(f'gy: {gy}')
 
-            # If traph is offset from center of the bin, center it
+            # If TGraph is offset from center of the bin, center it
             xErrLow = g.GetErrorXlow(bin - 1)
             xErrUp = g.GetErrorXhigh(bin - 1)
             if xErrLow > 0 and xErrUp > 0:
                 x_min = gx - xErrLow
                 x_max = gx + xErrUp
                 x_center = (x_min + x_max) / 2.0
-                if h_x > x_min and h_x < x_max:
-                    if not np.isclose(gx, x_center):
-                        gx = x_center
+                if x_min < h_x < x_max and not np.isclose(gx, x_center):
+                    gx = x_center
 
             # If tgraph starts below hist (e.g. when hist has min cut), try to get next tgraph point
             g_offset = 0
             while gx + 1e-8 < h_x and g_offset < g.GetN() + 1:
                 g_offset += 1
                 gx, gy, yErrLow, yErrUp = self.get_gx_gy(g, bin - 1 + g_offset)
-            # print(f'new gx: {gx}')
+            # logger.debug(f'new gx: {gx}')
 
             # If tgraph started above hist (see below) and we exhausted the tgraph points, skip
             if h_offset > 0 and np.isclose(gx, 0):
@@ -305,19 +306,19 @@ class PlotUtils(common_base.CommonBase):
             while gx - 1e-8 > h_x and h_offset < nBins + 1:
                 h_offset += 1
                 h_x = h.GetBinCenter(bin + h_offset)
-                # print(f'h_x: {h_x}')
-                # print(f'gx: {gx}')
+                # logger.debug(f'h_x: {h_x}')
+                # logger.debug(f'gx: {gx}')
 
             if not np.isclose(h_x, gx):
+                _msg = f"hist x: {h_x}, graph x: {gx}"
                 if is_AA:
-                    sys.exit(f"ERROR: hist x: {h_x}, graph x: {gx}")
-                else:
-                    print(f"WARNING: hist x: {h_x}, graph x: {gx}")
+                    raise ValueError(_msg)
+                else:  # noqa: RET506
+                    logger.warning(_msg)
                     return None
 
             g_new.SetPoint(bin - 1, gx, gy)
             g_new.SetPointError(bin - 1, 0, 0, yErrLow, yErrUp)
-            # print()
 
         return g_new
 
@@ -343,13 +344,13 @@ class PlotUtils(common_base.CommonBase):
             # Get TGraph (x,y) and errors
             gx, gy, yErrLow, yErrUp = self.get_gx_gy(g_truncated, bin - 1)
 
-            # print(f'h_x: {h_x}')
-            # print(f'gx: {gx}')
-            # print(f'h_y: {h_y}')
-            # print(f'gy: {gy}')
+            # logger.debug(f'h_x: {h_x}')
+            # logger.debug(f'gx: {gx}')
+            # logger.debug(f'h_y: {h_y}')
+            # logger.debug(f'gy: {gy}')
 
             if not np.isclose(h_x, gx):
-                print(f"WARNING: hist x: {h_x}, graph x: {gx} -- will not plot ratio")
+                logger.warning(f"hist x: {h_x}, graph x: {gx} -- will not plot ratio")
                 return None
 
             new_content = h_y / gy
@@ -395,9 +396,10 @@ class PlotUtils(common_base.CommonBase):
         g_new = g1.Clone(f"{g1.GetName()}_divided")
 
         if g1.GetN() != g2.GetN():
-            sys.exit(f"ERROR: TGraph {g1.GetName()} has {g1.GetN()} points, but {g2.GetName()} has {g2.GetN()} points")
+            _msg = f"TGraph {g1.GetName()} has {g1.GetN()} points, but {g2.GetName()} has {g2.GetN()} points"
+            raise ValueError(_msg)
 
-        for i in range(0, g1.GetN()):
+        for i in range(0, g1.GetN()):  # noqa: PIE808
             # Get TGraph (x,y) and errors
             g1_x = ctypes.c_double(0)
             g1_y = ctypes.c_double(0)
@@ -414,7 +416,8 @@ class PlotUtils(common_base.CommonBase):
             g2y = g2_y.value
 
             if not np.isclose(g1x, g2x):
-                sys.exit(f"ERROR: TGraph {g1.GetName()} point {i} at {g1x}, but {g2.GetName()} at {g2x}")
+                _msg = f"TGraph {g1.GetName()} point {i} at {g1x}, but {g2.GetName()} at {g2x}"
+                raise ValueError(_msg)
 
             new_content = g1y / g2y
             new_error_low = y1ErrLow / g1y * new_content
