@@ -3167,6 +3167,46 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 f"z_trigger_hadron_dphi_cms{suffix}"
                             ].append(z_boson.delta_phi_to(particle))
 
+            # -----------------------------------------------------------
+            # Z-trigger hadron delta N
+            # -----------------------------------------------------------
+            if self.measure_observable_for_current_event(self.z_trigger_hadron_observables["delta_N_cms"]):
+                z_pt = self.z_trigger_hadron_observables["delta_N_cms"]["z_trigger"]["pt"]
+                z_eta_cut = self.z_trigger_hadron_observables["delta_N_cms"]["z_trigger"]["eta_cut"]
+                recoil_hadron_pt = self.z_trigger_hadron_observables["delta_N_cms"]["recoil_hadron"]["pt"]
+                recoil_hadron_eta_cut = self.z_trigger_hadron_observables["delta_N_cms"]["recoil_hadron"]["eta_cut"]
+                d_phi = self.z_trigger_hadron_observables["delta_N_cms"]["dPhi"]
+
+                # get all Z bosons that fulfill analysis cuts
+                z_bosons = []
+                for trigger in fj_z_boson_candidates:
+                    if z_pt[0] < trigger.pt < z_pt[1] and abs(trigger.eta()) < z_eta_cut:
+                        z_bosons.append(trigger)
+
+                # And then construct the correlation of the trigger Z bosons with the hadrons
+                for z_boson in z_bosons:
+                    # fill just Z boson pt to allow to calculate normalization N_z_bosons later
+                    self.observable_dict_event[
+                        f"z_trigger_hadron_delta_N_cms_Nz{suffix}"
+                    ].append(z_boson.pt())
+
+                    for particle in fj_particles:
+                        pid = pid_hadrons[np.abs(particle.user_index()) - 1]
+                        if (
+                            abs(particle.eta()) < recoil_hadron_eta_cut
+                            and recoil_hadron_pt[0] < particle.pt() < recoil_hadron_pt[1]
+                            and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                        ):
+                            # dphi
+                            self.observable_dict_event[
+                                f"z_trigger_hadron_delta_N_dphi_cms{suffix}"
+                            ].append([particle.pt(), z_boson.delta_phi_to(particle)])
+
+                            # dy
+                            self.observable_dict_event[
+                                f"z_trigger_hadron_delta_N_dy_cms{suffix}"
+                            ].append([particle.pt(), z_boson.rapidity() - particle.rapidity()])
+
 
     # ---------------------------------------------------------------
     # Fill Z boson triggered jet observables

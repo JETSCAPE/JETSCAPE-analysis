@@ -1836,6 +1836,24 @@ z_trigger_hadron:
 
     # TODO(RJE): Add figures and binning
 
+  delta_N_cms:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2945894
+      hepdata: N/A
+
+    centrality: [[0, 30], [30, 50]]
+    z_trigger:
+      # TODO not given explicitly but i assume this is the case
+      eta_cut: 2.5
+      pt: [40, 350]
+    recoil_hadron:
+      eta_cut: 2.4
+      # Bins: [1, 2, 4, 10]
+      pt: [1.0, 10]
+
+    # TODO(RJE): Add figures and binning
+
 
 #------------------------------------------------------------------
 # Z boson triggered jet observables
