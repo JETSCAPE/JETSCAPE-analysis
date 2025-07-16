@@ -47,6 +47,17 @@ from jetscape_analysis.base import helpers
 
 logger = logging.getLogger(__name__)
 
+# Mocked up class just for typing purposes
+class PseudoJet:
+    px: float
+    py: float
+    pz: float
+    E: float
+
+    def user_index(self) -> int: ...
+
+PseudoJetVector = list[PseudoJet]
+
 
 ################################################################
 class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_BaseSTAT):
