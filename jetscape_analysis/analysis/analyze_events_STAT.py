@@ -22,8 +22,8 @@
            (ii) Additive substructure -- subtract holes within R
            (iii) Non-additive substructure -- no further hole subtraction
 
-.. codeauthor:: James Mulligan (james.mulligan@berkeley.edu)
-.. codeauthor:: Raymond Ehlers (raymond.ehlers@cern.ch)
+.. codeauthor:: James Mulligan <james.mulligan@berkeley.edu>, UC Berkeley
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
 from __future__ import annotations
@@ -66,7 +66,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(self, config_file="", input_file="", output_dir="", **kwargs):
+    def __init__(
+        self, config_file: str | Path = "", input_file: str | Path = "", output_dir: str | Path = "", **kwargs
+    ):
         super().__init__(config_file=config_file, input_file=input_file, output_dir=output_dir, **kwargs)
         # Initialize config file
         self.initialize_user_config()
@@ -78,15 +80,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     def initialize_user_config(self):
         # Read config file
-        with Path(self.config_file).open() as stream:
+        with self.config_file.open() as stream:
             config = yaml.safe_load(stream)
 
         self.sqrts = config["sqrt_s"]
         self.output_file = "observables"
         # Update the output_file to contain the labeling in the final_state_hadrons file.
         # We use this naming convention as the flag for whether we should attempt to rename it.
-        if "final_state_hadrons" in self.input_file_hadrons:
-            _input_filename = Path(self.input_file_hadrons).name
+        if "final_state_hadrons" in str(self.input_file_hadrons):
+            _input_filename = self.input_file_hadrons.name
             # The filename will be something like "observables_0000_00.parquet", assuming
             # that the original name was "observables"
             self.output_file = _input_filename.replace("final_state_hadrons", self.output_file)
@@ -2093,7 +2095,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 pt_max = self.inclusive_jet_observables["dR12_atlas"]["pt"][1]
                 # TODO(Dhanush): Implement from here
 
-
     # ---------------------------------------------------------------
     # Fill inclusive full jet observables
     # ---------------------------------------------------------------
@@ -2171,7 +2172,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         self.observable_dict_event[
                             f"inclusive_jet_rg_atlas_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
                         ].append([jet_pt, rg])
-
 
     # ---------------------------------------------------------------
     # Fill inclusive charged jet observables
@@ -3029,7 +3029,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             ):
                 ...
 
-
     def fill_z_trigger_hadron_observables(
         self, fj_z_boson_candidates, fj_particles, pid_hadrons: npt.NDArray[np.int32], status: str = "+"
     ) -> None:
@@ -3305,16 +3304,15 @@ def main_entry_point() -> None:
         "-c",
         "--configFile",
         action="store",
-        type=str,
+        type=Path,
         metavar="configFile",
-        default="/home/jetscape-user/JETSCAPE-analysis/config/jetscapeAnalysisConfig.yaml",
-        help="Path of config file for analysis",
+        help="Path of config file for analysis (e.g. config/STAT_5020.yaml)",
     )
     parser.add_argument(
         "-i",
         "--inputFile",
         action="store",
-        type=str,
+        type=Path,
         metavar="inputDir",
         default="/home/jetscape-user/JETSCAPE-analysis/test.out",
         help="Input directory containing JETSCAPE output files",
@@ -3323,12 +3321,11 @@ def main_entry_point() -> None:
         "-o",
         "--outputDir",
         action="store",
-        type=str,
+        type=Path,
         metavar="outputDir",
         default="/home/jetscape-user/JETSCAPE-analysis/TestOutput",
         help="Output directory for output to be written to",
     )
-    # Add logging level and pass to function below
     parser.add_argument(
         "-l",
         "--logLevel",
@@ -3345,13 +3342,11 @@ def main_entry_point() -> None:
     # Setup logging
     helpers.setup_logging(level=args.logLevel)
 
-    # If invalid configFile is given, exit
-    if not Path(args.configFile).exists():
+    # Validation
+    if not args.configFile.exists():
         msg = f'File "{args.configFile}" does not exist! Exiting!'
         raise ValueError(msg)
-
-    # If invalid inputDir is given, exit
-    if not Path(args.inputFile).exists():
+    if not args.inputFile.exists():
         msg = f'File "{args.inputFile}" does not exist! Exiting!'
         raise ValueError(msg)
 

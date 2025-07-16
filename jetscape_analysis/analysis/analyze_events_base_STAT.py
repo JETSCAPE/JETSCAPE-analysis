@@ -39,22 +39,24 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(self, config_file="", input_file="", output_dir="", **kwargs):
+    def __init__(
+        self, config_file: str | Path = "", input_file: str | Path = "", output_dir: str | Path = "", **kwargs
+    ):
         super().__init__(**kwargs)
 
-        self.config_file = config_file
-        self.input_file_hadrons = input_file
+        self.config_file = Path(config_file)
+        self.input_file_hadrons = Path(input_file)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True, parents=True)
 
-        with Path(self.config_file).open() as f:
+        with self.config_file.open() as f:
             config = yaml.safe_load(f)
 
         # Allow an early stop to the analysis (if desired).
         self.n_event_max = config.get("n_event_max", -1)
 
         # Check whether pp or AA
-        if "PbPb" in self.input_file_hadrons or "AuAu" in self.input_file_hadrons:
+        if "PbPb" in str(self.input_file_hadrons) or "AuAu" in str(self.input_file_hadrons):
             self.is_AA = True
         else:
             self.is_AA = False
@@ -62,7 +64,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # If AA, get centrality bin
         self.use_event_based_centrality = False
         if self.is_AA:
-            _final_state_hadrons_path = Path(self.input_file_hadrons)
+            _final_state_hadrons_path = self.input_file_hadrons
             # For an example filename of "jetscape_PbPb_Run0005_5020_0001_final_state_hadrons_00.parquet",
             # - the run number is index 2
             _job_identifier = _final_state_hadrons_path.stem.split("_")[2]
