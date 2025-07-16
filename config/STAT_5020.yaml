@@ -1792,6 +1792,49 @@ z_trigger_hadron:
       pt_min: 1.
     dPhi: 3./4. # dPhi > 3/4*pi
 
+  # CMS xi (fragmentation)
+  # Observables: xi_T^trk,Z , dphi
+  xi_cms:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1850859
+      hepdata: https://www.hepdata.net/record/ins1850859
+
+    centrality: [[0, 30], [30, 50]]
+    z_trigger:
+      # TODO not given explicitly but i assume this is the case
+      eta_cut: 2.5
+      pt_min: 30.
+    recoil_hadron:
+      eta_cut: 2.4
+      pt_min: 1.0
+
+    dPhi: 7./8. # dPhi > 7/8*pi
+
+    hepdata: "HEPData-ins1850859-v1-root.root"
+
+    # TODO(RJE): add figures and binning later
+
+  dphi_cms:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1850859
+      hepdata: https://www.hepdata.net/record/ins1850859
+
+    centrality: [[0, 30], [30, 50]]
+    z_trigger:
+      # TODO not given explicitly but i assume this is the case
+      eta_cut: 2.5
+      pt_min: 30.
+    recoil_hadron:
+      eta_cut: 2.4
+      pt_min: 1.0
+
+    hepdata: "HEPData-ins1850859-v1-root.root"
+
+    # TODO(RJE): add figures and binning later
+
+
 #------------------------------------------------------------------
 # Z boson triggered jet observables
 #------------------------------------------------------------------
@@ -1811,9 +1854,9 @@ z_trigger_jet:
       pt_min: 60.
     recoil_jet:
       jet_R: [0.3]
-      eta_cut: 1.6  # |eta| < 1.6
+      eta_cut: 1.6 # |eta| < 1.6
       pt_min: 30.
-    dPhi: 7./8.  # dPhi > 7/8*pi
+    dPhi: 7./8. # dPhi > 7/8*pi
 
     hepdata: "HEPData-ins1512112-v1-root.root"
 
@@ -1833,11 +1876,11 @@ z_trigger_jet:
       pt_min: 60.
     recoil_jet:
       jet_R: [0.3]
-      eta_cut: 1.6  # |eta| < 1.6
+      eta_cut: 1.6 # |eta| < 1.6
       pt_min: 30.
-    dPhi: 7./8.  # dPhi > 7/8*pi
+    dPhi: 7./8. # dPhi > 7/8*pi
 
     hepdata: "HEPData-ins1512112-v1-root.root"
 
-    # TODO add figures and binning later, but we need xjz distribution normalized by number of Z boson triggers,
+    # TODO add figures and binning later, but we need x_jz distribution normalized by number of Z boson triggers,
     # as well as dPhi distribution

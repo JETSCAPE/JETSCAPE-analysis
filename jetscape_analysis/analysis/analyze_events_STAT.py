@@ -3086,41 +3086,86 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             suffix = "_holes"
 
         # ---------------------------------------------------------------
-        # Fill Z boson triggered observables
-        # TODO(FJ): in the way it is implemented here, it is always pos trigger and pos associated or hole trigger and hole associated.
-        # I am not sure if this is correct? Also for gamma-jet, do i need to account for trigger photons that are holes?
+        # Fill Z boson triggered hadron observables
         # ---------------------------------------------------------------
-        if self.sqrts in [5020] and self.measure_observable_for_current_event(self.z_trigger_hadron_observables["IAA_pt_atlas"]):
-            z_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["pt_min"]
-            z_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["eta_cut"]
-            recoil_hadron_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["pt_min"]
-            recoil_hadron_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["eta_cut"]
-            d_phi = self.z_trigger_hadron_observables["IAA_pt_atlas"]["dPhi"]
+        if self.sqrts in [5020]:
+            if self.measure_observable_for_current_event(self.z_trigger_hadron_observables["IAA_pt_atlas"]):
+                z_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["pt_min"]
+                z_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["eta_cut"]
+                recoil_hadron_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["pt_min"]
+                recoil_hadron_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["eta_cut"]
+                d_phi = self.z_trigger_hadron_observables["IAA_pt_atlas"]["dPhi"]
 
-            # get all Z bosons that fulfill analysis cuts
-            z_bosons = []
-            for trigger in fj_z_boson_candidates:
-                if trigger.pt > z_pt_min and abs(trigger.eta()) < z_eta_cut:
-                    z_bosons.append(trigger)
+                # get all Z bosons that fulfill analysis cuts
+                z_bosons = []
+                for trigger in fj_z_boson_candidates:
+                    if trigger.pt > z_pt_min and abs(trigger.eta()) < z_eta_cut:
+                        z_bosons.append(trigger)
 
-            # And then construct the correlation of the trigger Z bosons with the hadrons
-            for z_boson in z_bosons:
-                # fill just Z boson pt to allow to calculate normalization N_z_bosons later
-                self.observable_dict_event[
-                    f"z_trigger_hadron_IAA_pt_atlas_Nz{suffix}"
-                ].append(z_boson.pt())
-                for particle in fj_particles:
-                    pid = pid_hadrons[np.abs(particle.user_index()) - 1]
-                    if (
-                        abs(particle.eta()) < recoil_hadron_eta_cut
-                        and particle.pt() > recoil_hadron_pt_min
-                        and particle.delta_R(z_boson) < d_phi * np.pi
-                        and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-                    ):
-                        # store z_boson.pt and hadron pt to allow to select Z boson ranges later for figure
-                        self.observable_dict_event[
-                            f"z_trigger_hadron_IAA_pt_atlas{suffix}"
-                        ].append([z_boson.pt(), particle.pt()])
+                # And then construct the correlation of the trigger Z bosons with the hadrons
+                for z_boson in z_bosons:
+                    # fill just Z boson pt to allow to calculate normalization N_z_bosons later
+                    self.observable_dict_event[
+                        f"z_trigger_hadron_IAA_pt_atlas_Nz{suffix}"
+                    ].append(z_boson.pt())
+                    for particle in fj_particles:
+                        pid = pid_hadrons[np.abs(particle.user_index()) - 1]
+                        if (
+                            abs(particle.eta()) < recoil_hadron_eta_cut
+                            and particle.pt() > recoil_hadron_pt_min
+                            and particle.delta_R(z_boson) < d_phi * np.pi
+                            and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                        ):
+                            # store z_boson.pt and hadron pt to allow to select Z boson ranges later for figure
+                            self.observable_dict_event[
+                                f"z_trigger_hadron_IAA_pt_atlas{suffix}"
+                            ].append([z_boson.pt(), particle.pt()])
+
+            # -----------------------------------------------------------
+            # Z-trigger hadron xi, dphi CNS
+            # NOTE: We use the xi parameters as a proxy for the dphi acoplanarity.
+            #       They're measured together in the same analysis, so the parameters
+            #       are the same, and thus this is just fine.
+            # -----------------------------------------------------------
+            if self.measure_observable_for_current_event(self.z_trigger_hadron_observables["xi_cms"]):
+                z_pt_min = self.z_trigger_hadron_observables["xi_cms"]["z_trigger"]["pt_min"]
+                z_eta_cut = self.z_trigger_hadron_observables["xi_cms"]["z_trigger"]["eta_cut"]
+                recoil_hadron_pt_min = self.z_trigger_hadron_observables["xi_cms"]["recoil_hadron"]["pt_min"]
+                recoil_hadron_eta_cut = self.z_trigger_hadron_observables["xi_cms"]["recoil_hadron"]["eta_cut"]
+                d_phi = self.z_trigger_hadron_observables["xi_cms"]["dPhi"]
+
+                # get all Z bosons that fulfill analysis cuts
+                z_bosons = []
+                for trigger in fj_z_boson_candidates:
+                    if trigger.pt > z_pt_min and abs(trigger.eta()) < z_eta_cut:
+                        z_bosons.append(trigger)
+
+                # And then construct the correlation of the trigger Z bosons with the hadrons
+                for z_boson in z_bosons:
+                    # fill just Z boson pt to allow to calculate normalization N_z_bosons later
+                    self.observable_dict_event[
+                        f"z_trigger_hadron_xi_cms_Nz{suffix}"
+                    ].append(z_boson.pt())
+
+                    for particle in fj_particles:
+                        pid = pid_hadrons[np.abs(particle.user_index()) - 1]
+                        if (
+                            abs(particle.eta()) < recoil_hadron_eta_cut
+                            and particle.pt() > recoil_hadron_pt_min
+                            and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                        ):
+                            # xi
+                            if particle.delta_R(z_boson) > d_phi * np.pi:
+                                # xi = ln[ - |pt,z|^2 / (vec(pt)^track * vec(pt)^Z)]
+                                # TODO(RJE): Properly implement this observable
+                                self.observable_dict_event[
+                                    f"z_trigger_hadron_xi_cms{suffix}"
+                                ].append(particle.pt())
+
+                            # dphi
+                            self.observable_dict_event[
+                                f"z_trigger_hadron_dphi_cms{suffix}"
+                            ].append(z_boson.delta_phi_to(particle))
 
 
     # ---------------------------------------------------------------
@@ -3154,7 +3199,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.sqrts in [5020] and self.measure_observable_for_current_event(self.z_trigger_jet_observables["xj_z_cms"]):
             # -----------------------------------------------------------
             # Z-trigger jet x_{j,z} CNS
-            # NOTE: We use the xj_z parameters as a proxy for the d_phi acoplanarity.
+            # NOTE: We use the xj_z parameters as a proxy for the dphi acoplanarity.
             #       They're measured together in the same analysis, so the parameters
             #       are the same, and thus this is just fine.
             # -----------------------------------------------------------
@@ -3173,7 +3218,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # loop over trigger Z bosons
             for z_boson in z_bosons:
                 # count the number of triggers for normalization purposes
-                self.observable_dict_event[f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_NZBoson"].append(
+                self.observable_dict_event[f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_Nz"].append(
                     z_boson.pt()
                 )
                 # loop over jets
