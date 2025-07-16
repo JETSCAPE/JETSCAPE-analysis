@@ -180,7 +180,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if self.AA:
                     self.fill_photon_hadron_observables(fj_photon_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-")
 
-
         # Fill hadron observables for jet shower particles
         self.fill_hadron_observables(fj_hadrons_positive, pid_hadrons_positive, status="+")
         if self.is_AA:
@@ -3067,14 +3066,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         f"dijet_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}"
                                     ].append([leading_jet_pt, xj])
 
-    # ---------------------------------------------------------------
-    # Fill Z boson triggered hadron observables
-    # ---------------------------------------------------------------
-    def fill_z_trigger_hadron_observables(self, fj_particles, pid_hadrons, status="+") -> None:
+
+    def fill_z_trigger_hadron_observables(self, fj_z_boson_candidates, fj_particles, pid_hadrons, status: str = "+") -> None:
         """Measure and record Z-triggered hadron observables.
 
         Args:
-            ...
+            fj_z_boson_candidates: Z boson candidates, as an array of fj::PseudoJet.
+            fj_particles: Particles in the event, as an array of fj::PseudoJet.
+            pid_hadrons: Corresponding PID of the particles.
+            status: Selected particle status.
         Returns:
             None.
         """
@@ -3089,40 +3089,37 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # TODO(FJ): in the way it is implemented here, it is always pos trigger and pos associated or hole trigger and hole associated.
         # I am not sure if this is correct? Also for gamma-jet, do i need to account for trigger photons that are holes?
         # ---------------------------------------------------------------
-        if self.sqrts in [5020]:
-            if (
-                self.centrality_accepted(self.z_trigger_hadron_observables["IAA_pt_atlas"]["centrality"])
-                and self.z_trigger_hadron_observables["IAA_pt_atlas"]["enabled"]
-            ):
-                z_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_pt_min"]
-                z_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_eta_cut"]
-                recoil_hadron_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron_pt_min"]
-                recoil_hadron_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron_eta_cut"]
-                d_phi = self.z_trigger_hadron_observables["IAA_pt_atlas"]["dPhi"]
+        if self.sqrts in [5020] and self.measure_observable_for_current_event(self.z_trigger_hadron_observables["IAA_pt_atlas"]):
+            z_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["pt_min"]
+            z_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["eta_cut"]
+            recoil_hadron_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["pt_min"]
+            recoil_hadron_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["eta_cut"]
+            d_phi = self.z_trigger_hadron_observables["IAA_pt_atlas"]["dPhi"]
 
-                # get all Z bosons that fulfill analysis cuts
-                Z_bosons = []
-                for trigger in fj_particles:
-                    pid = pid_hadrons[np.abs(trigger.user_index()) - 1]
-                    if pid == 23 and trigger.pt > z_pt_min and abs(trigger.eta()) < z_eta_cut:
-                        Z_bosons.append(trigger)
-                for z_boson in Z_bosons:
-                    # fill just Z boson pt to allow to calculate normalization NZBosons later
-                    self.observable_dict_event[
-                        f"z_trigger_hadron_IAA_pt_atlas_Nz{suffix}"
-                    ].append(z_boson.pt())
-                    for particle in fj_particles:
-                        pid = pid_hadrons[np.abs(particle.user_index()) - 1]
-                        if (
-                            abs(particle.eta()) < recoil_hadron_eta_cut
-                            and particle.pt() > recoil_hadron_pt_min
-                            and particle.delta_R(z_boson) < d_phi * np.pi
-                            and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-                        ):
-                            # store z_boson.pt and hadron pt to allow to select Z boson ranges later for figure
-                            self.observable_dict_event[
-                                f"z_trigger_hadron_IAA_pt_atlas{suffix}"
-                            ].append([z_boson.pt(), particle.pt()])
+            # get all Z bosons that fulfill analysis cuts
+            z_bosons = []
+            for trigger in fj_z_boson_candidates:
+                if trigger.pt > z_pt_min and abs(trigger.eta()) < z_eta_cut:
+                    z_bosons.append(trigger)
+
+            # And then construct the correlation of the trigger Z bosons with the hadrons
+            for z_boson in z_bosons:
+                # fill just Z boson pt to allow to calculate normalization N_z_bosons later
+                self.observable_dict_event[
+                    f"z_trigger_hadron_IAA_pt_atlas_Nz{suffix}"
+                ].append(z_boson.pt())
+                for particle in fj_particles:
+                    pid = pid_hadrons[np.abs(particle.user_index()) - 1]
+                    if (
+                        abs(particle.eta()) < recoil_hadron_eta_cut
+                        and particle.pt() > recoil_hadron_pt_min
+                        and particle.delta_R(z_boson) < d_phi * np.pi
+                        and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                    ):
+                        # store z_boson.pt and hadron pt to allow to select Z boson ranges later for figure
+                        self.observable_dict_event[
+                            f"z_trigger_hadron_IAA_pt_atlas{suffix}"
+                        ].append([z_boson.pt(), particle.pt()])
 
 
     # ---------------------------------------------------------------

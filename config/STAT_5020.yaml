@@ -1781,10 +1781,15 @@ z_trigger_hadron:
       hepdata: N/A
 
     centrality: [[0, 10]]
-    z_eta_cut: 2.5 # TODO They write nowhere what the eta acceptance of reconstructed Z boson is. They write requirements for decay products but not for the Z. They say they correct for reconstruction efficiency but do not specify the region for Z Boson. The written value is a blind guess
-    z_pt_min: 15.0
-    recoil_hadron_eta_cut: 2.5
-    recoil_hadron_pt_min: 1.
+    z_trigger:
+      # TODO: They do not write what the eta acceptance of reconstructed Z boson is. They write requirements for decay products but not for the Z itself.
+      #       They say they correct for reconstruction efficiency but do not specify the region for Z Boson.
+      #       The written value (July 2025) is a blind guess
+      eta_cut: 2.5
+      pt_min: 15.0
+    recoil_hadron:
+      eta_cut: 2.5
+      pt_min: 1.
     dPhi: 3./4. # dPhi > 3/4*pi
 
 #------------------------------------------------------------------
