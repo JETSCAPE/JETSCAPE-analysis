@@ -276,7 +276,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         return jets[0].pt() > outlier_pt_hat_cut * pt_hat
 
-    def fill_hadron_observables(
+    def fill_hadron_observables(  # noqa: C901
         self, fj_particles: PseudoJetVector, pid_hadrons: npt.NDArray[np.int32], status: str = "+"
     ) -> None:
         """Measure and record inclusive hadron observables.
@@ -341,15 +341,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 # ATLAS
                 # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-                if self.sqrts in [2760, 5020] and self.measure_observable_for_current_event(
-                    self.hadron_observables["pt_ch_atlas"]
-                ):
+                if self.measure_observable_for_current_event(self.hadron_observables["pt_ch_atlas"]):
                     pt_min = self.hadron_observables["pt_ch_atlas"]["pt"][0]
                     pt_max = self.hadron_observables["pt_ch_atlas"]["pt"][1]
                     if (
                         pt_min < pt < pt_max
                         and abs(eta) < self.hadron_observables["pt_ch_atlas"]["eta_cut"]
-                        # TODO(RJE): check if this is the correct list of particles also for 5.02 TeV
                         and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                     ):
                         self.observable_dict_event[f"hadron_pt_ch_atlas{suffix}"].append(pt)
@@ -380,7 +377,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         self.observable_dict_event[f"hadron_pt_pi0_phenix{suffix}"].append(pt)
 
                 # STAR
-                # Charged hadrons (pi+, K+, p+)
+                # Charged hadrons (pi+-, K+-, p, anti-p)
                 if self.measure_observable_for_current_event(self.hadron_observables["pt_ch_star"]):
                     pt_min = self.hadron_observables["pt_ch_star"]["pt"][0]
                     pt_max = 100.0  # Open upper bound

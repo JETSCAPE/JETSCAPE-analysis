@@ -112,12 +112,12 @@ hadron:
     y_max_AA_distribution: 1e4
 
   # ALICE charged pion RAA
-  # https://www.hepdata.net/record/ins1377750 -- charged pions (no pp hepdata, no ion normalized hepdata)
   # Figs 22,23
   pt_pi_alice:
     enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1377750
+      # NOTE: In the HEPData file, there is no pp hepdata, no ion normalized hepdata
       hepdata: https://www.hepdata.net/record/ins1377750
 
     eta_cut: 0.8
@@ -215,8 +215,6 @@ hadron:
 
   # CMS charged hadron RAA
   # Figs 3a,5
-  # TODO
-  # pmj 13/1/22: QA OK; but why is lower pT bound 6 GeV and not 5 GeV? Data extend to 1 GeV, make uniform with other data?
   pt_ch_cms:
     enabled: true
     urls:
@@ -224,6 +222,9 @@ hadron:
       hepdata: https://www.hepdata.net/record/ins1088823
 
     eta_cut: 1.0
+    # NOTE: Min pt is set to 6 GeV (rather than the usual 5 GeV) because of the pp binning in Table 1.
+    #       The pp has a bin from 4.8 - 6 GeV, so we align with the upper bin edge.
+    #       Even 6 is a bit of a compromise, since the AA bins to 5.6-6.4, but it's the best we can do.
     pt: [6.0, 100.]
     centrality: [[0, 5], [5, 10], [10, 30]]
     xtitle: "#it{p}_{T} (GeV/#it{c})"
@@ -238,7 +239,7 @@ hadron:
     y_max_pp: 1e2
     scale_by: "1/pt"
 
-    #skip_pp_ratio: True # Note: pp binning is different than PbPb binnings, so ratio will not work
+    skip_pp_ratio: True # Note: pp binning is different than PbPb binnings, so ratio will not work
 
     hepdata_AA_dir: "Table 5"
     hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3"]
