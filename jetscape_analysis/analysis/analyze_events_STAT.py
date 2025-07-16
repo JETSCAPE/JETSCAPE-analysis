@@ -159,10 +159,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         )
 
         # call event selection function, run jet finder R=0.4, take highest pt_jet, require pt_jet <= 3 * pthat, otherwise return false
-        pt_hat = event["pt_hat"]
-        if self.do_event_outlier_rejection:
-            if self.is_event_outlier(fj_hadrons_positive, pt_hat, self.outlier_pt_hat_cut):
-                return
+        if self.do_event_outlier_rejection and self.is_event_outlier(fj_hadrons_positive, event["pt_hat"], self.outlier_pt_hat_cut):
+            return
 
         # Fill photon triggered observables
         # Skip if we have no photon-based observables
@@ -246,23 +244,29 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 jet_collection_label=jet_collection_label,
             )
 
-    # ---------------------------------------------------------------
-    # Do  jet outlier rejection based on highest pt jet and pthat
-    #
-    # ---------------------------------------------------------------
     def is_event_outlier(self, hadrons_for_jet_finding, pt_hat, outlier_pt_hat_cut) -> bool:
+        """Check if event is an outlier based on the maximum jet pt compared to the event pt hat.
+
+        This selection is based on the principle that jet pt cannot be too much larger than the
+        pt hat of the event that it came from. We are considered to have an outlier if
+        `jet_pt / pt_hat > factor` is satisfied, where the factor is often 3-4.
+
+        Args:
+            hadrons_for_jet_finding: Hadrons to use for jet finding.
+            pt_hat: Pt hat of the event.
+            outlier_pt_hat_cut: Factor for jet to be considered an outlier -- i.e. jet_pt / pt_hat > factor.
+        Returns:
+            True if event is an outlier.
+        """
         # Find inclusive charged jets
         jet_def = fj.JetDefinition(fj.antikt_algorithm, self.outlier_jet_R)
         cs = fj.ClusterSequence(hadrons_for_jet_finding, jet_def)
         jets = fj.sorted_by_pt(cs.inclusive_jets())
         if len(jets) == 0:
             return False
-        jet = jets[0]
-        pt_jet = jet.pt()
-        if pt_jet > outlier_pt_hat_cut * pt_hat:
-            return True
-        else:
-            return False
+
+        return jets[0].pt() > outlier_pt_hat_cut * pt_hat
+
 
     # ---------------------------------------------------------------
     # Fill hadron observables
