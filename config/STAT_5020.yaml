@@ -1792,6 +1792,8 @@ z_trigger_hadron:
       pt_min: 1.
     dPhi: 3./4. # dPhi > 3/4*pi
 
+    # TODO(RJE): Add binning
+
   # CMS xi (fragmentation)
   # Observables: xi_T^trk,Z , dphi
   xi_cms:
@@ -1813,7 +1815,7 @@ z_trigger_hadron:
 
     hepdata: "HEPData-ins1850859-v1-root.root"
 
-    # TODO(RJE): add figures and binning later
+    # TODO(RJE): Add figures and binning
 
   dphi_cms:
     enabled: false
@@ -1832,7 +1834,7 @@ z_trigger_hadron:
 
     hepdata: "HEPData-ins1850859-v1-root.root"
 
-    # TODO(RJE): add figures and binning later
+    # TODO(RJE): Add figures and binning
 
 
 #------------------------------------------------------------------
@@ -1860,8 +1862,8 @@ z_trigger_jet:
 
     hepdata: "HEPData-ins1512112-v1-root.root"
 
-    # TODO add figures and binning later, but we need xj_z distribution normalized by number of Z boson triggers,
-    # as well as dPhi distribution
+    # TODO(RJE): Add figures and binning.
+    #            xj_z distribution is normalized by number of Z boson triggers
 
   dphi_cms:
     enabled: false
@@ -1882,5 +1884,4 @@ z_trigger_jet:
 
     hepdata: "HEPData-ins1512112-v1-root.root"
 
-    # TODO add figures and binning later, but we need x_jz distribution normalized by number of Z boson triggers,
-    # as well as dPhi distribution
+    # TODO(RJE): Add figures and binning.

@@ -3202,6 +3202,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # NOTE: We use the xj_z parameters as a proxy for the dphi acoplanarity.
             #       They're measured together in the same analysis, so the parameters
             #       are the same, and thus this is just fine.
+            #
+            #   TODO(RJE): Confirm these treatments, which are from the hadron_trigger_chjet case
+            #   Hole treatment:
+            #    - For shower_recoil case, correct the pt only (and also store unsubtracted pt)
+            #    - For negative_recombiner case, no subtraction is needed
+            #    - For constituent_subtraction, no subtraction is needed
             # -----------------------------------------------------------
             z_pt_min = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["pt_min"]
             z_eta_cut = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["eta_cut"]
@@ -3221,6 +3227,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.observable_dict_event[f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_Nz"].append(
                     z_boson.pt()
                 )
+
                 # loop over jets
                 for jet in jets_selected:
                     jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
