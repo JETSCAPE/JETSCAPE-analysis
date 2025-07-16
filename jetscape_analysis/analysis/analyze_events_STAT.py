@@ -47,6 +47,7 @@ from jetscape_analysis.base import helpers
 
 logger = logging.getLogger(__name__)
 
+
 # Mocked up class just for typing purposes
 class PseudoJet:
     px: float
@@ -55,6 +56,7 @@ class PseudoJet:
     E: float
 
     def user_index(self) -> int: ...
+
 
 PseudoJetVector = list[PseudoJet]
 
@@ -274,19 +276,28 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         return jets[0].pt() > outlier_pt_hat_cut * pt_hat
 
-    # ---------------------------------------------------------------
-    # Fill hadron observables
-    # (assuming weak strange decays are off, but charm decays are on)
-    # ---------------------------------------------------------------
-    def fill_hadron_observables(self, fj_particles, pid_hadrons, status="+"):
-        # Note that for identified particles, we store holes of the identified species
+    def fill_hadron_observables(
+        self, fj_particles: PseudoJetVector, pid_hadrons: npt.NDArray[np.int32], status: str = "+"
+    ) -> None:
+        """Measure and record inclusive hadron observables.
+
+        We assume weak strange decays are off, but charm decays are on.
+
+        Args:
+            fj_particles: Particles in the event.
+            pid_hadrons: Particle ID of the particles.
+            status: Particle status of the provided particles. Default: "+"
+        Returns:
+            None
+        """
+        # NOTE: For identified particles, we store holes of the identified species
         suffix = ""
         if status == "-":
             suffix = "_holes"
 
         # Loop through hadrons
         for particle in fj_particles:
-            # Fill some basic hadron info
+            # Define some basic hadron info
             pid = pid_hadrons[np.abs(particle.user_index()) - 1]
             pt = particle.pt()
             eta = particle.eta()
@@ -2969,7 +2980,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             fj_z_boson_candidates: Z boson candidates, as an array of fj::PseudoJet.
             fj_particles: Particles in the event, as an array of fj::PseudoJet.
             pid_hadrons: Corresponding PID of the particles.
-            status: Selected particle status.
+            status: Particle status of the provided particles.
         Returns:
             None.
         """
