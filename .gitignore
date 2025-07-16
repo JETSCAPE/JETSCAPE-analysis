@@ -22,3 +22,6 @@ ENV/
 
 # Linting
 node_modules/
+
+# Data
+skim/
