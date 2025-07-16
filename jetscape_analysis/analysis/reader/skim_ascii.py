@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from pathlib import Path
 
 from jetscape_analysis.analysis.reader import parse_ascii
 from jetscape_analysis.base import common_base, helpers
+
+logger = logging.getLogger(__name__)
 
 
 ################################################################
@@ -82,4 +85,8 @@ if __name__ == "__main__":
         raise RuntimeError(_msg)
 
     analysis = SkimAscii(input_file=args.inputFile, output_dir=args.outputDir, events_per_chunk=args.nEventsPerFile)
-    analysis.skim()
+    try:
+        analysis.skim()
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)

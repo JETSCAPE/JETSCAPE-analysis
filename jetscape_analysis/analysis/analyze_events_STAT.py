@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import logging
 import random
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -48,7 +49,7 @@ from jetscape_analysis.base import helpers
 logger = logging.getLogger(__name__)
 
 
-# Mocked up class just for typing purposes
+# Mocked up interface class for typing purposes
 class PseudoJet:
     px: float
     py: float
@@ -3353,7 +3354,11 @@ def main_entry_point() -> None:
     analysis = AnalyzeJetscapeEvents_STAT(
         config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir
     )
-    analysis.analyze_jetscape_events()
+    try:
+        analysis.analyze_jetscape_events()
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

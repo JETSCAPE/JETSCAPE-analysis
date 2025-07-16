@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -983,7 +984,11 @@ def main_entry_point() -> None:
     args.outputDir.mkdir(exist_ok=True, parents=True)
 
     analysis = HistogramResults(config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir)
-    analysis.histogram_results()
+    try:
+        analysis.histogram_results()
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
