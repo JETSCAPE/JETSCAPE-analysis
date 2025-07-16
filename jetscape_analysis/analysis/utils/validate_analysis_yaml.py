@@ -7,6 +7,7 @@ This isn't comprehensive - it's just what needs to be minimally supported.
 
 import argparse
 import logging
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -221,6 +222,7 @@ def validate_yaml_entry_point() -> None:
         logger.error("Validation issues:")
         helpers.rich_console.print(res)
         logger.error("❌ Validation failed!")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
