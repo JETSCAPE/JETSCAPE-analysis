@@ -1481,6 +1481,43 @@ hadron_trigger_chjet:
     bins: [1.57, 2.07, 2.42, 2.61, 2.76, 2.89, 3.02, 3.14]
 
 #------------------------------------------------------------------
+# dijet triggered jet observables
+#------------------------------------------------------------------
+dijet_trigger_jet:
+  # CMS di-jet v2
+  v2_cms:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2165916
+      hepdata: https://www.hepdata.net/record/ins2165916
+
+  # ATLAS dijet radius dependence includes:
+  # - RAA^pair
+  # - xj (TODO: Supersedes previous xj measurements?)
+  # - dijet yield
+  # RAA^pair
+  pt_pair_atlas:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2165916
+      hepdata: https://www.hepdata.net/record/ins2165916
+
+  # xj
+  xj_atlas:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2165916
+      hepdata: https://www.hepdata.net/record/ins2165916
+
+  # xj
+  yield_atlas:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2165916
+      hepdata: https://www.hepdata.net/record/ins2165916
+
+
+#------------------------------------------------------------------
 # coincidence observables – gamma+jet
 #------------------------------------------------------------------
 gamma_trigger_jet:

@@ -2073,6 +2073,27 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 f"inclusive_jet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}"
                             ].append([jet_pt, deltaR])
 
+            # ATLAS, d_12
+            #   Hole treatment:
+            #    - For shower_recoil case, ?
+            #    - For negative_recombiner case, ?
+            #    - For constituent_subtraction, ?
+            if self.measure_observable_for_current_event(self.inclusive_jet_observables["d12_atlas"]):
+                pt_min = self.inclusive_jet_observables["d12_atlas"]["pt"][0]
+                pt_max = self.inclusive_jet_observables["d12_atlas"]["pt"][1]
+                # TODO(Dhanush): Implement from here
+
+            # ATLAS, dR_12
+            #   Hole treatment:
+            #    - For shower_recoil case, ?
+            #    - For negative_recombiner case, ?
+            #    - For constituent_subtraction, ?
+            if self.measure_observable_for_current_event(self.inclusive_jet_observables["dR12_atlas"]):
+                pt_min = self.inclusive_jet_observables["dR12_atlas"]["pt"][0]
+                pt_max = self.inclusive_jet_observables["dR12_atlas"]["pt"][1]
+                # TODO(Dhanush): Implement from here
+
+
     # ---------------------------------------------------------------
     # Fill inclusive full jet observables
     # ---------------------------------------------------------------
@@ -2136,18 +2157,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.measure_observable_for_current_event(self.inclusive_chjet_observables["rg_atlas"]):
-                if grooming_setting in self.inclusive_chjet_observables["rg_atlas"]["SoftDrop"]:
-                    pt_min = self.inclusive_chjet_observables["rg_atlas"]["pt"][0]
-                    pt_max = self.inclusive_chjet_observables["rg_atlas"]["pt"][1]
-                    if abs(jet.eta()) < (self.inclusive_chjet_observables["rg_atlas"]["eta_cut"] - jetR):
-                        if jetR in self.inclusive_chjet_observables["rg_atlas"]["jet_R"]:
-                            if pt_min < jet_pt < pt_max:
-                                # Note: untagged jets will return negative value
-                                rg = jet_groomed_lund.Delta()
-                                self.observable_dict_event[
-                                    f"inclusive_chjet_rg_atlas_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                                ].append([jet_pt, rg])
+            if self.measure_observable_for_current_event(self.inclusive_jet_observables["rg_atlas"]):
+                if grooming_setting in self.inclusive_jet_observables["rg_atlas"]["SoftDrop"]:
+                    pt_min = self.inclusive_jet_observables["rg_atlas"]["pt"][0]
+                    pt_max = self.inclusive_jet_observables["rg_atlas"]["pt"][1]
+                    if (
+                        pt_min < jet_pt < pt_max
+                        and abs(jet.eta()) < (self.inclusive_jet_observables["rg_atlas"]["eta_cut"] - jetR)
+                        and jetR in self.inclusive_jet_observables["rg_atlas"]["jet_R"]
+                    ):
+                        # Note: untagged jets will return negative value
+                        rg = jet_groomed_lund.Delta()
+                        self.observable_dict_event[
+                            f"inclusive_jet_rg_atlas_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+                        ].append([jet_pt, rg])
+
 
     # ---------------------------------------------------------------
     # Fill inclusive charged jet observables
@@ -2973,6 +2997,38 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     self.observable_dict_event[
                                         f"dijet_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}"
                                     ].append([leading_jet_pt, xj])
+
+        if self.sqrts in [5020]:
+            # TODO(Dhanush): Implement from here
+            # CMS dijet v2
+            if (
+                self.measure_observable_for_current_event(self.dijet_trigger_jet_observables["v2_cms"])
+                and jetR in self.dijet_trigger_jet_observables["v2_cms"]["jet_R"]
+            ):
+                ...
+
+            # ATLAS dijet radius dependence
+            # RAA^pair
+            if (
+                self.measure_observable_for_current_event(self.dijet_trigger_jet_observables["pt_pair_atlas"])
+                and jetR in self.dijet_trigger_jet_observables["pt_pair_atlas"]["jet_R"]
+            ):
+                ...
+
+            # xj
+            if (
+                self.measure_observable_for_current_event(self.dijet_trigger_jet_observables["xj_atlas"])
+                and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["jet_R"]
+            ):
+                ...
+
+            # Dijet yield (JAA)
+            if (
+                self.measure_observable_for_current_event(self.dijet_trigger_jet_observables["yield_atlas"])
+                and jetR in self.dijet_trigger_jet_observables["yield_atlas"]["jet_R"]
+            ):
+                ...
+
 
     def fill_z_trigger_hadron_observables(
         self, fj_z_boson_candidates, fj_particles, pid_hadrons: npt.NDArray[np.int32], status: str = "+"
