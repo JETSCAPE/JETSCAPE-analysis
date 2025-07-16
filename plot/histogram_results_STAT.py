@@ -934,8 +934,7 @@ def main_entry_point() -> None:
         action="store",
         type=Path,
         metavar="configFile",
-        default="config/TG3.yaml",
-        help="Config file",
+        help="Path of config file for analysis (e.g. config/STAT_5020.yaml)",
     )
     parser.add_argument(
         "-i",
@@ -943,7 +942,7 @@ def main_entry_point() -> None:
         action="store",
         type=Path,
         metavar="inputFile",
-        default="observables_5020_0000_00.parquet",
+        default=Path("observables_5020_0000_00.parquet"),
         help="Input file",
     )
     parser.add_argument(
@@ -952,7 +951,7 @@ def main_entry_point() -> None:
         action="store",
         type=Path,
         metavar="outputDir",
-        default="/home/jetscape-user/JETSCAPE-analysis/TestOutput",
+        default=Path("/home/jetscape-user/JETSCAPE-analysis/TestOutput"),
         help="Output directory for output to be written to",
     )
     parser.add_argument(
@@ -972,7 +971,7 @@ def main_entry_point() -> None:
     helpers.setup_logging(level=args.logLevel)
 
     logger.info()
-    logger.info("Executing histogram_results_STAT.py...")
+    logger.info("Executing histogram_results_STAT...")
 
     # Validation
     if not args.configFile.exists():

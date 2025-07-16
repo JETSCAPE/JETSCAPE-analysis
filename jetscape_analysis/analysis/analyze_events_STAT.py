@@ -3315,7 +3315,7 @@ def main_entry_point() -> None:
         action="store",
         type=Path,
         metavar="inputDir",
-        default="/home/jetscape-user/JETSCAPE-analysis/test.out",
+        default=Path("/home/jetscape-user/JETSCAPE-analysis/test.out"),
         help="Input directory containing JETSCAPE output files",
     )
     parser.add_argument(
@@ -3324,7 +3324,7 @@ def main_entry_point() -> None:
         action="store",
         type=Path,
         metavar="outputDir",
-        default="/home/jetscape-user/JETSCAPE-analysis/TestOutput",
+        default=Path("/home/jetscape-user/JETSCAPE-analysis/TestOutput"),
         help="Output directory for output to be written to",
     )
     parser.add_argument(
