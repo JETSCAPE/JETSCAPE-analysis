@@ -160,7 +160,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         )
 
         # call event selection function, run jet finder R=0.4, take highest pt_jet, require pt_jet <= 3 * pthat, otherwise return false
-        if self.do_event_outlier_rejection and self.is_event_outlier(fj_hadrons_positive, event["pt_hat"], self.outlier_pt_hat_cut):
+        if self.do_event_outlier_rejection and self.is_event_outlier(
+            fj_hadrons_positive, event["pt_hat"], self.outlier_pt_hat_cut
+        ):
             return
 
         # Fill hadron observables for jet shower particles
@@ -184,7 +186,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #       it's quite inconvenient to type, so we compromise here.
         fj_photon_candidates_positive = None
         fj_photon_candidates_negative = None
-        if self.gamma_trigger_hadron_observables or self.gamma_trigger_chjet_observables or self.gamma_trigger_jet_observables:
+        if (
+            self.gamma_trigger_hadron_observables
+            or self.gamma_trigger_chjet_observables
+            or self.gamma_trigger_jet_observables
+        ):
             # First, we'll collect any photons triggers, since they should be relatively rare.
             # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
             fj_photon_candidates_positive = self.fill_photon_candidates(event, select_status="+")
@@ -192,9 +198,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             fj_photon_candidates_negative = self.fill_photon_candidates(event, select_status="-")
             # If there are triggers, we can fill the trigger-hadron correlations. If not, we can simply move on
             if len(fj_photon_candidates_positive) > 0 and self.gamma_trigger_hadron_observables:
-                self.fill_photon_hadron_observables(fj_photon_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+")
+                self.fill_photon_hadron_observables(
+                    fj_photon_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+"
+                )
                 if self.AA:
-                    self.fill_photon_hadron_observables(fj_photon_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-")
+                    self.fill_photon_hadron_observables(
+                        fj_photon_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-"
+                    )
 
         # Fill z triggered hadron observables
         fj_z_boson_candidates = None
@@ -206,10 +216,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # If there are triggers, we can fill the trigger-hadron correlations. If not, we can simply move on
             # NOTE: Strictly the z_trigger_hadron_observables check is redundant, but we keep it here for parallel structure with other cases.
             if len(fj_z_boson_candidates) > 0 and self.z_trigger_hadron_observables:
-                self.fill_z_trigger_hadron_observables(fj_z_boson_candidates, fj_hadrons_positive, pid_hadrons_positive, status="+")
+                self.fill_z_trigger_hadron_observables(
+                    fj_z_boson_candidates, fj_hadrons_positive, pid_hadrons_positive, status="+"
+                )
                 if self.AA:
                     # Although we cannot get a Z boson hole, we can correlate the Z boson with hole particles, so we'll do that here.
-                    self.fill_z_trigger_hadron_observables(fj_z_boson_candidates, fj_hadrons_negative, pid_hadrons_negative, status="-")
+                    self.fill_z_trigger_hadron_observables(
+                        fj_z_boson_candidates, fj_hadrons_negative, pid_hadrons_negative, status="-"
+                    )
 
         # Fill jet observables
         for jet_collection_label in self.jet_collection_labels:
@@ -266,7 +280,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             return False
 
         return jets[0].pt() > outlier_pt_hat_cut * pt_hat
-
 
     # ---------------------------------------------------------------
     # Fill hadron observables
@@ -710,8 +723,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         jetR,
                         jet_collection_label=jet_collection_label,
                     )
-
-
 
     # ---------------------------------------------------------------
     # Fill photon correlation observables
@@ -1494,9 +1505,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # ---------------------------------------------------------------
             if self.centrality_accepted(self.gamma_trigger_chjet_observables["IAA_pt_star"]["centrality"]):
                 # get cuts
-                gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_chjet_observables["IAA_pt_star"][
-                    "trigger_range"
-                ]
+                gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["trigger_range"]
                 gamma_eta_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["gamma_eta_cut"]
                 jet_eta_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["eta_cut_R"]  # eta_max - R
                 jet_R = jetR  # Use the jetR passed into the function since we loop over jet_R values in find_jets_and_fill()
@@ -1606,9 +1615,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 and jet_pt < jet_pt_max
                             ):
                                 # plot dPhi vs jet pt
-                                self.observable_dict_event[f"pion_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"].append(
-                                    [jet_pt, pi0.delta_phi(jet)]
-                                )
+                                self.observable_dict_event[
+                                    f"pion_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"
+                                ].append([jet_pt, pi0.delta_phi(jet)])
                                 # plot IAA vs jet pt
                                 if pi0.delta_phi(jet) > (pi0_jet_dPhi * np.pi):
                                     self.observable_dict_event[
@@ -2661,7 +2670,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
             pt_IAA = self.hadron_trigger_chjet_observables["IAA_pt_alice"]["pt"]
             pt_dphi = self.hadron_trigger_chjet_observables["dphi_alice"]["pt"]
-            #pt_dphi_ratio = self.hadron_trigger_chjet_observables.get("dphi_ratio_alice", {}).get("pt", [0.0, 999.0])
+            # pt_dphi_ratio = self.hadron_trigger_chjet_observables.get("dphi_ratio_alice", {}).get("pt", [0.0, 999.0])
 
             trigger_array_hjet = []
 
@@ -3016,7 +3025,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         f"pion_trigger_chjet_dphi_star_R{jetR}_lowTrigger{jet_collection_label}"
                                     ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
 
-
     # ---------------------------------------------------------------
     # Fill dijet observables
     # ---------------------------------------------------------------
@@ -3067,8 +3075,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         f"dijet_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}"
                                     ].append([leading_jet_pt, xj])
 
-
-    def fill_z_trigger_hadron_observables(self, fj_z_boson_candidates, fj_particles, pid_hadrons: npt.NDArray[np.int32], status: str = "+") -> None:
+    def fill_z_trigger_hadron_observables(
+        self, fj_z_boson_candidates, fj_particles, pid_hadrons: npt.NDArray[np.int32], status: str = "+"
+    ) -> None:
         """Measure and record Z-triggered hadron observables.
 
         Args:
@@ -3105,9 +3114,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # And then construct the correlation of the trigger Z bosons with the hadrons
                 for z_boson in z_bosons:
                     # fill just Z boson pt to allow to calculate normalization N_z_bosons later
-                    self.observable_dict_event[
-                        f"z_trigger_hadron_IAA_pt_atlas_Nz{suffix}"
-                    ].append(z_boson.pt())
+                    self.observable_dict_event[f"z_trigger_hadron_IAA_pt_atlas_Nz{suffix}"].append(z_boson.pt())
                     for particle in fj_particles:
                         pid = pid_hadrons[np.abs(particle.user_index()) - 1]
                         if (
@@ -3117,9 +3124,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                         ):
                             # store z_boson.pt and hadron pt to allow to select Z boson ranges later for figure
-                            self.observable_dict_event[
-                                f"z_trigger_hadron_IAA_pt_atlas{suffix}"
-                            ].append([z_boson.pt(), particle.pt()])
+                            self.observable_dict_event[f"z_trigger_hadron_IAA_pt_atlas{suffix}"].append(
+                                [z_boson.pt(), particle.pt()]
+                            )
 
             # -----------------------------------------------------------
             # Z-trigger hadron xi, dphi CNS
@@ -3143,9 +3150,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # And then construct the correlation of the trigger Z bosons with the hadrons
                 for z_boson in z_bosons:
                     # fill just Z boson pt to allow to calculate normalization N_z_bosons later
-                    self.observable_dict_event[
-                        f"z_trigger_hadron_xi_cms_Nz{suffix}"
-                    ].append(z_boson.pt())
+                    self.observable_dict_event[f"z_trigger_hadron_xi_cms_Nz{suffix}"].append(z_boson.pt())
 
                     for particle in fj_particles:
                         pid = pid_hadrons[np.abs(particle.user_index()) - 1]
@@ -3158,14 +3163,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             if particle.delta_R(z_boson) > d_phi * np.pi:
                                 # xi = ln[ - |pt,z|^2 / (vec(pt)^track * vec(pt)^Z)]
                                 # TODO(RJE): Properly implement this observable
-                                self.observable_dict_event[
-                                    f"z_trigger_hadron_xi_cms{suffix}"
-                                ].append(particle.pt())
+                                self.observable_dict_event[f"z_trigger_hadron_xi_cms{suffix}"].append(particle.pt())
 
                             # dphi
-                            self.observable_dict_event[
-                                f"z_trigger_hadron_dphi_cms{suffix}"
-                            ].append(z_boson.delta_phi_to(particle))
+                            self.observable_dict_event[f"z_trigger_hadron_dphi_cms{suffix}"].append(
+                                z_boson.delta_phi_to(particle)
+                            )
 
             # -----------------------------------------------------------
             # Z-trigger hadron delta N
@@ -3186,9 +3189,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # And then construct the correlation of the trigger Z bosons with the hadrons
                 for z_boson in z_bosons:
                     # fill just Z boson pt to allow to calculate normalization N_z_bosons later
-                    self.observable_dict_event[
-                        f"z_trigger_hadron_delta_N_cms_Nz{suffix}"
-                    ].append(z_boson.pt())
+                    self.observable_dict_event[f"z_trigger_hadron_delta_N_cms_Nz{suffix}"].append(z_boson.pt())
 
                     for particle in fj_particles:
                         pid = pid_hadrons[np.abs(particle.user_index()) - 1]
@@ -3198,15 +3199,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                         ):
                             # dphi
-                            self.observable_dict_event[
-                                f"z_trigger_hadron_delta_N_dphi_cms{suffix}"
-                            ].append([particle.pt(), z_boson.delta_phi_to(particle)])
+                            self.observable_dict_event[f"z_trigger_hadron_delta_N_dphi_cms{suffix}"].append(
+                                [particle.pt(), z_boson.delta_phi_to(particle)]
+                            )
 
                             # dy
-                            self.observable_dict_event[
-                                f"z_trigger_hadron_delta_N_dy_cms{suffix}"
-                            ].append([particle.pt(), z_boson.rapidity() - particle.rapidity()])
-
+                            self.observable_dict_event[f"z_trigger_hadron_delta_N_dy_cms{suffix}"].append(
+                                [particle.pt(), z_boson.rapidity() - particle.rapidity()]
+                            )
 
     # ---------------------------------------------------------------
     # Fill Z boson triggered jet observables
@@ -3236,7 +3236,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         Returns:
             None.
         """
-        if self.sqrts in [5020] and self.measure_observable_for_current_event(self.z_trigger_jet_observables["xj_z_cms"]):
+        if self.sqrts in [5020] and self.measure_observable_for_current_event(
+            self.z_trigger_jet_observables["xj_z_cms"]
+        ):
             # -----------------------------------------------------------
             # Z-trigger jet x_{j,z} CNS
             # NOTE: We use the xj_z parameters as a proxy for the dphi acoplanarity.
@@ -3280,12 +3282,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         if z_boson.delta_phi(jet) > (d_phi * np.pi):
                             xj = jet_pt / z_boson.pt()
                             xj_uncorrected = jet_pt_uncorrected / z_boson.pt()
-                            self.observable_dict_event[f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_xj"].append([jet_pt, xj])
+                            self.observable_dict_event[
+                                f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_xj"
+                            ].append([jet_pt, xj])
                             if jet_collection_label in ["_shower_recoil"]:
                                 self.observable_dict_event[
                                     f"z_trigger_jet_xj_z_cms_R{jetR}{jet_collection_label}_xj_unsubtracted"
                                 ].append([jet_pt, xj_uncorrected])
-
 
     def leading_jet(self, jets, fj_hadrons_negative, jetR):
         """Extract the leading jet, including the subtracted pt.
