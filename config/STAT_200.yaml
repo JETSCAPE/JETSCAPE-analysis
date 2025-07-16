@@ -85,8 +85,7 @@ hadron:
     enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1127262
-      hepdata: N/A
-      custom: https://www.phenix.bnl.gov/phenix/WWW/info/data/ppg133_data.html
+      hepdata: https://www.hepdata.net/record/ins1127262
 
     eta_cut: 0.35
     pt: [5., 20.]
