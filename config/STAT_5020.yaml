@@ -1357,7 +1357,7 @@ inclusive_chjet:
   ktg_alice:
     enabled: true
     urls:
-      inspire_hep: https://www.hepdata.net/record/ins2831271
+      inspire_hep: https://inspirehep.net/literature/2831271
       hepdata: https://www.hepdata.net/record/ins2831271
 
     jet_R: [0.2]
