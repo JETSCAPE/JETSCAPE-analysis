@@ -1840,7 +1840,7 @@ z_trigger_hadron:
     enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/2945894
-      hepdata: N/A
+      hepdata: https://www.hepdata.net/record/ins2945894
 
     centrality: [[0, 30], [30, 50]]
     z_trigger:
@@ -1853,7 +1853,6 @@ z_trigger_hadron:
       pt: [1.0, 10]
 
     # TODO(RJE): Add figures and binning
-
 
 #------------------------------------------------------------------
 # Z boson triggered jet observables
