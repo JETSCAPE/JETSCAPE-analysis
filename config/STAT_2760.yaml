@@ -906,11 +906,9 @@ dijet_trigger_jet:
 #------------------------------------------------------------------
 pion_trigger_hadron:
   # ALICE pi0-hadron correlations
-  # TODO: Implement this observable
-  # pmj 13/1/22: And recoil hadrons are very soft (<6 GeV), almost all are below the lower bound of 5 GeV we are setting elsewhere for hadron pT
-  # pmj 13/1/22: Are we sure this is a useful dataset for this round of calculations?
+  # NOTE: We only implement a limited recoil pt range
   pi0_hadron_IAA_pt_alice:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1483164
       hepdata: https://www.hepdata.net/record/ins1483164
