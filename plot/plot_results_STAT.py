@@ -1,32 +1,32 @@
-"""
-macro for plotting analyzed jetscape events
+"""This script plots histograms created in the analysis of Jetscape events
+
+.. codeauthor:: James Mulligan <james.mulligan@berkeley.edu>, UC Berkeley
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
-# This script plots histograms created in the analysis of Jetscape events
-#
-# Author: James Mulligan (james.mulligan@berkeley.edu)
+from __future__ import annotations
 
 # General
-import ctypes
-import os
-import sys
-import yaml
 import argparse
+import ctypes
+import logging
+import sys
+from pathlib import Path
+from typing import Any
 
-# Data analysis and plotting
-import ROOT
-import numpy as np
-import uproot
-import pandas as pd
 import h5py
-
-# Base class
-sys.path.append(".")
-from jetscape_analysis.base import common_base
+import numpy as np
+import pandas as pd
+import ROOT  # pyright: ignore [reportMissingImports]
+import uproot
+import yaml
+from jetscape_analysis.base import common_base, helpers
 from plot import plot_results_STAT_utils
 
 # Prevent ROOT from stealing focus when plotting
 ROOT.gROOT.SetBatch(True)
+
+logger = logging.getLogger(__name__)
 
 
 ################################################################
@@ -34,21 +34,32 @@ class PlotResults(common_base.CommonBase):
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(self, config_file="", input_file="", output_dir="", pp_ref_file="", **kwargs):
-        super(PlotResults, self).__init__(**kwargs)
+    def __init__(
+        self,
+        config_file: str | Path = "",
+        input_file: str | Path = "",
+        output_dir: str | Path | None = "",
+        pp_ref_file: str | Path = "",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
 
-        if output_dir:
-            self.output_dir = output_dir
-            if not os.path.exists(self.output_dir):
-                os.makedirs(self.output_dir)
-        else:
-            self.output_dir = os.path.dirname(input_file)
+        # Validation
+        config_file = Path(config_file)
+        input_file = Path(input_file)
+        pp_ref_file = Path(pp_ref_file)
+
+        # Default to the same directory as the input_file if an output_dir is not provided.
+        if not output_dir:
+            output_dir = input_file.parent
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(exist_ok=True, parents=True)
 
         self.plot_utils = plot_results_STAT_utils.PlotUtils()
         self.plot_utils.setOptions()
         ROOT.gROOT.ForceStyle()
 
-        self.input_file = ROOT.TFile(input_file, "READ")
+        self.input_file = ROOT.TFile(str(input_file), "READ")
 
         self.data_color = ROOT.kGray + 3
         self.data_marker = 21
@@ -80,10 +91,10 @@ class PlotResults(common_base.CommonBase):
 
         # If AA, load the pp reference results so that we can construct RAA
         if self.is_AA:
-            self.pp_ref_file = ROOT.TFile(pp_ref_file, "READ")
+            self.pp_ref_file = ROOT.TFile(str(pp_ref_file), "READ")
 
         # Read config file
-        with open(config_file, "r") as stream:
+        with config_file.open() as stream:
             self.config = yaml.safe_load(stream)
         self.sqrts = self.config["sqrt_s"]
         self.power = self.config["power"]
@@ -97,10 +108,10 @@ class PlotResults(common_base.CommonBase):
         else:
             self.jet_collection_labels = [self.jet_collection_label_pp]
 
-        # We will write final results after all scalings, along with data, to file
+        # We will write final results after all scaling steps, along with data, to file
         self.output_dict = {}
 
-        print(self)
+        logger.info(self)
 
     # -------------------------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------
@@ -139,8 +150,7 @@ class PlotResults(common_base.CommonBase):
     # Plot hadron observables
     # -------------------------------------------------------------------------------------------
     def plot_hadron_observables(self, observable_type=""):
-        print()
-        print(f"Plot {observable_type} observables...")
+        logger.info(f"\nPlot {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
@@ -158,8 +168,7 @@ class PlotResults(common_base.CommonBase):
     # Plot hadron correlation observables
     # -------------------------------------------------------------------------------------------
     def plot_hadron_correlation_observables(self, observable_type=""):
-        print()
-        print(f"Plot {observable_type} observables...")
+        logger.info(f"\nPlot {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
@@ -181,7 +190,7 @@ class PlotResults(common_base.CommonBase):
                     for pt_trig_min, pt_trig_max in pt_trigger_ranges:
                         for pt_assoc_min, pt_assoc_max in pt_associated_ranges:
                             # If the upper range has -1, it's unbounded, so we make it large enough not to matter
-                            pt_assoc_max = 1000 if pt_assoc_max == -1 else pt_assoc_max
+                            pt_assoc_max = 1000 if pt_assoc_max == -1 else pt_assoc_max  # noqa: PLW2901
                             self.suffix = (
                                 f"_pt_trig_{pt_trig_min:g}_{pt_trig_max:g}_pt_assoc_{pt_assoc_min:g}_{pt_assoc_max:g}"
                             )
@@ -193,24 +202,23 @@ class PlotResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Histogram inclusive jet observables
     # -------------------------------------------------------------------------------------------
-    def plot_jet_observables(self, observable_type=""):
-        print()
-        print(f"Plot {observable_type} observables...")
+    def plot_jet_observables(self, observable_type: str = "") -> None:  # noqa: C901
+        logger.info(f"\nPlot {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                if self.analysis == "hadron_jet_RAA":
-                    if not observable.startswith("pt_"):
-                        print(f"skipping {observable}")
-                        continue
+                # Custom skip to only process inclusive hadron and jet RAA.
+                # Used historically - not really needed in July 2025, but we leave it as is.
+                if self.analysis == "hadron_jet_RAA" and not observable.startswith("pt_"):
+                    logger.info(f"skipping {observable}")
+                    continue
 
                 for self.jet_R in block["jet_R"]:
                     # Optional: Loop through pt bins
                     for pt_bin in range(len(block["pt"]) - 1):
+                        pt_suffix = ""
                         if len(block["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
-                        else:
-                            pt_suffix = ""
 
                         # Optional: subobservable
                         subobservable_label_list = [""]
@@ -226,13 +234,13 @@ class PlotResults(common_base.CommonBase):
                             if "SoftDrop" in block:
                                 for grooming_setting in block["SoftDrop"]:
                                     # Custom skip
-                                    if observable == "zg_alice" or observable == "tg_alice":
+                                    if observable in ["zg_alice", "tg_alice"]:
                                         if np.isclose(self.jet_R, 0.4) and centrality_index == 0:
                                             continue
                                         if np.isclose(self.jet_R, 0.2) and centrality_index == 1:
                                             continue
 
-                                    print(f"      grooming_setting = {grooming_setting}")
+                                    logger.info(f"      grooming_setting = {grooming_setting}")
                                     zcut = grooming_setting["zcut"]
                                     beta = grooming_setting["beta"]
 
@@ -282,8 +290,7 @@ class PlotResults(common_base.CommonBase):
     # Histogram semi-inclusive jet observables
     # -------------------------------------------------------------------------------------------
     def plot_hadron_trigger_chjet_observables(self, observable_type=""):
-        print()
-        print(f"Plot {observable_type} observables...")
+        logger.info(f"\nPlot {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
@@ -347,7 +354,7 @@ class PlotResults(common_base.CommonBase):
             self.observable_settings["data_distribution"] = None
 
         # Also initialize systematic uncertainties
-        # print(block)
+        # logger.info(block)
 
         # -----------------------------------------------------------
         # Initialize JETSCAPE distribution into self.observable_settings
@@ -366,26 +373,26 @@ class PlotResults(common_base.CommonBase):
         if not self.is_AA:
             if (
                 self.observable_settings["data_distribution"]
-                and self.observable_settings[f"jetscape_distribution"]
-                and not self.observable_settings[f"jetscape_distribution"].InheritsFrom(ROOT.TH2.Class())
+                and self.observable_settings["jetscape_distribution"]
+                and not self.observable_settings["jetscape_distribution"].InheritsFrom(ROOT.TH2.Class())
                 and not self.skip_pp_ratio
             ):
                 self.observable_settings["ratio"] = self.plot_utils.divide_histogram_by_tgraph(
-                    self.observable_settings[f"jetscape_distribution"],
+                    self.observable_settings["jetscape_distribution"],
                     self.observable_settings["data_distribution"],
                     include_tgraph_uncertainties=False,
                 )
             else:
                 self.observable_settings["ratio"] = None
-        if "v2" in observable and self.is_AA and self.observable_settings[f"jetscape_distribution"]:
+        if "v2" in observable and self.is_AA and self.observable_settings["jetscape_distribution"]:
             self.observable_settings["ratio"] = self.plot_utils.divide_histogram_by_tgraph(
-                self.observable_settings[f"jetscape_distribution"], self.observable_settings["data_distribution"]
+                self.observable_settings["jetscape_distribution"], self.observable_settings["data_distribution"]
             )
 
     # -------------------------------------------------------------------------------------------
     # Initialize from settings from config file into class members
     # -------------------------------------------------------------------------------------------
-    def init_common_settings(self, observable, block):
+    def init_common_settings(self, observable: str, block: dict[str, Any]) -> None:  # noqa: C901
         self.xtitle = block["xtitle"]
         if "eta_cut" in block:
             self.eta_cut = block["eta_cut"]
@@ -405,10 +412,7 @@ class PlotResults(common_base.CommonBase):
             self.high_trigger_range = block["high_trigger_range"]
         if "trigger_range" in block:
             self.trigger_range = block["trigger_range"]
-        if "logy" in block:
-            self.logy = block["logy"]
-        else:
-            self.logy = False
+        self.logy = block.get("logy", False)
 
         # for v2
         if "v2" in observable:
@@ -425,10 +429,7 @@ class PlotResults(common_base.CommonBase):
                 self.y_min = 0.0
                 self.y_max = 1.0
         else:
-            if "ytitle_pp" in block:
-                self.ytitle = block["ytitle_pp"]
-            else:
-                self.ytitle = ""
+            self.ytitle = block.get("ytitle_pp", "")
             if "y_min_pp" in block:
                 self.y_min = float(block["y_min_pp"])
                 self.y_max = float(block["y_max_pp"])
@@ -445,22 +446,10 @@ class PlotResults(common_base.CommonBase):
             if "logy_pp" in block:
                 self.logy = block["logy_pp"]
 
-        if "skip_pp" in block:
-            self.skip_pp = block["skip_pp"]
-        else:
-            self.skip_pp = False
-        if "skip_pp_ratio" in block:
-            self.skip_pp_ratio = block["skip_pp_ratio"]
-        else:
-            self.skip_pp_ratio = False
-        if "skip_AA_ratio" in block:
-            self.skip_AA_ratio = block["skip_AA_ratio"]
-        else:
-            self.skip_AA_ratio = False
-        if "scale_by" in block:
-            self.scale_by = block["scale_by"]
-        else:
-            self.scale_by = None
+        self.skip_pp = block.get("skip_pp", False)
+        self.skip_pp_ratio = block.get("skip_pp_ratio", False)
+        self.skip_AA_ratio = block.get("skip_AA_ratio", False)
+        self.scale_by = block.get("scale_by", None)  # noqa: SIM910
 
         # Flag to plot hole histogram (for hadron histograms only)
         if self.is_AA:
@@ -515,12 +504,12 @@ class PlotResults(common_base.CommonBase):
                     )
 
                 # Subtract the holes (and save unsubtracted histogram)
-                if self.observable_settings[f"jetscape_distribution"]:
+                if self.observable_settings["jetscape_distribution"]:
                     self.observable_settings["jetscape_distribution_unsubtracted"] = self.observable_settings[
-                        f"jetscape_distribution"
+                        "jetscape_distribution"
                     ].Clone()
                     self.observable_settings["jetscape_distribution_unsubtracted"].SetName(
-                        "{}_unsubtracted".format(self.observable_settings[f"jetscape_distribution"].GetName())
+                        "{}_unsubtracted".format(self.observable_settings["jetscape_distribution"].GetName())
                     )
                     if self.observable_settings["jetscape_distribution_holes"]:
                         self.observable_settings["jetscape_distribution"].Add(
@@ -654,8 +643,14 @@ class PlotResults(common_base.CommonBase):
     #  - observable-specific factors (eta, sigma_inel, n_jets, ...)
     #  - self-normalization
     # -------------------------------------------------------------------------------------------
-    def scale_histogram(
-        self, observable_type, observable, centrality, collection_label="", pt_suffix="", self_normalize=False
+    def scale_histogram(  # noqa: C901
+        self,
+        observable_type,
+        observable: str,
+        centrality,
+        collection_label: str = "",
+        pt_suffix: str = "",
+        self_normalize: bool = False,
     ):
         h = self.observable_settings[f"jetscape_distribution{collection_label}"]
         if not h:
@@ -714,7 +709,7 @@ class PlotResults(common_base.CommonBase):
                     if n_trig > 0.0:
                         h.Scale(1.0 / (n_trig * (xsec / weight_sum)))
                     else:
-                        print("WARNING: N_trig for dihadron_star == 0")
+                        logger.warning("N_trig for dihadron_star == 0")
             elif observable_type == "inclusive_chjet":
                 if observable == "pt_star":
                     h.Scale(1.0 / (2 * self.eta_cut))
@@ -765,11 +760,11 @@ class PlotResults(common_base.CommonBase):
                     if n_jets > 0.0:
                         h.Scale(1.0 / (n_jets * (xsec / weight_sum)))
                     else:
-                        print("WARNING: N_jets = 0")
+                        logger.warning("N_jets = 0")
             elif observable_type == "inclusive_chjet":
                 if observable == "pt_alice":
                     h.Scale(1.0 / (2 * self.eta_cut))
-            elif observable_type == "hadron_trigger_chjet":
+            elif observable_type == "hadron_trigger_chjet":  # noqa: SIM102
                 # Note that n_trig histograms should also be scaled by xsec/n_events
                 if observable in ["IAA_pt_alice", "dphi_alice"]:
                     h.Scale(1.0 / (xsec / weight_sum))
@@ -806,7 +801,7 @@ class PlotResults(common_base.CommonBase):
                     if n_jets > 0.0:
                         h.Scale(1.0 / (n_jets * (xsec / weight_sum)))
                     else:
-                        print("WARNING: N_jets = 0")
+                        logger.warning("N_jets = 0")
 
         # Scale by bin-dependent factor (approximation for pp QA)
         if self.scale_by:
@@ -823,16 +818,15 @@ class PlotResults(common_base.CommonBase):
         # --------------------------------------------------
         # (4) Self-normalize histogram if appropriate
         if self_normalize:
+            min_bin = 1
             if observable in ["zg_alice", "tg_alice"]:
                 min_bin = 0
-            else:
-                min_bin = 1
             nbins = h.GetNbinsX()
             integral = h.Integral(min_bin, nbins, "width")
             if integral > 0.0:
                 h.Scale(1.0 / integral)
             else:
-                print("WARNING: integral for self-normalization is 0")
+                logger.warning("integral for self-normalization is 0")
 
     # -------------------------------------------------------------------------------------------
     # Perform any additional manipulations on scaled histograms
@@ -849,12 +843,10 @@ class PlotResults(common_base.CommonBase):
                 h_denom_name = f"h_{observable_type}_{observable}_denom_{centrality}"
                 h_denom_name_holes = f"h_{observable_type}_{observable}_holes_denom_{centrality}"
 
-                self.observable_settings[f"jetscape_distribution"] = self.input_file.Get(h_num_name).Clone()
-                self.observable_settings[f"jetscape_distribution_unsubtracted"] = self.input_file.Get(
-                    h_num_name
-                ).Clone()
+                self.observable_settings["jetscape_distribution"] = self.input_file.Get(h_num_name).Clone()
+                self.observable_settings["jetscape_distribution_unsubtracted"] = self.input_file.Get(h_num_name).Clone()
 
-                for i in range(0, self.input_file.Get(h_num_name).GetNbinsX()):
+                for i in range(0, self.input_file.Get(h_num_name).GetNbinsX()):  # noqa: PIE808
                     h_num_i = self.input_file.Get(h_num_name).GetBinContent(i)
                     h_num_holes_i = self.input_file.Get(h_num_name_holes).GetBinContent(i)
                     h_denom_i = self.input_file.Get(h_denom_name).GetBinContent(i)
@@ -862,20 +854,18 @@ class PlotResults(common_base.CommonBase):
                     if h_denom_i == 0.0:
                         h_denom_i = -99.0
                         h_denom_holes_i = 0.0
-                    self.observable_settings[f"jetscape_distribution"].SetBinContent(
+                    self.observable_settings["jetscape_distribution"].SetBinContent(
                         i, (h_num_i - h_num_holes_i) / (h_denom_i - h_denom_holes_i)
                     )
-                    self.observable_settings[f"jetscape_distribution_unsubtracted"].SetBinContent(
-                        i, h_num_i / h_denom_i
-                    )
+                    self.observable_settings["jetscape_distribution_unsubtracted"].SetBinContent(i, h_num_i / h_denom_i)
 
-                self.observable_settings[f"jetscape_distribution"].Print()
-                self.observable_settings[f"jetscape_distribution_unsubtracted"].Print()
+                self.observable_settings["jetscape_distribution"].Print()
+                self.observable_settings["jetscape_distribution_unsubtracted"].Print()
 
-                self.observable_settings[f"jetscape_distribution"].SetName(
+                self.observable_settings["jetscape_distribution"].SetName(
                     f"jetscape_distribution_{observable_type}_{observable}_{centrality}"
                 )
-                self.observable_settings[f"jetscape_distribution_unsubtracted"].SetName(
+                self.observable_settings["jetscape_distribution_unsubtracted"].SetName(
                     f"jetscape_distribution_unsubtracted_{observable_type}_{observable}_{centrality}"
                 )
 
@@ -901,55 +891,54 @@ class PlotResults(common_base.CommonBase):
                 hname = h.GetName()
                 self.observable_settings[f"jetscape_distribution{collection_label}"] = h.Rebin(n - 1, hname, bins[1:])
 
-        if observable_type == "hadron_correlations" and observable == "dihadron_star":
-            # In the case of pp, just look at the deltaPhi correlations themselves
-            # In any case, we don't have data to compare against.
-            # If skip_pp is turned off, then we can check the yields in pp.
-            if not self.skip_pp:
-                # Grab the delta phi correlation
-                h = self.observable_settings[f"jetscape_distribution"]
-                # Extract the yield
-                yield_lower_range_value, yield_upper_range_value = block["yield_range"]
-                # First, near side
-                _temp_error = ctypes.c_double(0)
-                near_side_yield = h.IntegralAndError(
-                    h.GetXaxis().FindBin(yield_lower_range_value),
-                    h.GetXaxis().FindBin(yield_upper_range_value),
-                    _temp_error,
-                )
-                near_side_yield_error = _temp_error.value
-                # Then the away side
-                _temp_error = ctypes.c_double(0)
-                away_side_yield = h.IntegralAndError(
-                    # Both are np.pi + because the yield_lower_range_value is negative
-                    h.GetXaxis().FindBin(np.pi + yield_lower_range_value),
-                    h.GetXaxis().FindBin(np.pi + yield_upper_range_value),
-                    _temp_error,
-                )
-                away_side_yield_error = _temp_error.value
+        # In the case of pp, just look at the deltaPhi correlations themselves
+        # In any case, we don't have data to compare against.
+        # If skip_pp is turned off, then we can check the yields in pp.
+        if observable_type == "hadron_correlations" and observable == "dihadron_star" and not self.skip_pp:
+            # Grab the delta phi correlation
+            h = self.observable_settings["jetscape_distribution"]
+            # Extract the yield
+            yield_lower_range_value, yield_upper_range_value = block["yield_range"]
+            # First, near side
+            _temp_error = ctypes.c_double(0)
+            near_side_yield = h.IntegralAndError(
+                h.GetXaxis().FindBin(yield_lower_range_value),
+                h.GetXaxis().FindBin(yield_upper_range_value),
+                _temp_error,
+            )
+            near_side_yield_error = _temp_error.value
+            # Then the away side
+            _temp_error = ctypes.c_double(0)
+            away_side_yield = h.IntegralAndError(
+                # Both are np.pi + because the yield_lower_range_value is negative
+                h.GetXaxis().FindBin(np.pi + yield_lower_range_value),
+                h.GetXaxis().FindBin(np.pi + yield_upper_range_value),
+                _temp_error,
+            )
+            away_side_yield_error = _temp_error.value
 
-                # Encode the values into a single TH1F. We put it into a TH1F instead of a TGraph because
-                # the framework seems to require that the jetscape data is in a histogram.
-                yield_bins = np.array(block["yield_bins"])
-                n = len(yield_bins) - 1
-                h_yield = ROOT.TH1F(f"{h.GetName()}_yield", f"{h.GetName()}_yields", n, yield_bins)
+            # Encode the values into a single TH1F. We put it into a TH1F instead of a TGraph because
+            # the framework seems to require that the jetscape data is in a histogram.
+            yield_bins = np.array(block["yield_bins"])
+            n = len(yield_bins) - 1
+            h_yield = ROOT.TH1F(f"{h.GetName()}_yield", f"{h.GetName()}_yields", n, yield_bins)
 
-                # Fill in extracted values
-                yield_values = np.zeros(n)
-                yield_errors = np.zeros(n)
-                yield_values[centrality_index] = near_side_yield
-                yield_errors[centrality_index] = near_side_yield_error
-                # round is just to ensure we have an int
-                yield_values[centrality_index + round(n / 2)] = away_side_yield
-                yield_errors[centrality_index + round(n / 2)] = away_side_yield_error
+            # Fill in extracted values
+            yield_values = np.zeros(n)
+            yield_errors = np.zeros(n)
+            yield_values[centrality_index] = near_side_yield
+            yield_errors[centrality_index] = near_side_yield_error
+            # round is just to ensure we have an int
+            yield_values[centrality_index + round(n / 2)] = away_side_yield
+            yield_errors[centrality_index + round(n / 2)] = away_side_yield_error
 
-                # start at 1 to account for ROOT bin indexing
-                for i, (yv, ye) in enumerate(zip(yield_values, yield_errors), start=1):
-                    h_yield.SetBinContent(i, yv)
-                    h_yield.SetBinError(i, ye)
+            # start at 1 to account for ROOT bin indexing
+            for i, (yv, ye) in enumerate(zip(yield_values, yield_errors, strict=True), start=1):
+                h_yield.SetBinContent(i, yv)
+                h_yield.SetBinError(i, ye)
 
-                # Now, put it together and store the result
-                self.observable_settings["jetscape_distribution"] = h_yield
+            # Now, put it together and store the result
+            self.observable_settings["jetscape_distribution"] = h_yield
 
     # -------------------------------------------------------------------------------------------
     # Plot distributions
@@ -959,7 +948,7 @@ class PlotResults(common_base.CommonBase):
 
         if "v2" in observable:
             # for hadron v2
-            if self.observable_settings[f"jetscape_distribution"]:
+            if self.observable_settings["jetscape_distribution"]:
                 self.plot_distribution_and_ratio(
                     observable_type, observable, centrality, label, pt_suffix=pt_suffix, logy=logy
                 )
@@ -970,28 +959,26 @@ class PlotResults(common_base.CommonBase):
         if self.is_AA:
             self.plot_RAA(observable_type, observable, centrality, label, pt_suffix=pt_suffix, logy=logy)
             self.write_experimental_data(observable_type, observable, centrality, label, pt_suffix=pt_suffix)
-        else:
-            if self.observable_settings[f"jetscape_distribution"]:
-                self.plot_distribution_and_ratio(
-                    observable_type, observable, centrality, label, pt_suffix=pt_suffix, logy=logy
-                )
+        elif self.observable_settings["jetscape_distribution"]:
+            self.plot_distribution_and_ratio(
+                observable_type, observable, centrality, label, pt_suffix=pt_suffix, logy=logy
+            )
 
     # -------------------------------------------------------------------------------------------
     # Write experimental data tables
     # -------------------------------------------------------------------------------------------
-    def write_experimental_data(self, observable_type, observable, centrality, label, pt_suffix=""):
-        output_dir = os.path.join(self.output_dir, f"../Data")
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+    def write_experimental_data(self, observable_type, observable, centrality, label, pt_suffix: str = ""):
+        output_dir = (self.output_dir / "../Data").resolve()
+        output_dir.mkdir(exist_ok=True)
 
         force_write = True
         filename = f"Data_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}.dat"
-        outputfile = os.path.join(output_dir, filename)
-        if force_write or not os.path.exists(outputfile):
+        output_file = output_dir / filename
+        if force_write or not output_file.exists():
             # Get histogram binning
-            key = [
-                key for key in self.observable_settings.keys() if "jetscape_distribution" in key and "holes" not in key
-            ][0]
+            key = next(
+                [key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key]
+            )
             h_prediction = self.observable_settings[key]
 
             # Truncate data tgraph to prediction histogram binning
@@ -1009,16 +996,17 @@ class PlotResults(common_base.CommonBase):
 
                     x = np.array(g_truncated.GetX())
                     if np.any(np.greater(x_min, x)) or np.any(np.greater(x, x_max)):
-                        sys.exit(f"ERROR: x not contained in hist binning: x={x} vs. x_bins={xbins}")
+                        _msg = f"x not contained in hist binning: x={x} vs. x_bins={xbins}"
+                        raise ValueError(_msg)
 
                     # Write table
-                    header = f"Version 1.1\n"
-                    header += f"Label xmin xmax y y_err"
-                    np.savetxt(outputfile, df.values, header=header)
+                    header = "Version 1.1\n"
+                    header += "Label xmin xmax y y_err"
+                    np.savetxt(output_file, df.values, header=header)
                 else:
-                    print(f"Did not write Data table: {filename} -- missing tgraph")
+                    logger.info(f"Did not write Data table: {filename} -- missing tgraph")
             else:
-                print(f"Did not write Data table: {filename} -- missing histogram")
+                logger.info(f"Did not write Data table: {filename} -- missing histogram")
         else:
             sys.exit()
 
@@ -1035,7 +1023,7 @@ class PlotResults(common_base.CommonBase):
     def plot_RAA(self, observable_type, observable, centrality, label, pt_suffix="", logy=False):
         # Assemble the list of hole subtraction variations
         keys_to_plot = [
-            key for key in self.observable_settings.keys() if "jetscape_distribution" in key and "holes" not in key
+            key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key
         ]
         self.jetscape_legend_label = {}
         self.jetscape_legend_label["jetscape_distribution"] = "JETSCAPE"
@@ -1048,7 +1036,7 @@ class PlotResults(common_base.CommonBase):
         self.jetscape_legend_label["jetscape_distribution_constituent_subtraction"] = "JETSCAPE (CS)"
 
         if not self.observable_settings[keys_to_plot[0]]:
-            print(f"WARNING: skipping {label} since data is missing")
+            logger.warning(f"Skipping {label} since data is missing")
             return
 
         # Get the pp reference histogram and form the RAA ratios
@@ -1140,13 +1128,15 @@ class PlotResults(common_base.CommonBase):
         text_latex.DrawLatex(x, 0.8, text)
 
         hname = f"h_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}"
-        c.SaveAs(os.path.join(self.output_dir, f"{hname}{self.file_format}"))
+        c.SaveAs(str(self.output_dir / f"{hname}{self.file_format}"))
         c.Close()
 
     # -------------------------------------------------------------------------------------------
     # Plot distributions in upper panel, and ratio in lower panel
     # -------------------------------------------------------------------------------------------
-    def plot_distribution_and_ratio(self, observable_type, observable, centrality, label, pt_suffix="", logy=False):
+    def plot_distribution_and_ratio(
+        self, observable_type, observable: str, centrality, label, pt_suffix: str = "", logy: bool = False
+    ):
         c = ROOT.TCanvas("c", "c", 600, 650)
         c.Draw()
         c.cd()
@@ -1170,7 +1160,7 @@ class PlotResults(common_base.CommonBase):
         legend_ratio = ROOT.TLegend(0.25, 0.8, 0.45, 1.07)
         self.plot_utils.setup_legend(legend_ratio, 0.07, sep=-0.1)
 
-        self.bins = np.array(self.observable_settings[f"jetscape_distribution"].GetXaxis().GetXbins())
+        self.bins = np.array(self.observable_settings["jetscape_distribution"].GetXaxis().GetXbins())
         myBlankHisto = ROOT.TH1F("myBlankHisto", "Blank Histogram", 1, self.bins[0], self.bins[-1])
         myBlankHisto.SetNdivisions(505)
         myBlankHisto.SetXTitle(self.xtitle)
@@ -1225,26 +1215,26 @@ class PlotResults(common_base.CommonBase):
             legend.AddEntry(self.observable_settings["data_distribution"], "Data", "PE")
 
         # Draw JETSCAPE
-        self.output_dict[f"jetscape_distribution_{label}"] = self.observable_settings[f"jetscape_distribution"]
-        if self.observable_settings[f"jetscape_distribution"].GetNbinsX() > 1:
-            self.observable_settings[f"jetscape_distribution"].SetFillColor(self.jetscape_color[0])
-            self.observable_settings[f"jetscape_distribution"].SetFillColorAlpha(
+        self.output_dict[f"jetscape_distribution_{label}"] = self.observable_settings["jetscape_distribution"]
+        if self.observable_settings["jetscape_distribution"].GetNbinsX() > 1:
+            self.observable_settings["jetscape_distribution"].SetFillColor(self.jetscape_color[0])
+            self.observable_settings["jetscape_distribution"].SetFillColorAlpha(
                 self.jetscape_color[0], self.jetscape_alpha[0]
             )
-            self.observable_settings[f"jetscape_distribution"].SetFillStyle(1001)
-            self.observable_settings[f"jetscape_distribution"].SetMarkerSize(0.0)
-            self.observable_settings[f"jetscape_distribution"].SetMarkerStyle(0)
-            self.observable_settings[f"jetscape_distribution"].SetLineWidth(0)
-            self.observable_settings[f"jetscape_distribution"].DrawCopy("E3 same")
-        elif self.observable_settings[f"jetscape_distribution"].GetNbinsX() == 1:
-            self.observable_settings[f"jetscape_distribution"].SetMarkerSize(self.marker_size)
-            self.observable_settings[f"jetscape_distribution"].SetMarkerStyle(self.data_marker + 1)
-            self.observable_settings[f"jetscape_distribution"].SetMarkerColor(self.jetscape_color[0])
-            self.observable_settings[f"jetscape_distribution"].SetLineStyle(self.line_style)
-            self.observable_settings[f"jetscape_distribution"].SetLineWidth(self.line_width)
-            self.observable_settings[f"jetscape_distribution"].SetLineColor(self.jetscape_color[0])
-            self.observable_settings[f"jetscape_distribution"].DrawCopy("PE same")
-        legend.AddEntry(self.observable_settings[f"jetscape_distribution"], "JETSCAPE", "f")
+            self.observable_settings["jetscape_distribution"].SetFillStyle(1001)
+            self.observable_settings["jetscape_distribution"].SetMarkerSize(0.0)
+            self.observable_settings["jetscape_distribution"].SetMarkerStyle(0)
+            self.observable_settings["jetscape_distribution"].SetLineWidth(0)
+            self.observable_settings["jetscape_distribution"].DrawCopy("E3 same")
+        elif self.observable_settings["jetscape_distribution"].GetNbinsX() == 1:
+            self.observable_settings["jetscape_distribution"].SetMarkerSize(self.marker_size)
+            self.observable_settings["jetscape_distribution"].SetMarkerStyle(self.data_marker + 1)
+            self.observable_settings["jetscape_distribution"].SetMarkerColor(self.jetscape_color[0])
+            self.observable_settings["jetscape_distribution"].SetLineStyle(self.line_style)
+            self.observable_settings["jetscape_distribution"].SetLineWidth(self.line_width)
+            self.observable_settings["jetscape_distribution"].SetLineColor(self.jetscape_color[0])
+            self.observable_settings["jetscape_distribution"].DrawCopy("PE same")
+        legend.AddEntry(self.observable_settings["jetscape_distribution"], "JETSCAPE", "f")
 
         legend.Draw()
 
@@ -1307,7 +1297,7 @@ class PlotResults(common_base.CommonBase):
             text = "skip ratio plot -- pp/AA binning mismatch"
             text_latex.DrawLatex(x, 0.93, text)
 
-        c.SaveAs(os.path.join(self.output_dir, f"{self.hname}{self.file_format}"))
+        c.SaveAs(str(self.output_dir / f"{self.hname}{self.file_format}"))
         c.Close()
 
     # -------------------------------------------------------------------------------------------
@@ -1318,10 +1308,10 @@ class PlotResults(common_base.CommonBase):
             for centrality in self.observable_centrality_list:
                 # Only plot those centralities that exist
                 if np.isclose(
-                    self.input_file.Get(f"h_centrality_generated").Integral(centrality[0] + 1, centrality[1]), 0
+                    self.input_file.Get("h_centrality_generated").Integral(centrality[0] + 1, centrality[1]), 0
                 ):
                     continue
-                print(centrality)
+                logger.info(centrality)
 
                 # Crosscheck that pt-hat weighting is satisfactory
                 # Make sure that the large-weight, low-pt-hat range has sufficient statistics to avoid normalization fluctuations
@@ -1343,9 +1333,9 @@ class PlotResults(common_base.CommonBase):
                         np.square(normalization_uncertainty)
                         + h_weights.GetBinContent(i) * np.square(h_weights.GetBinCenter(i))
                     )
-                print(f"sum_weights {centrality}: {sum_weights}")
-                print(f"sum_weights_integral {centrality}: {sum_weights_integral}")
-                print(
+                logger.info(f"sum_weights {centrality}: {sum_weights}")
+                logger.info(f"sum_weights_integral {centrality}: {sum_weights_integral}")
+                logger.info(
                     f"normalization_uncertainty {centrality}: {100 * normalization_uncertainty / sum_weights_integral} %"
                 )
 
@@ -1353,9 +1343,8 @@ class PlotResults(common_base.CommonBase):
                 h_xsec = self.input_file.Get(f"h_xsec_{centrality}")
                 xsec = h_xsec.GetBinContent(1)
                 xsec_error = self.input_file.Get(f"h_xsec_error_{centrality}").GetBinContent(1)
-                print(f"xsec {centrality}: {xsec / h_xsec.GetEntries()}")
-                print(f"xsec_uncertainty {centrality}: {100 * xsec_error / xsec}")
-                print()
+                logger.info(f"xsec {centrality}: {xsec / h_xsec.GetEntries()}")
+                logger.info(f"xsec_uncertainty {centrality}: {100 * xsec_error / xsec}\n")
 
         else:
             # Crosscheck that pt-hat weighting is satisfactory
@@ -1378,16 +1367,16 @@ class PlotResults(common_base.CommonBase):
                     np.square(normalization_uncertainty)
                     + h_weights.GetBinContent(i) * np.square(h_weights.GetBinCenter(i))
                 )
-            print(f"sum_weights: {sum_weights}")
-            print(f"sum_weights_integral: {sum_weights_integral}")
-            print(f"normalization_uncertainty: {100 * normalization_uncertainty / sum_weights_integral} %")
+            logger.info(f"sum_weights: {sum_weights}")
+            logger.info(f"sum_weights_integral: {sum_weights_integral}")
+            logger.info(f"normalization_uncertainty: {100 * normalization_uncertainty / sum_weights_integral} %")
 
             # Also compute overall pt-hat cross-section uncertainty
             h_xsec = self.input_file.Get("h_xsec")
             xsec = h_xsec.GetBinContent(1)
             xsec_error = self.input_file.Get("h_xsec_error").GetBinContent(1)
-            print(f"xsec: {xsec / h_xsec.GetEntries()}")
-            print(f"xsec_uncertainty: {100 * xsec_error / xsec}")
+            logger.info(f"xsec: {xsec / h_xsec.GetEntries()}")
+            logger.info(f"xsec_uncertainty: {100 * xsec_error / xsec}")
 
         c = ROOT.TCanvas("c", "c", 600, 650)
         c.Draw()
@@ -1471,7 +1460,7 @@ class PlotResults(common_base.CommonBase):
         h_pt_hat_weighted.Draw("PE Z same")
         legend.AddEntry(h_pt_hat_weighted, f"#alpha={self.power}, weighted", "PE")
 
-        # Draw generated pt-hat weighted by inverse of ideal weight (pthat/ptref)^alpha
+        # Draw generated pt-hat weighted by inverse of ideal weight (pt_hat/pt_ref)^alpha
         h_pt_hat_weighted_ideal = h_pt_hat.Clone()
         h_pt_hat_weighted_ideal.SetName("h_pt_hat_weighted_ideal")
         for i in range(1, h_pt_hat_weighted_ideal.GetNbinsX() + 1):
@@ -1516,23 +1505,23 @@ class PlotResults(common_base.CommonBase):
 
         x = 0.25
         text_latex.SetTextSize(0.06)
-        text = "#sigma_{{n_{{event}}}} = {:.2f}%".format(100 * normalization_uncertainty / sum_weights_integral)
+        text = f"#sigma_{{n_{{event}}}} = {100 * normalization_uncertainty / sum_weights_integral:.2f}%"
         text_latex.DrawLatex(x, 0.83, text)
-        text = "#sigma_{{xsec}} = {:.2f}%".format(100 * xsec_error / xsec)
+        text = f"#sigma_{{xsec}} = {100 * xsec_error / xsec:.2f}%"
         text_latex.DrawLatex(x, 0.76, text)
 
-        c.SaveAs(os.path.join(self.output_dir, f"pt_hat{self.file_format}"))
+        c.SaveAs(str(self.output_dir / f"pt_hat{self.file_format}"))
         c.Close()
 
     # ---------------------------------------------------------------
     # Save all ROOT histograms to file
     # ---------------------------------------------------------------
     def write_output_objects(self):
-        print()
+        logger.info("\nWriting output objects...")
 
         # Save histograms to ROOT file
-        output_ROOT_filename = os.path.join(self.output_dir, "final_results.root")
-        f_ROOT = ROOT.TFile(output_ROOT_filename, "recreate")
+        output_ROOT_filename = self.output_dir / "final_results.root"
+        f_ROOT = ROOT.TFile(str(output_ROOT_filename), "recreate")
         f_ROOT.cd()
         for key, val in self.output_dict.items():
             if val:
@@ -1546,9 +1535,9 @@ class PlotResults(common_base.CommonBase):
         # Also save JETSCAPE AA/pp ratios as numpy arrays to HDF5 file
         if self.is_AA:
             with uproot.open(output_ROOT_filename) as uproot_file:
-                output_HDF5_filename = os.path.join(self.output_dir, "final_results.h5")
+                output_HDF5_filename = self.output_dir / "final_results.h5"
                 with h5py.File(output_HDF5_filename, "w") as hf:
-                    keys = [key.split(";", 1)[0] for key in uproot_file.keys()]
+                    keys = [key.split(";", 1)[0] for key in uproot_file.keys()]  # noqa: SIM118
                     for key in keys:
                         if "jetscape" in key:
                             bin_edges = uproot_file[key].axis().edges()
@@ -1562,11 +1551,20 @@ class PlotResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Generate pptx of one plot per slide, for convenience
     # -------------------------------------------------------------------------------------------
-    def generate_pptx(self):
-        # Delayed import since this isn't on available on many systems
-        # For those that need can install it (ie. systems where powerpoint can run) you can use:
-        #   pip install python-pptx
-        import pptx
+    def generate_pptx(self) -> None:
+        # Delayed import since this isn't on available on many systems.
+        # Provide a message for the user on how they could potentially proceed.
+        try:
+            import pptx  # pyright: ignore [reportMissingImports] # noqa: PLC0415
+        except ImportError:
+            _msg = """The `pptx` package is required to generate a presentation, but could not be imported.
+
+If you have powerpoint available on your system, please install it separately with:
+
+    pip install python-pptx
+
+Once it's installed, please try again.
+"""
 
         # Create a blank presentation
         p = pptx.Presentation()
@@ -1583,77 +1581,91 @@ class PlotResults(common_base.CommonBase):
         author.text = "STAT WG"
 
         # Loop through all output files and plot
-        files = [f for f in os.listdir(self.output_dir) if f.endswith(self.file_format)]
+        files = [f for f in self.output_dir.iterdir() if str(f).endswith(self.file_format)]
         for file in sorted(files):
-            img = os.path.join(self.output_dir, file)
+            img = self.output_dir / file
             slide = p.slides.add_slide(blank_slide_layout)
             slide.shapes.add_picture(
-                img, left=pptx.util.Inches(2.0), top=pptx.util.Inches(1.0), width=pptx.util.Inches(5.0)
+                str(img), left=pptx.util.Inches(2.0), top=pptx.util.Inches(1.0), width=pptx.util.Inches(5.0)
             )
 
-        p.save(os.path.join(self.output_dir, "results.pptx"))
+        p.save(str(self.output_dir / "results.pptx"))
 
 
-# -------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------
-if __name__ == "__main__":
-    print("Executing plot_results_STAT.py...")
-    print("")
-
+def main_entry_point() -> None:
+    """Main entry point for plotting STAT results."""
     # Define arguments
     parser = argparse.ArgumentParser(description="Plot JETSCAPE events")
     parser.add_argument(
         "-c",
         "--configFile",
         action="store",
-        type=str,
+        type=Path,
         metavar="configFile",
-        default="config/TG3.yaml",
-        help="Config file",
+        help="Path of config file for analysis (e.g. config/STAT_5020.yaml)",
     )
     parser.add_argument(
         "-i",
         "--inputFile",
         action="store",
-        type=str,
+        type=Path,
         metavar="inputFile",
-        default="pp_5020_plot/histograms_5020_merged.root",
+        default=Path("pp_5020_plot/histograms_5020_merged.root"),
         help="Input file",
     )
     parser.add_argument(
         "-o",
         "--outputDir",
         action="store",
-        type=str,
+        type=Path,
         metavar="outputDir",
-        default="",
+        default=None,
         help="Output directory for output to be written to",
     )
     parser.add_argument(
         "-r",
         "--refFile",
         action="store",
-        type=str,
+        type=Path,
         metavar="refFile",
-        default="final_results.root",
+        default=Path("final_results.root"),
         help="pp reference file",
+    )
+    parser.add_argument(
+        "-l",
+        "--logLevel",
+        action="store",
+        type=str,
+        metavar="logLevel",
+        default="INFO",
+        help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     )
 
     # Parse the arguments
     args = parser.parse_args()
 
-    # If invalid configFile is given, exit
-    if not os.path.exists(args.configFile):
-        print('File "{0}" does not exist! Exiting!'.format(args.configFile))
-        sys.exit(0)
+    # Setup logging
+    helpers.setup_logging(level=args.logLevel)
 
-    # If invalid inputDir is given, exit
-    if not os.path.exists(args.inputFile):
-        print('File "{0}" does not exist! Exiting!'.format(args.inputFile))
-        sys.exit(0)
+    logger.info("Executing plot_results_STAT...\n")
+
+    # Validation and setup
+    if not args.configFile.exists():
+        msg = f'File "{args.configFile}" does not exist! Exiting!'
+        raise ValueError(msg)
+    if not args.inputFile.exists():
+        msg = f'File "{args.inputFile}" does not exist! Exiting!'
+        raise ValueError(msg)
 
     analysis = PlotResults(
         config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir, pp_ref_file=args.refFile
     )
-    analysis.plot_results()
+    try:
+        analysis.plot_results()
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main_entry_point()

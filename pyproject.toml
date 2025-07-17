@@ -180,4 +180,4 @@ messages_control.disable = [
 ]
 
 [tool.codespell]
-ignore-words-list = "subjet, UE"
+ignore-words-list = "subjet, UE, ptd"
