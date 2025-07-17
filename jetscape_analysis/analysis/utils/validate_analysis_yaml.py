@@ -61,6 +61,13 @@ class ObservableInfo:
         return pretty_print_name("_".join(self.name.split("_")[:-1]))
 
 
+@attrs.frozen
+class Result:
+    n_observables: int = attrs.field()
+    n_enabled: int = attrs.field()
+    validation_issues: dict[str, list[str]] = attrs.Factory(dict)
+
+
 def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
     """Extract observable info from the configuration file.
 
@@ -120,11 +127,17 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
     """
     # Setup
     validation_issues = defaultdict(list)
+    n_observables = 0
+    n_enabled = 0
 
     for key, observable_info in observables.items():
+        n_observables += 1
         config = observable_info.config
         if "enabled" not in config:
             validation_issues[key].append("Missing 'enabled' key")
+        elif config["enabled"]:
+            n_enabled += 1
+
         if "urls" not in config:
             validation_issues[key].append("Missing 'urls'")
         else:
@@ -173,10 +186,10 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
             )
 
     # Convert to standard dict just to avoid confusion
-    return dict(validation_issues)
+    return Result(n_observables=n_observables, n_enabled=n_enabled, validation_issues=dict(validation_issues))
 
 
-def validate_yaml(filename: Path) -> dict[str, list]:
+def validate_yaml(filename: Path) -> Result:
     """Driver function for validating an analysis config.
 
     Args:
@@ -213,14 +226,17 @@ def validate_yaml_entry_point() -> None:
 
     args = parser.parse_args()
 
-    res = validate_yaml(
+    result = validate_yaml(
         filename=args.analysis_config,
     )
-    if not res:
-        logger.info("🎉 Success!")
+    logger.info(
+        f"Summary:    # observables: {result.n_observables}, # enabled: {result.n_enabled} -> {result.n_enabled / result.n_observables * 100:.2f}% enabled"
+    )
+    if not result.validation_issues:
+        logger.info("🎉 Validation success!")
     else:
         logger.error("Validation issues:")
-        helpers.rich_console.print(res)
+        helpers.rich_console.print(result.validation_issues)
         logger.error("❌ Validation failed!")
         sys.exit(1)
 
