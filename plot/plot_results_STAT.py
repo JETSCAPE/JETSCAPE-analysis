@@ -83,11 +83,11 @@ class PlotResults(common_base.CommonBase):
         self.file_format = ".pdf"
 
         # Check whether pp or AA
+        self.is_AA = False
+        # NOTE: We only use this in AA, but it's better for it to always be defined
+        self.observable_centrality_list = []
         if "PbPb" in input_file or "AuAu" in input_file:
             self.is_AA = True
-            self.observable_centrality_list = []
-        else:
-            self.is_AA = False
 
         # If AA, load the pp reference results so that we can construct RAA
         if self.is_AA:

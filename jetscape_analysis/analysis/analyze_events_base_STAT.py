@@ -56,10 +56,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         self.n_event_max = config.get("n_event_max", -1)
 
         # Check whether pp or AA
+        self.is_AA = False
         if "PbPb" in str(self.input_file_hadrons) or "AuAu" in str(self.input_file_hadrons):
             self.is_AA = True
-        else:
-            self.is_AA = False
 
         # If AA, get centrality bin
         self.use_event_based_centrality = False
