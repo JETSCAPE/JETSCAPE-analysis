@@ -636,6 +636,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 )
             # Gamma triggered observables
             if self.gamma_trigger_jet_observables:
+                jetR_list_photon = []
                 if self.sqrts == 5020:
                     # Gamma-tagged observables
                     jetR_list_photon = self.gamma_trigger_jet_observables["Dz_atlas"]["jet_R"]
@@ -649,8 +650,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     jetR_list_groomed_photon += self.gamma_trigger_jet_observables["g_cms"]["jet_R"]
                     # run analysis for all jet R
                 if self.sqrts == 200:
-                    for jetR in self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_R"]:
-                        jetR_list_photon += [jetR]
+                    jetR_list_photon.extend(self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_R"])
                 if jetR in set(jetR_list_photon):
                     # TODO discuss with Raymond what to watch out for with holes
                     self.fill_photon_correlation_observables(
