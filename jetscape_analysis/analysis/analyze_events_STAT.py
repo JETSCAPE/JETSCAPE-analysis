@@ -1989,35 +1989,35 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             suffix = "_holes"
 
         if self.sqrts == 2760 and self.measure_observable_for_current_event(self.pion_trigger_hadron_observables["pi0_hadron_alice"]):
-        # ALICE, pion-hadron correlations
-                pion_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["pt"]
-                pion_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["eta_cut"]
-                recoil_hadron_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["pt"]
-                recoil_hadron_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["eta_cut"]
-                d_phi = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["dPhi"]
+            # ALICE, pion-hadron correlations
+            pion_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["pt"]
+            pion_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["eta_cut"]
+            recoil_hadron_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["pt"]
+            recoil_hadron_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["eta_cut"]
+            d_phi = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["dPhi"]
 
-                # get all pions that fulfill analysis cuts
-                pions = []
-                for trigger in fj_pion_candidates:
-                    if pion_pt[0] < trigger.pt < pion_pt[1] and abs(trigger.eta()) < pion_eta_cut:
-                        pions.append(trigger)
+            # get all pions that fulfill analysis cuts
+            pions = []
+            for trigger in fj_pion_candidates:
+                if pion_pt[0] < trigger.pt < pion_pt[1] and abs(trigger.eta()) < pion_eta_cut:
+                    pions.append(trigger)
 
-                # And then construct the correlation of the trigger Z bosons with the hadrons
-                for pion in pions:
-                    # fill just pion pt to allow to calculate normalization N_z_bosons later
-                    self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice_Npions{suffix}"].append(pion.pt())
-                    for particle in fj_particles:
-                        pid = pid_hadrons[np.abs(particle.user_index()) - 1]
-                        if (
-                            abs(particle.eta()) < recoil_hadron_eta_cut
-                            and recoil_hadron_pt[0] < particle.pt() < recoil_hadron_pt[1]
-                            and abs(particle.delta_R(pion) - np.pi) < d_phi
-                            and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-                        ):
-                            # store pion.pt and hadron pt to allow to select pion pt ranges later for figure
-                            self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice{suffix}"].append(
-                                [pion.pt(), particle.pt()]
-                            )
+            # And then construct the correlation of the trigger Z bosons with the hadrons
+            for pion in pions:
+                # fill just pion pt to allow to calculate normalization N_z_bosons later
+                self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice_Npions{suffix}"].append(pion.pt())
+                for particle in fj_particles:
+                    pid = pid_hadrons[np.abs(particle.user_index()) - 1]
+                    if (
+                        abs(particle.eta()) < recoil_hadron_eta_cut
+                        and recoil_hadron_pt[0] < particle.pt() < recoil_hadron_pt[1]
+                        and abs(particle.delta_R(pion) - np.pi) < d_phi
+                        and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                    ):
+                        # store pion.pt and hadron pt to allow to select pion pt ranges later for figure
+                        self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice{suffix}"].append(
+                            [pion.pt(), particle.pt()]
+                        )
 
     # ---------------------------------------------------------------
     # Fill semi-inclusive pi zero jet observables
