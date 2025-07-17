@@ -221,13 +221,17 @@ hadron_correlations:
       inspire_hep: https://inspirehep.net/literature/1686834
       hepdata: https://www.hepdata.net/record/ins1686834
 
-    eta_cut: 2.5
-    pt: [0.5, 60.]
+    # Measurement goes to 0.5 GeV, but we cut at 5 GeV to keep data volume reasonable
+    pt: [5.0, 60.]
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
     xtitle: "#it{p}_{T} (GeV/#it{c})"
 
-    eta_min_ref: 3.2
-    eta_max_ref: 4.9
+    trigger_hadron:
+      # Reference is constructed inside of this range
+      eta_cut: [3.2, 4.9]
+
+    associated_hadron:
+      eta_cut: 2.5
 
     hepdata: "HEPData-ins1686834-v1-root.root"
     hepdata_pp_dir: "Table 11"
@@ -247,13 +251,18 @@ hadron_correlations:
     urls:
       inspire_hep: https://inspirehep.net/literature/1686834
       hepdata: https://www.hepdata.net/record/ins1686834
-    eta_cut: 2.5
-    pt: [0.5, 60.]
+
+    # Measurement goes to 0.5 GeV, but we cut at 5 GeV to keep data volume reasonable
+    pt: [5.0, 60.]
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
     xtitle: "#it{p}_{T} (GeV/#it{c})"
 
-    eta_min_ref: 3.2
-    eta_max_ref: 4.9
+    trigger_hadron:
+      # Reference is constructed inside of this range
+      eta_cut: [3.2, 4.9]
+
+    associated_hadron:
+      eta_cut: 2.5
 
     hepdata: "HEPData-ins1686834-v1-root.root"
     hepdata_pp_dir: "Table 298"
@@ -274,13 +283,17 @@ hadron_correlations:
       inspire_hep: https://inspirehep.net/literature/1511868
       hepdata: https://www.hepdata.net/record/ins1511868
 
-    eta_cut: 1.
-    pt: [1., 100.]
+    # Measurement goes to 1.0 GeV, but we cut at 5 GeV to keep data volume reasonable
+    pt: [5., 100.]
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
     xtitle: "#it{p}_{T} (GeV/#it{c})"
 
-    eta_min_ref: 3.0
-    eta_max_ref: 5.0
+    trigger_hadron:
+      # Reference is constructed inside of this range
+      eta_cut: [3.0, 5.0]
+
+    associated_hadron:
+      eta_cut: 1.0
 
     # Note: histogram binnings are not provided (i.e. just central values, not bin edges)
     hepdata: "HEPData-ins1511868-v1-root.root"
@@ -301,13 +314,17 @@ hadron_correlations:
       inspire_hep: https://inspirehep.net/literature/1511868
       hepdata: https://www.hepdata.net/record/ins1511868
 
-    eta_cut: 1.
-    pt: [1., 100.]
+    # Measurement goes to 1.0 GeV, but we cut at 5 GeV to keep data volume reasonable
+    pt: [5., 100.]
     centrality: [[5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
     xtitle: "#it{p}_{T} (GeV/#it{c})"
 
-    eta_min_ref: 3.0
-    eta_max_ref: 5.0
+    trigger_hadron:
+      # Reference is constructed inside of this range
+      eta_cut: [3.0, 5.0]
+
+    associated_hadron:
+      eta_cut: 1.0
 
     hepdata: "HEPData-ins1511868-v1-root.root"
     hepdata_pp_dir: "Table 20"
@@ -327,13 +344,17 @@ hadron_correlations:
       inspire_hep: https://inspirehep.net/literature/1666817
       hepdata: https://www.hepdata.net/record/ins1666817
 
-    eta_cut: 0.8
-    pt: [0.2, 50.]
+    # Measurement goes to 0.2 GeV, but we cut at 5 GeV to keep data volume reasonable
+    pt: [5.0, 50.]
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
     xtitle: "#it{p}_{T} (GeV/#it{c})"
 
-    eta_min_ref: 2.8
-    eta_max_ref: 5.1
+    trigger_hadron:
+      # Reference is constructed inside of this range
+      eta_cut: [2.8, 5.1]
+
+    associated_hadron:
+      eta_cut: 0.8
 
     hepdata: "HEPData-ins1666817-v1-root.root"
     hepdata_pp_dir: "Table 131"
@@ -354,13 +375,18 @@ hadron_correlations:
       inspire_hep: https://inspirehep.net/literature/1666817
       hepdata: https://www.hepdata.net/record/ins1666817
 
-    eta_cut: 0.8
-    pt: [0.2, 50.]
+    # Measurement goes to 0.2 GeV, but we cut at 5 GeV to keep data volume reasonable
+    pt: [5.0, 50.]
+    # NOTE(RJE): It appears that the 0-5 is not reported in the paper. Not sure why.
     centrality: [[5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
     xtitle: "#it{p}_{T} (GeV/#it{c})"
 
-    eta_min_ref: 2.8
-    eta_max_ref: 5.1
+    trigger_hadron:
+      # Reference is constructed inside of this range
+      eta_cut: [2.8, 5.1]
+
+    associated_hadron:
+      eta_cut: 0.8
 
     hepdata: "HEPData-ins1666817-v1-root.root"
     hepdata_pp_dir: "Table 87"

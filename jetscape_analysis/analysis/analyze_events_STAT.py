@@ -287,6 +287,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         We assume weak strange decays are off, but charm decays are on.
 
+        NOTE:
+            For identified particles, we store holes of the identified species
+
         Args:
             fj_particles: Particles in the event.
             pid_hadrons: Particle ID of the particles.
@@ -392,43 +395,63 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     ):
                         self.observable_dict_event[f"hadron_pt_ch_star{suffix}"].append(pt)
 
-    # ---------------------------------------------------------------
-    # Fill hadron correlation observables
-    # ---------------------------------------------------------------
-    def fill_hadron_correlation_observables(self, fj_particles, pid_hadrons, event_plane_angle, status="+") -> None:
-        # Note that for identified particles, we store holes of the identified species
+    def fill_hadron_correlation_observables(  # noqa: C901
+        self,
+        fj_particles: PseudoJetVector,
+        pid_hadrons: npt.NDArray[np.int32],
+        event_plane_angle: float,
+        status: str = "+",
+    ) -> None:
+        """Measure and record inclusive hadron correlation observables.
+
+        NOTE:
+            For identified particles, we store holes of the identified species
+
+        Args:
+            fj_particles: Particles in the event.
+            pid_hadrons: Particle ID of the particles.
+            event_plane_angle: Event plane angle.
+            status: Particle status of the provided particles. Default: "+"
+        Returns:
+            None
+        """
+        # NOTE: For identified particles, we store holes of the identified species
         suffix = ""
         if status == "-":
             suffix = "_holes"
+
         # Loop through hadrons
         for particle in fj_particles:
-            # Fill some basic hadron info
+            # Define some basic hadron info
             pid = pid_hadrons[np.abs(particle.user_index()) - 1]
             pt = particle.pt()
             eta = particle.eta()
             CosineDPhi = np.cos(2.0 * (particle.phi() - event_plane_angle))
 
             if self.sqrts in [5020]:
+                # ATLAS v2 event-plane
                 # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-                if self.measure_observable_for_current_event(self.hadron_correlation_observables["v2_atlas"]):
-                    pt_min = self.hadron_correlation_observables["v2_atlas"]["pt"][0]
-                    pt_max = self.hadron_correlation_observables["v2_atlas"]["pt"][1]
+                if self.measure_observable_for_current_event(self.hadron_correlation_observables["v2_ep_atlas"]):
+                    pt_min = self.hadron_correlation_observables["v2_ep_atlas"]["pt"][0]
+                    pt_max = self.hadron_correlation_observables["v2_ep_atlas"]["pt"][1]
                     if (
                         pt_min < pt < pt_max
-                        and abs(eta) < self.hadron_correlation_observables["v2_atlas"]["eta_cut"]
+                        and abs(eta) < self.hadron_correlation_observables["v2_ep_atlas"]["eta_cut"]
                         and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                     ):
-                        self.observable_dict_event[f"hadron_correlations_v2_atlas{suffix}"].append([pt, CosineDPhi])
+                        self.observable_dict_event[f"hadron_correlations_v2_ep_atlas{suffix}"].append([pt, CosineDPhi])
 
-                if self.measure_observable_for_current_event(self.hadron_correlation_observables["v2_cms"]):
-                    pt_min = self.hadron_correlation_observables["v2_cms"]["pt"][0]
-                    pt_max = self.hadron_correlation_observables["v2_cms"]["pt"][1]
+                # CMS v2 event-plane (doesn't seem to actually be measured, so leaving disabled)
+                # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
+                if self.measure_observable_for_current_event(self.hadron_correlation_observables["v2_ep_cms"]):
+                    pt_min = self.hadron_correlation_observables["v2_ep_cms"]["pt"][0]
+                    pt_max = self.hadron_correlation_observables["v2_ep_cms"]["pt"][1]
                     if (
                         pt_min < pt < pt_max
-                        and abs(eta) < self.hadron_correlation_observables["v2_cms"]["eta_cut"]
+                        and abs(eta) < self.hadron_correlation_observables["v2_ep_cms"]["eta_cut"]
                         and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                     ):
-                        self.observable_dict_event[f"hadron_correlations_v2_cms{suffix}"].append([pt, CosineDPhi])
+                        self.observable_dict_event[f"hadron_correlations_v2_ep_cms{suffix}"].append([pt, CosineDPhi])
 
         # NOTE: The loop order here is different than other functions because without some optimization,
         #       it's very easy to have an O(n^2) loop looking for trigger and associated particles.
@@ -502,7 +525,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         # Store a list of dphi of associated particles
                         # NOTE: We actually store the triggers separately, but in principle we could extract it directly from here if
                         #       we stored the associated particles per trigger (ie. used append rather than extend). However,
-                        #       it's more difficult to integrate with the existing infrastructure, but so we take the simpler route
+                        #       it's more difficult to integrate with the existing infrastructure, bo we take the simpler route
                         #       and use a flat list
                         # NOTE: Here we standardize the values to match with the measured correlation range
                         self.observable_dict_event[f"hadron_correlations_dihadron_star_{label}{suffix}"].extend(
