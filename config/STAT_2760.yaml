@@ -909,15 +909,47 @@ pion_trigger_hadron:
   # TODO: Implement this observable
   # pmj 13/1/22: And recoil hadrons are very soft (<6 GeV), almost all are below the lower bound of 5 GeV we are setting elsewhere for hadron pT
   # pmj 13/1/22: Are we sure this is a useful dataset for this round of calculations?
-  pi0_hadron_alice:
+  pi0_hadron_IAA_pt_alice:
     enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/1483164
       hepdata: https://www.hepdata.net/record/ins1483164
 
-    pt_trig: [8., 16.]
     centrality: [[0, 10]]
-    pi_zero_eta_cut: 0.7
-    eta_cut: 0.8
+    pion_trigger:
+      pt: [8., 16.]
+      eta_cut: 0.7
+    recoil_hadron:
+      # Measured down to 0.5 GeV, but we cutoff at 6 to align with the bin edges and keep the data volume reasonable
+      pt: [6., 8., 10.]
+      eta_cut: 0.8
+    dPhi: 1.1
 
     hepdata: "HEPData-ins1483164-v1-root.root"
+
+    # pp correlations
+    hepdata_pp_dir_pt0: "Table 1"
+    hepdata_pp_gname_pt0: "Graph1D_y3"
+    hepdata_pp_dir_pt1: "Table 1"
+    hepdata_pp_gname_pt1: "Graph1D_y4"
+    ytitle_pp: "#frac{1}{N_{trig}} #frac{dN^{assoc}}{d #Delta #it{#varphi}}]"
+    y_min_pp: 0
+    y_max_pp: 1.5
+
+    # AA correlation functions
+    hepdata_AA_distribution_dir: "Table 2"
+    hepdata_AA_distribution_hname: ["Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_distribution_gname: ["Graph1D_y3", "Graph1D_y4"]
+    ytitle_AA_distribution: "#frac{1}{N_{trig}} #frac{dN^{assoc}}{d #Delta #it{#varphi}}]"
+    y_min_AA_distribution: 0
+    y_max_AA_distribution: 12.0
+
+    # Ratio
+    # NOTE: We only consider the away-side for simplicity.
+    hepdata_AA_dir: "Table 4"
+    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_hname: ["Hist1D_y1"]
+    xtitle: "#it{p}_{T,hadron} (GeV/#it{c})"
+    ytitle_AA: "I_{AA}(#it{p}_{T,hadron})"
+    y_min_AA: 0.
+    y_max_AA: 6.

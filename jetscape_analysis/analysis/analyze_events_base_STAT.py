@@ -428,6 +428,39 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         trigger_response_matrix = trigger_response_matrix / row_sums[:, np.newaxis]
         return trigger_response_matrix  # noqa: RET504
 
+    def fill_pi_zero_candidates(self, event, select_status: str | None = None):
+        """Find all final state pi-zeros in the event.
+
+        Note:
+            The returned values are all pi-zeros. However, we will refer to them as pion
+            candidates until we make further analysis selections since it may include many
+            pions which are otherwise unmeasurable.
+
+        Args:
+            event: Event record
+            select_status: Particle status to select. Options: ["+", "-", anything else].
+                If it's anything other than "+" or "-", it will select all particles.
+
+        Returns:
+            Pi-zero candidates.
+        """
+        # Setup
+        status_mask = mask_from_select_status(event, select_status=select_status)
+
+        # Select neutral pions (PID = 111)
+        z_boson_mask = (event["particle_ID"] == 111) & status_mask
+
+        # Get Z boson kinematics
+        px = event["px"][z_boson_mask]
+        py = event["py"][z_boson_mask]
+        pz = event["pz"][z_boson_mask]
+        e = event["E"][z_boson_mask]
+
+        # Create fastjet particles
+        fj_pions = fjext.vectorize_px_py_pz_e(px, py, pz, e)
+
+        return fj_pions # noqa: RET504
+
     def fill_photon_candidates(self, event, select_status: str | None = None):
         """Find all final state photons in the event.
 

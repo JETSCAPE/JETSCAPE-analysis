@@ -178,12 +178,33 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 fj_hadrons_negative, pid_hadrons_negative, event_plane_angle, status="-"
             )
 
+        # Fill pion triggered observables
+        # Skip if we have no pion-triggered observables
+        fj_pion_candidates_positive: PseudoJetVector | None = None
+        fj_pion_candidates_negative: PseudoJetVector | None = None
+        if (
+            self.pion_trigger_hadron_observables
+            or self.pion_trigger_chjet_observables
+        ):
+            # First, we'll collect any pions triggers, since they should be relatively rare.
+            # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
+            fj_pion_candidates_positive = self.fill_pi_zero_candidates(event, select_status="+")
+            # TODO(RJE): We will get pion hole candidates if the pt is low enough. How to handle them??
+            fj_pion_candidates_negative = self.fill_pi_zero_candidates(event, select_status="-")
+            # If there are triggers, we can fill the trigger-hadron correlations. If not, we can simply move on
+            if len(fj_pion_candidates_positive) > 0 and self.gamma_trigger_hadron_observables:
+                self.fill_pion_trigger_hadron_observables(
+                    fj_pion_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+"
+                )
+                if self.AA:
+                    self.fill_pion_trigger_hadron_observables(
+                        fj_pion_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-"
+                    )
+
         # Fill photon triggered observables
-        # Skip if we have no photon-based observables
-        # NOTE: This type isn't quite right - they'll be vector of fj::PseudoJet, but
-        #       it's quite inconvenient to type, so we compromise here.
-        fj_photon_candidates_positive = None
-        fj_photon_candidates_negative = None
+        # Skip if we have no photon-triggered observables
+        fj_photon_candidates_positive: PseudoJetVector | None = None
+        fj_photon_candidates_negative: PseudoJetVector | None = None
         if (
             self.gamma_trigger_hadron_observables
             or self.gamma_trigger_chjet_observables
@@ -205,7 +226,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     )
 
         # Fill z triggered hadron observables
-        fj_z_boson_candidates = None
+        fj_z_boson_candidates: PseudoJetVector | None = None
         if self.z_trigger_hadron_observables:
             # First, we'll collect any z triggers, since they should be relatively rare.
             # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
@@ -1947,6 +1968,56 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 and jetR in self.dijet_trigger_jet_observables["yield_atlas"]["jet_R"]
             ):
                 ...
+
+    def fill_pion_trigger_hadron_observables(
+        self, fj_pion_candidates: PseudoJetVector, fj_particles: PseudoJetVector, pid_hadrons: npt.NDArray[np.int32], status: str = "+"
+    ) -> None:
+        """Measure and record pi-zero triggered hadron observables.
+
+        Args:
+            fj_pion_candidates: Pion candidates, as an array of fj::PseudoJet.
+            fj_particles: Particles in the event, as an array of fj::PseudoJet.
+            pid_hadrons: Corresponding PID of the particles.
+            status: Particle status of the provided particles.
+        Returns:
+            None.
+        """
+        # Setup
+        # Note that for identified particles, we store holes of the identified species
+        suffix = ""
+        if status == "-":
+            suffix = "_holes"
+
+        if self.sqrts == 2760 and self.measure_observable_for_current_event(self.pion_trigger_hadron_observables["pi0_hadron_alice"]):
+        # ALICE, pion-hadron correlations
+                pion_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["pt"]
+                pion_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["eta_cut"]
+                recoil_hadron_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["pt"]
+                recoil_hadron_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["eta_cut"]
+                d_phi = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["dPhi"]
+
+                # get all pions that fulfill analysis cuts
+                pions = []
+                for trigger in fj_pion_candidates:
+                    if pion_pt[0] < trigger.pt < pion_pt[1] and abs(trigger.eta()) < pion_eta_cut:
+                        pions.append(trigger)
+
+                # And then construct the correlation of the trigger Z bosons with the hadrons
+                for pion in pions:
+                    # fill just pion pt to allow to calculate normalization N_z_bosons later
+                    self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice_Npions{suffix}"].append(pion.pt())
+                    for particle in fj_particles:
+                        pid = pid_hadrons[np.abs(particle.user_index()) - 1]
+                        if (
+                            abs(particle.eta()) < recoil_hadron_eta_cut
+                            and recoil_hadron_pt[0] < particle.pt() < recoil_hadron_pt[1]
+                            and abs(particle.delta_R(pion) - np.pi) < d_phi
+                            and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                        ):
+                            # store pion.pt and hadron pt to allow to select pion pt ranges later for figure
+                            self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice{suffix}"].append(
+                                [pion.pt(), particle.pt()]
+                            )
 
     # ---------------------------------------------------------------
     # Fill semi-inclusive pi zero jet observables
