@@ -251,28 +251,6 @@ hadron:
     skip_AA_distribution: True ## PbPb hepdata not available
 
 #------------------------------------------------------------------
-# pion triggered hadron observables
-# (e.g. semi-inclusive gamma-hadron)
-#------------------------------------------------------------------
-pion_trigger_hadron:
-  # ALICE pi0-hadron correlations
-  # TODO: Implement this observable
-  # pmj 13/1/22: And recoil hadrons are very soft (<6 GeV), almost all are below the lower bound of 5 GeV we are setting elsewhere for hadron pT
-  # pmj 13/1/22: Are we sure this is a useful dataset for this round of calculations?
-  pi0_hadron_alice:
-    enabled: false
-    urls:
-      inspire_hep: https://inspirehep.net/literature/1483164
-      hepdata: https://www.hepdata.net/record/ins1483164
-
-    pt_trig: [8., 16.]
-    centrality: [[0, 10]]
-    pi_zero_eta_cut: 0.7
-    eta_cut: 0.8
-
-    hepdata: "HEPData-ins1483164-v1-root.root"
-
-#------------------------------------------------------------------
 # Hadron correlations
 #------------------------------------------------------------------
 hadron_correlations:
@@ -332,6 +310,154 @@ hadron_correlations:
     hepdata_AA_gname: "Graph1D_y1"
     hepdata_AA_hname: "Hist1D_y1"
     ytitle_AA: '#it{v}_{2}\{4\}'
+
+#------------------------------------------------------------------
+# Inclusive jet observables -- charged jets
+#------------------------------------------------------------------
+inclusive_chjet:
+  # ALICE jet R_CP
+  # Mostly this paper is RCP (no pp), which we omit for now -- however it has R02/R03 ratio for 0-10%
+  pt_alice:
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1263194
+      hepdata: https://www.hepdata.net/record/ins1263194
+
+    jet_R: [0.2, 0.3]
+    eta_cut: 0.5
+    pt: [30., 110.]
+    centrality: [[0, 10]]
+    leading_track_min_pt: 5.
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
+    logy: True
+
+    ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]"
+    y_min_pp: 2e-8
+    y_max_pp: 1e-2
+    skip_pp: True
+
+    hepdata: "HEPData-ins1263194-v1-root.root"
+    hepdata_AA_dir: "Table 30"
+    hepdata_AA_gname: "Graph1D_y1"
+    hepdata_AA_hname: "Hist1D_y1"
+    ytitle_AA: "#it{R}_{0.2} / #it{R}_{0.3}"
+    y_min_AA: 0.
+    y_max_AA: 2.
+
+    skip_AA_distribution: True
+
+  # ALICE jet mass
+  # Fig 7
+  # Note: reference is p-Pb, which we use as a proxy for pp
+  # Note: PbPb/pPb ratio is missing from HEPData (Fig 8)
+  mass_alice:
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1512107
+      # NOTE: (tgraph only...no binning)
+      hepdata: https://www.hepdata.net/record/ins1512107
+
+    jet_R: [0.4]
+    eta_cut_R: 0.9
+    pt: [60., 80., 100., 120.]
+    centrality: [[0, 10]]
+    bins: [0., 2, 4, 6, 8, 10, 12, 14, 16, 18]
+    xtitle: "#it{m}_{jet}"
+
+    hepdata: "HEPData-ins1512107-v1-root.root"
+    hepdata_pp_dir_R0.4_pt0: "Table 1"
+    hepdata_pp_dir_R0.4_pt1: "Table 2"
+    hepdata_pp_dir_R0.4_pt2: "Table 3"
+    hepdata_pp_gname: "Graph1D_y1"
+    ytitle_pp: "#frac{1}{#sigma} #frac{d#sigma}{d#it{m}} #left[GeV^{-2}#right]"
+    y_min_pp: 1e-3
+    y_max_pp: 0.3
+
+    hepdata_AA_dir_R0.4_pt0: "Table 4"
+    hepdata_AA_dir_R0.4_pt1: "Table 5"
+    hepdata_AA_dir_R0.4_pt2: "Table 6"
+    hepdata_AA_gname: "Graph1D_y1"
+    hepdata_AA_hname: "Hist1D_y1"
+    ytitle_AA: "#it{R}_{D(z)}"
+    y_min_AA: 0.
+    y_max_AA: 2.
+
+    skip_AA_distribution: True
+
+  # ALICE girth
+  # Note: reference is to PYTHIA, See the hepdata_pp note below
+  g_alice:
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1682990
+      hepdata: https://www.hepdata.net/record/ins1682990
+
+    jet_R: [0.2]
+    eta_cut_R: 0.9
+    pt: [40., 60.]
+    centrality: [[0, 10]]
+    xtitle: "#it{g}"
+
+    hepdata: "HEPData-ins1682990-v1-root.root"
+    # NOTE: This is the 7 TeV pp measurement because the 2.76 TeV pp data was limited,
+    #       and the pythia distribution is not provided. So we intentionally take
+    #       the 7 TeV pp since it's only used for QA anyway.
+    hepdata_pp_dir_R0.2: "Table 1"
+    hepdata_pp_gname: "Graph1D_y1"
+    ytitle_pp: "#frac{1}{#sigma} #frac{d#sigma}{d#it{g}} #left[(GeV/c)^{-1}#right]"
+    y_min_pp: 0.
+    y_max_pp: 30.
+
+    hepdata_AA_dir_R0.2: "Table 11"
+    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_hname: ["Hist1D_y1"]
+    ytitle_AA: "#it{R}_{AA}"
+    y_min_AA: 0.
+    y_max_AA: 2.
+
+    skip_AA_distribution: True
+
+  # ALICE pt_D
+  ptd_alice:
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1682990
+      hepdata: https://www.hepdata.net/record/ins1682990
+
+    jet_R: [0.2]
+    eta_cut_R: 0.9
+    pt: [40., 60.]
+    centrality: [[0, 10]]
+    xtitle: "#it{p}_{T,D}"
+
+    hepdata: "HEPData-ins1682990-v1-root.root"
+    hepdata_pp_dir_R0.2: "Table 13"
+    hepdata_pp_gname: "Graph1D_y1"
+    ytitle_pp: "#frac{1}{#sigma} #frac{d#sigma}{d#it{p}_{T}d} #left[(GeV/c)^{-2}#right]"
+    y_min_pp: 0.
+    y_max_pp: 5.
+
+    hepdata_AA_dir_R0.2: "Table 14"
+    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_hname: ["Hist1D_y1"]
+    ytitle_AA: "#it{R}_{AA}"
+    y_min_AA: 0.
+    y_max_AA: 2.
+
+  # ALICE jet v2
+  # TODO: Implement this observable
+  v2_alice:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1394678
+      hepdata: https://www.hepdata.net/record/ins1394678
+
+    jet_R: [0.2]
+    eta_cut: 0.7
+    pt: [20., 90.]
+    centrality: [[0, 10]]
+
+    hepdata: "HEPData-ins1394678-v1-root.root"
 
 #------------------------------------------------------------------
 # Inclusive jet observables -- full jets
@@ -628,154 +754,6 @@ inclusive_jet:
     hepdata: "HEPData-ins1240088-v1-root.root"
 
 #------------------------------------------------------------------
-# Inclusive jet observables -- charged jets
-#------------------------------------------------------------------
-inclusive_chjet:
-  # ALICE jet R_CP
-  # Mostly this paper is RCP (no pp), which we omit for now -- however it has R02/R03 ratio for 0-10%
-  pt_alice:
-    enabled: true
-    urls:
-      inspire_hep: https://inspirehep.net/literature/1263194
-      hepdata: https://www.hepdata.net/record/ins1263194
-
-    jet_R: [0.2, 0.3]
-    eta_cut: 0.5
-    pt: [30., 110.]
-    centrality: [[0, 10]]
-    leading_track_min_pt: 5.
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: True
-
-    ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]"
-    y_min_pp: 2e-8
-    y_max_pp: 1e-2
-    skip_pp: True
-
-    hepdata: "HEPData-ins1263194-v1-root.root"
-    hepdata_AA_dir: "Table 30"
-    hepdata_AA_gname: "Graph1D_y1"
-    hepdata_AA_hname: "Hist1D_y1"
-    ytitle_AA: "#it{R}_{0.2} / #it{R}_{0.3}"
-    y_min_AA: 0.
-    y_max_AA: 2.
-
-    skip_AA_distribution: True
-
-  # ALICE jet mass
-  # Fig 7
-  # Note: reference is p-Pb, which we use as a proxy for pp
-  # Note: PbPb/pPb ratio is missing from HEPData (Fig 8)
-  mass_alice:
-    enabled: true
-    urls:
-      inspire_hep: https://inspirehep.net/literature/1512107
-      # NOTE: (tgraph only...no binning)
-      hepdata: https://www.hepdata.net/record/ins1512107
-
-    jet_R: [0.4]
-    eta_cut_R: 0.9
-    pt: [60., 80., 100., 120.]
-    centrality: [[0, 10]]
-    bins: [0., 2, 4, 6, 8, 10, 12, 14, 16, 18]
-    xtitle: "#it{m}_{jet}"
-
-    hepdata: "HEPData-ins1512107-v1-root.root"
-    hepdata_pp_dir_R0.4_pt0: "Table 1"
-    hepdata_pp_dir_R0.4_pt1: "Table 2"
-    hepdata_pp_dir_R0.4_pt2: "Table 3"
-    hepdata_pp_gname: "Graph1D_y1"
-    ytitle_pp: "#frac{1}{#sigma} #frac{d#sigma}{d#it{m}} #left[GeV^{-2}#right]"
-    y_min_pp: 1e-3
-    y_max_pp: 0.3
-
-    hepdata_AA_dir_R0.4_pt0: "Table 4"
-    hepdata_AA_dir_R0.4_pt1: "Table 5"
-    hepdata_AA_dir_R0.4_pt2: "Table 6"
-    hepdata_AA_gname: "Graph1D_y1"
-    hepdata_AA_hname: "Hist1D_y1"
-    ytitle_AA: "#it{R}_{D(z)}"
-    y_min_AA: 0.
-    y_max_AA: 2.
-
-    skip_AA_distribution: True
-
-  # ALICE girth
-  # Note: reference is to PYTHIA, See the hepdata_pp note below
-  g_alice:
-    enabled: true
-    urls:
-      inspire_hep: https://inspirehep.net/literature/1682990
-      hepdata: https://www.hepdata.net/record/ins1682990
-
-    jet_R: [0.2]
-    eta_cut_R: 0.9
-    pt: [40., 60.]
-    centrality: [[0, 10]]
-    xtitle: "#it{g}"
-
-    hepdata: "HEPData-ins1682990-v1-root.root"
-    # NOTE: This is the 7 TeV pp measurement because the 2.76 TeV pp data was limited,
-    #       and the pythia distribution is not provided. So we intentionally take
-    #       the 7 TeV pp since it's only used for QA anyway.
-    hepdata_pp_dir_R0.2: "Table 1"
-    hepdata_pp_gname: "Graph1D_y1"
-    ytitle_pp: "#frac{1}{#sigma} #frac{d#sigma}{d#it{g}} #left[(GeV/c)^{-1}#right]"
-    y_min_pp: 0.
-    y_max_pp: 30.
-
-    hepdata_AA_dir_R0.2: "Table 11"
-    hepdata_AA_gname: ["Graph1D_y1"]
-    hepdata_AA_hname: ["Hist1D_y1"]
-    ytitle_AA: "#it{R}_{AA}"
-    y_min_AA: 0.
-    y_max_AA: 2.
-
-    skip_AA_distribution: True
-
-  # ALICE pt_D
-  ptd_alice:
-    enabled: true
-    urls:
-      inspire_hep: https://inspirehep.net/literature/1682990
-      hepdata: https://www.hepdata.net/record/ins1682990
-
-    jet_R: [0.2]
-    eta_cut_R: 0.9
-    pt: [40., 60.]
-    centrality: [[0, 10]]
-    xtitle: "#it{p}_{T,D}"
-
-    hepdata: "HEPData-ins1682990-v1-root.root"
-    hepdata_pp_dir_R0.2: "Table 13"
-    hepdata_pp_gname: "Graph1D_y1"
-    ytitle_pp: "#frac{1}{#sigma} #frac{d#sigma}{d#it{p}_{T}d} #left[(GeV/c)^{-2}#right]"
-    y_min_pp: 0.
-    y_max_pp: 5.
-
-    hepdata_AA_dir_R0.2: "Table 14"
-    hepdata_AA_gname: ["Graph1D_y1"]
-    hepdata_AA_hname: ["Hist1D_y1"]
-    ytitle_AA: "#it{R}_{AA}"
-    y_min_AA: 0.
-    y_max_AA: 2.
-
-  # ALICE jet v2
-  # TODO: Implement this observable
-  v2_alice:
-    enabled: false
-    urls:
-      inspire_hep: https://inspirehep.net/literature/1394678
-      hepdata: https://www.hepdata.net/record/ins1394678
-
-    jet_R: [0.2]
-    eta_cut: 0.7
-    pt: [20., 90.]
-    centrality: [[0, 10]]
-
-    hepdata: "HEPData-ins1394678-v1-root.root"
-
-#------------------------------------------------------------------
 # Hadron triggered charged-particle jet observables
 # (e.g. semi-inclusive h-jet)
 #------------------------------------------------------------------
@@ -921,3 +899,25 @@ dijet_trigger_jet:
     y_max_AA: 2.
 
     skip_AA_distribution: False
+
+#------------------------------------------------------------------
+# pion triggered hadron observables
+# (e.g. semi-inclusive gamma-hadron)
+#------------------------------------------------------------------
+pion_trigger_hadron:
+  # ALICE pi0-hadron correlations
+  # TODO: Implement this observable
+  # pmj 13/1/22: And recoil hadrons are very soft (<6 GeV), almost all are below the lower bound of 5 GeV we are setting elsewhere for hadron pT
+  # pmj 13/1/22: Are we sure this is a useful dataset for this round of calculations?
+  pi0_hadron_alice:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1483164
+      hepdata: https://www.hepdata.net/record/ins1483164
+
+    pt_trig: [8., 16.]
+    centrality: [[0, 10]]
+    pi_zero_eta_cut: 0.7
+    eta_cut: 0.8
+
+    hepdata: "HEPData-ins1483164-v1-root.root"
