@@ -397,11 +397,14 @@ gamma_trigger_hadron:
       inspire_hep: https://inspirehep.net/literature/1798493
       hepdata: https://www.hepdata.net/record/ins1798493
 
-    eta_cut_R: 1.
-    pt: [5., 7.]
     centrality: [[0, 40]]
-    hadron_eta_cut: 0.35
-    trigger_range: [5., 9.]
+    gamma_trigger:
+      pt: [5., 9.]
+      eta_cut: 10000.
+    recoil_hadron:
+      pt: [5., 7.]
+      eta_cut: 0.35
+
     xtitle: "#zeta"
     logy: true
 

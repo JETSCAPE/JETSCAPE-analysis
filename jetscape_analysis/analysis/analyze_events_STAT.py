@@ -182,10 +182,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Skip if we have no pion-triggered observables
         fj_pion_candidates_positive: PseudoJetVector | None = None
         fj_pion_candidates_negative: PseudoJetVector | None = None
-        if (
-            self.pion_trigger_hadron_observables
-            or self.pion_trigger_chjet_observables
-        ):
+        if self.pion_trigger_hadron_observables or self.pion_trigger_chjet_observables:
             # First, we'll collect any pions triggers, since they should be relatively rare.
             # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
             fj_pion_candidates_positive = self.fill_pi_zero_candidates(event, select_status="+")
@@ -1247,7 +1244,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         f"inclusive_chjet_mass_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
                                     ].append([jet_pt, mg])
 
-
     # ---------------------------------------------------------------
     # Fill inclusive full jet observables
     # ---------------------------------------------------------------
@@ -1970,7 +1966,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 ...
 
     def fill_pion_trigger_hadron_observables(
-        self, fj_pion_candidates: PseudoJetVector, fj_particles: PseudoJetVector, pid_hadrons: npt.NDArray[np.int32], status: str = "+"
+        self,
+        fj_pion_candidates: PseudoJetVector,
+        fj_particles: PseudoJetVector,
+        pid_hadrons: npt.NDArray[np.int32],
+        status: str = "+",
     ) -> None:
         """Measure and record pi-zero triggered hadron observables.
 
@@ -1988,12 +1988,16 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if status == "-":
             suffix = "_holes"
 
-        if self.sqrts == 2760 and self.measure_observable_for_current_event(self.pion_trigger_hadron_observables["pi0_hadron_alice"]):
+        if self.sqrts == 2760 and self.measure_observable_for_current_event(
+            self.pion_trigger_hadron_observables["pi0_hadron_alice"]
+        ):
             # ALICE, pion-hadron correlations
             pion_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["pt"]
             pion_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["eta_cut"]
             recoil_hadron_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["pt"]
-            recoil_hadron_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["eta_cut"]
+            recoil_hadron_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"][
+                "eta_cut"
+            ]
             d_phi = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["dPhi"]
 
             # get all pions that fulfill analysis cuts
@@ -2005,7 +2009,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # And then construct the correlation of the trigger Z bosons with the hadrons
             for pion in pions:
                 # fill just pion pt to allow to calculate normalization N_z_bosons later
-                self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice_Npions{suffix}"].append(pion.pt())
+                self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice_Npions{suffix}"].append(
+                    pion.pt()
+                )
                 for particle in fj_particles:
                     pid = pid_hadrons[np.abs(particle.user_index()) - 1]
                     if (
@@ -2111,6 +2117,64 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     self.observable_dict_event[
                                         f"pion_trigger_chjet_dphi_star_R{jetR}_lowTrigger{jet_collection_label}"
                                     ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+
+    def fill_gamma_trigger_hadron_observables(
+        self,
+        fj_photon_candidates: PseudoJetVector,
+        fj_particles: PseudoJetVector,
+        pid_hadrons: npt.NDArray[np.int32],
+        status: str = "+",
+    ) -> None:
+        """Measure and record gamma triggered hadron observables.
+
+        Args:
+            fj_photon_candidates: Photon candidates, as an array of fj::PseudoJet.
+            fj_particles: Particles in the event, as an array of fj::PseudoJet.
+            pid_hadrons: Corresponding PID of the particles.
+            status: Particle status of the provided particles.
+        Returns:
+            None.
+        """
+        # Setup
+        # Note that for identified particles, we store holes of the identified species
+        suffix = ""
+        if status == "-":
+            suffix = "_holes"
+
+        if self.sqrts == 200 and self.measure_observable_for_current_event(
+            self.gamma_trigger_hadron_observables["IAA_pt_phenix"]
+        ):
+            # PHENIX, gamma-hadron correlations
+            gamma_pt = self.gamma_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["gamma_trigger"]["pt"]
+            gamma_eta_cut = self.gamma_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["gamma_trigger"]["eta_cut"]
+            recoil_hadron_pt = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["recoil_hadron"]["pt"]
+            recoil_hadron_eta_cut = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["recoil_hadron"]["eta_cut"]
+            d_phi = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["dPhi"]
+
+            # Select gamma triggers
+            photons = []
+            for trigger in fj_photon_candidates:
+                # TODO(RJE): Implement full selection, including isolation...
+                if gamma_pt[0] < trigger.pt < gamma_pt[1] and abs(trigger.eta()) < gamma_eta_cut:
+                    photons.append(trigger)
+
+            # And then construct the correlation of the trigger Z bosons with the hadrons
+            for photon in photons:
+                # fill just pion pt to allow to calculate normalization N_z_bosons later
+                self.observable_dict_event[f"photon_trigger_hadron_IAA_pt_phenix_Ngamma{suffix}"].append(photon.pt())
+                for particle in fj_particles:
+                    pid = pid_hadrons[np.abs(particle.user_index()) - 1]
+                    # TODO(RJE): Double check PID selections, etc
+                    if (
+                        abs(particle.eta()) < recoil_hadron_eta_cut
+                        and recoil_hadron_pt[0] < particle.pt() < recoil_hadron_pt[1]
+                        and abs(particle.delta_R(photon) - np.pi) < d_phi
+                        and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                    ):
+                        # store photon.pt and hadron pt to allow to select photon pt ranges later for figure
+                        self.observable_dict_event[f"photon_trigger_hadron_IAA_pt_phenix{suffix}"].append(
+                            [photon.pt(), particle.pt()]
+                        )
 
     # ---------------------------------------------------------------
     # Fill photon correlation observables
@@ -3125,9 +3189,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                             f"gamma_triggered_jet_rg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
                                         ].append([jet_pt, r_g])
 
-
     def fill_z_trigger_hadron_observables(
-        self, fj_z_boson_candidates, fj_particles, pid_hadrons: npt.NDArray[np.int32], status: str = "+"
+        self,
+        fj_z_boson_candidates: PseudoJetVector,
+        fj_particles: PseudoJetVector,
+        pid_hadrons: npt.NDArray[np.int32],
+        status: str = "+",
     ) -> None:
         """Measure and record Z-triggered hadron observables.
 
