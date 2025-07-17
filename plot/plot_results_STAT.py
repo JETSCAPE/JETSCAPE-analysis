@@ -943,36 +943,32 @@ class PlotResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Plot distributions
     # -------------------------------------------------------------------------------------------
-    def plot_observable(self, observable_type, observable, centrality, pt_suffix="", logy=False):
+    def plot_observable(self, observable_type, observable: str, centrality, pt_suffix: str = "") -> None:
         label = f"{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}"
 
         if "v2" in observable:
             # for hadron v2
             if self.observable_settings["jetscape_distribution"]:
-                self.plot_distribution_and_ratio(
-                    observable_type, observable, centrality, label, pt_suffix=pt_suffix, logy=logy
-                )
+                self.plot_distribution_and_ratio(observable_type, observable, centrality, label, pt_suffix=pt_suffix)
             return
 
         # If AA: Plot PbPb/pp ratio, and comparison to data
         # If pp: Plot distribution, and ratio to data
         if self.is_AA:
-            self.plot_RAA(observable_type, observable, centrality, label, pt_suffix=pt_suffix, logy=logy)
-            self.write_experimental_data(observable_type, observable, centrality, label, pt_suffix=pt_suffix)
+            self.plot_RAA(observable_type, observable, centrality, label, pt_suffix=pt_suffix)
+            self.write_experimental_data(label)
         elif self.observable_settings["jetscape_distribution"]:
-            self.plot_distribution_and_ratio(
-                observable_type, observable, centrality, label, pt_suffix=pt_suffix, logy=logy
-            )
+            self.plot_distribution_and_ratio(observable_type, observable, centrality, label, pt_suffix=pt_suffix)
 
     # -------------------------------------------------------------------------------------------
     # Write experimental data tables
     # -------------------------------------------------------------------------------------------
-    def write_experimental_data(self, observable_type, observable, centrality, label, pt_suffix: str = ""):
+    def write_experimental_data(self, label: str) -> None:
         output_dir = (self.output_dir / "../Data").resolve()
         output_dir.mkdir(exist_ok=True)
 
         force_write = True
-        filename = f"Data_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}.dat"
+        filename = f"Data_{label}.dat"
         output_file = output_dir / filename
         if force_write or not output_file.exists():
             # Get histogram binning
@@ -1008,7 +1004,7 @@ class PlotResults(common_base.CommonBase):
             else:
                 logger.info(f"Did not write Data table: {filename} -- missing histogram")
         else:
-            sys.exit()
+            logger.info(f"No need to write Data table: {filename} -- already exists")
 
     # -------------------------------------------------------------------------------------------
     # Plot distributions in upper panel, and ratio in lower panel
@@ -1020,7 +1016,7 @@ class PlotResults(common_base.CommonBase):
     #       for jet_collection_label in self.jet_collection_labels:
     #           self.observable_settings[f'jetscape_distribution{jet_collection_label}']
     # -------------------------------------------------------------------------------------------
-    def plot_RAA(self, observable_type, observable, centrality, label, pt_suffix="", logy=False):
+    def plot_RAA(self, observable_type, observable, centrality, label, pt_suffix=""):
         # Assemble the list of hole subtraction variations
         keys_to_plot = [
             key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key
@@ -1134,8 +1130,8 @@ class PlotResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Plot distributions in upper panel, and ratio in lower panel
     # -------------------------------------------------------------------------------------------
-    def plot_distribution_and_ratio(
-        self, observable_type, observable: str, centrality, label, pt_suffix: str = "", logy: bool = False
+    def plot_distribution_and_ratio(  # noqa: C901
+        self, observable_type, observable: str, centrality, label, pt_suffix: str = ""
     ):
         c = ROOT.TCanvas("c", "c", 600, 650)
         c.Draw()
