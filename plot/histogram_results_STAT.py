@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -43,7 +42,7 @@ class HistogramResults(common_base.CommonBase):
         # ------------------------------------------------------
         # Check whether pp or AA
         self.is_AA = False
-        if "PbPb" in self.input_file or "AuAu" in self.input_file:
+        if "PbPb" in str(self.input_file) or "AuAu" in str(self.input_file):
             self.is_AA = True
 
         # ------------------------------------------------------
@@ -56,10 +55,9 @@ class HistogramResults(common_base.CommonBase):
         self.pt_ref = self.config["pt_ref"]
 
         # If AA, set different options for hole subtraction treatment
+        self.jet_collection_labels = [""]
         if self.is_AA:
             self.jet_collection_labels = self.config["jet_collection_labels"]
-        else:
-            self.jet_collection_labels = [""]
 
         # ------------------------------------------------------
         # Read input file
@@ -76,7 +74,12 @@ class HistogramResults(common_base.CommonBase):
 
         # ------------------------------------------------------
         # Read cross-section file
-        cross_section_file = "cross_section".join(self.input_file.rsplit("observables", 1))
+        # NOTE: These next two cross_section_file lines should be equivalent. The former was the
+        #       original line, and is very clever, but isn't so obvious. RJE replaced it with the
+        #       simpler version in July 2025, but left the previous version here in case I've
+        #       underestimated the complexity and we need to go back to the previous version.
+        # cross_section_file = "cross_section".join(str(self.input_file).rsplit("observables", 1))
+        cross_section_file = str(self.input_file).replace("observables", "cross_section")
         cross_section_df = pd.read_parquet(cross_section_file)
         self.cross_section = cross_section_df["cross_section"][0]
         self.cross_section_error = cross_section_df["cross_section_error"][0]
@@ -249,8 +252,7 @@ class HistogramResults(common_base.CommonBase):
     # Histogram hadron observables
     # -------------------------------------------------------------------------------------------
     def histogram_hadron_observables(self, observable_type=""):
-        logger.info()
-        logger.info(f"Histogram {observable_type} observables...")
+        logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
@@ -277,9 +279,8 @@ class HistogramResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Histograms for gamma-jet observables
     # -------------------------------------------------------------------------------------------
-    def histogram_photon_jet_observables(self, observable_type="", jet_collection_label=""):
-        logger.info()
-        logger.info(f"Histogram {observable_type} observables...")
+    def histogram_photon_jet_observables(self, observable_type: str = "", jet_collection_label: str = "") -> None:  # noqa: C901
+        logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
@@ -313,7 +314,7 @@ class HistogramResults(common_base.CommonBase):
                     pass
 
                 if observable == "xj_gamma_atlas":
-                    # Get NGamma for normalisation
+                    # Get NGamma for normalization
                     column_name_ngamma = f"photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_Ngamma"
                     bins_pt = np.arange(0, 1000, 1)
                     if column_name_ngamma in self.observables_df.columns:
@@ -328,6 +329,14 @@ class HistogramResults(common_base.CommonBase):
                                     self.output_list.append(h)
                         self.output_list.append(h)
 
+                    # load hep data (loading manually because structure is unusual)
+                    hepdata_dir = Path(f"data/STAT/{self.sqrts}/{observable_type}/{observable}")
+                    hepdata_filename = hepdata_dir / block["hepdata"]
+                    f = ROOT.TFile(str(hepdata_filename), "READ")
+
+                    # get the pt_gamma_bins from config and loop over them
+                    pt_gamma_bins = block["pt_gamma_bins"]
+
                     # loop over the different pt_gamma_bins_i for i=1 to 4
                     column_names = [
                         "photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj",
@@ -337,28 +346,27 @@ class HistogramResults(common_base.CommonBase):
                     # loop over the pt_gamma_bins
                     for i, pt_gamma_bin in enumerate(pt_gamma_bins):
                         # get the xj bins
-                        h_xj_hepdata = (
-                            f.Get(block["hepdata_pt_bin_dir"][i]).Get(block[f"hepdata_AA_hname"][centrality_index])
-                            if self.is_AA
-                            else f.Get(block["hepdata_pt_bin_dir"][i]).Get(block[f"hepdata_pp_hname"][0])
+                        system = "AA" if self.is_AA else "pp"
+                        h_xj_hepdata = f.Get(block["hepdata_pt_bin_dir"][i]).Get(
+                            block[f"hepdata_{system}_hname"][centrality_index if self.is_AA else 0]
                         )
-                        binsxj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
+                        bins_xj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
 
                         for column_name in column_names:
                             hname = f"h_{column_name}_{centrality}_photonPt_{i}"
-                            h = ROOT.TH1F(hname, hname, len(binsxj) - 1, binsxj)
+                            h = ROOT.TH1F(hname, hname, len(bins_xj) - 1, bins_xj)
                             h.Sumw2()
                             if column_name in self.observables_df.columns:
                                 col = self.observables_df[column_name]
-                                for i, _ in enumerate(col):
-                                    if col[i] is not None:
-                                        for value in col[i]:
+                                for j, _ in enumerate(col):
+                                    if col[j] is not None:
+                                        for value in col[j]:
                                             if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
                                                 h.Fill(value[1])
                             self.output_list.append(h)
 
                 if observable == "xj_gamma_cms":
-                    # Get NGamma for normalisation
+                    # Get NGamma for normalization
                     column_name_ngamma = f"photon_jet_xj_cms_R{jet_R}{jet_collection_label}_Ngamma"
                     # array from 0 to 1000 in 1 GeV steps
                     bins_pt = np.arange(0, 1000, 1)
@@ -375,9 +383,9 @@ class HistogramResults(common_base.CommonBase):
                         self.output_list.append(h)
 
                     # load hep data (loading manually because structure is unusual)
-                    hepdata_dir = f"data/STAT/{self.sqrts}/{observable_type}/{observable}"
-                    hepdata_filename = os.path.join(hepdata_dir, block["hepdata"])
-                    f = ROOT.TFile(hepdata_filename, "READ")
+                    hepdata_dir = Path(f"data/STAT/{self.sqrts}/{observable_type}/{observable}")
+                    hepdata_filename = hepdata_dir / block["hepdata"]
+                    f = ROOT.TFile(str(hepdata_filename), "READ")
 
                     # get the pt_gamma_bins from config and loop over them
                     pt_gamma_bins = block["pt_gamma_bins"]
@@ -391,31 +399,31 @@ class HistogramResults(common_base.CommonBase):
                         # get the dphi dphi bins
                         system = "AA" if self.is_AA else "pp"
                         h_dphi_hepdata = f.Get(block["hepdata_dphi_dir"][0]).Get(block[f"hepdata_{system}_hname"][i])
-                        binsdPhi = np.array(h_dphi_hepdata.GetXaxis().GetXbins())
+                        bins_dPhi = np.array(h_dphi_hepdata.GetXaxis().GetXbins())
                         h_xj_hepdata = f.Get(block["hepdata_xjg_dir"][0]).Get(block[f"hepdata_{system}_hname"][i])
-                        binsxj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
+                        bins_xj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
 
                         for column_name in column_names_dphi:
                             hname = f"h_{column_name}_{centrality}_photonPt_{i}"
-                            h = ROOT.TH1F(hname, hname, len(binsdPhi) - 1, binsdPhi)
+                            h = ROOT.TH1F(hname, hname, len(bins_dPhi) - 1, bins_dPhi)
                             h.Sumw2()
                             if column_name in self.observables_df.columns:
                                 col = self.observables_df[column_name]
-                                for i, _ in enumerate(col):
-                                    if col[i] is not None:
-                                        for value in col[i]:
+                                for j, _ in enumerate(col):
+                                    if col[j] is not None:
+                                        for value in col[j]:
                                             if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
                                                 h.Fill(value[1])
                             self.output_list.append(h)
                         for column_name in column_names_xj:
                             hname = f"h_{column_name}_{centrality}_photonPt_{i}"
-                            h = ROOT.TH1F(hname, hname, len(binsxj) - 1, binsxj)
+                            h = ROOT.TH1F(hname, hname, len(bins_xj) - 1, bins_xj)
                             h.Sumw2()
                             if column_name in self.observables_df.columns:
                                 col = self.observables_df[column_name]
-                                for i, _ in enumerate(col):
-                                    if col[i] is not None:
-                                        for value in col[i]:
+                                for j, _ in enumerate(col):
+                                    if col[j] is not None:
+                                        for value in col[j]:
                                             if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
                                                 h.Fill(value[1])
                             self.output_list.append(h)
@@ -437,7 +445,7 @@ class HistogramResults(common_base.CommonBase):
                     self.observable_centrality_list.append(centrality)
 
                 # v2 ATLAS and CMS
-                if observable == "v2_atlas" or observable == "v2_cms":
+                if observable in ["v2_atlas", "v2_cms"]:
                     # Construct appropriate binning
                     bins = self.plot_utils.bins_from_config(
                         block, self.sqrts, observable_type, observable, centrality, centrality_index
@@ -479,7 +487,7 @@ class HistogramResults(common_base.CommonBase):
                                 centrality=centrality,
                                 # We only want to histogram the number of triggers once. Otherwise, we're just
                                 # repeatedly replacing the histogram.
-                                pt_bin=i_trig_bin if histogrammed_n_trig == False else None,
+                                pt_bin=i_trig_bin if histogrammed_n_trig else None,
                                 block=block,
                             )
                             if self.is_AA:
@@ -489,7 +497,7 @@ class HistogramResults(common_base.CommonBase):
                                     centrality=centrality,
                                     # We only want to histogram the number of triggers once. Otherwise, we're just
                                     # repeatedly replacing the histogram.
-                                    pt_bin=i_trig_bin if histogrammed_n_trig == False else None,
+                                    pt_bin=i_trig_bin if histogrammed_n_trig else None,
                                     block=block,
                                 )
                             histogrammed_n_trig = True
@@ -497,9 +505,8 @@ class HistogramResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Histogram inclusive jet observables
     # -------------------------------------------------------------------------------------------
-    def histogram_jet_observables(self, observable_type="", jet_collection_label=""):
-        logger.info()
-        logger.info(f"Histogram {observable_type} observables...")
+    def histogram_jet_observables(self, observable_type: str = "", jet_collection_label: str = "") -> None:  # noqa: C901
+        logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
@@ -518,14 +525,12 @@ class HistogramResults(common_base.CommonBase):
                     # Optional: Loop through pt bins
                     for pt_bin in range(len(block["pt"]) - 1):
                         # Custom skip
-                        if observable in ["xj_atlas"]:
-                            if centrality_index > 0 and pt_bin != 0:
-                                continue
+                        if observable in ["xj_atlas"] and centrality_index > 0 and pt_bin != 0:
+                            continue
 
+                        pt_suffix = ""
                         if len(block["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
-                        else:
-                            pt_suffix = ""
 
                         # Optional: subobservable
                         subobservable_label_list = [""]
@@ -612,9 +617,8 @@ class HistogramResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Histogram semi-inclusive jet observables
     # -------------------------------------------------------------------------------------------
-    def histogram_hadron_trigger_chjet_observables(self, observable_type="", jet_collection_label=""):
-        logger.info()
-        logger.info(f"Histogram {observable_type} observables...")
+    def histogram_hadron_trigger_chjet_observables(self, observable_type="", jet_collection_label=""):  # noqa: C901
+        logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
@@ -625,7 +629,7 @@ class HistogramResults(common_base.CommonBase):
                 for jet_R in block["jet_R"]:
                     self.suffix = f"_R{jet_R}"
 
-                    if self.sqrts == 2760 or self.sqrts == 5020:
+                    if self.sqrts in [2760, 5020]:
                         if "dphi" in observable:
                             # loop over pt bins for dphi observable
                             for pt_bin in range(len(block["pt"]) - 1):
@@ -771,7 +775,7 @@ class HistogramResults(common_base.CommonBase):
         # Get column
         logger.debug(f"Column name: {column_name}")
         logger.debug(f"Keys: {self.observables_df.keys()}")
-        if column_name in self.observables_df.keys():
+        if column_name in self.observables_df.keys():  # noqa: SIM118
             col = self.observables_df[column_name]
         else:
             return
@@ -821,7 +825,7 @@ class HistogramResults(common_base.CommonBase):
             # We want the same binning for all triggers, so we flatten all of the trigger binning to a flat list
             # NOTE: This assumes that the triggers ranges do not overlap.
             # NOTE: The unique ensures that the binning is valid if the bin edges match up.
-            bins = np.unique(np.array([v for trig_range in block["pt_trig"] for v in trig_range]))  # type: ignore
+            bins = np.unique(np.array([v for trig_range in block["pt_trig"] for v in trig_range]))
             self.histogram_1d_observable(
                 col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix
             )
@@ -892,24 +896,22 @@ class HistogramResults(common_base.CommonBase):
         # AA
         logger.debug(f"Comparing to full centrality range {self.full_centrality_range}")
         if self.is_AA:
-            if self.full_centrality_range[0] >= observable_centrality[0]:
-                if self.full_centrality_range[1] <= observable_centrality[1]:
-                    return True
-            return False
-
+            return (
+                self.full_centrality_range[0] >= observable_centrality[0]
+                and self.full_centrality_range[1] <= observable_centrality[1]
+            )
         # pp
-        else:
-            return True
+        return True
 
     # ---------------------------------------------------------------
     # Save all ROOT histograms to file
     # ---------------------------------------------------------------
     def write_output_objects(self):
         # Save output objects
-        output_file = self.input_file.replace("observables", "histograms").replace("parquet", "root")
-        output_path = os.path.join(self.output_dir, output_file)
-        fout = ROOT.TFile(output_path, "recreate")
-        fout.cd()
+        output_file = Path(str(self.input_file).replace("observables", "histograms").replace("parquet", "root"))
+        output_path = self.output_dir / output_file
+        f_out = ROOT.TFile(Path(output_path), "recreate")
+        f_out.cd()
         for obj in self.output_list:
             logger.info(f"Writing {obj.GetName()} to {output_path}")
             types = (ROOT.TH1, ROOT.THnBase)
@@ -918,13 +920,11 @@ class HistogramResults(common_base.CommonBase):
                 obj.SetDirectory(0)
                 del obj
 
-        fout.Close()
+        f_out.Close()
 
 
-# -------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------
 def main_entry_point() -> None:
+    """Main entry point for histogrammingSTAT results."""
     # Setup
     # Define arguments
     parser = argparse.ArgumentParser(description="Histogram JETSCAPE observables")
@@ -934,7 +934,7 @@ def main_entry_point() -> None:
         action="store",
         type=Path,
         metavar="configFile",
-        help="Path of config file for analysis (e.g. config/STAT_5020.yaml)",
+        help="Path of config file for analysis (e.g. config/STAT_5020.yaml).",
     )
     parser.add_argument(
         "-i",
@@ -943,7 +943,7 @@ def main_entry_point() -> None:
         type=Path,
         metavar="inputFile",
         default=Path("observables_5020_0000_00.parquet"),
-        help="Input file",
+        help="Input parquet file.",
     )
     parser.add_argument(
         "-o",
@@ -952,7 +952,7 @@ def main_entry_point() -> None:
         type=Path,
         metavar="outputDir",
         default=Path("/home/jetscape-user/JETSCAPE-analysis/TestOutput"),
-        help="Output directory for output to be written to",
+        help="Output directory for output to be written to.",
     )
     parser.add_argument(
         "-l",
@@ -961,7 +961,7 @@ def main_entry_point() -> None:
         type=str,
         metavar="logLevel",
         default="INFO",
-        help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
     )
 
     # Parse the arguments
@@ -970,10 +970,9 @@ def main_entry_point() -> None:
     # Setup logging
     helpers.setup_logging(level=args.logLevel)
 
-    logger.info()
-    logger.info("Executing histogram_results_STAT...")
+    logger.info("Executing histogram_results_STAT...\n")
 
-    # Validation
+    # Validation and setup
     if not args.configFile.exists():
         msg = f'File "{args.configFile}" does not exist! Exiting!'
         raise ValueError(msg)
