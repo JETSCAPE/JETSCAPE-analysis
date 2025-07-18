@@ -41,6 +41,7 @@ import fjcontrib  # pyright: ignore [reportMissingImports]
 import fjext  # pyright: ignore [reportMissingImports]
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 import yaml
 
 from jetscape_analysis.analysis import analyze_events_base_STAT
@@ -141,7 +142,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Analyze a single event -- fill user-defined output objects
     # ---------------------------------------------------------------
-    def analyze_event(self, event) -> None:
+    def analyze_event(self, event: pd.DataFrame) -> None:  # noqa: C901
         # Initialize a dictionary that will store a list of calculated values for each output observable
         self.observable_dict_event = defaultdict(list)
 
@@ -181,14 +182,17 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Fill pion triggered observables
         # Skip if we have no pion-triggered observables
         fj_pion_candidates_positive: PseudoJetVector | None = None
-        fj_pion_candidates_negative: PseudoJetVector | None = None
         if self.pion_trigger_hadron_observables or self.pion_trigger_chjet_observables:
             # First, we'll collect any pions triggers, since they should be relatively rare.
             # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
             fj_pion_candidates_positive = self.fill_pi_zero_candidates(event, select_status="+")
-            # TODO(RJE): We will get pion hole candidates if the pt is low enough. How to handle them??
-            fj_pion_candidates_negative = self.fill_pi_zero_candidates(event, select_status="-")
-            # If there are triggers, we can fill the trigger-hadron correlations. If not, we can simply move on
+            # NOTE: We do not consider holes for pion triggers because the triggers tend to be harder than the
+            #       thermal scale of the medium. This is a less clear separation than for other trigger classes,
+            #       but it will significantly increase code complexity (i.e. would need to consider: trigger-hadron, trigger-hole,
+            #       hole-hadron, hole-hole) for a (likely) small difference, so we omit it as of July 2025.
+
+            # If there are triggers and defined hadron observables, we can fill the trigger-hadron correlations.
+            # If not, we can simply move on.
             if len(fj_pion_candidates_positive) > 0 and self.gamma_trigger_hadron_observables:
                 self.fill_pion_trigger_hadron_observables(
                     fj_pion_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+"
@@ -201,7 +205,6 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Fill photon triggered observables
         # Skip if we have no photon-triggered observables
         fj_photon_candidates_positive: PseudoJetVector | None = None
-        fj_photon_candidates_negative: PseudoJetVector | None = None
         if (
             self.gamma_trigger_hadron_observables
             or self.gamma_trigger_chjet_observables
@@ -210,9 +213,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # First, we'll collect any photons triggers, since they should be relatively rare.
             # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
             fj_photon_candidates_positive = self.fill_photon_candidates(event, select_status="+")
-            # TODO(RJE): Can we get photon holes in practice?
-            fj_photon_candidates_negative = self.fill_photon_candidates(event, select_status="-")
-            # If there are triggers, we can fill the trigger-hadron correlations. If not, we can simply move on
+            # NOTE: We do not consider holes for photon triggers because the triggers tend to be (much) harder than the
+            #       thermal scale of the medium. Plus, holes tends to be partons.
+
+            # If there are triggers and defined hadron observables, we can fill the trigger-hadron correlations.
+            # If not, we can simply move on.
             if len(fj_photon_candidates_positive) > 0 and self.gamma_trigger_hadron_observables:
                 self.fill_photon_hadron_observables(
                     fj_photon_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+"
@@ -227,9 +232,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.z_trigger_hadron_observables:
             # First, we'll collect any z triggers, since they should be relatively rare.
             # NOTE: These cuts must be loose enough that we can use them for all analyses. In practice, this just means selecting on PID
-            # NOTE: In practice, there's no way that we can get a Z boson hole, so we don't consider them as possible triggers.
             fj_z_boson_candidates = self.fill_z_boson_candidates(event, select_status="+")
-            # If there are triggers, we can fill the trigger-hadron correlations. If not, we can simply move on
+            # NOTE: We do not consider holes for Z triggers because the triggers tend to be (much) harder than the
+            #       thermal scale of the medium (plus it would need the Z mass to form one). Finally, holes tends to be partons.
+
+            # If there are triggers and defined hadron observables, we can fill the trigger-hadron correlations. If not, we can simply move on
             # NOTE: Strictly the z_trigger_hadron_observables check is redundant, but we keep it here for parallel structure with other cases.
             if len(fj_z_boson_candidates) > 0 and self.z_trigger_hadron_observables:
                 self.fill_z_trigger_hadron_observables(
