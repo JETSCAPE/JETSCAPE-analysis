@@ -1829,7 +1829,8 @@ gamma_trigger_jet:
     # gamma-jet pairs
     dPhi: 2./3. # dPhi > 2./3.*pi
 
-    # ...
+    # Binning from Luna (thanks!)
+    bins: [0, 0.01, 0.016, 0.024, 0.032, 0.04, 0.05, 0.06, 0.08, 0.1, 0.15, 0.3]
 
 #------------------------------------------------------------------
 # Z boson triggered hadron observables
