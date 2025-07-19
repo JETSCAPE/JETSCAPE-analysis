@@ -581,16 +581,17 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     def fill_jet_observables(
         self,
-        hadrons_positive,
-        hadrons_negative,
-        hadrons_positive_charged,
-        hadrons_negative_charged,
+        hadrons_positive: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
+        hadrons_positive_charged: PseudoJetVector,
+        hadrons_negative_charged: PseudoJetVector,
         pid_hadrons_positive: npt.NDArray[np.int32],
         pid_hadrons_negative: npt.NDArray[np.int32],
         pid_hadrons_positive_charged: npt.NDArray[np.int32],
         pid_hadrons_negative_charged: npt.NDArray[np.int32],
-        fj_photons_candidates,
-        fj_z_boson_candidates,
+        fj_pion_candidates: PseudoJetVector,
+        fj_photons_candidates: PseudoJetVector,
+        fj_z_boson_candidates: PseudoJetVector,
         jet_collection_label="",
     ):
         # Set the appropriate lists of hadrons to input to the jet finding
@@ -616,6 +617,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 hadrons_negative,
                 pid_hadrons_positive,
                 pid_hadrons_negative,
+                fj_pion_candidates,
                 fj_photons_candidates,
                 fj_z_boson_candidates,
                 jet_def,
@@ -631,6 +633,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 hadrons_negative_charged,
                 pid_hadrons_positive_charged,
                 pid_hadrons_negative_charged,
+                fj_pion_candidates,
                 fj_photons_candidates,
                 fj_z_boson_candidates,
                 jet_def,
@@ -643,12 +646,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Find jets and fill histograms -- either full or charged
     # ---------------------------------------------------------------
-    def find_jets_and_fill(
+    def find_jets_and_fill(  # noqa: C901
         self,
         hadrons_for_jet_finding: PseudoJetVector,
         hadrons_negative: PseudoJetVector,
         pid_hadrons_positive: npt.NDArray[np.int32],
         pid_hadrons_negative: npt.NDArray[np.int32],
+        fj_pion_candidates: PseudoJetVector,
         fj_photon_candidates: PseudoJetVector,
         fj_z_boson_candidates: PseudoJetVector,
         jet_def: fj.JetDefinition,
@@ -706,9 +710,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     jetR_list_photon.extend(self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_R"])
                 if jetR in set(jetR_list_photon):
                     # TODO discuss with Raymond what to watch out for with holes
-                    self.fill_photon_correlation_observables(
-                        jets_selected,
+                    self.fill_gamma_trigger_chjet_observables(
                         fj_photon_candidates,
+                        jets_selected,
                         hadrons_for_jet_finding,
                         hadrons_negative,
                         pid_hadrons_positive,
@@ -720,9 +724,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     # Groomed
                     for grooming_setting in self.grooming_settings:
                         self.fill_photon_correlation_groomed_observables(
-                            grooming_setting,
-                            jets_selected,
                             fj_photon_candidates,
+                            jets_selected,
+                            grooming_setting,
                             hadrons_for_jet_finding,
                             hadrons_negative,
                             pid_hadrons_positive,
@@ -767,8 +771,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     # NOTE: No need to repeat to STAR dphi, since the values are the same
                 if jetR in jetR_list:
                     self.fill_pion_trigger_chjet_observables(
+                        fj_pion_candidates,
                         jets_selected,
-                        hadrons_for_jet_finding,
                         hadrons_negative,
                         jetR,
                         jet_collection_label=jet_collection_label,
@@ -1725,12 +1729,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         jetR: float,
         jet_collection_label: str = "",
     ) -> None:
-        """Measure and record inclusive hadron-trigger jet observables.
+        """Measure and record hadron-trigger jet observables.
 
         This covers all semi-inclusive hadron triggered observables.
 
         Args:
-            jet: Jet.
             jets_selected: Jets for analysis which passed basic kinematic selections.
             hadrons_for_jet_finding: Hadrons used for jet finding.
             hadrons_negative: Hole particles.
@@ -2034,52 +2037,65 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     f"hadron_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"
                                 ].append(np.abs(trigger.delta_phi_to(jet)))
 
-    # ---------------------------------------------------------------
-    # Fill dijet observables
-    # ---------------------------------------------------------------
-    def fill_dijet_trigger_jet_observables(self, jets_selected, fj_hadrons_negative, jetR, jet_collection_label=""):
-        if self.sqrts == 2760:
-            # ATLAS xj
-            #   Hole treatment:
-            #    - For shower_recoil case, correct jet pt by subtracting holes within R
-            #    - For negative_recombiner case, no subtraction is needed
-            #    - For constituent_subtraction, no subtraction is needed
-            if self.measure_observable_for_current_event(self.dijet_trigger_jet_observables["xj_atlas"]):
-                if jetR in self.dijet_trigger_jet_observables["xj_atlas"]["jet_R"]:
-                    # First, find jets passing kinematic cuts
-                    jet_candidates = []
-                    for jet in jets_selected:
-                        if jet_collection_label in ["_shower_recoil"]:
-                            # Get the corrected jet pt by subtracting the negative recoils within R
-                            jet_pt = jet.pt()
-                            if fj_hadrons_negative:
-                                for temp_hadron in fj_hadrons_negative:
-                                    if jet.delta_R(temp_hadron) < jetR:
-                                        jet_pt -= temp_hadron.pt()
-                        else:
-                            jet_pt = jet.pt()
+    def fill_dijet_trigger_jet_observables(  # noqa: C901
+        self,
+        jets_selected: PseudoJetVector,
+        fj_hadrons_negative: PseudoJetVector,
+        jetR: float,
+        jet_collection_label: str = "",
+    ) -> None:
+        """Measure and record jet-trigger jet (i.e. dijet) observables.
 
-                        if jet_pt > self.dijet_trigger_jet_observables["xj_atlas"]["pt_subleading_min"]:
-                            if np.abs(jet.eta()) < self.dijet_trigger_jet_observables["xj_atlas"]["eta_cut"]:
-                                jet_candidates.append(jet)
+        Args:
+            jets_selected: Jets for analysis which passed basic kinematic selections.
+            hadrons_for_jet_finding: Hadrons used for jet finding.
+            hadrons_negative: Hole particles.
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
+        Returns:
+            None.
+        """
+        # ATLAS xj
+        #   Hole treatment:
+        #    - For shower_recoil case, correct jet pt by subtracting holes within R
+        #    - For negative_recombiner case, no subtraction is needed
+        #    - For constituent_subtraction, no subtraction is needed
+        if (
+            self.sqrts in [2760]
+            and self.measure_observable_for_current_event(self.dijet_trigger_jet_observables["xj_atlas"])
+            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["jet_R"]
+        ):
+            # First, find jets passing kinematic cuts
+            jet_candidates = []
+            for jet in jets_selected:
+                if jet_collection_label in ["_shower_recoil"]:
+                    # Get the corrected jet pt by subtracting the negative recoils within R
+                    jet_pt = jet.pt()
+                    if fj_hadrons_negative:
+                        for temp_hadron in fj_hadrons_negative:
+                            if jet.delta_R(temp_hadron) < jetR:
+                                jet_pt -= temp_hadron.pt()
+                else:
+                    jet_pt = jet.pt()
 
-                    # Find the leading two jets
-                    leading_jet, leading_jet_pt, i_leading_jet = self.leading_jet(
-                        jet_candidates, fj_hadrons_negative, jetR
-                    )
-                    if leading_jet:
-                        del jet_candidates[i_leading_jet]
-                        subleading_jet, subleading_jet_pt, _ = self.leading_jet(
-                            jet_candidates, fj_hadrons_negative, jetR
+                if (
+                    jet_pt > self.dijet_trigger_jet_observables["xj_atlas"]["pt_subleading_min"]
+                    and np.abs(jet.eta()) < self.dijet_trigger_jet_observables["xj_atlas"]["eta_cut"]
+                ):
+                    jet_candidates.append(jet)
+
+            # Find the leading two jets
+            leading_jet, leading_jet_pt, i_leading_jet = self.leading_jet(jet_candidates, fj_hadrons_negative, jetR)
+            if leading_jet:
+                del jet_candidates[i_leading_jet]
+                subleading_jet, subleading_jet_pt, _ = self.leading_jet(jet_candidates, fj_hadrons_negative, jetR)
+                if subleading_jet and np.abs(leading_jet.delta_phi_to(subleading_jet)) > 7 * np.pi / 8:
+                    pt_min = self.dijet_trigger_jet_observables["xj_atlas"]["pt"][0]
+                    if leading_jet_pt > pt_min:
+                        xj = subleading_jet_pt / leading_jet_pt
+                        self.observable_dict_event[f"dijet_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}"].append(
+                            [leading_jet_pt, xj]
                         )
-                        if subleading_jet:
-                            if np.abs(leading_jet.delta_phi_to(subleading_jet)) > 7 * np.pi / 8:
-                                pt_min = self.dijet_trigger_jet_observables["xj_atlas"]["pt"][0]
-                                if leading_jet_pt > pt_min:
-                                    xj = subleading_jet_pt / leading_jet_pt
-                                    self.observable_dict_event[
-                                        f"dijet_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}"
-                                    ].append([leading_jet_pt, xj])
 
         if self.sqrts in [5020]:
             # TODO(Dhanush): Implement from here
@@ -2153,7 +2169,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if pion_pt[0] < trigger.pt < pion_pt[1] and abs(trigger.eta()) < pion_eta_cut:
                     pions.append(trigger)
 
-            # And then construct the correlation of the trigger Z bosons with the hadrons
+            # And then construct the correlation of the trigger pion with the hadrons
             for pion in pions:
                 # fill just pion pt to allow to calculate normalization N_z_bosons later
                 self.observable_dict_event[f"pion_trigger_hadron_pi0_hadron_IAA_pt_alice_Npions{suffix}"].append(
@@ -2172,24 +2188,25 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             [pion.pt(), particle.pt()]
                         )
 
-    # ---------------------------------------------------------------
-    # Fill semi-inclusive pi zero jet observables
-    # ---------------------------------------------------------------
-    def fill_pion_trigger_chjet_observables(
+    def fill_pion_trigger_chjet_observables(  # noqa: C901
         self,
-        jets_selected,
-        hadrons_for_jet_finding,
-        hadrons_negative,
-        pid_hadrons_negative,
-        jetR,
-        jet_collection_label="",
+        fj_pion_candidates: PseudoJetVector,
+        jets_selected: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
+        jetR: float,
+        jet_collection_label: str = "",
     ) -> None:
         """Measure and record pi-zero triggered charged-particle jet observables.
 
-        By definition, these observables are semi-inclusive.
-
         Args:
-            ...
+            fj_pion_candidates: Pion candidates, as an array of fj::PseudoJet.
+            jets_selected: Jets which pass general selections, as an array of fj::PseudoJet.
+            hadrons_for_jet_finding: Particles used for jet finding, as an array of fj::PseudoJet.
+            hadrons_negative: Hole particles.
+            pid_hadrons_positive: Corresponding PID of the hadrons_for_jet_finding.
+            pid_hadrons_negative: Corresponding PID of the hadrons_negative.
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
         Returns:
             None
         """
@@ -2208,19 +2225,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             eta_cut_trigger = self.pion_trigger_chjet_observables["pi_zero_eta_cut"]
             eta_cut_jet_R = self.pion_trigger_chjet_observables["eta_cut_R"]  # assumes same order
 
+            # pi zero trigger selection
             trigger_array_pi0 = []
-
-            for hadron in hadrons_for_jet_finding:
-                if jet_collection_label in ["_negative_recombiner"] and hadron.user_index() < 0:
-                    continue
-
-                # pi zero trigger selection
-                if (
-                    abs(hadron.eta()) < eta_cut_trigger
-                    and abs(pid_hadrons_negative[np.abs(hadron.user_index()) - 1]) == 111
-                ):
-                    if trigger_range[0] < hadron.pt() < trigger_range[1]:
-                        trigger_array_pi0.append(hadron)
+            for pion in fj_pion_candidates:
+                if trigger_range[0] < pion.pt() < trigger_range[1] and abs(pion.eta()) < eta_cut_trigger:
+                    trigger_array_pi0.append(pion)
 
             if len(trigger_array_pi0) > 0:
                 trigger = trigger_array_pi0[random.randrange(len(trigger_array_pi0))]
@@ -2247,23 +2256,27 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             self.pion_trigger_chjet_observables["IAA_pt_star"]
                         ):
                             # IAA
-                            if jetR in self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_R"]:
-                                if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                    if pt_IAA[0] < jet_pt < pt_IAA[1]:
-                                        self.observable_dict_event[
-                                            f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
-                                        ].append(jet_pt)
-                                        if jet_collection_label in ["_shower_recoil"]:
-                                            self.observable_dict_event[
-                                                f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
-                                            ].append(jet_pt_unsubtracted)
+                            if (
+                                jetR in self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_R"]
+                                and pt_IAA[0] < jet_pt < pt_IAA[1]
+                                and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
+                            ):
+                                self.observable_dict_event[
+                                    f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
+                                ].append(jet_pt)
+                                if jet_collection_label in ["_shower_recoil"]:
+                                    self.observable_dict_event[
+                                        f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
+                                    ].append(jet_pt_unsubtracted)
 
                             # dphi
-                            if jetR in self.pion_trigger_chjet_observables["dphi_star"]["jet_R"]:
-                                if pt_dphi[0] < jet_pt < pt_dphi[-1]:
-                                    self.observable_dict_event[
-                                        f"pion_trigger_chjet_dphi_star_R{jetR}_lowTrigger{jet_collection_label}"
-                                    ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+                            if (
+                                jetR in self.pion_trigger_chjet_observables["dphi_star"]["jet_R"]
+                                and pt_dphi[0] < jet_pt < pt_dphi[-1]
+                            ):
+                                self.observable_dict_event[
+                                    f"pion_trigger_chjet_dphi_star_R{jetR}_lowTrigger{jet_collection_label}"
+                                ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
 
     def fill_gamma_trigger_hadron_observables(
         self,
@@ -2305,7 +2318,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if gamma_pt[0] < trigger.pt < gamma_pt[1] and abs(trigger.eta()) < gamma_eta_cut:
                     photons.append(trigger)
 
-            # And then construct the correlation of the trigger Z bosons with the hadrons
+            # And then construct the correlation of the trigger photons with the hadrons
             for photon in photons:
                 # fill just pion pt to allow to calculate normalization N_z_bosons later
                 self.observable_dict_event[f"photon_trigger_hadron_IAA_pt_phenix_Ngamma{suffix}"].append(photon.pt())
@@ -2326,17 +2339,31 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Fill photon correlation observables
     # ---------------------------------------------------------------
-    def fill_photon_correlation_observables(
+    def fill_gamma_trigger_chjet_observables(  # noqa: C901
         self,
-        jets_selected,
-        photons,
-        hadrons_for_jet_finding,
-        hadrons_negative,
+        photons: PseudoJetVector,
+        jets_selected: PseudoJetVector,
+        hadrons_for_jet_finding: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
         pid_hadrons_positive: npt.NDArray[np.int32],
         pid_hadrons_negative: npt.NDArray[np.int32],
-        jetR,
-        jet_collection_label,
-    ):
+        jetR: float,
+        jet_collection_label: str,
+    ) -> None:
+        """Measure and record gamma triggered charged-particle jet observables.
+
+        Args:
+            photons: Photons candidates.
+            jets_selected: Jets which pass general selections.
+            hadrons_for_jet_finding: Particles used for jet finding.
+            hadrons_negative: Holes.
+            pid_hadrons_positive: Corresponding PID of the hadrons_for_jet_finding.
+            pid_hadrons_negative: Corresponding PID of the hadrons_negative.
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
+        Returns:
+            None
+        """
         if self.sqrts == 5020:
             # ---------------------------------------------------------------
             # ATLAS D(z)
@@ -2415,14 +2442,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             jet_pt, jet_pt_uncorrected = self.get_jet_pt(
                                 jet, jetR, hadrons_negative, jet_collection_label
                             )
-                            if (
-                                jet.R() == jet_R
-                                and abs(jet.eta()) < jet_eta
-                                and jet_pt > jet_pt_min
-                                and jet_pt < jet_pt_max
-                            ):
-                                # TODO double check if Njet is really the number of jets or if it should be normalized to number of jet pairs
-                                # self.observable_dict_event[f'gamma_trigger_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets'].append(jet_pt)
+                            if jet.R() == jet_R and abs(jet.eta()) < jet_eta and jet_pt_min < jet_pt < jet_pt_max:
+                                # TODO: double check if Njet is really the number of jets or if it should be normalized to number of jet pairs
+                                self.observable_dict_event[
+                                    f"gamma_trigger_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets"
+                                ].append(jet_pt)
                                 if photon.delta_phi(jet) > (dPhi * np.pi):
                                     # Fill Njet, which is number of jets back to back
                                     # Loop over all primary_hadrons and select those that are back to back with the jet
@@ -2523,10 +2547,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         and self.is_isolated(
                             photon, isolation_particles_pos, isolation_particles_neg, isolation_R, isolation_Et_max
                         )
-                    ):
                         # check if photon has higher pt than highest_pt_photon
-                        if highest_pt_photon is None or photon.Et() > highest_pt_photon.Et():
-                            highest_pt_photon = photon
+                        and (highest_pt_photon is None or photon.Et() > highest_pt_photon.Et())
+                    ):
+                        highest_pt_photon = photon
 
                 # finished finding trigger photon
                 if highest_pt_photon is not None:
@@ -2534,11 +2558,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     # and are back to back with the trigger photon
                     for jet in jets_selected:
                         holes_in_jet = []
-                        if jet_collection_label in ["_shower_recoil", "_negative_recombiner"]:
-                            if hadrons_negative is not None:
-                                for hadron in hadrons_negative:
-                                    if jet.delta_R(hadron) < jetR:
-                                        holes_in_jet.append(hadron)
+                        if (
+                            jet_collection_label in ["_shower_recoil", "_negative_recombiner"]
+                            and hadrons_negative is not None
+                        ):
+                            for hadron in hadrons_negative:
+                                if jet.delta_R(hadron) < jetR:
+                                    holes_in_jet.append(hadron)
+
                         jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
                         if (
                             jet.R() == jet_R
@@ -2852,10 +2879,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             photon, isolation_particles_pos, isolation_particles_neg, isolation_R, isolation_Et_max
                         )
                         and self.is_prompt_photon(photon)
+                        and photon.Et() > highest_pt
                     ):
-                        if photon.Et() > highest_pt:
-                            highest_pt_photon = photon
-                            highest_pt = photon.Et()
+                        highest_pt_photon = photon
+                        highest_pt = photon.Et()
 
                 # now that we have the trigger, we can perform the combination with jets
                 if highest_pt_photon is not None:
@@ -2945,10 +2972,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             photon, isolation_particles_pos, isolation_particles_neg, isolation_R, isolation_Et_max
                         )
                         and self.is_prompt_photon(photon)
+                        and photon.Et() > highest_pt
                     ):
-                        if photon.Et() > highest_pt:
-                            highest_pt_photon = photon
-                            highest_pt = photon.Et()
+                        highest_pt_photon = photon
+                        highest_pt = photon.Et()
                 # END-MARK: Copied from xj_gamma_cms!
 
                 # now that we have the trigger, we can perform the combination with jets
@@ -2965,33 +2992,29 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         #    - For shower_recoil case, subtract the hole contribution within R to the angularity (also store unsubtracted case)
                         #    - For negative_recombiner case, subtract the hole contribution within R to the angularity
                         #    - For constituent_subtraction, no subtraction is needed
-                        # TODO: delta_phi needs an abs! (it ranges from -pi to pi)
-                        if abs(jet.eta()) < (self.gamma_trigger_jet_observables["g_cms"]["eta_cut_jet"]):
-                            if jetR in self.gamma_trigger_jet_observables["g_cms"]["jet_R"]:
-                                if jet_pt_min < jet_pt < jet_pt_max:
-                                    g = 0
-                                    for constituent in jet.constituents():
-                                        if (
-                                            jet_collection_label in ["_negative_recombiner"]
-                                            and constituent.user_index() < 0
-                                        ):
-                                            continue
-                                        g += constituent.pt() / jet_pt * constituent.delta_R(jet)
-                                    if jet_collection_label in ["_shower_recoil"]:
-                                        self.observable_dict_event[
-                                            f"gamma_trigger_jet_g_cms_R{jetR}{jet_collection_label}_unsubtracted"
-                                        ].append(g)
-                                    if jet_collection_label in ["_shower_recoil", "_negative_recombiner"]:
-                                        for hadron in holes_in_jet:
-                                            if (
-                                                jet_collection_label in ["_negative_recombiner"]
-                                                and hadron.user_index() > 0
-                                            ):
-                                                continue
-                                            g -= hadron.pt() / jet_pt * hadron.delta_R(jet)
-                                    self.observable_dict_event[
-                                        f"gamma_trigger_jet_g_cms_R{jetR}{jet_collection_label}"
-                                    ].append([highest_pt_photon, jet_pt, g])
+                        # TODO(RJE): delta_phi needs an abs! (it ranges from -pi to pi)
+                        if (
+                            jetR in self.gamma_trigger_jet_observables["g_cms"]["jet_R"]
+                            and jet_pt_min < jet_pt < jet_pt_max
+                            and abs(jet.eta()) < (self.gamma_trigger_jet_observables["g_cms"]["eta_cut_jet"])
+                        ):
+                            g = 0
+                            for constituent in jet.constituents():
+                                if jet_collection_label in ["_negative_recombiner"] and constituent.user_index() < 0:
+                                    continue
+                                g += constituent.pt() / jet_pt * constituent.delta_R(jet)
+                            if jet_collection_label in ["_shower_recoil"]:
+                                self.observable_dict_event[
+                                    f"gamma_trigger_jet_g_cms_R{jetR}{jet_collection_label}_unsubtracted"
+                                ].append(g)
+                            if jet_collection_label in ["_shower_recoil", "_negative_recombiner"]:
+                                for hadron in holes_in_jet:
+                                    if jet_collection_label in ["_negative_recombiner"] and hadron.user_index() > 0:
+                                        continue
+                                    g -= hadron.pt() / jet_pt * hadron.delta_R(jet)
+                            self.observable_dict_event[f"gamma_trigger_jet_g_cms_R{jetR}{jet_collection_label}"].append(
+                                [highest_pt_photon, jet_pt, g]
+                            )
 
             # ------------------------------------------------------------
             # ------------------------------------------------------------
@@ -3049,10 +3072,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             photon, isolation_particles_pos, isolation_particles_neg, isolation_R, isolation_Et_max
                         )
                         and self.is_prompt_photon(photon)
+                        and photon.Et() > highest_pt
                     ):
-                        if photon.Et() > highest_pt:
-                            highest_pt_photon = photon
-                            highest_pt = photon.Et()
+                        highest_pt_photon = photon
+                        highest_pt = photon.Et()
                 # END-MARK: Copied from xj_gamma_cms!
 
                 # now that we have the trigger, we can perform the combination with jets
@@ -3071,22 +3094,25 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         #    - For shower_recoil case, correct the pt only
                         #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
                         #    - For constituent_subtraction, no subtraction is needed
-                        if self.measure_observable_for_current_event(self.gamma_triggered_jet_observables["axis_cms"]):
-                            if abs(jet.eta()) < (self.gamma_triggered_jet_observables["axis_cms"]["eta_cut_R"] - jetR):
-                                if jetR in self.gamma_triggered_jet_observables["axis_cms"]["jet_R"]:
-                                    if jet_pt_min < jet_pt < jet_pt_max:
-                                        jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
-                                        if jet_collection_label in ["_negative_recombiner"]:
-                                            recombiner = fjext.NegativeEnergyRecombiner()
-                                            jet_def_wta.set_recombiner(recombiner)
-                                        jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
-                                        reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
-                                        jet_wta = reclusterer_wta.result(jet)
+                        if (
+                            self.measure_observable_for_current_event(self.gamma_triggered_jet_observables["axis_cms"])
+                            and jetR in self.gamma_triggered_jet_observables["axis_cms"]["jet_R"]
+                            and jet_pt_min < jet_pt < jet_pt_max
+                            # TODO(RJE): CMS usually doesn't do a eta - R cut - check this.
+                            and abs(jet.eta()) < (self.gamma_triggered_jet_observables["axis_cms"]["eta_cut_R"] - jetR)
+                        ):
+                            jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
+                            if jet_collection_label in ["_negative_recombiner"]:
+                                recombiner = fjext.NegativeEnergyRecombiner()
+                                jet_def_wta.set_recombiner(recombiner)
+                            jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
+                            reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
+                            jet_wta = reclusterer_wta.result(jet)
 
-                                        deltaR = jet_wta.delta_R(jet)
-                                        self.observable_dict_event[
-                                            f"gamma_triggered_jet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}"
-                                        ].append([jet_pt, deltaR])
+                            deltaR = jet_wta.delta_R(jet)
+                            self.observable_dict_event[
+                                f"gamma_triggered_jet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}"
+                            ].append([jet_pt, deltaR])
 
         if self.sqrts == 200:
             acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
@@ -3220,123 +3246,142 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                             f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
                                         ].append(jet_pt_uncorrected)
 
-    def fill_photon_correlation_groomed_observables(
+    def fill_photon_correlation_groomed_observables(  # noqa: C901
         self,
-        grooming_setting,
-        jets_selected,
-        photons,
-        hadrons_for_jet_finding,
-        hadrons_negative,
+        photons: PseudoJetVector,
+        jets_selected: PseudoJetVector,
+        grooming_setting: dict[str, float],
+        hadrons_for_jet_finding: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
         pid_hadrons_positive: npt.NDArray[np.int32],
         pid_hadrons_negative: npt.NDArray[np.int32],
-        jetR,
-        jet_collection_label,
-    ):
-        if self.sqrts in [5020]:
-            # ------------------------------------------------------------
-            # ------------------------------------------------------------
-            #                 CMS gamma-tagged Rg
-            # -----------------------------------------------------------
-            # ------------------------------------------------------------
-            if self.measure_observable_for_current_event(self.gamma_trigger_jet_observables["rg_cms"]):
-                # MARK: Copied from xj_gamma_cms!
-                gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_jet_observables["rg_cms"]["gamma_pT"]
-                gamma_eta_min, gamma_eta_max = self.gamma_trigger_jet_observables["rg_cms"]["gamma_eta"]
-                isolation_R = self.gamma_trigger_jet_observables["rg_cms"]["isolation_R"]
-                isolation_Et_max = self.gamma_trigger_jet_observables["rg_cms"]["isolation_Et_max_AA"]
-                if not self.is_AA:
-                    isolation_Et_max = self.gamma_trigger_jet_observables["rg_cms"]["isolation_Et_max_pp"]
-                isolation_type = self.gamma_trigger_jet_observables["rg_cms"]["isolation_type"]
-                jet_pt_min = self.gamma_trigger_jet_observables["rg_cms"]["jet_pt_min"]
-                photon_jet_dPhi = self.gamma_trigger_jet_observables["rg_cms"]["jet_deltaphi"]
+        jetR: float,
+        jet_collection_label: str,
+    ) -> None:
+        """Measure and record gamma triggered charged-particle jet groomed observables.
 
-                # determine relevant particles for isolation calculation
-                if isolation_type == "full":
-                    acceptable_particles_isolation = [11, 13, 22, 111, 211, 321, 2212, 3222, 3112, 3312, 3334]
-                elif isolation_type == "charged":
-                    acceptable_particles_isolation = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-                elif isolation_type == "neutral":
-                    acceptable_particles_isolation = [111, 22]  # photon and pi0
+        Args:
+            photons: Photons candidates.
+            jets_selected: Jets which pass general selections.
+            grooming_settings: Grooming settings to be applied.
+            hadrons_for_jet_finding: Particles used for jet finding.
+            hadrons_negative: Holes.
+            pid_hadrons_positive: Corresponding PID of the hadrons_for_jet_finding.
+            pid_hadrons_negative: Corresponding PID of the hadrons_negative.
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
+        Returns:
+            None
+        """
+        # ------------------------------------------------------------
+        # ------------------------------------------------------------
+        #                 CMS gamma-tagged Rg
+        # -----------------------------------------------------------
+        # ------------------------------------------------------------
+        if self.sqrts in [5020] and self.measure_observable_for_current_event(
+            self.gamma_trigger_jet_observables["rg_cms"]
+        ):
+            # MARK: Copied from xj_gamma_cms!
+            gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_jet_observables["rg_cms"]["gamma_pT"]
+            gamma_eta_min, gamma_eta_max = self.gamma_trigger_jet_observables["rg_cms"]["gamma_eta"]
+            isolation_R = self.gamma_trigger_jet_observables["rg_cms"]["isolation_R"]
+            isolation_Et_max = self.gamma_trigger_jet_observables["rg_cms"]["isolation_Et_max_AA"]
+            if not self.is_AA:
+                isolation_Et_max = self.gamma_trigger_jet_observables["rg_cms"]["isolation_Et_max_pp"]
+            isolation_type = self.gamma_trigger_jet_observables["rg_cms"]["isolation_type"]
+            jet_pt_min = self.gamma_trigger_jet_observables["rg_cms"]["jet_pt_min"]
+            # TODO(RJE): Need to implement a dphi selection
+            # photon_jet_dPhi = self.gamma_trigger_jet_observables["rg_cms"]["jet_deltaphi"]
 
-                isolation_particles_pos = []
-                isolation_particles_neg = []
-                for hadron in hadrons_for_jet_finding:
-                    if hadron.user_index() < 0:
-                        continue
-                    # if not part of accepted hadrons, skip
-                    pid = pid_hadrons_positive[np.abs(hadron.user_index()) - 1]
+            # determine relevant particles for isolation calculation
+            if isolation_type == "full":
+                acceptable_particles_isolation = [11, 13, 22, 111, 211, 321, 2212, 3222, 3112, 3312, 3334]
+            elif isolation_type == "charged":
+                acceptable_particles_isolation = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+            elif isolation_type == "neutral":
+                acceptable_particles_isolation = [111, 22]  # photon and pi0
+
+            isolation_particles_pos = []
+            isolation_particles_neg = []
+            for hadron in hadrons_for_jet_finding:
+                if hadron.user_index() < 0:
+                    continue
+                # if not part of accepted hadrons, skip
+                pid = pid_hadrons_positive[np.abs(hadron.user_index()) - 1]
+                if pid not in acceptable_particles_isolation:
+                    continue
+                isolation_particles_pos.append(hadron)
+            if hadrons_negative is not None:
+                for hadron in hadrons_negative:
+                    pid = pid_hadrons_negative[np.abs(hadron.user_index()) - 1]
                     if pid not in acceptable_particles_isolation:
                         continue
-                    isolation_particles_pos.append(hadron)
-                if hadrons_negative is not None:
-                    for hadron in hadrons_negative:
-                        pid = pid_hadrons_negative[np.abs(hadron.user_index()) - 1]
-                        if pid not in acceptable_particles_isolation:
-                            continue
-                        isolation_particles_neg.append(hadron)
+                    isolation_particles_neg.append(hadron)
 
-                # loop over all photons for trigger
-                # CMS performs the analysis only using the highest pt photon per event that fulfills the trigger requirements
-                highest_pt_photon = None
-                highest_pt = 0.0
-                for photon in photons:
-                    if (
-                        photon.Et() > gamma_Pt_min
-                        and photon.Et() < gamma_Pt_max
-                        and abs(photon.eta()) < gamma_eta_max
-                        and abs(photon.eta()) > gamma_eta_min
-                        and self.is_isolated(
-                            photon, isolation_particles_pos, isolation_particles_neg, isolation_R, isolation_Et_max
-                        )
-                        and self.is_prompt_photon(photon)
-                    ):
-                        if photon.Et() > highest_pt:
-                            highest_pt_photon = photon
-                            highest_pt = photon.Et()
-                # END-MARK: Copied from xj_gamma_cms!
-
-                # now that we have the trigger, we can perform the combination with jets
-                if highest_pt_photon is not None:
-                    # count the number of triggers for normalization purposes
-                    self.observable_dict_event[f"gamma_trigger_jet_g_cms_R{jetR}{jet_collection_label}_Ngamma"].append(
-                        highest_pt_photon.Et()
+            # loop over all photons for trigger
+            # CMS performs the analysis only using the highest pt photon per event that fulfills the trigger requirements
+            highest_pt_photon = None
+            highest_pt = 0.0
+            for photon in photons:
+                if (
+                    photon.Et() > gamma_Pt_min
+                    and photon.Et() < gamma_Pt_max
+                    and abs(photon.eta()) < gamma_eta_max
+                    and abs(photon.eta()) > gamma_eta_min
+                    and self.is_isolated(
+                        photon, isolation_particles_pos, isolation_particles_neg, isolation_R, isolation_Et_max
                     )
+                    and self.is_prompt_photon(photon)
+                    and photon.Et() > highest_pt
+                ):
+                    highest_pt_photon = photon
+                    highest_pt = photon.Et()
+            # END-MARK: Copied from xj_gamma_cms!
 
-                    # TODO(RJE): Need xj_gamma selection. Or may do at histogram level?
+            # now that we have the trigger, we can perform the combination with jets
+            if highest_pt_photon is not None:
+                # count the number of triggers for normalization purposes
+                self.observable_dict_event[f"gamma_trigger_jet_g_cms_R{jetR}{jet_collection_label}_Ngamma"].append(
+                    highest_pt_photon.Et()
+                )
 
-                    for jet in jets_selected:
-                        jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
+                # TODO(RJE): Need xj_gamma selection. Or may do at histogram level?
 
-                        # Construct groomed jet
-                        # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering
-                        jet_def = fj.JetDefinition(fj.cambridge_algorithm, jetR)
-                        if jet_collection_label in ["_negative_recombiner"]:
-                            recombiner = fjext.NegativeEnergyRecombiner()
-                            jet_def.set_recombiner(recombiner)
-                        gshop = fjcontrib.GroomerShop(jet, jet_def)
+                for jet in jets_selected:
+                    jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
 
-                        zcut = grooming_setting["zcut"]
-                        beta = grooming_setting["beta"]
-                        jet_groomed_lund = gshop.soft_drop(beta, zcut, jetR)
-                        if not jet_groomed_lund:
-                            continue
+                    # Construct groomed jet
+                    # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering
+                    jet_def = fj.JetDefinition(fj.cambridge_algorithm, jetR)
+                    if jet_collection_label in ["_negative_recombiner"]:
+                        recombiner = fjext.NegativeEnergyRecombiner()
+                        jet_def.set_recombiner(recombiner)
+                    gshop = fjcontrib.GroomerShop(jet, jet_def)
 
-                        # Soft Drop Rg
-                        #   Hole treatment:
-                        #    - For shower_recoil case, correct the pt only
-                        #    - For negative_recombiner case, no subtraction is needed
-                        #    - For constituent_subtraction, no subtraction is needed
-                        if grooming_setting in self.gamma_trigger_jet_observables["rg_cms"]["SoftDrop"]:
-                            if abs(jet.eta()) < (self.gamma_trigger_jet_observables["rg_cms"]["eta_cut_jet"]):
-                                if jetR in self.gamma_trigger_jet_observables["rg_cms"]["jet_R"]:
-                                    if jet_pt > jet_pt_min:
-                                        r_g = jet_groomed_lund.Delta()
-                                        # Note: untagged jets will return negative value
-                                        self.observable_dict_event[
-                                            f"gamma_triggered_jet_rg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                                        ].append([jet_pt, r_g])
+                    zcut = grooming_setting["zcut"]
+                    beta = grooming_setting["beta"]
+                    jet_groomed_lund = gshop.soft_drop(beta, zcut, jetR)
+                    if not jet_groomed_lund:
+                        continue
 
-    def fill_z_trigger_hadron_observables(
+                    # Soft Drop Rg
+                    #   Hole treatment:
+                    #    - For shower_recoil case, correct the pt only
+                    #    - For negative_recombiner case, no subtraction is needed
+                    #    - For constituent_subtraction, no subtraction is needed
+                    if (
+                        grooming_setting in self.gamma_trigger_jet_observables["rg_cms"]["SoftDrop"]
+                        and jetR in self.gamma_trigger_jet_observables["rg_cms"]["jet_R"]
+                        and jet_pt > jet_pt_min
+                        and abs(jet.eta()) < (self.gamma_trigger_jet_observables["rg_cms"]["eta_cut_jet"])
+                    ):
+                        r_g = jet_groomed_lund.Delta()
+                        # Note: untagged jets will return negative value
+                        self.observable_dict_event[
+                            f"gamma_triggered_jet_rg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+                        ].append([jet_pt, r_g])
+
+    def fill_z_trigger_hadron_observables(  # noqa: C901
         self,
         fj_z_boson_candidates: PseudoJetVector,
         fj_particles: PseudoJetVector,
@@ -3478,12 +3523,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     def fill_z_trigger_jet_observables(
         self,
-        fj_z_boson_candidates,
-        jets_selected,
-        hadrons_for_jet_finding,
-        hadrons_negative,
-        pid_hadrons_positive: npt.NDArray[np.int32],
-        pid_hadrons_negative: npt.NDArray[np.int32],
+        fj_z_boson_candidates: PseudoJetVector,
+        jets_selected: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
         jetR: float,
         jet_collection_label: str,
     ) -> None:
@@ -3492,10 +3534,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         Args:
             fj_z_boson_candidates: Z boson candidates, as an array of fj::PseudoJet.
             jets_selected: Jets which pass general selections, as an array of fj::PseudoJet.
-            hadrons_for_jet_finding: Particles used for jet finding, as an array of fj::PseudoJet.
-            hadrons_negative: Hole particles.
-            pid_hadrons_positive: Corresponding PID of the hadrons_for_jet_finding.
-            pid_hadrons_negative: Corresponding PID of the hadrons_negative.
+            hadrons_negative: Holes.
             jetR: Jet R.
             jet_collection_label: Label of the jet collection type.
         Returns:
