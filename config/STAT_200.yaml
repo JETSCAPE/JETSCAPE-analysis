@@ -331,12 +331,25 @@ pion_trigger_chjet:
       # PRC
       #inspire_hep: https://inspirehep.net/literature/2693062
 
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0 # LDu 6/4/2025: implement 1-jet_R in the code
-    pt: [5., 25.]
     centrality: [[0, 15]]
-    pi_zero_eta_cut: 1.0
-    trigger_range: [11., 15.]
+
+    pion:
+      eta_cut: 1.0
+      pt: [11., 15.]
+
+      # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+      # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
+      # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
+      # it with the experimentally specified weighting
+      trigger_range_det: [11., 15.]
+      trigger_range_part: [9., 22.]
+
+    jet:
+      jet_R: [0.2, 0.5]
+      eta_cut_R: 1.0 # value gives eta that one still has to subtract R from
+      pt: [5., 30.]
+    dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
@@ -347,17 +360,8 @@ pion_trigger_chjet:
 
     hepdata: "HEPData-ins2693040-v1-root.root"
 
-    # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
-    # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
-    # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
-    # it with the experimentally specified weighting
-    # TODO(FJ): Ratio will just be an additional histogram for plotting!
-    trigger_range_det: [11., 15.]
-    trigger_range_part: [9., 22.]
-
   # pmj 2/28/25 same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
   # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
-  # pmj 2/28/25: WIP, paper not yet posted to arXiv
   dphi_star:
     enabled: false
     urls:
@@ -365,12 +369,16 @@ pion_trigger_chjet:
       hepdata: N/A
       custom: TODO
 
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0 # 1.0 - R
-    pt: [10., 20.]
     centrality: [[0, 15]]
-    pi_zero_eta_cut: 1.0
-    trigger_range: [11., 15.]
+
+    pion:
+      eta_cut: 1.0
+      pt: [11., 15.]
+    jet:
+      jet_R: [0.2, 0.5]
+      eta_cut_R: 1.0
+      pt: [10., 20.]
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
@@ -398,10 +406,10 @@ gamma_trigger_hadron:
       hepdata: https://www.hepdata.net/record/ins1798493
 
     centrality: [[0, 40]]
-    gamma_trigger:
+    trigger:
       pt: [5., 9.]
       eta_cut: 10000.
-    recoil_hadron:
+    hadron:
       pt: [5., 7.]
       eta_cut: 0.35
 
@@ -434,13 +442,26 @@ gamma_trigger_chjet:
       # PRC
       #inspire_hep: https://inspirehep.net/literature/2693062
 
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0 # value gives eta that one still has to subtract R from
-    pt: [5., 20.]
-    jet_deltaphi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
     centrality: [[0, 15]]
-    gamma_eta_cut: 1.0
-    trigger_range: [15., 20.]
+
+    trigger:
+      eta_cut: 1.0
+      pt: [15., 20.]
+
+      # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+      # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
+      # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
+      # it with the experimentally specified weighting
+      # TODO(FJ): Ratio will just be an additional histogram for plotting!
+      smearing:
+        det_range: [15., 20.]
+        part_range: [12., 23.]
+    jet:
+      jet_R: [0.2, 0.5]
+      eta_cut_R: 1.0 # value gives eta that one still has to subtract R from
+      pt: [5., 20.]
+    dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
@@ -451,30 +472,26 @@ gamma_trigger_chjet:
 
     hepdata: "HEPData-ins2693040-v1-root.root"
 
-    # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
-    # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
-    # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
-    # it with the experimentally specified weighting
-    # TODO(FJ): Ratio will just be an additional histogram for plotting!
-    trigger_range_det: [15., 20.]
-    trigger_range_part: [12., 23.]
-
   # pmj 2/28/25 same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
   # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
-  # pmj 2/28/25: WIP, paper not yet posted to arXiv
   dphi_star:
     enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/2919952
+      # July 2025 - paper on arXiv, but HEPdata not yet available.
       hepdata: N/A
       custom: TODO
 
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0 # 1.0 - R
-    pt: [10., 20.]
     centrality: [[0, 15]]
-    gamma_eta_cut: 1.0
-    trigger_range: [11., 15.]
+
+    trigger:
+      eta_cut: 1.0
+      pt: [11., 15.]
+    jet:
+      jet_R: [0.2, 0.5]
+      eta_cut_R: 1.0
+      pt: [10., 20.]
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 

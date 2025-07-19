@@ -914,10 +914,10 @@ pion_trigger_hadron:
       hepdata: https://www.hepdata.net/record/ins1483164
 
     centrality: [[0, 10]]
-    pion_trigger:
+    trigger:
       pt: [8., 16.]
       eta_cut: 0.7
-    recoil_hadron:
+    hadron:
       # Measured down to 0.5 GeV, but we cutoff at 6 to align with the bin edges and keep the data volume reasonable
       pt: [6., 8., 10.]
       eta_cut: 0.8

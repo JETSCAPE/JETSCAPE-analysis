@@ -1995,7 +1995,7 @@ z_trigger_jet:
       pt_min: 60.
       # TODO not given explicitly but i assume this is the case
       eta_cut: 2.5
-    recoil_jet:
+    jet:
       jet_R: [0.3]
       pt_min: 30.
       eta_cut: 1.6 # |eta| < 1.6
@@ -2017,7 +2017,7 @@ z_trigger_jet:
       pt_min: 60.
       # TODO not given explicitly but i assume this is the case
       eta_cut: 2.5
-    recoil_jet:
+    jet:
       jet_R: [0.3]
       pt_min: 30.
       eta_cut: 1.6 # |eta| < 1.6
