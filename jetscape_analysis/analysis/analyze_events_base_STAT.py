@@ -229,16 +229,28 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # pp
         return True
 
-    def measure_observable_for_current_event(self, observable_config: dict[str, Any]) -> bool:
+    def measure_observable_for_current_event(self, observable_class_config: dict[str, Any], observable_name) -> bool:
         """True if the provided observable configuration should be measured for the current event.
 
-        More specific observable selections are left for the particular implementation, but
+        More specific observable selections are left for the particular implementation, but this allows
+        for common, shared options.
 
         Args:
-            observable_config: Configuration for the observable of interest.
+            observable_class_config: Configuration for the observable class of interest.
+            observable_name: Name of the observable.
         Returns:
             True if the observable should be measured for the current event.
         """
+        # The config will only be defined if the observable is actually defined in this config
+        # (e.g. at this sqrt_s).
+        observable_config = observable_class_config.get(observable_name)
+        # If not the observable is not defined, we immediately know we cannot measure it
+        if not observable_config:
+            return False
+
+        # Now determine whether the observable should be measured based on the observable_config values.
+        # NOTE: We'll check all of them to simplify the function return, although we could in principle
+        #       already return on the first false.
         return_values = []
         # Check the required centrality range(s).
         return_values.append(self.centrality_accepted(observable_config["centrality"]))
@@ -459,7 +471,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Create fastjet particles
         fj_pions = fjext.vectorize_px_py_pz_e(px, py, pz, e)
 
-        return fj_pions # noqa: RET504
+        return fj_pions  # noqa: RET504
 
     def fill_photon_candidates(self, event, select_status: str | None = None):
         """Find all final state photons in the event.
