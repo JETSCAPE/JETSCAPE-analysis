@@ -1612,12 +1612,26 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     pt_max = self.inclusive_jet_observables["dR12_atlas"]["pt"][1]
                     # TODO(Dhanush): Implement from here
 
-    # ---------------------------------------------------------------
-    # Fill inclusive full jet observables
-    # ---------------------------------------------------------------
-    def fill_full_jet_groomed_observables(self, grooming_setting, jet, jet_pt, jetR, jet_collection_label=""):
-        # Construct groomed jet
+    def fill_full_jet_groomed_observables(
+        self,
+        grooming_setting: dict[str, float],
+        jet: PseudoJet,
+        jet_pt: float,
+        jetR: float,
+        jet_collection_label: str = "",
+    ) -> None:
+        """Measure and record inclusive (full) jet groomed observables.
 
+        Args:
+            grooming_settings: Grooming settings to be applied.
+            jet: Jet.
+            jet_pt: (Subtracted) jet pt
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
+        Returns:
+            None.
+        """
+        # Construct groomed jet
         # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering
         jet_def = fj.JetDefinition(fj.cambridge_algorithm, jetR)
         if jet_collection_label in ["_negative_recombiner"]:
@@ -1628,6 +1642,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         zcut = grooming_setting["zcut"]
         beta = grooming_setting["beta"]
         jet_groomed_lund = gshop.soft_drop(beta, zcut, jetR)
+
+        # If no substructure found, then nothing else to be done.
         if not jet_groomed_lund:
             return
 
@@ -1637,58 +1653,66 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.measure_observable_for_current_event(self.inclusive_jet_observables["mg_cms"]):
-                if grooming_setting in self.inclusive_jet_observables["mg_cms"]["SoftDrop"]:
-                    pt_min = self.inclusive_jet_observables["mg_cms"]["pt"][0]
-                    pt_max = self.inclusive_jet_observables["mg_cms"]["pt"][-1]
-                    if jetR in self.inclusive_jet_observables["mg_cms"]["jet_R"]:
-                        if abs(jet.eta()) < (self.inclusive_jet_observables["mg_cms"]["eta_cut"]):
-                            if pt_min < jet_pt < pt_max:
-                                if jet_groomed_lund.Delta() > self.inclusive_jet_observables["mg_cms"]["dR"]:
-                                    mg = (
-                                        jet_groomed_lund.pair().m() / jet_pt
-                                    )  # Note: untagged jets will return negative value
-                                    self.observable_dict_event[
-                                        f"inclusive_jet_mg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                                    ].append([jet_pt, mg])
+            if (
+                self.measure_observable_for_current_event(self.inclusive_jet_observables["mg_cms"])
+                and grooming_setting in self.inclusive_jet_observables["mg_cms"]["SoftDrop"]
+            ):
+                pt_min = self.inclusive_jet_observables["mg_cms"]["pt"][0]
+                pt_max = self.inclusive_jet_observables["mg_cms"]["pt"][-1]
+                if (
+                    jetR in self.inclusive_jet_observables["mg_cms"]["jet_R"]
+                    and pt_min < jet_pt < pt_max
+                    and abs(jet.eta()) < (self.inclusive_jet_observables["mg_cms"]["eta_cut"])
+                    and jet_groomed_lund.Delta() > self.inclusive_jet_observables["mg_cms"]["dR"]
+                ):
+                    mg = jet_groomed_lund.pair().m() / jet_pt  # Note: untagged jets will return negative value
+                    self.observable_dict_event[
+                        f"inclusive_jet_mg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+                    ].append([jet_pt, mg])
 
             # CMS z_g
             #   Hole treatment:
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.measure_observable_for_current_event(self.inclusive_jet_observables["zg_cms"]):
-                if grooming_setting in self.inclusive_jet_observables["zg_cms"]["SoftDrop"]:
-                    pt_min = self.inclusive_jet_observables["zg_cms"]["pt"][0]
-                    pt_max = self.inclusive_jet_observables["zg_cms"]["pt"][-1]
-                    if jetR in self.inclusive_jet_observables["zg_cms"]["jet_R"]:
-                        if abs(jet.eta()) < (self.inclusive_jet_observables["zg_cms"]["eta_cut"]):
-                            if pt_min < jet_pt < pt_max:
-                                if jet_groomed_lund.Delta() > self.inclusive_jet_observables["zg_cms"]["dR"]:
-                                    zg = jet_groomed_lund.z()  # Note: untagged jets will return negative value
-                                    self.observable_dict_event[
-                                        f"inclusive_jet_zg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                                    ].append([jet_pt, zg])
+            if (
+                self.measure_observable_for_current_event(self.inclusive_jet_observables["zg_cms"])
+                and grooming_setting in self.inclusive_jet_observables["zg_cms"]["SoftDrop"]
+            ):
+                pt_min = self.inclusive_jet_observables["zg_cms"]["pt"][0]
+                pt_max = self.inclusive_jet_observables["zg_cms"]["pt"][-1]
+                if (
+                    jetR in self.inclusive_jet_observables["zg_cms"]["jet_R"]
+                    and pt_min < jet_pt < pt_max
+                    and abs(jet.eta()) < (self.inclusive_jet_observables["zg_cms"]["eta_cut"])
+                    and jet_groomed_lund.Delta() > self.inclusive_jet_observables["zg_cms"]["dR"]
+                ):
+                    zg = jet_groomed_lund.z()  # Note: untagged jets will return negative value
+                    self.observable_dict_event[
+                        f"inclusive_jet_zg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+                    ].append([jet_pt, zg])
 
             # ATLAS, Rg
             #   Hole treatment:
             #    - For shower_recoil case, correct the pt only
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
-            if self.measure_observable_for_current_event(self.inclusive_jet_observables["rg_atlas"]):
-                if grooming_setting in self.inclusive_jet_observables["rg_atlas"]["SoftDrop"]:
-                    pt_min = self.inclusive_jet_observables["rg_atlas"]["pt"][0]
-                    pt_max = self.inclusive_jet_observables["rg_atlas"]["pt"][1]
-                    if (
-                        pt_min < jet_pt < pt_max
-                        and abs(jet.eta()) < (self.inclusive_jet_observables["rg_atlas"]["eta_cut"] - jetR)
-                        and jetR in self.inclusive_jet_observables["rg_atlas"]["jet_R"]
-                    ):
-                        # Note: untagged jets will return negative value
-                        rg = jet_groomed_lund.Delta()
-                        self.observable_dict_event[
-                            f"inclusive_jet_rg_atlas_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                        ].append([jet_pt, rg])
+            if (
+                self.measure_observable_for_current_event(self.inclusive_jet_observables["rg_atlas"])
+                and grooming_setting in self.inclusive_jet_observables["rg_atlas"]["SoftDrop"]
+            ):
+                pt_min = self.inclusive_jet_observables["rg_atlas"]["pt"][0]
+                pt_max = self.inclusive_jet_observables["rg_atlas"]["pt"][1]
+                if (
+                    pt_min < jet_pt < pt_max
+                    and abs(jet.eta()) < (self.inclusive_jet_observables["rg_atlas"]["eta_cut"] - jetR)
+                    and jetR in self.inclusive_jet_observables["rg_atlas"]["jet_R"]
+                ):
+                    # Note: untagged jets will return negative value
+                    rg = jet_groomed_lund.Delta()
+                    self.observable_dict_event[
+                        f"inclusive_jet_rg_atlas_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+                    ].append([jet_pt, rg])
 
     # ---------------------------------------------------------------
     # Fill semi-inclusive charged jet observables
