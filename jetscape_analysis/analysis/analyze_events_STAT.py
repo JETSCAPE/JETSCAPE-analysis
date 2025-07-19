@@ -1717,9 +1717,28 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Fill semi-inclusive charged jet observables
     # ---------------------------------------------------------------
-    def fill_hadron_trigger_chjet_observables(
-        self, jets_selected, hadrons_for_jet_finding, hadrons_negative, jetR, jet_collection_label=""
-    ):
+    def fill_hadron_trigger_chjet_observables(  # noqa: C901
+        self,
+        jets_selected: PseudoJetVector,
+        hadrons_for_jet_finding: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
+        jetR: float,
+        jet_collection_label: str = "",
+    ) -> None:
+        """Measure and record inclusive hadron-trigger jet observables.
+
+        This covers all semi-inclusive hadron triggered observables.
+
+        Args:
+            jet: Jet.
+            jets_selected: Jets for analysis which passed basic kinematic selections.
+            hadrons_for_jet_finding: Hadrons used for jet finding.
+            hadrons_negative: Hole particles.
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
+        Returns:
+            None.
+        """
         # split events into signal and reference-classed events
         # majority signal to optimize stat. unc.
         frac_signal = 0.8
@@ -1749,16 +1768,19 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 if abs(hadron.eta()) < self.hadron_trigger_chjet_observables["IAA_pt_alice"]["hadron_eta_cut"]:
                     # Search for hadron trigger
-                    if hjet_low_trigger_range[0] < hadron.pt() < hjet_low_trigger_range[1] and not is_signal_event:
+                    if not is_signal_event and hjet_low_trigger_range[0] < hadron.pt() < hjet_low_trigger_range[1]:
                         trigger_array_hjet.append(hadron)
-                    if hjet_high_trigger_range[0] < hadron.pt() < hjet_high_trigger_range[1] and is_signal_event:
+                    if is_signal_event and hjet_high_trigger_range[0] < hadron.pt() < hjet_high_trigger_range[1]:
                         trigger_array_hjet.append(hadron)
 
             if len(trigger_array_hjet) > 0:
                 # random selection of the trigger, since we may have more than one found in the event
-                trigger = trigger_array_hjet[random.randrange(len(trigger_array_hjet))]
+                trigger = random.choice(trigger_array_hjet)
 
                 # Record hadron pt for trigger normalization
+                # TODO(RJE): This needs to be inside of the observable selection. i.e. if the centrality was wrong,
+                #            this shouldn't be filled at all, but the current code would fill the normalization.
+                #            We get away with this because we analyze by centrality bin, but better if we fix it.
                 # NOTE: This will record the hadron trigger even if it's not used in the IAA. However,
                 #       this is fine because we account for the difference in low and high trigger ranges
                 #       when we construct the histograms.
@@ -1786,59 +1808,69 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         if self.measure_observable_for_current_event(
                             self.hadron_trigger_chjet_observables["IAA_pt_alice"]
                         ):
+                            # TODO(RJE): Simplify this based on updated the trigger range, and then if statement
+                            #            can be much simpler.
                             if is_signal_event:
-                                if jetR in self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet_R"]:
-                                    if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                        if pt_IAA[0] < jet_pt < pt_IAA[1]:
-                                            self.observable_dict_event[
-                                                f"hadron_trigger_chjet_IAA_pt_alice_R{jetR}_highTrigger{jet_collection_label}"
-                                            ].append(jet_pt)
-                                            if jet_collection_label in ["_shower_recoil"]:
-                                                self.observable_dict_event[
-                                                    f"hadron_trigger_chjet_IAA_pt_alice_R{jetR}_highTrigger{jet_collection_label}_unsubtracted"
-                                                ].append(jet_pt_unsubtracted)
-
-                                if jetR in self.hadron_trigger_chjet_observables["dphi_alice"]["jet_R"]:
-                                    if pt_dphi[0] < jet_pt < pt_dphi[-1]:
+                                if (
+                                    jetR in self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet_R"]
+                                    and pt_IAA[0] < jet_pt < pt_IAA[1]
+                                    and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
+                                ):
+                                    self.observable_dict_event[
+                                        f"hadron_trigger_chjet_IAA_pt_alice_R{jetR}_highTrigger{jet_collection_label}"
+                                    ].append(jet_pt)
+                                    if jet_collection_label in ["_shower_recoil"]:
                                         self.observable_dict_event[
-                                            f"hadron_trigger_chjet_dphi_alice_R{jetR}_highTrigger{jet_collection_label}"
-                                        ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+                                            f"hadron_trigger_chjet_IAA_pt_alice_R{jetR}_highTrigger{jet_collection_label}_unsubtracted"
+                                        ].append(jet_pt_unsubtracted)
 
-                                # if jetR in self.hadron_trigger_chjet_observables.get("dphi_ratio_alice", {}).get(
-                                #     "jet_R", []
+                                if (
+                                    jetR in self.hadron_trigger_chjet_observables["dphi_alice"]["jet_R"]
+                                    and pt_dphi[0] < jet_pt < pt_dphi[-1]
+                                ):
+                                    self.observable_dict_event[
+                                        f"hadron_trigger_chjet_dphi_alice_R{jetR}_highTrigger{jet_collection_label}"
+                                    ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+
+                                # if (
+                                #     jetR in self.hadron_trigger_chjet_observables["dphi_ratio_alice"]["jet_R"]
+                                #     and pt_dphi_ratio[0] < jet_pt < pt_dphi_ratio[1]
+                                #     and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                                 # ):
-                                #     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                #         if pt_dphi_ratio[0] < jet_pt < pt_dphi_ratio[1]:
-                                #             self.observable_dict_event[
-                                #                 f"hadron_trigger_chjet_dphi_ratio_alice_R{jetR}_highTrigger{jet_collection_label}"
-                                #             ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+                                #     self.observable_dict_event[
+                                #         f"hadron_trigger_chjet_dphi_ratio_alice_R{jetR}_highTrigger{jet_collection_label}"
+                                #     ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
 
                             else:
-                                if jetR in self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet_R"]:
-                                    if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                        if pt_IAA[0] < jet_pt < pt_IAA[1]:
-                                            self.observable_dict_event[
-                                                f"hadron_trigger_chjet_IAA_pt_alice_R{jetR}_lowTrigger{jet_collection_label}"
-                                            ].append(jet_pt)
-                                            if jet_collection_label in ["_shower_recoil"]:
-                                                self.observable_dict_event[
-                                                    f"hadron_trigger_chjet_IAA_pt_alice_R{jetR}_lowTrigger{jet_collection_label}_unsubtracted"
-                                                ].append(jet_pt_unsubtracted)
-
-                                if jetR in self.hadron_trigger_chjet_observables["dphi_alice"]["jet_R"]:
-                                    if pt_dphi[0] < jet_pt < pt_dphi[-1]:
+                                if (
+                                    jetR in self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet_R"]
+                                    and pt_IAA[0] < jet_pt < pt_IAA[1]
+                                    and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
+                                ):
+                                    self.observable_dict_event[
+                                        f"hadron_trigger_chjet_IAA_pt_alice_R{jetR}_lowTrigger{jet_collection_label}"
+                                    ].append(jet_pt)
+                                    if jet_collection_label in ["_shower_recoil"]:
                                         self.observable_dict_event[
-                                            f"hadron_trigger_chjet_dphi_alice_R{jetR}_lowTrigger{jet_collection_label}"
-                                        ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+                                            f"hadron_trigger_chjet_IAA_pt_alice_R{jetR}_lowTrigger{jet_collection_label}_unsubtracted"
+                                        ].append(jet_pt_unsubtracted)
 
-                                # if jetR in self.hadron_trigger_chjet_observables.get("dphi_ratio_alice", {}).get(
-                                #     "jet_R", []
+                                if (
+                                    jetR in self.hadron_trigger_chjet_observables["dphi_alice"]["jet_R"]
+                                    and pt_dphi[0] < jet_pt < pt_dphi[-1]
+                                ):
+                                    self.observable_dict_event[
+                                        f"hadron_trigger_chjet_dphi_alice_R{jetR}_lowTrigger{jet_collection_label}"
+                                    ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+
+                                # if (
+                                #     jetR in self.hadron_trigger_chjet_observables["dphi_ratio_alice"]["jet_R"]
+                                #     and pt_dphi_ratio[0] < jet_pt < pt_dphi_ratio[1]
+                                #     and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                                 # ):
-                                #     if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                #         if pt_dphi_ratio[0] < jet_pt < pt_dphi_ratio[1]:
-                                #             self.observable_dict_event[
-                                #                 f"hadron_trigger_chjet_dphi_ratio_alice_R{jetR}_lowTrigger{jet_collection_label}"
-                                #             ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
+                                #     self.observable_dict_event[
+                                #         f"hadron_trigger_chjet_dphi_ratio_alice_R{jetR}_lowTrigger{jet_collection_label}"
+                                #     ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
 
         # Nsubjettiness
         #   Hole treatment:
@@ -1906,30 +1938,34 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         else:
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
-                        if self.measure_observable_for_current_event(
-                            self.hadron_trigger_chjet_observables["nsubjettiness_alice"]
+                        if (
+                            self.measure_observable_for_current_event(
+                                self.hadron_trigger_chjet_observables["nsubjettiness_alice"]
+                            )
+                            and jetR in self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet_R"]
                         ):
-                            if jetR in self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet_R"]:
-                                if is_signal_event:
-                                    if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                        if pt_nsubjettiness[0] < jet_pt < pt_nsubjettiness[1]:
-                                            tau1 = n_subjettiness_calculator1.result(jet) / jet_pt_unsubtracted
-                                            tau2 = n_subjettiness_calculator2.result(jet) / jet_pt_unsubtracted
-                                            if tau1 > 1e-3:
-                                                self.observable_dict_event[
-                                                    f"hadron_trigger_chjet_nsubjettiness_alice_R{jetR}_highTrigger{jet_collection_label}"
-                                                ].append(tau2 / tau1)
-                                elif np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                    if pt_nsubjettiness[0] < jet_pt < pt_nsubjettiness[1]:
-                                        # We use the unsubtracted jet pt here, since the Nsubjettiness is calculated
-                                        # including recoils (but without hole subtraction) in the reclustering.
-                                        # Not ideal but not sure of an immediate better solution.
-                                        tau1 = n_subjettiness_calculator1.result(jet) / jet_pt_unsubtracted
-                                        tau2 = n_subjettiness_calculator2.result(jet) / jet_pt_unsubtracted
-                                        if tau1 > 1e-3:
-                                            self.observable_dict_event[
-                                                f"hadron_trigger_chjet_nsubjettiness_alice_R{jetR}_lowTrigger{jet_collection_label}"
-                                            ].append(tau2 / tau1)
+                            if is_signal_event:
+                                if pt_nsubjettiness[0] < jet_pt < pt_nsubjettiness[1] and np.abs(
+                                    jet.delta_phi_to(trigger)
+                                ) > (np.pi - 0.6):
+                                    tau1 = n_subjettiness_calculator1.result(jet) / jet_pt_unsubtracted
+                                    tau2 = n_subjettiness_calculator2.result(jet) / jet_pt_unsubtracted
+                                    if tau1 > 1e-3:
+                                        self.observable_dict_event[
+                                            f"hadron_trigger_chjet_nsubjettiness_alice_R{jetR}_highTrigger{jet_collection_label}"
+                                        ].append(tau2 / tau1)
+                            elif pt_nsubjettiness[0] < jet_pt < pt_nsubjettiness[1] and np.abs(
+                                jet.delta_phi_to(trigger)
+                            ) > (np.pi - 0.6):
+                                # We use the unsubtracted jet pt here, since the Nsubjettiness is calculated
+                                # including recoils (but without hole subtraction) in the reclustering.
+                                # Not ideal but not sure of an immediate better solution.
+                                tau1 = n_subjettiness_calculator1.result(jet) / jet_pt_unsubtracted
+                                tau2 = n_subjettiness_calculator2.result(jet) / jet_pt_unsubtracted
+                                if tau1 > 1e-3:
+                                    self.observable_dict_event[
+                                        f"hadron_trigger_chjet_nsubjettiness_alice_R{jetR}_lowTrigger{jet_collection_label}"
+                                    ].append(tau2 / tau1)
 
         if self.sqrts == 200:
             hjet_trigger_range = self.hadron_trigger_chjet_observables["IAA_pt_star"]["trigger_range"]
@@ -1942,10 +1978,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if jet_collection_label in ["_negative_recombiner"] and hadron.user_index() < 0:
                     continue
 
-                if abs(hadron.eta()) < self.hadron_trigger_chjet_observables["IAA_pt_star"]["hadron_eta_cut"]:
-                    # Search for hadron trigger
-                    if hjet_trigger_range[0] < hadron.pt() < hjet_trigger_range[1]:
-                        trigger_array_hjet.append(hadron)
+                # Search for hadron trigger
+                if (
+                    hjet_trigger_range[0] < hadron.pt() < hjet_trigger_range[1]
+                    and abs(hadron.eta()) < self.hadron_trigger_chjet_observables["IAA_pt_star"]["hadron_eta_cut"]
+                ):
+                    trigger_array_hjet.append(hadron)
 
             if len(trigger_array_hjet) > 0:
                 # random selection of the trigger, since we may have more than one found in the event
@@ -1975,22 +2013,26 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         if self.measure_observable_for_current_event(
                             self.hadron_trigger_chjet_observables["IAA_pt_star"]
                         ):
-                            if jetR in self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet_R"]:
-                                if np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6):
-                                    if pt_IAA[0] < jet_pt < pt_IAA[1]:
-                                        self.observable_dict_event[
-                                            f"hadron_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
-                                        ].append(jet_pt)
-                                        if jet_collection_label in ["_shower_recoil"]:
-                                            self.observable_dict_event[
-                                                f"hadron_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
-                                            ].append(jet_pt_unsubtracted)
-
-                            if jetR in self.hadron_trigger_chjet_observables["dphi_star"]["jet_R"]:
-                                if pt_dphi[0] < jet_pt < pt_dphi[1]:
+                            if (
+                                jetR in self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet_R"]
+                                and pt_IAA[0] < jet_pt < pt_IAA[1]
+                                and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
+                            ):
+                                self.observable_dict_event[
+                                    f"hadron_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
+                                ].append(jet_pt)
+                                if jet_collection_label in ["_shower_recoil"]:
                                     self.observable_dict_event[
-                                        f"hadron_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"
-                                    ].append(np.abs(trigger.delta_phi_to(jet)))
+                                        f"hadron_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
+                                    ].append(jet_pt_unsubtracted)
+
+                            if (
+                                jetR in self.hadron_trigger_chjet_observables["dphi_star"]["jet_R"]
+                                and pt_dphi[0] < jet_pt < pt_dphi[1]
+                            ):
+                                self.observable_dict_event[
+                                    f"hadron_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"
+                                ].append(np.abs(trigger.delta_phi_to(jet)))
 
     # ---------------------------------------------------------------
     # Fill dijet observables
