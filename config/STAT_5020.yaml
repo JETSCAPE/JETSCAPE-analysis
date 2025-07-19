@@ -1553,19 +1553,25 @@ gamma_trigger_jet:
       inspire_hep: https://inspirehep.net/literature/2648097
       hepdata: https://www.hepdata.net/record/ins2648097
 
-    gamma_eta: [-2.37, 2.37]
-    gamma_pT_min: 50.
-    isolation_R: 0.3
-    isolation_Et_max_pp: 3.
-    isolation_Et_max_AA: 10. # TODO see if we have to change this to 3 as well due to lack of UE
-    isolation_type: "full"
-    jet_R: [0.4]
-    eta_cut_jet: [-2.8, 2.8]
-    jet_pT: [50., 320.]
+    centrality: [[0, 10], [10, 30]]
+    trigger:
+      eta_cut: 2.37
+      pt_min: 50.0
+      isolation:
+        type: "full"
+        R: 0.3
+        Et_max_pp: 3.
+        Et_max_AA: 10. # TODO see if we have to change this to 3 as well due to lack of UE
+    jet:
+      jet_R: [0.4]
+      eta_cut: 2.8
+      pt: [50., 320.]
     dPhi: 7./8. # dPhi > 7/8*pi
+
+    hepdata: "HEPData-ins2648097-v1-root.root"
+
     xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
     logy: True
-    hepdata: "HEPData-ins2648097-v1-root.root"
 
     # Fig 3
     # https://www.hepdata.net/record/ins2648097?version=1&table=Figure%203
@@ -1584,7 +1590,7 @@ gamma_trigger_jet:
     # minimum-bias data (described in Section 4 below). This upper limit on the isolation energy is
     # approximately 10 GeV in 0–10% Pb+Pb events, but quickly decreases in more peripheral
     # events and converges to the pp value.
-    centrality: [[0, 10], [10, 30], [30, 80]]
+
     # Fig 4 (PbPb)
     # https://www.hepdata.net/record/ins2648097?version=1&table=Figure%204
     hepdata_AA_dir: "Figure 4"
@@ -1602,17 +1608,22 @@ gamma_trigger_jet:
       hepdata: https://www.hepdata.net/record/ins1694678
 
     # TODO adjust for the fact that there are multiple gamma_pt intervals!!
+    # TODO(RJE): Cannot measure 50-80%, so need to remove tables below
     centrality: [[0, 10], [10, 20], [20, 30], [30, 50], [50, 80]]
-    gamma_eta: [-2.37, 2.37]
-    gamma_pT: [63.1, 200.]
-    isolation_R: 0.3
-    isolation_type: "full"
-    isolation_Et_max_pp: 3.
-    isolation_Et_max_AA: 8. # TODO double check value needed for PbPb
-    jet_R: [0.4]
-    eta_cut_jet: 2.8
-    jet_pT: [31.6, 1000.]
-    jet_deltaphi: 7./8. # dPhi > 7/8*pi
+
+    trigger:
+      eta_cut: 2.37
+      pt: [63.1, 200.]
+      isolation:
+        type: "full"
+        R: 0.3
+        Et_max_pp: 3.
+        Et_max_AA: 8. # TODO double check value needed for PbPb
+    jet:
+      jet_R: [0.4]
+      eta_cut: 2.8
+      pt: [31.6, 1000.]
+    dPhi: 7./8. # dPhi > 7/8*pi
 
     hepdata: "HEPData-ins1694678-v1-root.root"
     # one table per pt gamma bin
@@ -1676,16 +1687,21 @@ gamma_trigger_jet:
       hepdata: https://www.hepdata.net/record/ins1638996
 
     centrality: [[0, 30]] # There is also centrality 30-100, but skipping that for now!
-    gamma_eta: [-1.48, 1.48]
-    gamma_pT: [40., 100.]
-    isolation_R: 0.4
-    isolation_Et_max_pp: 1.
-    isolation_Et_max_AA: 1. # TODO double check value needed for PbPb and UE subtraction
-    isolation_type: "full"
-    jet_R: [0.3]
-    eta_cut_jet: 1.6
-    jet_pT: [30., 9999.]
-    jet_deltaphi: 7./8. # dPhi > 7/8*pi
+
+    trigger:
+      eta_cut: 1.48
+      gamma: [40., 100.]
+      isolation:
+        type: "full"
+        R: 0.4
+        Et_max_pp: 1.
+        Et_max_AA: 1. # TODO double check value needed for PbPb and UE subtraction
+    jet:
+      jet_R: [0.3]
+      eta_cut: 1.6
+      pt: [30., 9999.]
+    dPhi: 7./8. # dPhi > 7/8*pi
+
     hepdata: "HEPData-ins1638996-v1-root.root"
 
     # dphi distributions, in array, one per pt photon bin
@@ -1699,39 +1715,74 @@ gamma_trigger_jet:
     hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y3", "Hist1D_y5", "Hist1D_y7", "Hist1D_y9"]
 
   # ATLAS gamma-tagged D(z)
-  # Correlation of a photon trigger with a charged or full jet
-  Dz_atlas: # also includes Dpt_atlas
+  # NOTE: Same paper for D(z) and D(pt)
+  Dz_atlas:
     enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/1722028
       hepdata: N/A
 
-    # Trigger isolated prompt photon
-    gamma_Et: [80., 126.]
-    gamma_eta: 2.37 # paper mentions an exclusion of eta [1.37,1.56] but we assume this is by their acc correction
-    isolation_type: "full" # specification what particles are consider for isolation, allow for charged, neutral or full
-    isolation_R: 0.3
-    isolation_Et_max_pp: 3. # GeV
-    isolation_Et_max_AA: 10. # GeV TODO think if we actually need to have 10 GeV here
+    # TODO(RJE): Remove 30-80, as we can't handle it.
+    centrality: [[0, 30], [30, 80]]
 
-    # jet selection (anti-kt particle flow)
-    jet_R: [0.4]
-    eta_cut_jet: 2.1
-    jet_pt: [63., 144.] # > 30 GeV
-    centrality: [[0, 30], [30, 80]] # TODO probably we can't compare to 30,80, remove
+    # Trigger isolated prompt photon
+    trigger:
+      # paper mentions an exclusion of eta [1.37,1.56] but we assume this is addressed by their acc correction
+      eta: 2.37
+      Et: [80., 126.]
+      isolation:
+        type: "full" # specification what particles are consider for isolation, allow for charged, neutral or full
+        R: 0.3
+        Et_max_pp: 3. # GeV
+        Et_max_AA: 10. # GeV TODO think if we actually need to have 10 GeV here
+    jet:
+      jet_R: [0.4]
+      eta_cut: 2.1
+      pt: [63., 144.] # > 30 GeV
+    dPhi: 7./8. # dPhi > 7/8*pi
 
     # track selection
     track_pt: 1 # > 1 GeV
     track_dR: 0.4 #dR of track to jet
 
-    # gamma-jet pairs
+    # TODO, dummy binning until hepdata is available
+    # prettier-ignore
+    bins: [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+
+  # ATLAS gamma-tagged D(z)
+  # NOTE: Same paper for D(z) and D(pt)
+  Dpt_atlas:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1722028
+      hepdata: N/A
+
+    # TODO(RJE): Remove 30-80, as we can't handle it.
+    centrality: [[0, 30], [30, 80]]
+
+    # Trigger isolated prompt photon
+    trigger:
+      # paper mentions an exclusion of eta [1.37,1.56] but we assume this is addressed by their acc correction
+      eta: 2.37
+      Et: [80., 126.]
+      isolation:
+        type: "full" # specification what particles are consider for isolation, allow for charged, neutral or full
+        R: 0.3
+        Et_max_pp: 3. # GeV
+        Et_max_AA: 10. # GeV TODO think if we actually need to have 10 GeV here
+    jet:
+      jet_R: [0.4]
+      eta_cut: 2.1
+      pt: [63., 144.] # > 30 GeV
     dPhi: 7./8. # dPhi > 7/8*pi
+
+    # track selection
+    track_pt: 1 # > 1 GeV
+    track_dR: 0.4 #dR of track to jet
 
     # TODO, dummy binning until hepdata is available
     # prettier-ignore
-    bins_z: [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
-    # prettier-ignore
-    bins_pt: [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300,310,320]
+    bins: [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300,310,320]
 
   # CMS xi (fragmentation)
   # Unfolded?: NO !!!
@@ -1742,34 +1793,34 @@ gamma_trigger_jet:
       inspire_hep: https://inspirehep.net/literature/1648162
       hepdata: https://www.hepdata.net/record/ins1648162
 
-    gamma_min_Et: 60 # GeV
-    gamma_eta: 1.44 # |eta| < 1.44
-    # Note on isolation:
-    # I think we do not need to mimic the exact isolation they do in data, as it gets swallowed in the efficiency calculation.
-    # We should take guidance from the isolation used for the theory calculations in their comparison
-    # which is: deltaR < 0.4 and sum of all partons within cone required to be below 5 GeV.
-    # Probably what we should do in jetscape is calculated for all charged and neutral particles
-    # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of.
-    isolation_type: "full"
-    isolation_R: 0.4
-    isolation_Et_max: 5 # GeV
-
-    # jet reconstruction
-    jet_R: [0.3]
-    jet_pt_min: 30 # GeV
-    eta_cut_jet: 1.6 # |eta| < 1.6
     centrality: [[0, 10], [10, 30], [30, 50], [50, 100]]
 
-    # TODO FJ: not sure how we should handle the HEP data for this. They provide like normal one PbPb distribution per centrality, however, they also provide one pp distribution per centrality (since they smear the pp). I suggest to skip this for now
-    hepdata: "HEPData-ins1648162-v1-root.root"
+    trigger:
+      Et_min: 60 # GeV
+      eta_cut: 1.44 # |eta| < 1.44
+      isolation:
+        # Note on isolation:
+        # FJ think we do not need to mimic the exact isolation they do in data, as it gets swallowed in the efficiency calculation.
+        # We should take guidance from the isolation used for the theory calculations in their comparison
+        # which is: deltaR < 0.4 and sum of all partons within cone required to be below 5 GeV.
+        # Probably what we should do in jetscape is calculated for all charged and neutral particles
+        # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of.
+        type: "full"
+        R: 0.4
+        Et_max: 5 # GeV
+    jet:
+      jet_R: [0.3]
+      pt_min: 30 # GeV
+      eta_cut: 1.6 # |eta| < 1.6
+    dPhi: 7./8. # dPhi > 7/8*pi
 
     # track selection
     # TODO check if track selections (pt cut) also has to be done for jet finding?
     track_pt: 1 # GeV
     track_dR: 0.4 #dR of track to jet
 
-    # gamma-jet pairs
-    dPhi: 7./8. # dPhi > 7/8*pi
+    # TODO FJ: not sure how we should handle the HEP data for this. They provide like normal one PbPb distribution per centrality, however, they also provide one pp distribution per centrality (since they smear the pp). I suggest to skip this for now
+    hepdata: "HEPData-ins1648162-v1-root.root"
 
   # CMS, gamma-tagged girth
   # https://inspirehep.net/literature/2783507
@@ -1779,18 +1830,20 @@ gamma_trigger_jet:
       inspire_hep: https://inspirehep.net/literature/1648162
       hepdata: https://www.hepdata.net/record/ins1648162
 
-    # jet reconstruction
-    jet_R: [0.2]
-    jet_pt_min: 40 # GeV
-    eta_cut_jet: 2.0
     centrality: [[0, 30]]
 
-    hepdata: "HEPData-ins1648162-v1-root.root"
-
-    # gamma-jet pairs
+    trigger:
+      pt_min: ...
+      eta_cut: ...
+      isolation:
+        R: ...
+    jet:
+      jet_R: [0.2]
+      pt_min: 40 # GeV
+      eta_cut: 2.0
     dPhi: 7./8. # dPhi > 7/8*pi
 
-    # ...
+    hepdata: "HEPData-ins1648162-v1-root.root"
 
   # CMS, gamma-tagged Rg
   rg_cms:
@@ -1799,16 +1852,20 @@ gamma_trigger_jet:
       inspire_hep: https://inspirehep.net/literature/2783507
       hepdata: https://www.hepdata.net/record/ins2783507
 
-    # jet reconstruction
-    jet_R: [0.2]
-    jet_pt_min: 40 # GeV
-    eta_cut_jet: 2.0
     centrality: [[0, 30]]
 
-    hepdata: "HEPData-ins1648162-v1-root.root"
-
-    # gamma-jet pairs
+    trigger:
+      pt_min: ...
+      eta_cut: ...
+      isolation:
+        R: ...
+    jet:
+      jet_R: [0.2]
+      pt_min: 40 # GeV
+      eta_cut: 2.0
     dPhi: 7./8. # dPhi > 7/8*pi
+
+    hepdata: "HEPData-ins1648162-v1-root.root"
 
     # ...
 
@@ -1820,13 +1877,17 @@ gamma_trigger_jet:
       hepdata: N/A
       custom: https://cms-results.web.cern.ch/cms-results/public-results/preliminary-results/HIN-21-019/index.html
 
-    # jet reconstruction
-    jet_R: [0.3]
-    jet_pt: [30, 100]
-    eta_cut_jet: 1.6
-    centrality: [[0, 10], [10, 30], [30, 50], [50, 100]]
+    centrality: [[0, 10], [10, 30], [30, 50]]
 
-    # gamma-jet pairs
+    trigger:
+      pt_min: ...
+      eta_cut: ...
+      isolation:
+        R: ...
+    jet:
+      jet_R: [0.3]
+      jet_pt: [30, 100]
+      eta_cut_jet: 1.6
     dPhi: 2./3. # dPhi > 2./3.*pi
 
     # Binning from Luna (thanks!)
@@ -1848,11 +1909,11 @@ z_trigger_hadron:
       # TODO: They do not write what the eta acceptance of reconstructed Z boson is. They write requirements for decay products but not for the Z itself.
       #       They say they correct for reconstruction efficiency but do not specify the region for Z Boson.
       #       The written value (July 2025) is a blind guess
-      eta_cut: 2.5
       pt_min: 15.0
-    recoil_hadron:
       eta_cut: 2.5
+    recoil_hadron:
       pt_min: 1.
+      eta_cut: 2.5
     dPhi: 3./4. # dPhi > 3/4*pi
 
     # TODO(RJE): Add binning
@@ -1868,11 +1929,11 @@ z_trigger_hadron:
     centrality: [[0, 30], [30, 50]]
     z_trigger:
       # TODO not given explicitly but i assume this is the case
-      eta_cut: 2.5
       pt_min: 30.
+      eta_cut: 2.5
     recoil_hadron:
-      eta_cut: 2.4
       pt_min: 1.0
+      eta_cut: 2.4
 
     dPhi: 7./8. # dPhi > 7/8*pi
 
@@ -1889,11 +1950,11 @@ z_trigger_hadron:
     centrality: [[0, 30], [30, 50]]
     z_trigger:
       # TODO not given explicitly but i assume this is the case
-      eta_cut: 2.5
       pt_min: 30.
+      eta_cut: 2.5
     recoil_hadron:
-      eta_cut: 2.4
       pt_min: 1.0
+      eta_cut: 2.4
 
     hepdata: "HEPData-ins1850859-v1-root.root"
 
@@ -1908,12 +1969,12 @@ z_trigger_hadron:
     centrality: [[0, 30], [30, 50]]
     z_trigger:
       # TODO not given explicitly but i assume this is the case
-      eta_cut: 2.5
       pt: [40, 350]
+      eta_cut: 2.5
     recoil_hadron:
-      eta_cut: 2.4
       # Bins: [1, 2, 4, 10]
       pt: [1.0, 10]
+      eta_cut: 2.4
 
     # TODO(RJE): Add figures and binning
 
@@ -1931,13 +1992,13 @@ z_trigger_jet:
 
     centrality: [[0, 30]]
     z_trigger:
+      pt_min: 60.
       # TODO not given explicitly but i assume this is the case
       eta_cut: 2.5
-      pt_min: 60.
     recoil_jet:
       jet_R: [0.3]
-      eta_cut: 1.6 # |eta| < 1.6
       pt_min: 30.
+      eta_cut: 1.6 # |eta| < 1.6
     dPhi: 7./8. # dPhi > 7/8*pi
 
     hepdata: "HEPData-ins1512112-v1-root.root"
@@ -1953,13 +2014,13 @@ z_trigger_jet:
 
     centrality: [[0, 30]]
     z_trigger:
+      pt_min: 60.
       # TODO not given explicitly but i assume this is the case
       eta_cut: 2.5
-      pt_min: 60.
     recoil_jet:
       jet_R: [0.3]
-      eta_cut: 1.6 # |eta| < 1.6
       pt_min: 30.
+      eta_cut: 1.6 # |eta| < 1.6
     dPhi: 7./8. # dPhi > 7/8*pi
 
     hepdata: "HEPData-ins1512112-v1-root.root"
