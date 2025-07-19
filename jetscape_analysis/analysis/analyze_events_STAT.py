@@ -710,7 +710,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     jetR_list_photon.extend(self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_R"])
                 if jetR in set(jetR_list_photon):
                     # TODO discuss with Raymond what to watch out for with holes
-                    self.fill_gamma_trigger_chjet_observables(
+                    self.fill_gamma_trigger_chjet_ungroomed_observables(
                         fj_photon_candidates,
                         jets_selected,
                         hadrons_for_jet_finding,
@@ -723,7 +723,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if jetR in set(jetR_list_groomed_photon):
                     # Groomed
                     for grooming_setting in self.grooming_settings:
-                        self.fill_photon_correlation_groomed_observables(
+                        self.fill_gamma_trigger_full_jet_groomed_observables(
                             fj_photon_candidates,
                             jets_selected,
                             grooming_setting,
@@ -2318,7 +2318,200 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             [photon.pt(), particle.pt()]
                         )
 
-    def fill_gamma_trigger_chjet_observables(  # noqa: C901
+    def fill_gamma_trigger_chjet_ungroomed_observables(  # noqa: C901
+        self,
+        photons: PseudoJetVector,
+        jets_selected: PseudoJetVector,
+        hadrons_for_jet_finding: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
+        pid_hadrons_positive: npt.NDArray[np.int32],
+        pid_hadrons_negative: npt.NDArray[np.int32],  # noqa: ARG002
+        jetR: float,
+        jet_collection_label: str,
+    ) -> None:
+        """Measure and record gamma triggered charged-particle jet observables.
+
+        Args:
+            photons: Photons candidates.
+            jets_selected: Jets which pass general selections.
+            hadrons_for_jet_finding: Particles used for jet finding.
+            hadrons_negative: Holes.
+            pid_hadrons_positive: Corresponding PID of the hadrons_for_jet_finding.
+            pid_hadrons_negative: Corresponding PID of the hadrons_negative.
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
+        Returns:
+            None
+        """
+        # TODO(RJE): Cleanup
+
+        # Setup
+        acceptable_particles_isolation = []
+        acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+        # ---------------------------------------------------------------
+        # ---------------------------------------------------------------
+        #                 STAR gamma-jet observables
+        # ---------------------------------------------------------------
+        # ---------------------------------------------------------------
+        if self.measure_observable_for_current_event(
+            self.gamma_trigger_chjet_observables, observable_name="IAA_pt_star"
+        ):
+            # get cuts
+            gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["trigger_range"]
+            gamma_eta_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["gamma_eta_cut"]
+            jet_eta_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["eta_cut_R"]  # eta_max - R
+            jet_R = (
+                jetR  # Use the jetR passed into the function since we loop over jet_R values in find_jets_and_fill()
+            )
+            jet_eta_min, jet_eta_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_eta"]
+            jet_pt_min, jet_pt_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["pt"]
+            photon_jet_dPhi = self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_deltaphi"]
+
+            hadrons_above_pt_threshold = []
+            for hadron in hadrons_for_jet_finding:
+                if hadron.user_index() < 0:
+                    continue
+                # if not part of accepted hadrons, skip
+                pid = pid_hadrons_positive[np.abs(hadron.user_index()) - 1]
+                if pid not in acceptable_particles_isolation:
+                    continue
+                if hadron.pt() > 1.2:
+                    hadrons_above_pt_threshold.append(hadron)
+
+            for photon in photons:
+                if (
+                    photon.Et() > gamma_Pt_min
+                    and photon.Et() < gamma_Pt_max
+                    and abs(photon.eta()) < gamma_eta_max
+                    and self.is_prompt_photon(photon)
+                ):
+                    # do start isolation here by requiring that the are no hadrons above 1.2 GeV within dPhi < 1.4 radians
+                    # if we find one, continue
+                    is_isolated = True
+                    for hadron in hadrons_above_pt_threshold:
+                        if photon.delta_phi(hadron) < 1.4:
+                            is_isolated = False
+                            break
+                    if not is_isolated:
+                        continue
+
+                    # count the number of triggers for normalization purposes
+                    self.observable_dict_event[
+                        f"gamma_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_Ngamma"
+                    ].append(photon.Et())
+
+                    for jet in jets_selected:
+                        jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
+                        if (
+                            jet.R() == jet_R
+                            and abs(jet.eta()) < jet_eta_max - jetR
+                            and jet_pt > jet_pt_min
+                            and jet_pt < jet_pt_max
+                        ):
+                            # plot dPhi vs jet pt
+                            self.observable_dict_event[
+                                f"gamma_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"
+                            ].append([jet_pt, photon.delta_phi(jet)])
+
+                            # plot IAA vs jet pt
+                            if photon.delta_phi(jet) > (photon_jet_dPhi * np.pi):
+                                self.observable_dict_event[
+                                    f"gamma_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
+                                ].append(jet_pt)
+                                if jet_collection_label in ["_shower_recoil"]:
+                                    self.observable_dict_event[
+                                        f"gamma_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
+                                    ].append(jet_pt_uncorrected)
+
+        acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]  # noqa: F841
+        # ---------------------------------------------------------------
+        # ---------------------------------------------------------------
+        #                 STAR IAA pi0 trigger
+        # ---------------------------------------------------------------
+        # ---------------------------------------------------------------
+        if self.measure_observable_for_current_event(
+            self.pion_trigger_chjet_observables, observable_name="IAA_pt_star"
+        ):
+            # get cuts
+            pi0_Pt_min, pi0_Pt_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["trigger_range"]
+            pi0_eta_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["gamma_eta_cut"]
+            jet_eta_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["eta_cut_R"]  # eta_max - R
+            jet_R = (
+                jetR  # Use the jetR passed into the function since we loop over jet_R values in find_jets_and_fill()
+            )
+            jet_eta_min, jet_eta_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_eta"]
+            jet_pt_min, jet_pt_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["pt"]
+            pi0_jet_dPhi = self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_deltaphi"]
+
+            pi0_particles = []
+            for hadron in hadrons_for_jet_finding:
+                if hadron.user_index() < 0:
+                    continue
+                # if not part of accepted hadrons, skip
+                pid = pid_hadrons_positive[np.abs(hadron.user_index()) - 1]
+                if pid != 111:  # 111 is PDG code for pi0
+                    continue
+                pi0_particles.append(hadron)
+
+            for pi0 in pi0_particles:
+                if pi0.Et() > pi0_Pt_min and pi0.Et() < pi0_Pt_max and abs(pi0.eta()) < pi0_eta_max:
+                    # count the number of triggers for normalization purposes
+                    self.observable_dict_event[
+                        f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_Npi0"
+                    ].append(pi0.Et())
+
+                    for jet in jets_selected:
+                        jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
+                        if (
+                            jet.R() == jet_R
+                            and abs(jet.eta()) < jet_eta_max - jetR
+                            and jet_pt > jet_pt_min
+                            and jet_pt < jet_pt_max
+                        ):
+                            # plot dPhi vs jet pt
+                            self.observable_dict_event[
+                                f"pion_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"
+                            ].append([jet_pt, pi0.delta_phi(jet)])
+                            # plot IAA vs jet pt
+                            if pi0.delta_phi(jet) > (pi0_jet_dPhi * np.pi):
+                                self.observable_dict_event[
+                                    f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
+                                ].append(jet_pt)
+                                if jet_collection_label in ["_shower_recoil"]:
+                                    self.observable_dict_event[
+                                        f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
+                                    ].append(jet_pt_uncorrected)
+
+    def fill_gamma_trigger_chjet_groomed_observables(
+        self,
+        photons: PseudoJetVector,
+        jets_selected: PseudoJetVector,
+        grooming_setting: dict[str, float],
+        hadrons_for_jet_finding: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
+        pid_hadrons_positive: npt.NDArray[np.int32],
+        pid_hadrons_negative: npt.NDArray[np.int32],
+        jetR: float,
+        jet_collection_label: str,
+    ) -> None:
+        """Measure and record gamma triggered groomed charged-particle jet observables.
+
+        Args:
+            photons: Photons candidates.
+            jets_selected: Jets which pass general selections.
+            grooming_settings: Grooming settings to be applied.
+            hadrons_for_jet_finding: Particles used for jet finding.
+            hadrons_negative: Holes.
+            pid_hadrons_positive: Corresponding PID of the hadrons_for_jet_finding.
+            pid_hadrons_negative: Corresponding PID of the hadrons_negative.
+            jetR: Jet R.
+            jet_collection_label: Label of the jet collection type.
+        Returns:
+            None
+        """
+        # There are no gamma-tagged groomed charged-particle jet observables as of July 2025
+
+    def fill_gamma_trigger_full_jet_ungroomed_observables(  # noqa: C901
         self,
         photons: PseudoJetVector,
         jets_selected: PseudoJetVector,
@@ -2329,11 +2522,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         jetR: float,
         jet_collection_label: str,
     ) -> None:
-        """Measure and record gamma triggered charged-particle jet observables.
+        """Measure and record gamma triggered groomed full jet observables.
 
         Args:
             photons: Photons candidates.
             jets_selected: Jets which pass general selections.
+            grooming_settings: Grooming settings to be applied.
             hadrons_for_jet_finding: Particles used for jet finding.
             hadrons_negative: Holes.
             pid_hadrons_positive: Corresponding PID of the hadrons_for_jet_finding.
@@ -3087,142 +3281,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             f"gamma_triggered_jet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}"
                         ].append([jet_pt, deltaR])
 
-        acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-        # ---------------------------------------------------------------
-        # ---------------------------------------------------------------
-        #                 STAR gamma-jet observables
-        # ---------------------------------------------------------------
-        # ---------------------------------------------------------------
-        if self.measure_observable_for_current_event(
-            self.gamma_trigger_chjet_observables, observable_name="IAA_pt_star"
-        ):
-            # get cuts
-            gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["trigger_range"]
-            gamma_eta_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["gamma_eta_cut"]
-            jet_eta_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["eta_cut_R"]  # eta_max - R
-            jet_R = (
-                jetR  # Use the jetR passed into the function since we loop over jet_R values in find_jets_and_fill()
-            )
-            jet_eta_min, jet_eta_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_eta"]
-            jet_pt_min, jet_pt_max = self.gamma_trigger_chjet_observables["IAA_pt_star"]["pt"]
-            photon_jet_dPhi = self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_deltaphi"]
-
-            hadrons_above_pt_threshold = []
-            for hadron in hadrons_for_jet_finding:
-                if hadron.user_index() < 0:
-                    continue
-                # if not part of accepted hadrons, skip
-                pid = pid_hadrons_positive[np.abs(hadron.user_index()) - 1]
-                if pid not in acceptable_particles_isolation:
-                    continue
-                if hadron.pt() > 1.2:
-                    hadrons_above_pt_threshold.append(hadron)
-
-            for photon in photons:
-                if (
-                    photon.Et() > gamma_Pt_min
-                    and photon.Et() < gamma_Pt_max
-                    and abs(photon.eta()) < gamma_eta_max
-                    and self.is_prompt_photon(photon)
-                ):
-                    # do start isolation here by requiring that the are no hadrons above 1.2 GeV within dPhi < 1.4 radians
-                    # if we find one, continue
-                    is_isolated = True
-                    for hadron in hadrons_above_pt_threshold:
-                        if photon.delta_phi(hadron) < 1.4:
-                            is_isolated = False
-                            break
-                    if not is_isolated:
-                        continue
-
-                    # count the number of triggers for normalization purposes
-                    self.observable_dict_event[
-                        f"gamma_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_Ngamma"
-                    ].append(photon.Et())
-
-                    for jet in jets_selected:
-                        jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
-                        if (
-                            jet.R() == jet_R
-                            and abs(jet.eta()) < jet_eta_max - jetR
-                            and jet_pt > jet_pt_min
-                            and jet_pt < jet_pt_max
-                        ):
-                            # plot dPhi vs jet pt
-                            self.observable_dict_event[
-                                f"gamma_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"
-                            ].append([jet_pt, photon.delta_phi(jet)])
-
-                            # plot IAA vs jet pt
-                            if photon.delta_phi(jet) > (photon_jet_dPhi * np.pi):
-                                self.observable_dict_event[
-                                    f"gamma_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
-                                ].append(jet_pt)
-                                if jet_collection_label in ["_shower_recoil"]:
-                                    self.observable_dict_event[
-                                        f"gamma_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
-                                    ].append(jet_pt_uncorrected)
-
-        acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-        # ---------------------------------------------------------------
-        # ---------------------------------------------------------------
-        #                 STAR IAA pi0 trigger
-        # ---------------------------------------------------------------
-        # ---------------------------------------------------------------
-        if self.measure_observable_for_current_event(
-            self.pion_trigger_chjet_observables, observable_name="IAA_pt_star"
-        ):
-            # get cuts
-            pi0_Pt_min, pi0_Pt_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["trigger_range"]
-            pi0_eta_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["gamma_eta_cut"]
-            jet_eta_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["eta_cut_R"]  # eta_max - R
-            jet_R = (
-                jetR  # Use the jetR passed into the function since we loop over jet_R values in find_jets_and_fill()
-            )
-            jet_eta_min, jet_eta_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_eta"]
-            jet_pt_min, jet_pt_max = self.pion_trigger_chjet_observables["IAA_pt_star"]["pt"]
-            pi0_jet_dPhi = self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_deltaphi"]
-
-            pi0_particles = []
-            for hadron in hadrons_for_jet_finding:
-                if hadron.user_index() < 0:
-                    continue
-                # if not part of accepted hadrons, skip
-                pid = pid_hadrons_positive[np.abs(hadron.user_index()) - 1]
-                if pid != 111:  # 111 is PDG code for pi0
-                    continue
-                pi0_particles.append(hadron)
-
-            for pi0 in pi0_particles:
-                if pi0.Et() > pi0_Pt_min and pi0.Et() < pi0_Pt_max and abs(pi0.eta()) < pi0_eta_max:
-                    # count the number of triggers for normalization purposes
-                    self.observable_dict_event[
-                        f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_Npi0"
-                    ].append(pi0.Et())
-
-                    for jet in jets_selected:
-                        jet_pt, jet_pt_uncorrected = self.get_jet_pt(jet, jetR, hadrons_negative, jet_collection_label)
-                        if (
-                            jet.R() == jet_R
-                            and abs(jet.eta()) < jet_eta_max - jetR
-                            and jet_pt > jet_pt_min
-                            and jet_pt < jet_pt_max
-                        ):
-                            # plot dPhi vs jet pt
-                            self.observable_dict_event[
-                                f"pion_trigger_chjet_dphi_star_R{jetR}{jet_collection_label}"
-                            ].append([jet_pt, pi0.delta_phi(jet)])
-                            # plot IAA vs jet pt
-                            if pi0.delta_phi(jet) > (pi0_jet_dPhi * np.pi):
-                                self.observable_dict_event[
-                                    f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}"
-                                ].append(jet_pt)
-                                if jet_collection_label in ["_shower_recoil"]:
-                                    self.observable_dict_event[
-                                        f"pion_trigger_chjet_IAA_pt_star_R{jetR}{jet_collection_label}_unsubtracted"
-                                    ].append(jet_pt_uncorrected)
-
-    def fill_photon_correlation_groomed_observables(  # noqa: C901
+    def fill_gamma_trigger_full_jet_groomed_observables(  # noqa: C901
         self,
         photons: PseudoJetVector,
         jets_selected: PseudoJetVector,
@@ -3234,7 +3293,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         jetR: float,
         jet_collection_label: str,
     ) -> None:
-        """Measure and record gamma triggered groomed charged-particle jet observables.
+        """Measure and record gamma triggered groomed full jet observables.
 
         Args:
             photons: Photons candidates.
@@ -3249,11 +3308,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         Returns:
             None
         """
-        # ------------------------------------------------------------
-        # ------------------------------------------------------------
-        #                 CMS gamma-tagged Rg
-        # -----------------------------------------------------------
-        # ------------------------------------------------------------
+        # CMS, gamma-triggered Rg
         if self.measure_observable_for_current_event(self.gamma_trigger_jet_observables["rg_cms"]):
             # MARK: Copied from xj_gamma_cms!
             gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_jet_observables["rg_cms"]["gamma_pT"]
