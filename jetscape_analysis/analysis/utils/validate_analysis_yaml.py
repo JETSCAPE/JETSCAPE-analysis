@@ -131,12 +131,38 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
     n_enabled = 0
 
     for key, observable_info in observables.items():
+        logger.debug(f"Checking {key}")
+
         n_observables += 1
         config = observable_info.config
+        # Required fields
+        # Enabled field
         if "enabled" not in config:
             validation_issues[key].append("Missing 'enabled' key")
         elif config["enabled"]:
+            # Also keep track of what is actually enabled for statistics
             n_enabled += 1
+        # Centrality field
+        centrality = config.get("centrality", [])
+        if not centrality:
+            validation_issues[key].append("Missing 'centrality' key")
+        else:
+            logger.debug(f"Checking centrality: {centrality}")
+            # Must be a list of lists
+            for cent in centrality:
+                centrality_issues = []
+                if len(cent) != 2:
+                    centrality_issues.append(f"{cent} is not a pair of two values")
+                elif not (isinstance(cent[0], int) and isinstance(cent[1], int)):
+                    centrality_issues.append(
+                        f"{cent} should be pair of ints, but types are {type(cent[0])}, {type(cent[1])}"
+                    )
+
+            if centrality_issues:
+                validation_issues[key].extend(centrality_issues)
+        # HEPdata or custom_data field
+        if not any(v in ["hepdata", "hepdata_pp", "hepdata_AA", "custom_data", "bins"] for v in observable_info.config):
+            validation_issues[key].append("Missing required hepdata, custom_data, or binning field!")
 
         if "urls" not in config:
             validation_issues[key].append("Missing 'urls'")
@@ -177,16 +203,302 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
                     f"hepdata link contains inspire url. Probably transposed? {urls['hepdata']=}"
                 )
 
-        if "jet" in observable_info.observable_class and "jet_R" not in observable_info.config:
-            validation_issues[key].append("Missing jet_R")
-        if not any(v in config for v in ["eta_cut", "eta_cut_R", "y_cut", "eta_cut_jet", "eta_cut_hadron"]):
-            # eta_cut_jet and eta_cut_hadron is for when we need to specify between the trigger and the recoil
-            validation_issues[key].append(
-                "Missing eta_cut, eta_cut_R, y_cut, eta_cut_jet, or eta_cut_hadron (as appropriate for the observable)"
-            )
+        # Further checks are based on the type of the analysis
+        # Inclusive observables - inclusive hadron, hadron correlations, or inclusive jet
+        if observable_info.observable_class.startswith("inclusive") or (
+            observable_info.observable_class.startswith("hadron") and "trigger" not in observable_info.observable_class
+        ):
+            issues = []
+            # Jet properties
+            if "jet" in observable_info.observable_class:
+                issues.extend(_check_jet_properties(config=observable_info.config))
+            # Hadron properties
+            if "hadron" in observable_info.observable_class:
+                issues.extend(_check_hadron_properties(config=observable_info.config))
+
+            if issues:
+                validation_issues[key].extend(issues)
+
+        # Triggered observables
+        if "trigger" in observable_info.observable_class:
+            # Trigger properties
+            issues = []
+            trigger_to_validation_function = {
+                "hadron": _check_hadron_trigger_properties,
+                "dijet": _check_dijet_trigger_properties,
+                "pion": _check_pion_trigger_properties,
+                "gamma": _check_gamma_trigger_properties,
+                "z": _check_z_trigger_properties,
+            }
+            for trigger_name, func in trigger_to_validation_function.items():
+                if f"{trigger_name}_trigger" in observable_info.observable_class:
+                    # The config will always be named "trigger" regardless of the type, so we can
+                    # always ask for the same name here.
+                    res = func(config=observable_info.config.get("trigger", {}))
+                    # Add explicit labels for clarity
+                    issues.extend([f"{trigger_name}_trigger: {v}" for v in res])
+
+            # Recoil/associated properties
+            # NOTE: The observable_class are of the form "X_trigger_Y", where X is the trigger and Y is the recoil/associated.
+            #       Since we only want to target the recoil here, we look for "_trigger_Y" for Y
+            # Jet properties
+            # NOTE: Need to explicitly check for chjet and jet since we're including more of the observable class
+            if (
+                "_trigger_chjet" in observable_info.observable_class
+                or "_trigger_jet" in observable_info.observable_class
+            ):
+                issues.extend(_check_jet_properties(config=observable_info.config.get("jet", {})))
+            # Hadron properties
+            if "_trigger_hadron" in observable_info.observable_class:
+                issues.extend(_check_hadron_properties(config=observable_info.config.get("hadron", {})))
+
+            if issues:
+                validation_issues[key].extend(issues)
 
     # Convert to standard dict just to avoid confusion
     return Result(n_observables=n_observables, n_enabled=n_enabled, validation_issues=dict(validation_issues))
+
+
+def _check_hadron_trigger_properties(config: dict[str, Any]) -> list[str]:
+    """Check hadron trigger properties in config.
+
+    Args:
+        config: Configuration containing the parameters relevant to hadron triggers.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    logger.debug("-> Checking hadron trigger properties")
+
+    issues = []
+    if not config:
+        issues.append("Missing trigger config!")
+    # Use the existing hadron configuration properties
+    issues.extend(_check_hadron_properties_impl(config=config))
+    return issues
+
+
+def _check_dijet_trigger_properties(config: dict[str, Any]) -> list[str]:
+    """Check dijet trigger properties in config.
+
+    Args:
+        config: Configuration containing the parameters relevant to dijet triggers.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    logger.debug("-> Checking dijet trigger properties")
+
+    issues = []
+    if not config:
+        issues.append("Missing trigger config!")
+    # Use the existing jet configuration properties
+    issues.extend(_check_jet_properties_impl(config=config))
+    return issues
+
+
+def _check_pion_trigger_properties(config: dict[str, Any]) -> list[str]:
+    """Check pion trigger properties in config.
+
+    Args:
+        config: Configuration containing the parameters relevant to pion triggers.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    logger.debug("-> Checking pion trigger properties")
+
+    issues = []
+    if not config:
+        issues.append("Missing trigger config!")
+
+    # Need either "pt", "pt_min", "Et", or "Et_min"
+    momentum_fields = ["pt", "pt_min", "Et", "Et_min"]
+    available_momentum_fields = [v for v in momentum_fields if v in config]
+    if len(available_momentum_fields) != 1:
+        issues.append(f"Wrong number of momentum fields. Must include one of: {momentum_fields}")
+    for k in available_momentum_fields:
+        value = config[k]
+        if "min" in k and not isinstance(value, float):
+            issues.append(f"`{k}` field not formatted correctly. Needs a single value, provided: {value=}")
+        elif len(value) < 2:
+            issues.append(f"`{k}` field not formatted correctly. Needs at least two values, provided: {value=}")
+    # Check for lower case "et" (which is a misspelling of Et)
+    if any(v in config for v in ["et", "et_min"]):
+        issues.append(
+            f"Contains `et` or `et_min`, which should be spelled `Et` or `Et_min`. Provided keys: {config.keys()}"
+        )
+
+    # Eta requirement
+    if not any(v in config for v in ["eta_cut", "y_cut"]):
+        issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
+
+    return issues
+
+
+def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:
+    """Check gamma trigger properties in config.
+
+    Args:
+        config: Configuration containing the parameters relevant to gamma triggers.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    logger.debug("-> Checking gamma trigger properties")
+
+    issues = []
+    if not config:
+        issues.append("Missing trigger config!")
+
+    # Need either "pt", "pt_min", "Et", or "Et_min"
+    momentum_fields = ["pt", "pt_min", "Et", "Et_min"]
+    available_momentum_fields = [v for v in momentum_fields if v in config]
+    if len(available_momentum_fields) != 1:
+        issues.append(f"Wrong number of momentum fields. Must include one of: {momentum_fields}")
+    for k in available_momentum_fields:
+        value = config[k]
+        if "min" in k and not isinstance(value, float):
+            issues.append(f"`{k}` field not formatted correctly. Needs a single value, provided: {value=}")
+        elif len(value) < 2:
+            issues.append(f"`{k}` field not formatted correctly. Needs at least two values, provided: {value=}")
+    # Check for lower case "et" (which is a misspelling of Et)
+    if any(v in config for v in ["et", "et_min"]):
+        issues.append(
+            f"Contains `et` or `et_min`, which should be spelled `Et` or `Et_min`. Provided keys: {config.keys()}"
+        )
+
+    # Eta requirement
+    if not any(v in config for v in ["eta_cut", "y_cut"]):
+        issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
+
+    return issues
+
+
+def _check_z_trigger_properties(config: dict[str, Any]) -> list[str]:
+    """Check z trigger properties in config.
+
+    Args:
+        config: Configuration containing the parameters relevant to z triggers.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    logger.debug("-> Checking Z boson trigger properties")
+
+    issues = []
+    if not config:
+        issues.append("Missing trigger config!")
+
+    # Muon requirements
+    # Need either "pt" or "pt_min"
+    if "muon_pt" not in config and "muon_pt_min" not in config:
+        issues.append("Need muon pt or pt_min")
+    pt = config.get("muon_pt")
+    if pt and len(pt) < 2:
+        issues.append(f"`muon_pt` field not formatted correctly. Needs at least two values, provided: {pt=}")
+    pt_min = config.get("muon_pt_min")
+    if pt_min and not isinstance(pt_min, float):
+        issues.append(f"`muon_pt_min` field not formatted correctly. Needs a single value, provided: {pt_min=}")
+    # Eta requirement
+    if not any(v in config for v in ["muon_eta_cut", "muon_y_cut"]):
+        issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
+    # z requirements
+    # mass
+
+    return issues
+
+
+def _check_jet_properties(config: dict[str, Any]) -> list[str]:
+    """Check jet properties in config.
+
+    Separated from the implementation for clarity of logging where the call originates.
+
+    Args:
+        config: Configuration containing the parameters relevant to jets.
+            Could be the main config, but could also be e.g. the recoil jet config
+            for a triggered observable.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    logger.debug("-> Checking jet properties")
+    return _check_jet_properties_impl(config=config)
+
+
+def _check_jet_properties_impl(config: dict[str, Any]) -> list[str]:
+    """Check jet properties in config implementation.
+
+    Args:
+        config: Configuration containing the parameters relevant to jets.
+            Could be the main config, but could also be e.g. the recoil jet config
+            for a triggered observable.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    issues = []
+    if not config:
+        issues.append("Missing jet config!")
+    if "jet_R" not in config:
+        issues.append("Missing jet_R")
+    # Need either "pt" or "pt_min"
+    if "pt" not in config and "pt_min" not in config:
+        issues.append("Need pt or pt_min")
+    pt = config.get("pt")
+    if pt and len(pt) < 2:
+        issues.append(f"`pt` field not formatted correctly. Needs at least two values, provided: {pt=}")
+    pt_min = config.get("pt_min")
+    if pt_min and not isinstance(pt_min, float):
+        issues.append(f"`pt_min` field not formatted correctly. Needs a single value, provided: {pt_min=}")
+    # Eta requirement
+    if not any(v in config for v in ["eta_cut", "eta_cut_R", "y_cut"]):
+        issues.append(
+            f"Missing eta_cut, eta_cut_R, y_cut, eta_cut_jet (as appropriate for the observable). Provided keys: {config.keys()}"
+        )
+
+    # Label each issue for clarity
+    return [f"jet: {v}" for v in issues]
+
+
+def _check_hadron_properties(config) -> list[str]:
+    """Check hadron properties in config.
+
+    Separated from the implementation for clarity of logging where the call originates.
+
+    Args:
+        config: Configuration containing the parameters relevant to hadrons.
+            Could be the main config, but could also be e.g. the recoil hadron config
+            for a triggered observable.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    logger.debug("-> Checking hadron properties")
+    return _check_hadron_properties_impl(config=config)
+
+
+def _check_hadron_properties_impl(config) -> list[str]:
+    """Check hadron properties in config implementation.
+
+    Args:
+        config: Configuration containing the parameters relevant to hadrons.
+            Could be the main config, but could also be e.g. the recoil hadron config
+            for a triggered observable.
+    Returns:
+        Any issues observed with the configuration.
+    """
+
+    issues = []
+    if not config:
+        issues.append("Missing hadron config!")
+    # Need either "pt" or "pt_min"
+    if "pt" not in config and "pt_min" not in config:
+        issues.append("Need pt or pt_min")
+    pt = config.get("pt")
+    if pt and len(pt) < 2:
+        issues.append(f"`pt` field not formatted correctly. Needs at least two values, provided: {pt=}")
+    pt_min = config.get("pt_min")
+    if pt_min and not isinstance(pt_min, float):
+        issues.append(f"`pt_min` field not formatted correctly. Needs a single value, provided: {pt_min=}")
+    # Eta requirement
+    if not any(v in config for v in ["eta_cut", "y_cut"]):
+        issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
+
+    # Label each issue for clarity
+    return [f"hadron: {v}" for v in issues]
 
 
 def validate_yaml(filename: Path) -> Result:
