@@ -110,7 +110,7 @@ class HistogramResults(common_base.CommonBase):
             # Hadron histograms
             self.histogram_hadron_observables(observable_type="hadron")
 
-            self.histogram_hadron_correlation_observables(observable_type="hadron_correlations")
+            self.histogram_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
 
             # Jet histograms: loop through different hole subtraction treatments
             for jet_collection_label in self.jet_collection_labels:
@@ -434,7 +434,7 @@ class HistogramResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Histogram hadron correlation observables
     # -------------------------------------------------------------------------------------------
-    def histogram_hadron_correlation_observables(self, observable_type=""):
+    def histogram_hadron_trigger_hadron_observables(self, observable_type=""):
         logger.info()
         logger.info(f"Histogram {observable_type} observables...")
 
@@ -855,7 +855,7 @@ class HistogramResults(common_base.CommonBase):
         h = ROOT.TH1F(hname, hname, len(bins) - 1, bins)
         h.Sumw2()
 
-        if "hadron_correlations_v2" in hname:
+        if "hadron_trigger_hadron_v2" in hname:
             # for v2 calculation only
             hname2 = f"h_{column_name}_denom_{centrality}{pt_suffix}"
             h2 = ROOT.TH1F(hname2, hname2, len(bins) - 1, bins)

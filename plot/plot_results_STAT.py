@@ -165,9 +165,9 @@ class PlotResults(common_base.CommonBase):
                 self.plot_observable(observable_type, observable, centrality)
 
     # -------------------------------------------------------------------------------------------
-    # Plot hadron correlation observables
+    # Plot hadron triggered hadron observables
     # -------------------------------------------------------------------------------------------
-    def plot_hadron_correlation_observables(self, observable_type=""):
+    def plot_hadron_trigger_hadron_observables(self, observable_type=""):
         logger.info(f"\nPlot {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
@@ -689,7 +689,7 @@ class PlotResults(common_base.CommonBase):
                     h.Scale(1.0 / (2 * self.eta_cut))
                     h.Scale(1.0 / (2 * np.pi))
                     h.Scale(1.0 / sigma_inel)
-            elif observable_type == "hadron_correlations":
+            elif observable_type == "hadron_trigger_hadron":
                 if observable == "dihadron_star":
                     # Need to grab the pt trig range
                     # Example: "_pt_trig_8_15_...." -> split -> ['', 'pt', 'trig', '8', '15', '....']
@@ -894,7 +894,7 @@ class PlotResults(common_base.CommonBase):
         # In the case of pp, just look at the deltaPhi correlations themselves
         # In any case, we don't have data to compare against.
         # If skip_pp is turned off, then we can check the yields in pp.
-        if observable_type == "hadron_correlations" and observable == "dihadron_star" and not self.skip_pp:
+        if observable_type == "hadron_trigger_hadron" and observable == "dihadron_star" and not self.skip_pp:
             # Grab the delta phi correlation
             h = self.observable_settings["jetscape_distribution"]
             # Extract the yield

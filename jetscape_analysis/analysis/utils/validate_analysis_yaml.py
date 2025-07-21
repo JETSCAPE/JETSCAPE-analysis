@@ -273,7 +273,7 @@ def _check_hadron_trigger_properties(config: dict[str, Any]) -> list[str]:
     if not config:
         issues.append("Missing trigger config!")
     # Use the existing hadron configuration properties
-    issues.extend(_check_hadron_properties_impl(config=config))
+    issues.extend(_check_hadron_properties_impl(config=config, trigger=True))
     return issues
 
 
@@ -454,7 +454,7 @@ def _check_jet_properties_impl(config: dict[str, Any]) -> list[str]:
     return [f"jet: {v}" for v in issues]
 
 
-def _check_hadron_properties(config) -> list[str]:
+def _check_hadron_properties(config: dict[str, Any]) -> list[str]:
     """Check hadron properties in config.
 
     Separated from the implementation for clarity of logging where the call originates.
@@ -470,7 +470,7 @@ def _check_hadron_properties(config) -> list[str]:
     return _check_hadron_properties_impl(config=config)
 
 
-def _check_hadron_properties_impl(config) -> list[str]:
+def _check_hadron_properties_impl(config: dict[str, Any], trigger: bool = False) -> list[str]:
     """Check hadron properties in config implementation.
 
     Args:
@@ -488,7 +488,13 @@ def _check_hadron_properties_impl(config) -> list[str]:
     if "pt" not in config and "pt_min" not in config:
         issues.append("Need pt or pt_min")
     pt = config.get("pt")
-    if pt and len(pt) < 2:
+    if pt and (
+        # For the standard case, it must be a list of at least two values.
+        (not trigger and len(pt) < 2)
+        # For the trigger case, it can be a list of trigger pairs (which is to say,
+        # a single value at the first list level would be fine. i.e. [[8., 15.]])
+        or (trigger and len(pt) < 1)
+    ):
         issues.append(f"`pt` field not formatted correctly. Needs at least two values, provided: {pt=}")
     pt_min = config.get("pt_min")
     if pt_min and not isinstance(pt_min, float):

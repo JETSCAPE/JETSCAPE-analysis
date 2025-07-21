@@ -251,9 +251,10 @@ hadron:
     skip_AA_distribution: True ## PbPb hepdata not available
 
 #------------------------------------------------------------------
-# Hadron correlations
+# Hadron triggered hadron correlations
+# e.g. v2, di-hadron correlations, etc...
 #------------------------------------------------------------------
-hadron_correlations:
+hadron_trigger_hadron:
   # ALICE scalar-product v2
   v2_sp_alice:
     enabled: false

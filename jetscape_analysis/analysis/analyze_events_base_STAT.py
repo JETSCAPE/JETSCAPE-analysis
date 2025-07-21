@@ -617,9 +617,7 @@ def get_charged_mask(pid: npt.NDArray[np.int32], select_charged: bool) -> npt.ND
 
 
 @jit(nopython=True)
-def dphi_in_range_for_hadron_correlations(
-    dphi: float, min_phi: float = -np.pi / 2, max_phi: float = 3 * np.pi / 2
-) -> float:
+def dphi_in_range(dphi: float, min_phi: float = -np.pi / 2, max_phi: float = 3 * np.pi / 2) -> float:
     """Put dphi in range min_phi <= dphi < max_phi
 
     Args:

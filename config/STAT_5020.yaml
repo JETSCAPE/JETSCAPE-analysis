@@ -211,9 +211,10 @@ hadron:
     ytitle_AA: "#it{R}_{AA}"
 
 #------------------------------------------------------------------
-# Hadron correlations
+# Hadron triggered hadron correlations
+# e.g. v2, di-hadron correlations, etc...
 #------------------------------------------------------------------
-hadron_correlations:
+hadron_trigger_hadron:
   # ATLAS v2, scalar product
   v2_sp_atlas:
     enabled: false
