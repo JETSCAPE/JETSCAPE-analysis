@@ -147,7 +147,7 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
         if not centrality:
             validation_issues[key].append("Missing 'centrality' key")
         else:
-            logger.debug(f"Checking centrality: {centrality}")
+            # logger.debug(f"Checking centrality: {centrality}")
             # Must be a list of lists
             for cent in centrality:
                 centrality_issues = []
