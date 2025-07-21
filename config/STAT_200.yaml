@@ -151,9 +151,9 @@ hadron:
 # Hadron correlations
 #------------------------------------------------------------------
 hadron_correlations:
-  # Di-hadron correlations -- delta-phi and D(z)
+  # STAR di-hadron correlations -- delta-phi and D(z)
   # See Fig 3 here: https://arxiv.org/pdf/nucl-th/0701045.pdf
-  # pmj 13/1/22: incomplete. This is a key RHIC paper imho (based on the analysis of Xin-Nian et al., which formed the basis of a lot of developments)
+  # TODO(PMJ) 13/1/22: incomplete. This is a key RHIC paper imho (based on the analysis of Xin-Nian et al., which formed the basis of a lot of developments)
   dihadron_star:
     enabled: true
     urls:
@@ -251,21 +251,24 @@ inclusive_chjet:
 # (e.g. semi-inclusive h-jet)
 #------------------------------------------------------------------
 hadron_trigger_chjet:
-  # Note: no pp reference -- RCP and R02/R05 -- we include only R02/R05 for now
-  # pmj 13/1/22: QA OK other than issues with hepdata that you identify.
-  # pmj 13/1/22: Please formulate your questions about the hepdata entries and I will send them to Alex (I thought they had been fixed ;-( )
+  # Note: no pp reference -- RCP and R02/R05 --, so we include only R02/R05 for now
   IAA_pt_star:
     enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1512115
       hepdata: https://www.hepdata.net/record/ins1512115
 
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.
-    pt: [5., 30.]
     centrality: [[0, 10]]
-    hadron_eta_cut: 0.9
-    trigger_range: [9., 30.]
+    trigger:
+      pt: [9., 30.]
+      eta_cut: 0.9
+    jet:
+      jet_R: [0.2, 0.5]
+      eta_cut_R: 1.
+      pt: [5., 30.]
+
+    hepdata: "HEPData-ins1512115-v1-root.root"
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
@@ -274,14 +277,13 @@ hadron_trigger_chjet:
     y_max_pp: 2.
     skip_pp: true
 
-    hepdata: "HEPData-ins1512115-v1-root.root"
     hepdata_AA_dir: "Table 38"
     hepdata_AA_dir_R02_R05: "Table 38"
     hepdata_AA_gname: ["Graph1D_y1"]
     hepdata_AA_hname: ["Hist1D_y1"]
     ytitle_AA: "#it{R}_{AA}"
 
-  # The bin width is constant at 0.1256.  For the most left two data points, there are really missing in HEP
+  # The bin width is constant at 0.1256.  For the most left two data points, there are really missing in the HEPdata
   # PMJ 1/21/25: data points not recoverable without some effort.
   # Since this dataset has been superseded in quality by a more recent STAR publication I judge this not to worth the trouble.
   dphi_star:
@@ -290,16 +292,20 @@ hadron_trigger_chjet:
       inspire_hep: https://inspirehep.net/literature/1512115
       hepdata: https://www.hepdata.net/record/ins1512115
 
-    jet_R: [0.3]
-    eta_cut_R: 1.
-    pt: [9., 13.]
     centrality: [[0, 10]]
-    hadron_eta_cut: 0.9
-    trigger_range: [9., 30.]
+    trigger:
+      pt: [9., 30.]
+      eta_cut: 0.9
+    jet:
+      jet_R: [0.3]
+      eta_cut_R: 1.
+      pt: [9., 13.]
+
+    hepdata: "HEPData-ins1512115-v1-root.root"
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
 
-    hepdata: "HEPData-ins1512115-v1-root.root"
     hepdata_pp_dir: "Table 42"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#Phi(#Delta#it{#varphi})"
@@ -320,8 +326,11 @@ hadron_trigger_chjet:
 # (e.g. semi-inclusive pi_zero-jet)
 #------------------------------------------------------------------
 pion_trigger_chjet:
-  # Includes R(0.2)/R(0.5) ratio, which we will construct after measuring the individual spectra.
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # STAR, pion-triggered I_AA(pt)
+  # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
+  # NOTE(PMJ): Unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # TODO(RJE) July 2025: Based on advice from PMJ, we first implement the main Et ranges with the highest precision.
+  #                      At a later date, we need to consider including the other ranges.
   IAA_pt_star:
     enabled: false
     urls:
@@ -332,23 +341,27 @@ pion_trigger_chjet:
       #inspire_hep: https://inspirehep.net/literature/2693062
 
     centrality: [[0, 15]]
-
-    pion:
+    # pion trigger
+    trigger:
       eta_cut: 1.0
-      pt: [11., 15.]
+      # Matching the particle level range for the input to the smearing calculation
+      Et: [9., 22.]
+      #Et: [11., 15.]
 
-      # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
-      # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
-      # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
-      # it with the experimentally specified weighting
-      trigger_range_det: [11., 15.]
-      trigger_range_part: [9., 22.]
-
+      # NOTE(PMJ): 1/23/25; per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+      #            the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
+      #            as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
+      #            it with the experimentally specified weighting
+      smearing:
+        detector_level_Et: [11., 15.]
+        particle_level_Et: [9., 22.]
     jet:
       jet_R: [0.2, 0.5]
       eta_cut_R: 1.0 # value gives eta that one still has to subtract R from
       pt: [5., 30.]
     dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
+
+    hepdata: "HEPData-ins2693040-v1-root.root"
 
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
@@ -358,10 +371,13 @@ pion_trigger_chjet:
     y_max_pp: 1.2
     skip_pp: true
 
-    hepdata: "HEPData-ins2693040-v1-root.root"
-
-  # pmj 2/28/25 same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # STAR, pion-triggered IAA(dPhi)
+  # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
+  # NOTE(PMJ): Unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # NOTE: Same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
+  #       but kinematic selections are _not_ the same.
+  # TODO(RJE) July 2025: Based on advice from PMJ, we first implement the main Et ranges with the highest precision.
+  #                      At a later date, we need to consider including the other ranges.
   dphi_star:
     enabled: false
     urls:
@@ -370,14 +386,21 @@ pion_trigger_chjet:
       custom: TODO
 
     centrality: [[0, 15]]
-
-    pion:
+    # pion trigger
+    trigger:
       eta_cut: 1.0
-      pt: [11., 15.]
+      # Matching the particle level range for the input to the smearing calculation
+      Et: [9., 22.]
+      #Et: [11., 15.]
+
+      # See note above for pion_trigger_chjet_IAA_pt_star
+      smearing:
+        detector_level_Et: [11., 15.]
+        particle_level_Et: [9., 22.]
     jet:
       jet_R: [0.2, 0.5]
       eta_cut_R: 1.0
-      pt: [10., 20.]
+      pt: [10., 15., 20.]
 
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
@@ -387,8 +410,11 @@ pion_trigger_chjet:
     y_max_pp: 50.
     skip_pp: true
 
-    bin_centroid: [1.9, 2.35, 2.65, 2.9, 3.07]
-    bin_width: [0.3, 0.15, 0.15, 0.1, 0.07]
+    bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
+    # NOTE(RJE): Bins provided are below, but had to take bin_width below and multiply to two to get
+    #            consistent bin edges.
+    #bin_centroid: [1.9, 2.35, 2.65, 2.9, 3.07]
+    #bin_width: [0.3, 0.15, 0.15, 0.1, 0.07]
 
 #------------------------------------------------------------------
 # gamma triggered hadron observables
@@ -406,6 +432,7 @@ gamma_trigger_hadron:
       hepdata: https://www.hepdata.net/record/ins1798493
 
     centrality: [[0, 40]]
+    # Gamma trigger
     trigger:
       pt: [5., 9.]
       eta_cut: 10000.
@@ -413,13 +440,14 @@ gamma_trigger_hadron:
       pt: [5., 7.]
       eta_cut: 0.35
 
+    hepdata: "HEPData-ins1512115-v1-root.root"
+
     xtitle: "#zeta"
     logy: true
 
     ytitle_pp: "I_{AA}"
     skip_pp: true
 
-    hepdata: "HEPData-ins1512115-v1-root.root"
     hepdata_AA_dir: "Figure 4b"
     hepdata_AA_gname: ["Graph1D_y1"]
     hepdata_AA_hname: ["Hist1D_y1"]
@@ -430,9 +458,11 @@ gamma_trigger_hadron:
 # (e.g. semi-inclusive gamma-jet)
 #------------------------------------------------------------------
 gamma_trigger_chjet:
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
-  # FJ TODO waiting for refolding matrix to be available before we include detector effects
-  # Includes R(0.2)/R(0.5) ratio, which we will construct after measuring the individual spectra.
+  # STAR, gamma-triggered IAA(pt)
+  # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
+  # NOTE(PMJ): Unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # TODO(RJE) July 2025: Based on advice from PMJ, we first implement the main Et ranges with the highest precision.
+  #                      At a later date, we need to consider including the other ranges.
   IAA_pt_star:
     enabled: false
     urls:
@@ -443,24 +473,23 @@ gamma_trigger_chjet:
       #inspire_hep: https://inspirehep.net/literature/2693062
 
     centrality: [[0, 15]]
-
+    # Gamma trigger
     trigger:
       eta_cut: 1.0
-      pt: [15., 20.]
+      # Matching the particle level range for the input to the smearing calculation
+      Et: [12., 23.]
+      #Et: [15., 20.]
 
-      # pmj 1/23/25: per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
-      # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
-      # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
-      # it with the experimentally specified weighting
-      # TODO(FJ): Ratio will just be an additional histogram for plotting!
       smearing:
-        det_range: [15., 20.]
-        part_range: [12., 23.]
+        detector_level_Et: [15., 20.]
+        particle_level_Et: [12., 23.]
     jet:
       jet_R: [0.2, 0.5]
       eta_cut_R: 1.0 # value gives eta that one still has to subtract R from
       pt: [5., 20.]
     dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
+
+    hepdata: "HEPData-ins2693040-v1-root.root"
 
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
@@ -470,10 +499,13 @@ gamma_trigger_chjet:
     y_max_pp: 1.2
     skip_pp: true
 
-    hepdata: "HEPData-ins2693040-v1-root.root"
-
-  # pmj 2/28/25 same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # STAR, gamma-triggered IAA(dphi)
+  # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
+  # NOTE(PMJ): Unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # NOTE: Same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
+  #       but kinematic selections are _not_ the same.
+  # TODO(RJE) July 2025: Based on advice from PMJ, we first implement the main Et ranges with the highest precision.
+  #                      At a later date, we need to consider including the other ranges.
   dphi_star:
     enabled: false
     urls:
@@ -486,11 +518,21 @@ gamma_trigger_chjet:
 
     trigger:
       eta_cut: 1.0
-      pt: [11., 15.]
+      # Matching the particle level range for the input to the smearing calculation
+      Et: [9., 22.]
+      #Et: [11., 15.]
+
+      # NOTE(PMJ): 1/23/25; per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+      #            the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
+      #            as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
+      #            it with the experimentally specified weighting
+      smearing:
+        detector_level_Et: [11., 15.]
+        particle_level_Et: [9., 22.]
     jet:
       jet_R: [0.2, 0.5]
       eta_cut_R: 1.0
-      pt: [10., 20.]
+      pt: [10., 15., 20.]
 
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
@@ -500,5 +542,8 @@ gamma_trigger_chjet:
     y_max_pp: 50.
     skip_pp: true
 
-    bin_centroid: [1.9, 2.35, 2.65, 2.9, 3.07]
-    bin_width: [0.3, 0.15, 0.15, 0.1, 0.07]
+    bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
+    # NOTE(RJE): Bins provided are below, but had to take bin_width below and multiply to two to get
+    #            consistent bin edges.
+    #bin_centroid: [1.9, 2.35, 2.65, 2.9, 3.07]
+    #bin_width: [0.3, 0.15, 0.15, 0.1, 0.07]
