@@ -179,9 +179,18 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             # Store dictionary of all observables for the event
             self.observable_dict_event = {}
 
-            # Update self.centrality dynamically per event when it's not precomputed_hydro
-            if self.is_AA and self.use_event_based_centrality:
-                    self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
+            # Update self.centrality dynamically per event
+            if self.is_AA:
+                if self.use_event_based_centrality:
+                    # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
+                    # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
+                    self.centrality = [5, 10]
+                    #if i == 0 and "centrality" not in event:
+                    #    msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
+                    #    raise ValueError(msg)
+                    #self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
+                else:
+                    self.centrality = self.default_centrality  # Use fixed centrality; values are passed from the Run_info.yaml file
 
             # Call user-defined function to analyze event
             self.analyze_event(event)
@@ -341,6 +350,10 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         else:
             # Picked a value to make an all true mask. We don't select anything
             status_mask = event['status'] > -1e6
+        # TODO(HYBRID): For hybrid model, remove the outgoing partons
+        status_mask = status_mask & event["status"] != -2
+        #print(f"{len(event['status'])=}")
+        #print(f"{np.all(status_mask)=}, {select_status=}")
 
         # Construct indices according to charge
         charged_mask = get_charged_mask(event['particle_ID'], select_charged)
@@ -355,14 +368,21 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         # Define status_factor -- either +1 (positive status) or -1 (negative status)
         status_selected = event['status'][full_mask] # Either 0 (positive) or -1 (negative)
-        status_factor = 2*status_selected + 1 # Change to +1 (positive) or -1 (negative)
+        #import pdb; pdb.set_trace()
+        # TODO(HYBRID): Since the factors are different, we need a different way to encode the particles.
+        #               So for a first test, we'll just take 0 as the final state hadrons and everything else
+        #               as the "negative" particles.
+        status_factor = np.where(status_selected == 0, 1, -1)
+        #status_factor = 2*status_selected + 1 # Change to +1 (positive) or -1 (negative)
         # NOTE: Need to explicitly convert to np.int8 -> np.int32 so that the status factor can be
         #       set properly below. Otherwise, it will overflow when setting the user index if there
         #       are too many particles.
         status_factor = status_factor.astype(np.int32)
         for status in np.unique(status_selected): # Check that we only encounter expected statuses
             if status not in [0,-1]:
-                sys.exit(f'ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}')
+                pass
+                # TODO(HYBRID): Hybrid codes go to -2, so need to figure out how to make this check reliable
+                #sys.exit(f'ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}')
 
         # Create a vector of fastjet::PseudoJets from arrays of px,py,pz,e
         fj_particles = fjext.vectorize_px_py_pz_e(px, py, pz, e)
