@@ -94,13 +94,15 @@ hadron:
       inspire_hep: https://inspirehep.net/literature/1657384
       hepdata: https://www.hepdata.net/record/ins1657384
 
-    eta_cut: 0.8
-    pt: [5.0, 50.]
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+    pt: [5.0, 50.]
+    eta_cut: 0.8
+
+    hepdata: "HEPData-ins1657384-v1-root.root"
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: True
 
-    hepdata: "HEPData-ins1657384-v1-root.root"
     hepdata_pp_dir: "Table 4"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#frac{1}{#it{N}_{event}} #frac{d^{2}#it{N}}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1}#right]"
@@ -124,13 +126,15 @@ hadron:
       inspire_hep: https://inspirehep.net/literature/1759506
       hepdata: https://www.hepdata.net/record/ins1759506
 
-    eta_cut: 0.8
-    pt: [5.0, 20.]
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+    pt: [5.0, 20.]
+    eta_cut: 0.8
+
+    hepdata: "HEPData-ins1759506-v1-root.root"
+
     xtitle: "#it{p}_{T}"
     logy: True
 
-    hepdata: "HEPData-ins1759506-v1-root.root"
     hepdata_pp_dir: "Table 2"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#frac{1}{#it{N}_{event}} #frac{d^{2}#it{N}}{d#it{p}_{T}d#it{#eta}} #left[(GeV/c)^{-1}#right]"
@@ -154,13 +158,15 @@ hadron:
       inspire_hep: https://inspirehep.net/literature/1496050
       hepdata: https://www.hepdata.net/record/ins1496050
 
-    eta_cut: 1.0
-    pt: [5.0, 400.]
     centrality: [[0, 5], [5, 10], [10, 30], [30, 50]]
+    pt: [5.0, 400.]
+    eta_cut: 1.0
+
+    hepdata: "HEPData-ins1496050-v2-root.root"
+
     xtitle: "#it{p}_{T}"
     logy: True
 
-    hepdata: "HEPData-ins1496050-v2-root.root"
     scale_by: "1/pt"
 
     hepdata_pp_dir: "Table 7"
@@ -190,13 +196,15 @@ hadron:
       inspire_hep: https://inspirehep.net/literature/2601282
       hepdata: https://www.hepdata.net/record/ins2601282
 
-    eta_cut: 2.5
-    pt: [5.0, 300.] # measurement in p-Pb actually starts at 0.5 GeV but cutoff at 5 GeV to not simulate very soft stuff
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]] # we stop at 50% centrality, but the measurement continues to 80%
+    pt: [5.0, 300.] # measurement in p-Pb actually starts at 0.5 GeV but cutoff at 5 GeV to not simulate very soft stuff
+    eta_cut: 2.5
+
+    hepdata: "HEPData-ins2601282-v1-root.root"
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: True
 
-    hepdata: "HEPData-ins2601282-v1-root.root"
     hepdata_pp_dir: "Table 10"
     hepdata_pp_gname: "Hist1D_y1"
     ytitle_pp: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{y}} #left[mb GeV^{2}#right]"
@@ -222,19 +230,21 @@ hadron_trigger_hadron:
       inspire_hep: https://inspirehep.net/literature/1686834
       hepdata: https://www.hepdata.net/record/ins1686834
 
+    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+
     # Measurement goes to 0.5 GeV, but we cut at 5 GeV to keep data volume reasonable
     pt: [5.0, 60.]
-    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
 
     trigger_hadron:
       # Reference is constructed inside of this range
       eta_cut: [3.2, 4.9]
-
     associated_hadron:
       eta_cut: 2.5
 
     hepdata: "HEPData-ins1686834-v1-root.root"
+
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
+
     hepdata_pp_dir: "Table 11"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#it{v}_{2}(SP)"
@@ -253,19 +263,21 @@ hadron_trigger_hadron:
       inspire_hep: https://inspirehep.net/literature/1686834
       hepdata: https://www.hepdata.net/record/ins1686834
 
+    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+
     # Measurement goes to 0.5 GeV, but we cut at 5 GeV to keep data volume reasonable
     pt: [5.0, 60.]
-    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
 
     trigger_hadron:
       # Reference is constructed inside of this range
       eta_cut: [3.2, 4.9]
-
     associated_hadron:
       eta_cut: 2.5
 
     hepdata: "HEPData-ins1686834-v1-root.root"
+
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
+
     hepdata_pp_dir: "Table 298"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#it{v}_{2}(SP)"
@@ -284,20 +296,22 @@ hadron_trigger_hadron:
       inspire_hep: https://inspirehep.net/literature/1511868
       hepdata: https://www.hepdata.net/record/ins1511868
 
+    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+
     # Measurement goes to 1.0 GeV, but we cut at 5 GeV to keep data volume reasonable
     pt: [5., 100.]
-    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
 
     trigger_hadron:
-      # Reference is constructed inside of this range
+      # Reference is constructed within this range
       eta_cut: [3.0, 5.0]
-
     associated_hadron:
       eta_cut: 1.0
 
     # Note: histogram binnings are not provided (i.e. just central values, not bin edges)
     hepdata: "HEPData-ins1511868-v1-root.root"
+
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
+
     hepdata_pp_dir: "Table 7"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#it{v}_{2}(SP)"
@@ -315,19 +329,20 @@ hadron_trigger_hadron:
       inspire_hep: https://inspirehep.net/literature/1511868
       hepdata: https://www.hepdata.net/record/ins1511868
 
+    centrality: [[5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
     # Measurement goes to 1.0 GeV, but we cut at 5 GeV to keep data volume reasonable
     pt: [5., 100.]
-    centrality: [[5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
 
     trigger_hadron:
       # Reference is constructed inside of this range
       eta_cut: [3.0, 5.0]
-
     associated_hadron:
       eta_cut: 1.0
 
     hepdata: "HEPData-ins1511868-v1-root.root"
+
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
+
     hepdata_pp_dir: "Table 20"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#it{v}_{2}{4}"
@@ -345,19 +360,20 @@ hadron_trigger_hadron:
       inspire_hep: https://inspirehep.net/literature/1666817
       hepdata: https://www.hepdata.net/record/ins1666817
 
+    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
     # Measurement goes to 0.2 GeV, but we cut at 5 GeV to keep data volume reasonable
     pt: [5.0, 50.]
-    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
 
     trigger_hadron:
       # Reference is constructed inside of this range
       eta_cut: [2.8, 5.1]
-
     associated_hadron:
       eta_cut: 0.8
 
     hepdata: "HEPData-ins1666817-v1-root.root"
+
+    xtitle: "#it{p}_{T} (GeV/#it{c})"
+
     hepdata_pp_dir: "Table 131"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#it{v}_{2}(SP)"
@@ -376,16 +392,16 @@ hadron_trigger_hadron:
       inspire_hep: https://inspirehep.net/literature/1666817
       hepdata: https://www.hepdata.net/record/ins1666817
 
-    # Measurement goes to 0.2 GeV, but we cut at 5 GeV to keep data volume reasonable
-    pt: [5.0, 50.]
     # NOTE(RJE): It appears that the 0-5 is not reported in the paper. Not sure why.
     centrality: [[5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+    # Measurement goes to 0.2 GeV, but we cut at 5 GeV to keep data volume reasonable
+    pt: [5.0, 50.]
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
 
     trigger_hadron:
       # Reference is constructed inside of this range
       eta_cut: [2.8, 5.1]
-
     associated_hadron:
       eta_cut: 0.8
 
@@ -407,17 +423,20 @@ hadron_trigger_hadron:
 inclusive_chjet:
   # ALICE charged jet RAA, ML background subtraction
   # PMJ 2/28/25: new analysis charged jet RAA with ME background correction
-  # RJE 2025/04/07: Need to somehow disambiguate from the ML jet measurement.
+  # TODO(RJE) 2025/04/07: Need to somehow disambiguate from the ML jet measurement.
   pt_alice:
     enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/2637686
       hepdata: https://www.hepdata.net/record/ins2637686
 
-    jet_R: [0.2, 0.4, 0.6]
-    eta_cut_R: 0.9 # 0.9 - R
-    pt: [20., 140.]
     centrality: [[0, 10], [30, 50]]
+    jet_R: [0.2, 0.4, 0.6]
+    pt: [20., 140.]
+    eta_cut_R: 0.9 # 0.9 - R
+
+    hepdata: "HEPData-ins2637686-v1-root.root"
+
     xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
     logy: True
 
@@ -426,8 +445,6 @@ inclusive_chjet:
     y_max_pp: 1.5
     skip_pp: True
 
-    hepdata: "HEPData-ins2637686-v1-root.root"
-
   # ALICE charged jet RAA, mixed-event background subtraction
   pt_mixed_events_alice:
     enabled: false
@@ -435,10 +452,11 @@ inclusive_chjet:
       inspire_hep: N/A
       hepdata: N/A
 
-    jet_R: [0.2, 0.3, 0.4, 0.5]
-    eta_cut_R: 0.9 # 0.9 - R
-    pt: [10., 200.]
     centrality: [[0, 10]]
+    jet_R: [0.2, 0.3, 0.4, 0.5]
+    pt: [10., 200.]
+    eta_cut_R: 0.9 # 0.9 - R
+
     xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
     logy: True
 
@@ -458,14 +476,16 @@ inclusive_chjet:
       inspire_hep: https://inspirehep.net/literature/1893479
       hepdata: https://www.hepdata.net/record/ins1893479
 
-    jet_R: [0.2, 0.4]
-    eta_cut_R: 0.9
-    pt: [60., 80.]
     centrality: [[0, 10], [30, 50]]
+    jet_R: [0.2, 0.4]
+    pt: [60., 80.]
+    eta_cut_R: 0.9
     SoftDrop:
       - { "zcut": 0.2, "beta": 0 }
-    xtitle: "#it{z}_{g}"
+
     hepdata: "HEPData-ins1893479-v1-root.root"
+
+    xtitle: "#it{z}_{g}"
 
     hepdata_pp_dir_R0.2_zcut0.2_beta0: ["Table 1", ""]
     hepdata_pp_dir_R0.4_zcut0.2_beta0: ["", "Table 4"]
@@ -496,14 +516,16 @@ inclusive_chjet:
       inspire_hep: https://inspirehep.net/literature/1893479
       hepdata: https://www.hepdata.net/record/ins1893479
 
-    jet_R: [0.2, 0.4]
-    eta_cut_R: 0.9
-    pt: [60., 80.]
     centrality: [[0, 10], [30, 50]]
+    jet_R: [0.2, 0.4]
+    pt: [60., 80.]
+    eta_cut_R: 0.9
     SoftDrop:
       - { "zcut": 0.2, "beta": 0 }
-    xtitle: "#it{#theta}_{g}"
+
     hepdata: "HEPData-ins1893479-v1-root.root"
+
+    xtitle: "#it{#theta}_{g}"
 
     hepdata_pp_dir_R0.2_zcut0.2_beta0: ["Table 7", ""]
     hepdata_pp_dir_R0.4_zcut0.2_beta0: ["", "Table 10"]
@@ -537,11 +559,12 @@ inclusive_chjet:
       inspire_hep: https://inspirehep.net/literature/2070434
       hepdata: https://www.hepdata.net/record/ins2070434
 
-    jet_R: [0.4]
-    eta_cut_R: 0.9
-    pt: [80., 120.]
     centrality: [[0, 10]]
+    jet_R: [0.4]
+    pt: [80., 120.]
+    eta_cut_R: 0.9
     r: [0.1, 0.2]
+
     hepdata: "HEPData-ins2070434-v1-root.root"
 
   # ALICE, jet-axis difference
@@ -559,18 +582,23 @@ inclusive_chjet:
       # pp hepdata: https://www.hepdata.net/record/ins2182727?version=1
       custom: TODO
 
-    jet_R: [0.2, 0.4]
-    eta_cut_R: 0.9
-    pt: [40., 60, 80, 100, 140.]
     centrality: [[0, 10]]
+    jet_R: [0.2, 0.4]
+    pt: [40., 60, 80, 100, 140.]
+    eta_cut_R: 0.9
     axis:
       - { "type": "WTA_Standard" }
       - { "type": "WTA_SD", "grooming_settings": { "zcut": 0.2, "beta": 0 } }
       - { "type": "WTA_SD", "grooming_settings": { "zcut": 0.1, "beta": 0 } }
+
     xtitle: "#Delta R_{axis}"
 
-    # pp, R = 0.2
+    # pp
     hepdata_pp: "HEPData-ins2182727-v1-root.root"
+    # AA
+    hepdata_AA: "HEPData-ins2648610-v1-root.root"
+
+    # R = 0.2
     # zcut = 0.1
     hepdata_pp_dir_R0.2_zcut0.1_beta0_WTA_SD_pt0: "Table 15"
     hepdata_pp_dir_R0.2_zcut0.1_beta0_WTA_SD_pt1: "Table 28"
@@ -585,8 +613,6 @@ inclusive_chjet:
     y_min_pp: 0
     y_max_pp: 35
 
-    # AA
-    hepdata_AA: "HEPData-ins2648610-v1-root.root"
     # zcut = 0.1 (supplement)
     hepdata_AA_dir_R0.2_zcut0.1_beta0_WTA_SD_pt0: "Table 10"
     hepdata_AA_dir_R0.2_zcut0.1_beta0_WTA_SD_pt1: "Table 12"
@@ -598,7 +624,7 @@ inclusive_chjet:
     hepdata_AA_dir_R0.2_zcut0.2_beta0_WTA_SD_pt3: "Table 7"
     hepdata_AA_dir_R0.2_WTA_Standard_pt0: "Table 2"
     hepdata_AA_dir_R0.2_WTA_Standard_pt1: "Table 4"
-    # TODO: For the R(0.4)/R(0.2) ratio, RJE is including the AA distributions,
+    # TODO(RJE): For the R(0.4)/R(0.2) ratio, RJE is including the AA distributions,
     # since it's not obvious how to define the ratio here.
     # Ratio is in Table 6
     hepdata_AA_dir_R0.2_WTA_Standard_pt3: "Table 5"
@@ -617,20 +643,24 @@ inclusive_chjet:
     urls:
       inspire_hep: https://inspirehep.net/literature/2845788
       hepdata: https://www.hepdata.net/record/ins2845788
+      # pp (reported in a separate paper)
+      #hepdata: https://www.hepdata.net/record/ins1891385
 
-    jet_R: [0.2]
-    eta_cut_R: 0.9
-    pt: [40., 60., 80., 100., 150.]
     centrality: [[0, 10]]
+    jet_R: [0.2]
+    pt: [40., 60., 80., 100., 150.]
+    eta_cut_R: 0.9
     alpha: [1, 1.5, 2, 3]
     SoftDrop:
       - { "zcut": 0., "beta": 0 } # Ungroomed
       - { "zcut": 0.2, "beta": 0 } # Groomed
-    xtitle: "#it{#lambda}_{#alpha}^{#kappa=1}"
 
     # Angularities for pp were already in the previous paper.
-    # pp: https://www.hepdata.net/record/ins1891385
     hepdata_pp: "HEPData-ins1891385-v1-root.root"
+    hepdata_AA: "HEPData-ins2845788-v1-root.root"
+
+    xtitle: "#it{#lambda}_{#alpha}^{#kappa=1}"
+
     # Ungroomed
     hepdata_pp_dir_R0.2_alpha_1_pt0: "Table 41"
     hepdata_pp_dir_R0.2_alpha_1_pt1: "Table 49"
@@ -662,8 +692,6 @@ inclusive_chjet:
     y_min_pp: 1e-3
     y_max_pp: 0.3
 
-    # AA: https://www.hepdata.net/record/ins2845788
-    hepdata_AA: "HEPData-ins2845788-v1-root.root"
     # Ungroomed
     hepdata_AA_dir_R0.2_alpha_1_pt0: "Table 1"
     hepdata_AA_dir_R0.2_alpha_1_pt1: "Table 9"
@@ -713,19 +741,21 @@ inclusive_chjet:
       inspire_hep: https://inspirehep.net/literature/2845788
       hepdata: https://www.hepdata.net/record/ins2845788
 
-    jet_R: [0.2]
-    eta_cut_R: 0.9
-    pt: [40., 60., 80., 100., 150.]
     centrality: [[0, 10]]
+    jet_R: [0.2]
+    pt: [40., 60., 80., 100., 150.]
+    eta_cut_R: 0.9
     SoftDrop:
       - { "zcut": 0., "beta": 0 } # Ungroomed
       - { "zcut": 0.2, "beta": 0 } # Groomed
+
+    hepdata: "HEPData-ins2845788-v1-root.root"
+
     # NOTE: This label will be incorrect in the groomed case.
-    #       However, it's quite convenient to treat them together, and the label will make it clear,
+    #       However, it's quite convenient to treat them together, and the observable name will make it clear,
     #       so we will keep it as is.
     xtitle: "#it{m}_{jet}  #left[GeV^{2}/#it{c}#right]"
 
-    hepdata: "HEPData-ins2845788-v1-root.root"
     hepdata_pp_dir_R0.2_pt0: "Table 33"
     hepdata_pp_dir_R0.2_pt1: "Table 35"
     hepdata_pp_dir_R0.2_pt2: "Table 37"
@@ -760,13 +790,14 @@ inclusive_chjet:
       inspire_hep: https://inspirehep.net/literature/2831271
       hepdata: https://www.hepdata.net/record/ins2831271
 
-    jet_R: [0.2]
-    eta_cut_R: 0.9
-    pt: [60., 80.]
     centrality: [[0, 10], [30, 50]]
+    jet_R: [0.2]
+    pt: [60., 80.]
+    eta_cut_R: 0.9
     SoftDrop:
       - { "zcut": 0.2, "beta": 0 }
     dynamical_grooming_a: [1.0]
+
     hepdata: "HEPData-ins2831271-v1-root.root"
 
     # Soft Drop
@@ -815,14 +846,16 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1755387
       hepdata: https://www.hepdata.net/record/ins1755387
 
-    jet_R: [0.2, 0.4]
-    eta_cut_R: 0.7
-    pt: [40., 140.]
     centrality: [[0, 10]]
+    jet_R: [0.2, 0.4]
+    pt: [40., 140.]
+    eta_cut_R: 0.7
+
+    hepdata: "HEPData-ins1755387-v1-root.root"
+
     xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
     logy: True
 
-    hepdata: "HEPData-ins1755387-v1-root.root"
     ## hepdata_pp_dir_R0.2: 'Table 2'
     ## hepdata_pp_dir_R0.4: 'Table 4'
     hepdata_pp_dir_R0.2: "Table 22"
@@ -862,14 +895,16 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1673184
       hepdata: https://www.hepdata.net/record/ins1673184
 
-    jet_R: [0.4]
-    y_cut: 2.8
-    pt: [50., 1000.]
     centrality: [[0, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+    jet_R: [0.4]
+    pt: [50., 1000.]
+    y_cut: 2.8
+
+    hepdata: "HEPData-ins1673184-v1-root.root"
+
     xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
     logy: True
 
-    hepdata: "HEPData-ins1673184-v1-root.root"
     hepdata_pp_dir_R0.4: "Table 4"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{y}} #left[nb/(GeV/c)^{-1}#right]"
@@ -904,14 +939,16 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1673184
       hepdata: https://www.hepdata.net/record/ins1673184
 
-    jet_R: [0.4]
-    y_cut: 2.8
-    pt: [158, 200, 251, 316, 562]
     centrality: [[0, 10]]
+    jet_R: [0.4]
+    pt: [158, 200, 251, 316, 562]
+    y_cut: 2.8
+
+    hepdata: "HEPData-ins1673184-v1-root.root"
+
     xtitle: "|#it{y}|"
     logy: True
 
-    hepdata: "HEPData-ins1673184-v1-root.root"
     hepdata_pp_dir_R0.4: "Table 4"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{y}} #left[nb/(GeV/c)^{-1}#right]"
@@ -969,10 +1006,11 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/2623088
       hepdata: N/A
 
-    jet_R: [0.2]
-    y_cut: 2.0
-    pt: [50., 1000.]
     centrality: [[0, 10]]
+    jet_R: [0.2]
+    pt: [50., 1000.]
+    y_cut: 2.0
+
     xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
     logy: True
 
@@ -983,14 +1021,16 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1848440
       hepdata: https://www.hepdata.net/record/ins1848440
 
-    jet_R: [0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
-    eta_cut: 2.0
-    pt: [200., 1000.]
     centrality: [[0, 10], [10, 30], [30, 50]]
+    jet_R: [0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
+    pt: [200., 1000.]
+    eta_cut: 2.0
+
+    hepdata: "HEPData-ins1848440-v1-root.root"
+
     xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
     logy: True
 
-    hepdata: "HEPData-ins1848440-v1-root.root"
     hepdata_pp_dir_R0.2: "Figure 5-1"
     hepdata_pp_dir_R0.3: "Figure 5-2"
     hepdata_pp_dir_R0.4: "Figure 5-3"
@@ -1034,14 +1074,16 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1673177
       hepdata: https://www.hepdata.net/record/ins1673177
 
-    jet_R: [0.4]
-    y_cut: 2.1
-    pt: [126., 158.49, 199.53, 251.19, 316.22, 398.1]
     centrality: [[0, 10], [10, 20], [20, 30], [30, 40]]
+    jet_R: [0.4]
+    pt: [126., 158.49, 199.53, 251.19, 316.22, 398.1]
+    y_cut: 2.1
+
+    hepdata: "HEPData-ins1673177-v2-root.root"
+
     xtitle: "#it{z}"
     logy: True
 
-    hepdata: "HEPData-ins1673177-v2-root.root"
     hepdata_pp_dir_R0.4_pt0: "Table 0"
     hepdata_pp_dir_R0.4_pt1: "Table 4"
     hepdata_pp_dir_R0.4_pt2: "Table 8"
@@ -1080,14 +1122,16 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1673177
       hepdata: https://www.hepdata.net/record/ins1673177
 
-    jet_R: [0.4]
-    y_cut: 2.1
-    pt: [126., 158.49, 199.53, 251.19, 316.22, 398.1]
     centrality: [[0, 10], [10, 20], [20, 30], [30, 40]]
+    jet_R: [0.4]
+    pt: [126., 158.49, 199.53, 251.19, 316.22, 398.1]
+    y_cut: 2.1
+
+    hepdata: "HEPData-ins1673177-v2-root.root"
+
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: True
 
-    hepdata: "HEPData-ins1673177-v2-root.root"
     hepdata_pp_dir_R0.4_pt0: "Table 1"
     hepdata_pp_dir_R0.4_pt1: "Table 5"
     hepdata_pp_dir_R0.4_pt2: "Table 9"
@@ -1129,15 +1173,17 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1789224
       hepdata: https://www.hepdata.net/record/ins1789224
 
-    jet_R: [0.4]
-    eta_cut: 1.5
-    pt: [120., 1000000]
     centrality: [[0, 10], [10, 30], [30, 50]]
-    xtitle: "Q"
+    jet_R: [0.4]
+    pt: [120., 1000000]
+    eta_cut: 1.5
     track_pt_min: 1.
     kappa: [0.3, 0.5, 0.7]
 
     hepdata: "HEPData-ins1789224-v1-root.root"
+
+    xtitle: "Q"
+
     hepdata_pp_dir_R0.4_k0.3: "Table 8"
     hepdata_pp_dir_R0.4_k0.5: "Table 1"
     hepdata_pp_dir_R0.4_k0.7: "Table 9"
@@ -1173,17 +1219,18 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1672962
       hepdata: https://www.hepdata.net/record/ins1672962
 
-    jet_R: [0.4]
-    eta_cut: 1.3
-    pt: [140., 160., 180., 200., 300.]
     centrality: [[0, 10], [10, 30], [30, 50]]
+    jet_R: [0.4]
+    pt: [140., 160., 180., 200., 300.]
+    eta_cut: 1.3
     dR: 0.1
     SoftDrop:
       - { "zcut": 0.1, "beta": 0 }
       - { "zcut": 0.5, "beta": 1.5 }
-    xtitle: "#it{m}_{g}/#it{p}_{T,jet}"
 
     hepdata: "HEPData-ins1672962-v1-root.root"
+
+    xtitle: "#it{m}_{g}/#it{p}_{T,jet}"
 
     hepdata_pp_dir_R0.4_zcut0.1_beta0: "Figure 2a"
     hepdata_pp_dir_R0.4_zcut0.5_beta1.5: "Figure 2b"
@@ -1273,16 +1320,18 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1620905
       hepdata: https://www.hepdata.net/record/ins1620905
 
-    jet_R: [0.4]
-    eta_cut: 1.3
-    pt: [140., 160., 180., 200., 250., 300., 500.]
     centrality: [[0, 10], [10, 30], [30, 50]]
+    jet_R: [0.4]
+    pt: [140., 160., 180., 200., 250., 300., 500.]
+    eta_cut: 1.3
     dR: 0.1
     SoftDrop:
       - { "zcut": 0.1, "beta": 0 }
-    xtitle: "#it{z}_{g}"
 
     hepdata: "HEPData-ins1620905-v1-root.root"
+
+    xtitle: "#it{z}_{g}"
+
     hepdata_pp_dir_R0.4_zcut0.1_beta0_pt1: "Table 2"
     hepdata_pp_gname: "Graph1D_y1"
     ytitle_pp: "#frac{1}{#sigma} #frac{d#sigma}{d#it{z}_{g}}"
@@ -1318,12 +1367,13 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/2890802
       hepdata: https://www.hepdata.net/record/ins2890802
 
-    jet_R: [0.4]
-    eta_cut: 1.6
-    pt: [120., 150., 190, 230., 300]
     centrality: [[0, 10], [10, 30], [30, 50], [50, 80]]
+    jet_R: [0.4]
+    pt: [120., 150., 190, 230., 300]
+    eta_cut: 1.6
     axis:
       - { "type": "WTA_Standard" }
+
     hepdata: "HEPData-ins2890802-v1-root.root"
 
     skip_pp: True
@@ -1364,10 +1414,10 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/2904406
       hepdata: https://www.hepdata.net/record/ins2904406
 
-    jet_R: [0.4]
-    eta_cut: 1.6
-    pt: [120., 140., 160., 180., 200.]
     centrality: [[0, 10], [10, 30], [30, 50]]
+    jet_R: [0.4]
+    pt: [120., 140., 160., 180., 200.]
+    eta_cut: 1.6
     weight: [1., 2.]
 
     hepdata: "HEPData-ins2904406-v2-root.root"
@@ -1380,15 +1430,17 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/2512925
       hepdata: N/A
 
-    jet_R: [0.4]
-    eta_cut: 2.0
-    pt: [100, 150, 200]
     centrality: [[0, 10]]
+    jet_R: [0.4]
+    pt: [100, 150, 200]
+    eta_cut: 2.0
     SoftDrop:
       - { "zcut": 0.2, "beta": 0 }
-    xtitle: "#it{R}_{g}"
+
     # Rg bins
     bins: [0.0, 1.0]
+
+    xtitle: "#it{R}_{g}"
 
     skip_pp: True
 
@@ -1404,12 +1456,12 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/2623088
       hepdata: N/A
 
+    centrality: [[0, 10], [10, 30], [30, 50]]
     # Recluster R=0.2 jets into R=1.0 jets
     jet_R: [0.2]
     jet_R_reclustered: [1.0]
     eta_cut: 3.0
     pt: [158, 1000]
-    centrality: [[0, 10], [10, 30], [30, 50]]
     weight: [1., 2.]
 
   # ATLAS dR_12
@@ -1420,12 +1472,12 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/2909617
       hepdata: N/A
 
+    centrality: [[0, 10], [10, 20], [20, 40]]
     # Recluster R=0.2 jets into R=1.0 jets
     jet_R: [0.2]
     jet_R_reclustered: [1.0]
     eta_cut: 3.0
     pt: [200, 600]
-    centrality: [[0, 10], [10, 20], [20, 40]]
 
 #------------------------------------------------------------------
 # Hadron triggered charged-particle jet observables
