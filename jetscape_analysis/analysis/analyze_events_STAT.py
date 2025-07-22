@@ -136,6 +136,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                                                      select_charged=True)
         fj_hadrons_negative_charged, pid_hadrons_negative_charged = self.fill_fastjet_constituents(event, select_status='-',
                                                                      select_charged=True)
+        #print(f"{len(fj_hadrons_positive)=}, {len(pid_hadrons_positive)=}, {len(fj_hadrons_negative)=}, {len(pid_hadrons_negative)=}")
+        #print(f"{len(fj_hadrons_positive_charged)=}, {len(pid_hadrons_positive_charged)=}, {len(fj_hadrons_negative_charged)=}, {len(pid_hadrons_negative_charged)=}")
+
         # call event selection function, run jet finder R=0.4, take highest pt jet, require ptjet <= 3 * pthat, otherwise return false
         pt_hat = event['pt_hat']
         if self.do_event_outlier_rejection:
@@ -208,7 +211,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             suffix = '_holes'
 
         # Loop through hadrons
-        for particle in fj_particles:
+        for j, particle in enumerate(fj_particles):
 
             # Fill some basic hadron info
             pid = pid_hadrons[np.abs(particle.user_index())-1]
