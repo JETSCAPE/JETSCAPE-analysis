@@ -424,10 +424,6 @@ pion_trigger_chjet:
     skip_pp: true
 
     bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
-    # NOTE(RJE): Bins provided are below, but had to take bin_width below and multiply to two to get
-    #            consistent bin edges.
-    #bin_centroid: [1.9, 2.35, 2.65, 2.9, 3.07]
-    #bin_width: [0.3, 0.15, 0.15, 0.1, 0.07]
 
 #------------------------------------------------------------------
 # gamma triggered hadron observables
@@ -556,7 +552,3 @@ gamma_trigger_chjet:
     skip_pp: true
 
     bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
-    # NOTE(RJE): Bins provided are below, but had to take bin_width below and multiply to two to get
-    #            consistent bin edges.
-    #bin_centroid: [1.9, 2.35, 2.65, 2.9, 3.07]
-    #bin_width: [0.3, 0.15, 0.15, 0.1, 0.07]
