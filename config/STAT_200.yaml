@@ -157,13 +157,12 @@ hadron:
 #------------------------------------------------------------------
 hadron_trigger_hadron:
   # STAR di-hadron correlations -- delta-phi and D(z)
-  # See Fig 3 here: https://arxiv.org/pdf/nucl-th/0701045.pdf
-  # TODO(PMJ) 13/1/22: incomplete. This is a key RHIC paper imho (based on the analysis of Xin-Nian et al., which formed the basis of a lot of developments)
   dihadron_star:
     enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/715470
       hepdata: https://www.hepdata.net/record/ins715470
+      # Related theory paper noted by PMJ, see Fig 3 here: https://arxiv.org/pdf/nucl-th/0701045.pdf
 
     # NOTE: Need to convert from N_part to centrality, which is available in Table 2 in https://inspirehep.net/literature/588808
     # NOTE: They also report 40-60%, but that goes outside of our centrality range, so we skip it here
