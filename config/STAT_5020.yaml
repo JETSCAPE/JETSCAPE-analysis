@@ -1576,24 +1576,48 @@ dijet_trigger_jet:
   # - dijet yield
   # RAA^pair
   pt_pair_atlas:
-    enabled: false
+    enabled: true
     urls:
-      inspire_hep: https://inspirehep.net/literature/2165916
-      hepdata: https://www.hepdata.net/record/ins2165916
+      inspire_hep: https://inspirehep.net/literature/2811406
+      hepdata: N/A
+
+    jet_R: [0.2, 0.3, 0.4, 0.5, 0.6]
+    centrality: [[0, 10], [10, 20], [20, 40], [40, 60], [60, 80]]
+    # prettier-ignore
+    bins: [0.31623, 0.35481, 0.39811, 0.44668, 0.50119, 0.56234, 0.63096, 0.70795 ,0.79433, 0.89125, 1.0]
+    pt: [100., 112., 126., 141., 158., 178., 200., 200., 224., 251., 282., 316., 398., 562.] # pt_leading_min
+    pt_subleading_min: 32.
+    eta_cut: 2.1
 
   # xj
   xj_atlas:
-    enabled: false
+    enabled: true
     urls:
-      inspire_hep: https://inspirehep.net/literature/2165916
-      hepdata: https://www.hepdata.net/record/ins2165916
+      inspire_hep: https://inspirehep.net/literature/2811406
+      hepdata: N/A
 
-  # xj
+    jet_R: [0.2, 0.3, 0.4, 0.5, 0.6]
+    centrality: [[0, 10], [10, 20], [20, 40], [40, 60], [60, 80]]
+    # prettier-ignore
+    bins: [0.31623, 0.35481, 0.39811, 0.44668, 0.50119, 0.56234, 0.63096, 0.70795 ,0.79433, 0.89125, 1.0]
+    pt: [100., 112., 126., 141., 158., 178., 200., 200., 224., 251., 282., 316., 398., 562.] # pt_leading_min
+    pt_subleading_min: 32.
+    eta_cut: 2.1
+
+  # JAA
   yield_atlas:
-    enabled: false
+    enabled: true
     urls:
-      inspire_hep: https://inspirehep.net/literature/2165916
-      hepdata: https://www.hepdata.net/record/ins2165916
+      inspire_hep: https://inspirehep.net/literature/2811406
+      hepdata: N/A
+
+    jet_R: [0.2, 0.3, 0.4, 0.5, 0.6]
+    centrality: [[0, 10], [10, 20], [20, 40], [40, 60], [60, 80]]
+    # prettier-ignore
+    bins: [0.31623, 0.35481, 0.39811, 0.44668, 0.50119, 0.56234, 0.63096, 0.70795 ,0.79433, 0.89125, 1.0]
+    pt: [100., 112., 126., 141., 158., 178., 200., 200., 224., 251., 282., 316., 398., 562.] # pt_leading_min
+    pt_subleading_min: 32.
+    eta_cut: 2.1
 
 #------------------------------------------------------------------
 # coincidence observables – gamma+jet

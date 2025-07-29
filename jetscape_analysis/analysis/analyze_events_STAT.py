@@ -2087,28 +2087,59 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             ...
 
         # ATLAS dijet radius dependence
-        # RAA^pair
+        # xj, RAA^pair, and dijet yield (JAA)
         if (
-            self.measure_observable_for_current_event(
-                self.dijet_trigger_jet_observables, observable_name="pt_pair_atlas"
-            )
-            and jetR in self.dijet_trigger_jet_observables["pt_pair_atlas"]["jet_R"]
-        ):
-            ...
-
-        # xj
-        if (
-            self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="xj_atlas")
+            (self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="xj_atlas")
+            or self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="pt_pair_atlas")
+            or self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="yield_atlas"))
             and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["jet_R"]
         ):
-            ...
+            # First, find jets passing kinematic cuts
+            jet_candidates = []
+            for jet in jets_selected:
+                if jet_collection_label in ["_shower_recoil"]:
+                    # Get the corrected jet pt by subtracting the negative recoils within R
+                    jet_pt = jet.pt()
+                    if fj_hadrons_negative:
+                        for temp_hadron in fj_hadrons_negative:
+                            if jet.delta_R(temp_hadron) < jetR:
+                                jet_pt -= temp_hadron.pt()
+                else:
+                    jet_pt = jet.pt()
 
-        # Dijet yield (JAA)
-        if (
-            self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="yield_atlas")
-            and jetR in self.dijet_trigger_jet_observables["yield_atlas"]["jet_R"]
-        ):
-            ...
+                if jet_pt > self.dijet_trigger_jet_observables["xj_atlas"]["pt_subleading_min"]:
+                    if np.abs(jet.eta()) < self.dijet_trigger_jet_observables["xj_atlas"]["eta_cut"]:
+                        jet_candidates.append(jet)
+
+            # Find the leading two jets
+            leading_jet, leading_jet_pt, i_leading_jet = self.leading_jet(
+                jet_candidates, fj_hadrons_negative, jetR
+            )
+            if leading_jet:
+                del jet_candidates[i_leading_jet]
+                subleading_jet, subleading_jet_pt, _ = self.leading_jet(
+                    jet_candidates, fj_hadrons_negative, jetR
+                )
+                if subleading_jet:
+                    if np.abs(leading_jet.delta_phi_to(subleading_jet)) > 7 * np.pi / 8:
+                        pt_min = self.dijet_trigger_jet_observables["xj_atlas"]["pt"][0]
+                        if leading_jet_pt > pt_min:
+                            xj = subleading_jet_pt / leading_jet_pt
+                            # xJ
+                            if (self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="xj_atlas")):
+                                self.observable_dict_event[
+                                    f"dijet_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}"
+                                ].append([leading_jet_pt, xj])
+                            # RAA^pair
+                            if (self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="pt_pair_atlas")):
+                                self.observable_dict_event[
+                                    f"dijet_trigger_jet_pt_pair_atlas_R{jetR}{jet_collection_label}"
+                                ].append([leading_jet_pt, subleading_jet_pt])
+                            # JAA
+                            if (self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="yield_atlas")):
+                                self.observable_dict_event[
+                                    f"dijet_trigger_jet_JAA_atlas_R{jetR}{jet_collection_label}"
+                                ].append([leading_jet_pt, xj])
 
     def fill_pion_trigger_hadron_observables(
         self,
