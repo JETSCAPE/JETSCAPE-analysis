@@ -66,8 +66,20 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         else:
             self.is_AA = False
 
-        # If AA, get centrality bin
+        # Initialize centrality info
+        # self.centrality: [cmin, cmax] for current event (written to observable_dict_event)
+        # self.centrality_range: [min, max] range across all events (written to cross_section_dict)
+        # self.use_event_based_centrality:
+        # - True, real-time hydro or run info missing (centrality varies event-by-event)
+        # - False, precomputed hydro (fixed centrality for all events)
+        # self.default_centrality:
+        # - Used only in precomputed hydro (extracted from Run_info.yaml)
         self.use_event_based_centrality = False
+        self.centrality = [0, 0]
+        self.centrality_range = [100, 0]  # Will be updated dynamically
+        self.default_centrality = None
+        self.centrality_range_from_runinfo = False
+
         if self.is_AA:
             _final_state_hadrons_path = Path(self.input_file_hadrons)
             # For an example filename of "jetscape_PbPb_Run0005_5020_0001_final_state_hadrons_00.parquet",
@@ -76,20 +88,28 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             # - the file index is at index 4 (in the example, it extracts `1` as an int)
             _file_index = int(_final_state_hadrons_path.name.split('_')[4])
             run_info_path = _final_state_hadrons_path.parent / f"{_run_number}_info.yaml"
-            with open(run_info_path, 'r') as f:
-                _run_info = yaml.safe_load(f)
+            if os.path.exists(run_info_path):
+                with open(run_info_path, 'r') as f:
+                    _run_info = yaml.safe_load(f)
 
-                self.centrality_range = _run_info["centrality"]
-                # Default to 'precomputed_hydro' if not specified to ensure backward compatibility
-                self.soft_sector_execution_type = _run_info.get("soft_sector_execution_type", "precomputed_hydro")
+                    self.centrality_range = _run_info["centrality"]
+                    self.centrality_range_from_runinfo = True
+                    # Default to 'precomputed_hydro' if not specified to ensure backward compatibility
+                    self.soft_sector_execution_type = _run_info.get("soft_sector_execution_type", "precomputed_hydro")
 
-                if self.soft_sector_execution_type == "precomputed_hydro":
-                    centrality_string = _run_info["index_to_hydro_event"][_file_index].split('/')[0].split('_')
-                    # index of 1 and 2 based on an example entry of "cent_00_01"
-                    self.centrality = [int(centrality_string[1]), int(centrality_string[2])]
+                    if self.soft_sector_execution_type == "precomputed_hydro":
+                        centrality_string = _run_info["index_to_hydro_event"][_file_index].split('/')[0].split('_')
+                        # index of 1 and 2 based on an example entry of "cent_00_01"
+                        self.centrality = [int(centrality_string[1]), int(centrality_string[2])]
+                        self.default_centrality = self.centrality
 
-                elif self.soft_sector_execution_type == "real_time_hydro":
-                    self.use_event_based_centrality = True  # Centrality varies per event
+                    elif self.soft_sector_execution_type == "real_time_hydro":
+                        self.use_event_based_centrality = True  # Centrality varies per event
+            else:
+                print(f"Warning: Run info file not found at {run_info_path}. Falling back to dynamic centrality tracking.")
+                # No run info available - need to retrieve the centrality event-by-event
+                self.use_event_based_centrality = True
+                self.centrality_range = [100, 0]  # Updated dynamically later
 
         # If AA, initialize constituent subtractor
         self.constituent_subtractor = None
@@ -144,6 +164,10 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         start = time.time()
         weight_sum = 0.
 
+        # Dynamically compute overall centrality range [min, max] across all accepted events.
+        centrality_range_min = 100
+        centrality_range_max = 0
+
         # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
         if self.use_event_based_centrality and "centrality" not in df_event_chunk.columns:
             raise ValueError("Centrality column missing in input Parquet file for real_time_hydro mode.")
@@ -163,6 +187,10 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             if self.is_AA:
                 if self.use_event_based_centrality:
                     self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
+                else:
+                    if self.default_centrality is None:
+                        raise ValueError("Precomputed hydro selected, but no default centrality found.")
+                    self.centrality = self.default_centrality
 
             # Call user-defined function to analyze event
             self.analyze_event(event)
@@ -181,6 +209,10 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                     self.observable_dict_event['centrality_min'] = self.centrality[0]
                     self.observable_dict_event['centrality_max'] = self.centrality[1]
 
+                    # Update dynamic centrality range
+                    centrality_range_min = min(self.centrality[0], centrality_range_min)
+                    centrality_range_max = max(self.centrality[1], centrality_range_max)
+
                 self.output_event_list.append(self.observable_dict_event)
 
         # Get total cross-section (same for all events at this point), weight sum, and centrality
@@ -189,10 +221,16 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         self.cross_section_dict['n_events'] = self.n_event_max
         self.cross_section_dict['weight_sum'] = weight_sum
 
+        # Track the overall centrality range
         if self.is_AA:
-            # Track the overall centrality range
-            self.cross_section_dict['centrality_range_min'] = self.centrality_range[0]
-            self.cross_section_dict['centrality_range_max'] = self.centrality_range[1]
+            if self.centrality_range_from_runinfo:
+                # Use range from run_info.yaml
+                self.cross_section_dict['centrality_range_min'] = self.centrality_range[0]
+                self.cross_section_dict['centrality_range_max'] = self.centrality_range[1]
+            else:
+                # Use dynamically calculated range
+                self.cross_section_dict['centrality_range_min'] = int(np.floor(centrality_range_min))
+                self.cross_section_dict['centrality_range_max'] = int(np.ceil(centrality_range_max))
 
     # ---------------------------------------------------------------
     # Initialize output objects
