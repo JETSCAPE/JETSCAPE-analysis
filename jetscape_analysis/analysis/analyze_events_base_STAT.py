@@ -72,12 +72,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # self.use_event_based_centrality:
         # - True, real-time hydro or run info missing (centrality varies event-by-event)
         # - False, precomputed hydro (fixed centrality for all events)
-        # self.default_centrality:
-        # - Used only in precomputed hydro (extracted from Run_info.yaml)
         self.use_event_based_centrality = False
         self.centrality = [0, 0]
         self.centrality_range = [100, 0]  # Will be updated dynamically
-        self.default_centrality = None
         self.centrality_range_from_runinfo = False
 
         if self.is_AA:
@@ -101,7 +98,6 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                         centrality_string = _run_info["index_to_hydro_event"][_file_index].split('/')[0].split('_')
                         # index of 1 and 2 based on an example entry of "cent_00_01"
                         self.centrality = [int(centrality_string[1]), int(centrality_string[2])]
-                        self.default_centrality = self.centrality
 
                     elif self.soft_sector_execution_type == "real_time_hydro":
                         self.use_event_based_centrality = True  # Centrality varies per event
@@ -183,14 +179,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             # Store dictionary of all observables for the event
             self.observable_dict_event = {}
 
-            # Update self.centrality dynamically per event
-            if self.is_AA:
-                if self.use_event_based_centrality:
+            # Update self.centrality dynamically per event when it's not precomputed_hydro
+            if self.is_AA and self.use_event_based_centrality:
                     self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
-                else:
-                    if self.default_centrality is None:
-                        raise ValueError("Precomputed hydro selected, but no default centrality found.")
-                    self.centrality = self.default_centrality
 
             # Call user-defined function to analyze event
             self.analyze_event(event)
@@ -210,6 +201,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                     self.observable_dict_event['centrality_max'] = self.centrality[1]
 
                     # Update dynamic centrality range
+                    # This is trivially the same for each event for the pre-computed hydro,
+                    # but it varies for the on-the-fly case.
                     centrality_range_min = min(self.centrality[0], centrality_range_min)
                     centrality_range_max = max(self.centrality[1], centrality_range_max)
 
