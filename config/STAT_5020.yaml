@@ -1570,6 +1570,8 @@ dijet_trigger_jet:
       inspire_hep: https://inspirehep.net/literature/2165916
       hepdata: https://www.hepdata.net/record/ins2165916
 
+    centrality: [[0, 10], [10, 20], [20, 40]]
+
   # ATLAS dijet radius dependence includes:
   # - RAA^pair
   # - xj (TODO: Supersedes previous xj measurements?)
@@ -1581,6 +1583,8 @@ dijet_trigger_jet:
       inspire_hep: https://inspirehep.net/literature/2165916
       hepdata: https://www.hepdata.net/record/ins2165916
 
+    centrality: [[0, 10], [10, 20], [20, 40]]
+
   # xj
   xj_atlas:
     enabled: false
@@ -1588,12 +1592,16 @@ dijet_trigger_jet:
       inspire_hep: https://inspirehep.net/literature/2165916
       hepdata: https://www.hepdata.net/record/ins2165916
 
+    centrality: [[0, 10], [10, 20], [20, 40]]
+
   # xj
   yield_atlas:
     enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/2165916
       hepdata: https://www.hepdata.net/record/ins2165916
+
+    centrality: [[0, 10], [10, 20], [20, 40]]
 
 #------------------------------------------------------------------
 # coincidence observables – gamma+jet

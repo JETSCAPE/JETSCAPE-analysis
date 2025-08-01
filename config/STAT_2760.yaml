@@ -576,6 +576,7 @@ inclusive_jet:
       inspire_hep: https://inspirehep.net/literature/1126965
       hepdata: https://www.hepdata.net/record/ins1126965
 
+    centrality: [[0, 10], [10, 20], [30, 40]]
     jet_R: [0.2, 0.3, 0.4, 0.5]
     eta_cut: 2.1
     pt: [38., 210.]
