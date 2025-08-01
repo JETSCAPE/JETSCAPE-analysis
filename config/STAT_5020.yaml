@@ -1957,13 +1957,22 @@ z_trigger_hadron:
       inspire_hep: https://inspirehep.net/literature/1812957
       hepdata: N/A
 
-    centrality: [[0, 10]]
+    centrality: [[0, 10], [10, 30]]
     z_trigger:
-      # TODO: They do not write what the eta acceptance of reconstructed Z boson is. They write requirements for decay products but not for the Z itself.
-      #       They say they correct for reconstruction efficiency but do not specify the region for Z Boson.
-      #       The written value (July 2025) is a blind guess
-      pt_min: 15.0
-      eta_cut: 2.5
+      # This analysis uses Z->ll, so need to specify both electrons and muons.
+      # Electrons
+      electron_pt_min: 20.
+      # NOTE: electrons from 1.37 < |eta| < 1.52 are excluded experimentally due to detector
+      #       acceptance. This is trickier to encode here, so we'll just encode it in
+      #       the implementation.
+      electron_eta_cut: 2.47
+      # Muons
+      muon_pt_min: 20.
+      muon_eta_cut: 2.5
+      # Z candidates
+      z_mass: [76., 106.]
+      z_pt_min: 15.
+      # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
     recoil_hadron:
       pt_min: 1.
       eta_cut: 2.5
@@ -1981,9 +1990,18 @@ z_trigger_hadron:
 
     centrality: [[0, 30], [30, 50]]
     z_trigger:
-      # TODO not given explicitly but i assume this is the case
-      pt_min: 30.
-      eta_cut: 2.5
+      # This analysis uses Z->ll, so need to specify both electrons and muons.
+      # Electrons
+      electron_pt_min: 20.
+      electron_eta_cut: 2.1
+      # Muons
+      muon_pt_min: 20.
+      muon_eta_cut: 2.4
+      # Z candidates
+      z_mass: [60., 120.]
+      z_pt_min: 30.
+      # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
+      #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
     recoil_hadron:
       pt_min: 1.0
       eta_cut: 2.4
@@ -2002,9 +2020,18 @@ z_trigger_hadron:
 
     centrality: [[0, 30], [30, 50]]
     z_trigger:
-      # TODO not given explicitly but i assume this is the case
-      pt_min: 30.
-      eta_cut: 2.5
+      # This analysis uses Z->ll, so need to specify both electrons and muons.
+      # Electrons
+      electron_pt_min: 20.
+      electron_eta_cut: 2.1
+      # Muons
+      muon_pt_min: 20.
+      muon_eta_cut: 2.4
+      # Z candidates
+      z_mass: [60., 120.]
+      z_pt_min: 30.
+      # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
+      #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
     recoil_hadron:
       pt_min: 1.0
       eta_cut: 2.4
@@ -2021,12 +2048,17 @@ z_trigger_hadron:
 
     centrality: [[0, 30], [30, 50]]
     z_trigger:
-      # TODO not given explicitly but i assume this is the case
-      pt: [40, 350]
-      eta_cut: 2.5
+      # This analysis uses Z -> mu+mu-, so there are requirements on
+      # both the muons and the reconstructed Z!
+      muon_pt_min: 20
+      muon_eta_cut: 2.4
+      z_mass: [60, 120]
+      z_pt: [40, 350]
+      # The Z rapidity cut is extracted from the label in the figures
+      z_y_cut: 2.4
     recoil_hadron:
       # Bins: [1, 2, 4, 10]
-      pt: [1.0, 10]
+      pt: [1.0, 10.0]
       eta_cut: 2.4
 
     # TODO(RJE): Add figures and binning
@@ -2036,7 +2068,7 @@ z_trigger_hadron:
 #------------------------------------------------------------------
 z_trigger_jet:
   # CMS xj_z
-  # Unfolded?: NO!!!
+  # Not unfolded, but a smearing matrix is provided for the jet pt!
   xj_z_cms:
     enabled: true
     urls:
@@ -2045,9 +2077,21 @@ z_trigger_jet:
 
     centrality: [[0, 30]]
     z_trigger:
-      pt_min: 60.
-      # TODO not given explicitly but i assume this is the case
-      eta_cut: 2.5
+      # This analysis uses Z->ll, so need to specify both electrons and muons.
+      # Electrons
+      electron_pt_min: 20.
+      # NOTE: electrons from 1.44 < |eta| < 1.57 are excluded experimentally due to detector
+      #       acceptance. This is trickier to encode here, so we'll just encode it in
+      #       the implementation.
+      electron_eta_cut: 2.5
+      # Muons
+      muon_pt_min: 20.
+      muon_eta_cut: 2.4
+      # Z candidates
+      z_mass: [70., 110.]
+      z_pt_min: 60.
+      # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
+      #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
     jet:
       jet_R: [0.3]
       pt_min: 30.
@@ -2059,6 +2103,8 @@ z_trigger_jet:
     # TODO(RJE): Add figures and binning.
     #            xj_z distribution is normalized by number of Z boson triggers
 
+  # CMS z-jet acoplanarity
+  # Not unfolded, but a smearing matrix is provided for the jet pt!
   dphi_cms:
     enabled: false
     urls:
@@ -2067,9 +2113,21 @@ z_trigger_jet:
 
     centrality: [[0, 30]]
     z_trigger:
-      pt_min: 60.
-      # TODO not given explicitly but i assume this is the case
-      eta_cut: 2.5
+      # This analysis uses Z->ll, so need to specify both electrons and muons.
+      # Electrons
+      electron_pt_min: 20.
+      # NOTE: electrons in the transition from 1.44 < |eta| < 1.57 are excluded experimentally
+      #       due to detector acceptance effects. This is trickier to encode here, so we'll just
+      #       encode it in the implementation.
+      electron_eta_cut: 2.5
+      # Muons
+      muon_pt_min: 20.
+      muon_eta_cut: 2.4
+      # Z candidates
+      z_mass: [70., 110.]
+      z_pt_min: 60.
+      # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
+      #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
     jet:
       jet_R: [0.3]
       pt_min: 30.
