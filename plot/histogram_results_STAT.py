@@ -110,6 +110,7 @@ class HistogramResults(common_base.CommonBase):
             # Hadron histograms
             self.histogram_hadron_observables(observable_type="hadron")
 
+            self.histogram_hadron_correlation_observables(observable_type="hadron_correlation")
             self.histogram_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
 
             # Jet histograms: loop through different hole subtraction treatments
@@ -434,7 +435,7 @@ class HistogramResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Histogram hadron correlation observables
     # -------------------------------------------------------------------------------------------
-    def histogram_hadron_trigger_hadron_observables(self, observable_type=""):
+    def histogram_hadron_correlation_observables(self, observable_type: str) -> None:
         logger.info()
         logger.info(f"Histogram {observable_type} observables...")
 
@@ -445,7 +446,7 @@ class HistogramResults(common_base.CommonBase):
                     self.observable_centrality_list.append(centrality)
 
                 # v2 ATLAS and CMS
-                if observable in ["v2_atlas", "v2_cms"]:
+                if "v2" in observable and ("atlas" in observable or "cms" in observable):
                     # Construct appropriate binning
                     bins = self.plot_utils.bins_from_config(
                         block, self.sqrts, observable_type, observable, centrality, centrality_index
@@ -459,6 +460,19 @@ class HistogramResults(common_base.CommonBase):
                         self.histogram_observable(
                             column_name=f"{observable_type}_{observable}_holes", bins=bins, centrality=centrality
                         )
+
+    # -------------------------------------------------------------------------------------------
+    # Histogram hadron correlation observables
+    # -------------------------------------------------------------------------------------------
+    def histogram_hadron_trigger_hadron_observables(self, observable_type: str = "") -> None:
+        logger.info()
+        logger.info(f"Histogram {observable_type} observables...")
+
+        for observable, block in self.config[observable_type].items():
+            for _, centrality in enumerate(block["centrality"]):
+                # Add centrality bin to list, if needed
+                if self.is_AA and centrality not in self.observable_centrality_list:
+                    self.observable_centrality_list.append(centrality)
 
                 # STAR dihadron
                 if observable == "dihadron_star":
@@ -855,7 +869,7 @@ class HistogramResults(common_base.CommonBase):
         h = ROOT.TH1F(hname, hname, len(bins) - 1, bins)
         h.Sumw2()
 
-        if "hadron_trigger_hadron_v2" in hname:
+        if "hadron_correlation_v2" in hname:
             # for v2 calculation only
             hname2 = f"h_{column_name}_denom_{centrality}{pt_suffix}"
             h2 = ROOT.TH1F(hname2, hname2, len(bins) - 1, bins)

@@ -165,9 +165,9 @@ class PlotResults(common_base.CommonBase):
                 self.plot_observable(observable_type, observable, centrality)
 
     # -------------------------------------------------------------------------------------------
-    # Plot hadron triggered hadron observables
+    # Plot hadron correlation observables
     # -------------------------------------------------------------------------------------------
-    def plot_hadron_trigger_hadron_observables(self, observable_type=""):
+    def plot_hadron_correlation_observables(self, observable_type: str) -> None:
         logger.info(f"\nPlot {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
@@ -180,6 +180,17 @@ class PlotResults(common_base.CommonBase):
                     self.init_observable(observable_type, observable, block, centrality, centrality_index)
                     # Histogram observable
                     self.plot_observable(observable_type, observable, centrality)
+
+    # -------------------------------------------------------------------------------------------
+    # Plot hadron triggered hadron observables
+    # -------------------------------------------------------------------------------------------
+    def plot_hadron_trigger_hadron_observables(self, observable_type: str) -> None:
+        logger.info(f"\nPlot {observable_type} observables...")
+
+        for observable, block in self.config[observable_type].items():
+            for centrality_index, centrality in enumerate(block["centrality"]):
+                if "hepdata" not in block and "custom_data" not in block:
+                    continue
 
                 # STAR dihadron
                 if observable == "dihadron_star":

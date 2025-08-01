@@ -102,13 +102,17 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         self.outlier_pt_hat_cut = config["outlier_pt_hat_cut"]
 
         # Load observable blocks
+        # NOTE: As a general principle, we use .get() here for most entries since they are not defined
+        #       at every sqrt_s. However, for a few cases, we assume they exist since we have external
+        #       information that they'll always be available.
         # Inclusive hadron
         self.hadron_observables = config["hadron"]
-        self.hadron_trigger_hadron_observables = config["hadron_trigger_hadron"]
+        self.hadron_correlation_observables = config.get("hadron_correlation", {})
         # Inclusive jet
         self.inclusive_chjet_observables = config["inclusive_chjet"]
         self.inclusive_jet_observables = config.get("inclusive_jet", {})
         # Hadron trigger
+        self.hadron_trigger_hadron_observables = config.get("hadron_trigger_hadron", {})
         self.hadron_trigger_chjet_observables = config.get("hadron_trigger_chjet", {})
         # Dijet trigger
         self.dijet_trigger_jet_observables = config.get("dijet_trigger_jet", {})
@@ -171,13 +175,19 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # Fill hadron correlation observables
         event_plane_angle = event["event_plane_angle"]
-        self.fill_hadron_trigger_hadron_observables(
+        self.fill_hadron_correlation_observables(
             fj_hadrons_positive, pid_hadrons_positive, event_plane_angle, status="+"
         )
+        # NOTE: As of July 2025, we fill this one a bit out of order since it's handled differently
+        #       than other functions for performance reasons. This could be standardized to match
+        #       other functions at a later date (after careful consideration whether the pre-filtering
+        #       of triggers (as in the e.g. pion case) is actually useful.)
+        self.fill_hadron_trigger_hadron_observables(fj_hadrons_positive, pid_hadrons_positive, status="+")
         if self.is_AA:
-            self.fill_hadron_trigger_hadron_observables(
+            self.fill_hadron_correlation_observables(
                 fj_hadrons_negative, pid_hadrons_negative, event_plane_angle, status="-"
             )
+            self.fill_hadron_trigger_hadron_observables(fj_hadrons_negative, pid_hadrons_negative, status="-")
 
         # Fill pion triggered observables
         # Skip if we have no pion-triggered observables
@@ -418,7 +428,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 ):
                     self.observable_dict_event[f"hadron_pt_ch_star{suffix}"].append(pt)
 
-    def fill_hadron_trigger_hadron_observables(  # noqa: C901
+    def fill_hadron_correlation_observables(
         self,
         fj_particles: PseudoJetVector,
         pid_hadrons: npt.NDArray[np.int32],
@@ -454,108 +464,30 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # ATLAS v2 event-plane
             # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             if self.measure_observable_for_current_event(
-                self.hadron_trigger_hadron_observables, observable_name="v2_ep_atlas"
+                self.hadron_correlation_observables, observable_name="v2_ep_atlas"
             ):
-                pt_min = self.hadron_trigger_hadron_observables["v2_ep_atlas"]["pt"][0]
-                pt_max = self.hadron_trigger_hadron_observables["v2_ep_atlas"]["pt"][1]
+                pt_min = self.hadron_correlation_observables["v2_ep_atlas"]["pt"][0]
+                pt_max = self.hadron_correlation_observables["v2_ep_atlas"]["pt"][1]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_trigger_hadron_observables["v2_ep_atlas"]["eta_cut"]
+                    and abs(eta) < self.hadron_correlation_observables["v2_ep_atlas"]["eta_cut"]
                     and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                 ):
-                    self.observable_dict_event[f"hadron_trigger_hadron_v2_ep_atlas{suffix}"].append([pt, CosineDPhi])
+                    self.observable_dict_event[f"hadron_correlation_v2_ep_atlas{suffix}"].append([pt, CosineDPhi])
 
             # CMS v2 event-plane (doesn't seem to actually be measured, so leaving disabled)
             # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             if self.measure_observable_for_current_event(
-                self.hadron_trigger_hadron_observables, observable_name="v2_ep_cms"
+                self.hadron_correlation_observables, observable_name="v2_ep_cms"
             ):
-                pt_min = self.hadron_trigger_hadron_observables["v2_ep_cms"]["pt"][0]
-                pt_max = self.hadron_trigger_hadron_observables["v2_ep_cms"]["pt"][1]
+                pt_min = self.hadron_correlation_observables["v2_ep_cms"]["pt"][0]
+                pt_max = self.hadron_correlation_observables["v2_ep_cms"]["pt"][1]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_trigger_hadron_observables["v2_ep_cms"]["eta_cut"]
+                    and abs(eta) < self.hadron_correlation_observables["v2_ep_cms"]["eta_cut"]
                     and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                 ):
-                    self.observable_dict_event[f"hadron_trigger_hadron_v2_ep_cms{suffix}"].append([pt, CosineDPhi])
-
-        # STAR high-pt di-hadron correlations
-        # NOTE: The loop order here is different than other functions because without some optimization,
-        #       it's very easy to have an O(n^2) loop looking for trigger and associated particles.
-        #       We keep track of the particles which pass our conditions, so the double loop ends up
-        #       running for small n rather than the full event multiplicity
-        if self.measure_observable_for_current_event(self.hadron_trigger_hadron_observables["dihadron_star"]):
-            # Keep track of the trigger particles in pt ranges
-            trigger_particles = defaultdict(list)
-            # Keep track of the associated particles in pt ranges
-            associated_particles = defaultdict(list)
-            pt_trigger_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["pt_trig"]
-            pt_associated_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["pt_assoc"]
-            for particle in fj_particles:
-                # Cuts:
-                # - eta
-                # - Charged hadrons (pi+, K+, p+)
-                if abs(particle.eta()) < self.hadron_trigger_hadron_observables["dihadron_star"][
-                    "eta_cut"
-                ] and pid_hadrons[np.abs(particle.user_index()) - 1] in [211, 321, 2212]:
-                    pt = particle.pt()
-                    for pt_trig_range in pt_trigger_ranges:
-                        pt_trig_min, pt_trig_max = pt_trig_range
-                        if pt_trig_min <= pt < pt_trig_max:
-                            # Found trigger - save it
-                            trigger_particles[(pt_trig_min, pt_trig_max)].append(particle)
-
-                    for pt_assoc_range in pt_associated_ranges:
-                        pt_assoc_min, pt_assoc_max = pt_assoc_range
-                        # If the upper range has -1, it's unbounded, so we make it large enough not to matter
-                        pt_assoc_max = 1000 if pt_assoc_max == -1 else pt_assoc_max
-                        if pt_assoc_min <= pt < pt_assoc_max:
-                            associated_particles[(pt_assoc_min, pt_assoc_max)].append(particle)
-
-            # Now, create the correlations over our reduced set of particles
-            for (pt_trig_min, pt_trig_max), trig_particles in trigger_particles.items():
-                for trigger_particle in trig_particles:
-                    # Store the trigger pt to count the number of triggers
-                    # In principle, the dphi list could have been enough to get the number of triggers,
-                    # but it's not so easy to integrate with the existing histogram code.
-                    # So we keep separate track of the triggers, same as is done for D(z)
-                    self.observable_dict_event[f"hadron_trigger_hadron_dihadron_star_Ntrig{suffix}"].append(
-                        trigger_particle.pt()
-                    )
-
-                    for (pt_assoc_min, pt_assoc_max), assoc_particles in associated_particles.items():
-                        # First, just calculate the values
-                        dphi_values = []
-                        for associated_particle in assoc_particles:
-                            # Trigger particle pt must be larger than the associated particle.
-                            # If it's smaller, skip it. We'll have picked up the higher pt particle as a trigger, so
-                            # we'll account for it when we loop over that trigger.
-                            # NOTE: We also want to ensure that the trigger and associated aren't the same particle.
-                            #       However, requiring trigger pt > assoc pt also implicitly requires that the
-                            #       two particles can't be the same.
-                            if trigger_particle.pt() > associated_particle.pt():
-                                # stores phi_trig - phi_assoc
-                                dphi_values.append(associated_particle.delta_phi_to(trigger_particle))
-
-                        # If nothing to record, then skip over this trigger
-                        # NOTE: This is actually quite important for the output because calling extend on a defaultdict
-                        #       with an empty list causes the None (what we want for an empty list for our output) to
-                        #       be stored as an empty list (which we don't want). Unfortunately, this is subtle to see
-                        #       when debugging, so have some care and keep an eye out for this with this observable.
-                        if len(dphi_values) == 0:
-                            continue
-
-                        # Label with both pt ranges
-                        label = f"pt_trig_{pt_trig_min:g}_{pt_trig_max:g}_pt_assoc_{pt_assoc_min:g}_{pt_assoc_max:g}"
-                        # Store a list of dphi of associated particles
-                        # NOTE: We actually store the triggers separately, but in principle we could extract it directly from here if
-                        #       we stored the associated particles per trigger (ie. used append rather than extend). However,
-                        #       it's more difficult to integrate with the existing infrastructure, bo we take the simpler route
-                        #       and use a flat list
-                        # NOTE: Here we standardize the values to match with the measured correlation range
-                        self.observable_dict_event[f"hadron_trigger_hadron_dihadron_star_{label}{suffix}"].extend(
-                            [analyze_events_base_STAT.dphi_in_range(phi) for phi in dphi_values]
-                        )
+                    self.observable_dict_event[f"hadron_correlation_v2_ep_cms{suffix}"].append([pt, CosineDPhi])
 
     # ---------------------------------------------------------------
     # Fill jet observables
@@ -1696,9 +1628,108 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     f"inclusive_jet_rg_atlas_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
                 ].append([jet_pt, rg])
 
-    # ---------------------------------------------------------------
-    # Fill semi-inclusive charged jet observables
-    # ---------------------------------------------------------------
+    def fill_hadron_trigger_hadron_observables(  # noqa: C901
+        self,
+        fj_particles: PseudoJetVector,
+        pid_hadrons: npt.NDArray[np.int32],
+        status: str = "+",
+    ) -> None:
+        """Measure and record inclusive hadron-triggered hadron observables.
+
+        NOTE:
+            For identified particles, we store holes of the identified species
+
+        Args:
+            fj_particles: Particles in the event.
+            pid_hadrons: Particle ID of the particles.
+            event_plane_angle: Event plane angle.
+            status: Particle status of the provided particles. Default: "+"
+        Returns:
+            None
+        """
+        # NOTE: For identified particles, we store holes of the identified species
+        suffix = ""
+        if status == "-":
+            suffix = "_holes"
+
+        # STAR high-pt di-hadron correlations
+        # NOTE: The loop order here is different than other functions because without some optimization,
+        #       it's very easy to have an O(n^2) loop looking for trigger and associated particles.
+        #       We keep track of the particles which pass our conditions, so the double loop ends up
+        #       running for small n rather than the full event multiplicity
+        if self.measure_observable_for_current_event(self.hadron_trigger_hadron_observables["dihadron_star"]):
+            # Keep track of the trigger particles in pt ranges
+            trigger_particles = defaultdict(list)
+            # Keep track of the associated particles in pt ranges
+            associated_particles = defaultdict(list)
+            pt_trigger_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["pt_trig"]
+            pt_associated_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["pt_assoc"]
+            for particle in fj_particles:
+                # Cuts:
+                # - eta
+                # - Charged hadrons (pi+, K+, p+)
+                if abs(particle.eta()) < self.hadron_trigger_hadron_observables["dihadron_star"][
+                    "eta_cut"
+                ] and pid_hadrons[np.abs(particle.user_index()) - 1] in [211, 321, 2212]:
+                    pt = particle.pt()
+                    for pt_trig_range in pt_trigger_ranges:
+                        pt_trig_min, pt_trig_max = pt_trig_range
+                        if pt_trig_min <= pt < pt_trig_max:
+                            # Found trigger - save it
+                            trigger_particles[(pt_trig_min, pt_trig_max)].append(particle)
+
+                    for pt_assoc_range in pt_associated_ranges:
+                        pt_assoc_min, pt_assoc_max = pt_assoc_range
+                        # If the upper range has -1, it's unbounded, so we make it large enough not to matter
+                        pt_assoc_max = 1000 if pt_assoc_max == -1 else pt_assoc_max
+                        if pt_assoc_min <= pt < pt_assoc_max:
+                            associated_particles[(pt_assoc_min, pt_assoc_max)].append(particle)
+
+            # Now, create the correlations over our reduced set of particles
+            for (pt_trig_min, pt_trig_max), trig_particles in trigger_particles.items():
+                for trigger_particle in trig_particles:
+                    # Store the trigger pt to count the number of triggers
+                    # In principle, the dphi list could have been enough to get the number of triggers,
+                    # but it's not so easy to integrate with the existing histogram code.
+                    # So we keep separate track of the triggers, same as is done for D(z)
+                    self.observable_dict_event[f"hadron_trigger_hadron_dihadron_star_Ntrig{suffix}"].append(
+                        trigger_particle.pt()
+                    )
+
+                    for (pt_assoc_min, pt_assoc_max), assoc_particles in associated_particles.items():
+                        # First, just calculate the values
+                        dphi_values = []
+                        for associated_particle in assoc_particles:
+                            # Trigger particle pt must be larger than the associated particle.
+                            # If it's smaller, skip it. We'll have picked up the higher pt particle as a trigger, so
+                            # we'll account for it when we loop over that trigger.
+                            # NOTE: We also want to ensure that the trigger and associated aren't the same particle.
+                            #       However, requiring trigger pt > assoc pt also implicitly requires that the
+                            #       two particles can't be the same.
+                            if trigger_particle.pt() > associated_particle.pt():
+                                # stores phi_trig - phi_assoc
+                                dphi_values.append(associated_particle.delta_phi_to(trigger_particle))
+
+                        # If nothing to record, then skip over this trigger
+                        # NOTE: This is actually quite important for the output because calling extend on a defaultdict
+                        #       with an empty list causes the None (what we want for an empty list for our output) to
+                        #       be stored as an empty list (which we don't want). Unfortunately, this is subtle to see
+                        #       when debugging, so have some care and keep an eye out for this with this observable.
+                        if len(dphi_values) == 0:
+                            continue
+
+                        # Label with both pt ranges
+                        label = f"pt_trig_{pt_trig_min:g}_{pt_trig_max:g}_pt_assoc_{pt_assoc_min:g}_{pt_assoc_max:g}"
+                        # Store a list of dphi of associated particles
+                        # NOTE: We actually store the triggers separately, but in principle we could extract it directly from here if
+                        #       we stored the associated particles per trigger (ie. used append rather than extend). However,
+                        #       it's more difficult to integrate with the existing infrastructure, bo we take the simpler route
+                        #       and use a flat list
+                        # NOTE: Here we standardize the values to match with the measured correlation range
+                        self.observable_dict_event[f"hadron_trigger_hadron_dihadron_star_{label}{suffix}"].extend(
+                            [analyze_events_base_STAT.dphi_in_range(phi) for phi in dphi_values]
+                        )
+
     def fill_hadron_trigger_chjet_observables(  # noqa: C901
         self,
         jets_selected: PseudoJetVector,

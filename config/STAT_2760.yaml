@@ -260,10 +260,10 @@ hadron:
     skip_AA_distribution: True ## PbPb hepdata not available
 
 #------------------------------------------------------------------
-# Hadron triggered hadron correlations
-# e.g. v2, di-hadron correlations, etc...
+# Hadron correlations without a clear trigger
+# e.g. hadron vn, etc...
 #------------------------------------------------------------------
-hadron_trigger_hadron:
+hadron_correlation:
   # ALICE scalar-product v2
   v2_sp_alice:
     enabled: false
@@ -275,11 +275,16 @@ hadron_trigger_hadron:
       #inspire_hep: https://www.hepdata.net/record/ins1116150
 
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
-    pt: [0.2, 50.]
-    eta_cut: 0.8
+    trigger:
+      # NOTE: RJE is not sure this is really relevant
+      #pt: [0.2, 50.]
+      #eta_cut: 0.8
 
-    eta_min_ref: 2.8
-    eta_max_ref: 5.1
+      eta_min_ref: 2.8
+      eta_max_ref: 5.1
+    hadron:
+      pt: [0.2, 50.]
+      eta_cut: 0.8
 
     hepdata: "HEPData-ins1666817-v1-root.root"
 
