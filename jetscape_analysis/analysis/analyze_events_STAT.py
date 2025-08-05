@@ -29,6 +29,7 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import logging
 import random
 import sys
@@ -1663,7 +1664,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # Keep track of the associated particles in pt ranges
             associated_particles = defaultdict(list)
             pt_trigger_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["pt_trig"]
-            pt_associated_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["pt_assoc"]
+            pt_associated_ranges = itertools.pairwise(
+                self.hadron_trigger_hadron_observables["dihadron_star"]["pt_assoc"]
+            )
             for particle in fj_particles:
                 # Cuts:
                 # - eta

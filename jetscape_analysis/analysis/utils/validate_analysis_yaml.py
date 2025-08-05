@@ -344,8 +344,9 @@ def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:  # noq
         issues.append(
             "Need to provide either pt or Et fields, but detected issues with both. Please check the other reported issues for details."
         )
-        issues.extend(pt_issues)
-        issues.extend(Et_issues)
+        # NOTE: Would use a tab for spacing, but it doesn't evaluate nicely in our printout, so just doing it by hand.
+        issues.extend([f"    {v}" for v in pt_issues])
+        issues.extend([f"    {v}" for v in Et_issues])
     # Check for lower case "et" (which is a misspelling of Et)
     if any(v in config for v in ["et", "et_min"]):
         issues.append(

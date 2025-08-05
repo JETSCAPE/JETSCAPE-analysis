@@ -174,7 +174,8 @@ hadron_trigger_hadron:
       eta_cut: 1.0
     # Associated hadron
     hadron:
-      pt: [[4, 6], [6, -1]]
+      # NOTE: Each bin is constructed from these bin edges. -1 is interpreted as without upper limit
+      pt: [4., 6., -1.]
       eta_cut: 1.0
 
     # Yield range are defined relative to 0 and pi
@@ -221,7 +222,7 @@ inclusive_chjet:
 
     centrality: [[0, 10]]
     jet_R: [0.2, 0.3, 0.4]
-    pt: [5., 30]
+    pt: [5., 30.]
     eta_cut_R: 1.0
 
     hepdata: "HEPData-ins1798665-v1-root.root"
