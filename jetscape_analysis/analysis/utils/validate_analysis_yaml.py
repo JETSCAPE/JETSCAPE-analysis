@@ -86,29 +86,12 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
     observables = {}
     for observable_class in observable_classes:
         for observable_key in config[observable_class]:
-            # if "v2" in observable_key and observable_class != "dijet":
-            if False:
-                # need to go a level deeper for the v2 since they're nested...
-                for sub_observable_key in config[observable_class][observable_key]:
-                    observable_info = config[observable_class][observable_key][sub_observable_key]
-
-                    # Move the experiment to the end of the name to match the convention
-                    *base_observable_name, experiment_name = observable_key.split("_")
-                    observable_name = "_".join(base_observable_name)
-                    observable_name += f"_{sub_observable_key}_{experiment_name}"
-
-                    observables[f"{observable_class}_{observable_key}_{sub_observable_key}"] = ObservableInfo(
-                        observable_class=observable_class,
-                        name=observable_name,
-                        config=observable_info,
-                    )
-            else:
-                observable_info = config[observable_class][observable_key]
-                observables[f"{observable_class}_{observable_key}"] = ObservableInfo(
-                    observable_class=observable_class,
-                    name=observable_key,
-                    config=observable_info,
-                )
+            observable_info = config[observable_class][observable_key]
+            observables[f"{observable_class}_{observable_key}"] = ObservableInfo(
+                observable_class=observable_class,
+                name=observable_key,
+                config=observable_info,
+            )
 
     return observables
 
@@ -215,6 +198,14 @@ def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, li
             # Hadron properties
             if "hadron" in observable_info.observable_class:
                 issues.extend(_check_hadron_properties(config=observable_info.config))
+
+            if issues:
+                validation_issues[key].extend(issues)
+
+        if observable_info.observable_class == "hadron_correlation":
+            issues = []
+            # Hadron correlation properties
+            issues.extend(_check_hadron_correlation_properties(config=observable_info.config))
 
             if issues:
                 validation_issues[key].extend(issues)
@@ -354,8 +345,12 @@ def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:
         issues.append(f"Wrong number of momentum fields. Must include one of: {momentum_fields}")
     for k in available_momentum_fields:
         value = config[k]
-        if "min" in k and not isinstance(value, float):
-            issues.append(f"`{k}` field not formatted correctly. Needs a single value, provided: {value=}")
+        logger.debug(f"{k}, {value}, {issues}")
+        if isinstance(value, int):
+            issues.append(f"`{k}` field should be a float, not int. Provided: {value=}")
+        elif isinstance(value, float):
+            if "min" not in k:
+                issues.append(f"`{k}` field not formatted correctly. Needs a single value, provided: {value=}")
         elif len(value) < 2:
             issues.append(f"`{k}` field not formatted correctly. Needs at least two values, provided: {value=}")
     # Check for lower case "et" (which is a misspelling of Et)
@@ -400,6 +395,35 @@ def _check_z_trigger_properties(config: dict[str, Any]) -> list[str]:
         issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
     # z requirements
     # mass
+
+    return issues
+
+
+def _check_hadron_correlation_properties(config: dict[str, Any]) -> list[str]:
+    """Check hadron correlation properties in config.
+
+    Args:
+        config: Configuration containing the parameters relevant to hadron correlations.
+            Could be the main config, but could also be the more specific config
+            for a triggered observable.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    logger.debug("-> Checking hadron correlation properties")
+
+    issues = []
+    if not config:
+        issues.append("Missing hadron correlation config!")
+
+    # Need either "pt" or "pt_min"
+    if "pt" not in config and "pt_min" not in config:
+        issues.append("Need pt or pt_min")
+    pt = config.get("pt")
+    if pt and len(pt) < 2:
+        issues.append(f"`pt` field not formatted correctly. Needs at least two values, provided: {pt=}")
+    pt_min = config.get("pt_min")
+    if pt_min and not isinstance(pt_min, float):
+        issues.append(f"`pt_min` field not formatted correctly. Needs a single value, provided: {pt_min=}")
 
     return issues
 
@@ -480,7 +504,6 @@ def _check_hadron_properties_impl(config: dict[str, Any], trigger: bool = False)
     Returns:
         Any issues observed with the configuration.
     """
-
     issues = []
     if not config:
         issues.append("Missing hadron config!")

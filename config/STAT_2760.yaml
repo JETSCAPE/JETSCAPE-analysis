@@ -275,16 +275,10 @@ hadron_correlation:
       #inspire_hep: https://www.hepdata.net/record/ins1116150
 
     centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
-    trigger:
-      # NOTE: RJE is not sure this is really relevant
-      #pt: [0.2, 50.]
-      #eta_cut: 0.8
-
-      eta_min_ref: 2.8
-      eta_max_ref: 5.1
-    hadron:
-      pt: [0.2, 50.]
-      eta_cut: 0.8
+    pt: [0.2, 50.]
+    eta_cut: 0.8
+    # eta range used to determine the reference (i.e. usually the forward direction).
+    reference_eta_cut: [2.8, 5.1]
 
     hepdata: "HEPData-ins1666817-v1-root.root"
 
@@ -814,12 +808,14 @@ hadron_trigger_chjet:
       hepdata: https://www.hepdata.net/record/ins1376027
 
     centrality: [[0, 10]]
-    jet_R: [0.2, 0.4, 0.5]
-    eta_cut_R: 0.9
-    pt: [20., 100.]
-    hadron_eta_cut: 0.9
-    low_trigger_range: [8, 9]
-    high_trigger_range: [20, 50]
+    trigger:
+      low_range: [8, 9]
+      high_range: [20, 50]
+      eta_cut: 0.9
+    jet:
+      jet_R: [0.2, 0.4, 0.5]
+      pt: [20., 100.]
+      eta_cut_R: 0.9
     c_ref: [0.99, 0.96, 0.93]
 
     hepdata: "HEPData-ins1376027-v1-root.root"
@@ -850,12 +846,14 @@ hadron_trigger_chjet:
       hepdata: https://www.hepdata.net/record/ins1376027
 
     centrality: [[0, 10]]
-    jet_R: [0.4]
-    pt: [40., 60.]
-    eta_cut_R: 0.9
-    hadron_eta_cut: 0.9
-    low_trigger_range: [8, 9]
-    high_trigger_range: [20, 50]
+    trigger:
+      low_range: [8, 9]
+      high_range: [20, 50]
+      eta_cut: 0.9
+    jet:
+      jet_R: [0.4]
+      pt: [40., 60.]
+      eta_cut_R: 0.9
     c_ref: [0.96]
 
     hepdata: "HEPData-ins1376027-v1-root.root"
@@ -887,12 +885,15 @@ hadron_trigger_chjet:
       hepdata: https://www.hepdata.net/record/ins1862792
 
     centrality: [[0, 10]]
-    jet_R: [0.4]
-    pt: [40., 60.]
-    eta_cut_R: 0.9
-    hadron_eta_cut: 0.9
-    low_trigger_range: [8, 9]
-    high_trigger_range: [15, 45]
+    trigger:
+      low_range: [8, 9]
+      high_range: [15, 45]
+      eta_cut: 0.9
+    jet:
+      jet_R: [0.4]
+      pt: [40., 60.]
+      eta_cut_R: 0.9
+    c_ref: [0.96]
 
     #hepdata: 'HEPData-1623946228-v1-frac{tau_{2}}{tau_{1}}_with_CA_reclustering_in_Pb-Pb.root'
     hepdata: "HEPData-ins1862792-v1-root.root"
@@ -929,10 +930,14 @@ dijet_trigger_jet:
       hepdata: N/A
 
     centrality: [[0, 10], [10, 20], [20, 30], [30, 40]]
-    jet_R: [0.4]
-    pt: [100., 126., 158., 200., 1380.] # pt_leading_min
-    eta_cut: 2.1
-    pt_subleading_min: 25.
+    trigger:
+      jet_R: [0.4]
+      pt: [100., 126., 158., 200., 1380.] # pt_leading_min
+      eta_cut: 2.1
+    jet:
+      jet_R: [0.4]
+      pt_subleading_min: 25.
+      eta_cut: 2.1
 
     custom_data: "custom_data.yaml"
     # prettier-ignore
