@@ -1891,7 +1891,6 @@ gamma_trigger_jet:
     hepdata: "HEPData-ins1648162-v1-root.root"
 
   # CMS, gamma-tagged girth
-  # https://inspirehep.net/literature/2783507
   g_cms:
     enabled: false
     urls:
@@ -1901,10 +1900,16 @@ gamma_trigger_jet:
     centrality: [[0, 30]]
 
     trigger:
-      pt_min: ...
-      eta_cut: ...
+      # NOTE: Only the highest pt isolated photon is used if multiple pass the selections.
+      pt_min: 100.
+      eta_cut: 1.44
       isolation:
-        R: ...
+        type: "full"
+        R: 0.4
+        # TODO(RJE): 2025/08: Need to sort out the isolation criteria. There is some efficiencies that
+        #            may already be corrected. Mentions the 5 GeV value as possible maximum value on pg 6
+        #            (although it's not directly comparable, I think), so will use that for now.
+        Et_max: 5. # GeV
     jet:
       jet_R: [0.2]
       pt_min: 40.0 # GeV
@@ -1923,10 +1928,16 @@ gamma_trigger_jet:
     centrality: [[0, 30]]
 
     trigger:
-      pt_min: ...
-      eta_cut: ...
+      # NOTE: Only the highest pt isolated photon is used if multiple pass the selections.
+      pt_min: 100.
+      eta_cut: 1.44
       isolation:
-        R: ...
+        type: "full"
+        R: 0.4
+        # TODO(RJE): 2025/08: Need to sort out the isolation criteria. There is some efficiencies that
+        #            may already be corrected. Mentions the 5 GeV value as possible maximum value on pg 6
+        #            (although it's not directly comparable, I think), so will use that for now.
+        Et_max: 5. # GeV
     jet:
       jet_R: [0.2]
       pt_min: 40.0 # GeV
