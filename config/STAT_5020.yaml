@@ -1964,6 +1964,7 @@ z_trigger_hadron:
     urls:
       inspire_hep: https://inspirehep.net/literature/1812957
       hepdata: N/A
+      custom: TODO
 
     centrality: [[0, 10], [10, 30]]
     trigger:
@@ -2068,6 +2069,8 @@ z_trigger_hadron:
       # Bins: [1, 2, 4, 10]
       pt: [1.0, 10.0]
       eta_cut: 2.4
+
+    hepdata: "HEPData-ins2945894-v1-root.root"
 
     # TODO(RJE): Add figures and binning
 
