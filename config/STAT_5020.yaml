@@ -1966,7 +1966,7 @@ z_trigger_hadron:
       hepdata: N/A
 
     centrality: [[0, 10], [10, 30]]
-    z_trigger:
+    trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
       electron_pt_min: 20.
@@ -1981,7 +1981,7 @@ z_trigger_hadron:
       z_mass: [76., 106.]
       z_pt_min: 15.
       # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
-    recoil_hadron:
+    hadron:
       pt_min: 1.
       eta_cut: 2.5
     dPhi: 3./4. # dPhi > 3/4*pi
@@ -1997,7 +1997,7 @@ z_trigger_hadron:
       hepdata: https://www.hepdata.net/record/ins1850859
 
     centrality: [[0, 30], [30, 50]]
-    z_trigger:
+    trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
       electron_pt_min: 20.
@@ -2010,7 +2010,7 @@ z_trigger_hadron:
       z_pt_min: 30.
       # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
       #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
-    recoil_hadron:
+    hadron:
       pt_min: 1.0
       eta_cut: 2.4
 
@@ -2027,7 +2027,7 @@ z_trigger_hadron:
       hepdata: https://www.hepdata.net/record/ins1850859
 
     centrality: [[0, 30], [30, 50]]
-    z_trigger:
+    trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
       electron_pt_min: 20.
@@ -2040,7 +2040,7 @@ z_trigger_hadron:
       z_pt_min: 30.
       # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
       #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
-    recoil_hadron:
+    hadron:
       pt_min: 1.0
       eta_cut: 2.4
 
@@ -2055,16 +2055,16 @@ z_trigger_hadron:
       hepdata: https://www.hepdata.net/record/ins2945894
 
     centrality: [[0, 30], [30, 50]]
-    z_trigger:
+    trigger:
       # This analysis uses Z -> mu+mu-, so there are requirements on
       # both the muons and the reconstructed Z!
-      muon_pt_min: 20
+      muon_pt_min: 20.0
       muon_eta_cut: 2.4
       z_mass: [60, 120]
       z_pt: [40, 350]
       # The Z rapidity cut is extracted from the label in the figures
       z_y_cut: 2.4
-    recoil_hadron:
+    hadron:
       # Bins: [1, 2, 4, 10]
       pt: [1.0, 10.0]
       eta_cut: 2.4
@@ -2084,7 +2084,7 @@ z_trigger_jet:
       hepdata: https://www.hepdata.net/record/ins1512112
 
     centrality: [[0, 30]]
-    z_trigger:
+    trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
       electron_pt_min: 20.
@@ -2120,7 +2120,7 @@ z_trigger_jet:
       hepdata: https://www.hepdata.net/record/ins1512112
 
     centrality: [[0, 30]]
-    z_trigger:
+    trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
       electron_pt_min: 20.

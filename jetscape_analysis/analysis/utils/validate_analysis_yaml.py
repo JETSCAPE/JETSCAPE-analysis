@@ -366,6 +366,42 @@ def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:
     return issues
 
 
+def _check_standard_pt_field(config: dict[str, Any], prefix: str = "") -> list[str]:
+    """Check that a standard pt field is formatted properly.
+
+    Args:
+        config: Configuration containing the pt field(s).
+    Returns:
+        List of issues associated with the pt fields.
+    """
+    issues = []
+    # Setup
+    pt_field_name = "pt"
+    pt_min_field_name = "pt_min"
+    if prefix:
+        pt_field_name = f"{prefix}_{pt_field_name}"
+        pt_min_field_name = f"{prefix}_{pt_min_field_name}"
+
+    # Check for existence of field
+    if pt_field_name not in config and pt_min_field_name not in config:
+        issues.append("Need muon pt or pt_min")
+
+    # If it exists, check the formatting
+    pt = config.get(pt_field_name)
+    if pt and len(pt) < 2:
+        issues.append(f"`{pt_field_name}` field not formatted correctly. Needs at least two values, provided: {pt=}")
+        # Check for incorrectly typed values
+        wrong_type_index = [i for i, value in enumerate(pt) if not isinstance(value, int)]
+        if wrong_type_index:
+            values = {i: pt[i] for i in wrong_type_index}
+            issues.append(f"These `{pt_field_name}` index (values) should be floats: {values}")
+    pt_min = config.get(pt_min_field_name)
+    if pt_min and not isinstance(pt_min, float):
+        issues.append(f"`{pt_min_field_name}` field not formatted correctly. Needs a single float, provided: {pt_min=}")
+
+    return issues
+
+
 def _check_z_trigger_properties(config: dict[str, Any]) -> list[str]:
     """Check z trigger properties in config.
 
@@ -380,21 +416,35 @@ def _check_z_trigger_properties(config: dict[str, Any]) -> list[str]:
     if not config:
         issues.append("Missing trigger config!")
 
+    # Electron requirements
+    # They're not always analyzed, but if they're included, they should be formatted correctly
+    electron_included = any("electron" in k for k in config)
+    if electron_included:
+        res = _check_standard_pt_field(config=config, prefix="electron")
+        if res:
+            issues.extend(res)
+        # Eta requirement
+        if not any(v in config for v in ["electron_eta_cut", "electron_y_cut"]):
+            issues.append(
+                f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}"
+            )
     # Muon requirements
-    # Need either "pt" or "pt_min"
-    if "muon_pt" not in config and "muon_pt_min" not in config:
-        issues.append("Need muon pt or pt_min")
-    pt = config.get("muon_pt")
-    if pt and len(pt) < 2:
-        issues.append(f"`muon_pt` field not formatted correctly. Needs at least two values, provided: {pt=}")
-    pt_min = config.get("muon_pt_min")
-    if pt_min and not isinstance(pt_min, float):
-        issues.append(f"`muon_pt_min` field not formatted correctly. Needs a single value, provided: {pt_min=}")
+    # Muons always seem to be used, so we always check them.
+    res = _check_standard_pt_field(config=config, prefix="muon")
+    if res:
+        issues.extend(res)
     # Eta requirement
     if not any(v in config for v in ["muon_eta_cut", "muon_y_cut"]):
         issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
     # z requirements
     # mass
+    if "z_mass" not in config:
+        issues.append("Missing z mass selection field.")
+    # pt
+    res = _check_standard_pt_field(config=config, prefix="z")
+    if res:
+        issues.extend(res)
+    # eta selections on Z are often omitted, so we leave them off here.
 
     return issues
 
