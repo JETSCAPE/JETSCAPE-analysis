@@ -436,7 +436,7 @@ gamma_trigger_hadron:
   # Direct photon selected by subtracting pi_zero from total.
   # Not sure if it is unfolded or not.
   IAA_pt_phenix:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1798493
       hepdata: https://www.hepdata.net/record/ins1798493
@@ -446,6 +446,10 @@ gamma_trigger_hadron:
     trigger:
       pt: [5., 9.]
       eta_cut: 10000.
+      isolation:
+        # NOTE(RJE) 2025/08: These are best guess based on the paper, but needs review by an expert
+        type: "neutral"
+        Et_max: 0.1 # 10% of photon energy.
     hadron:
       pt: [5., 7.]
       eta_cut: 0.35

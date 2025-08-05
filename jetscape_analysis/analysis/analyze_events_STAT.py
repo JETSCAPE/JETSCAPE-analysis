@@ -2296,7 +2296,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     f"pion_trigger_chjet_dphi_star_R{jetR}_lowTrigger{jet_collection_label}"
                                 ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
 
-    def fill_gamma_trigger_hadron_observables(
+    def fill_gamma_trigger_hadron_observables(  # noqa: C901
         self,
         fj_photon_candidates: PseudoJetVector,
         fj_particles: PseudoJetVector,
@@ -2321,17 +2321,52 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         if self.measure_observable_for_current_event(self.gamma_trigger_hadron_observables["IAA_pt_phenix"]):
             # PHENIX, gamma-hadron correlations
-            gamma_pt = self.gamma_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["gamma_trigger"]["pt"]
-            gamma_eta_cut = self.gamma_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["gamma_trigger"]["eta_cut"]
+            gamma_pt = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["gamma_trigger"]["pt"]
+            gamma_eta_cut = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["gamma_trigger"]["eta_cut"]
+            isolation_type = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["isolation"]["type"]
+            isolation_R = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["isolation"]["R"]
+            isolation_Et_max_percentage = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["isolation"]["Et_max"]
             recoil_hadron_pt = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["recoil_hadron"]["pt"]
             recoil_hadron_eta_cut = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["recoil_hadron"]["eta_cut"]
             d_phi = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["dPhi"]
 
+            # Acceptable hadrons
+            # TODO(RJE): Double check PID selections, etc
+            acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+
             # Select gamma triggers
             photons = []
+
+            if isolation_type == "full":
+                acceptable_particles_isolation = [11, 13, 22, 111, 211, 321, 2212, 3222, 3112, 3312, 3334]
+            elif isolation_type == "charged":
+                acceptable_particles_isolation = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+            elif isolation_type == "neutral":
+                acceptable_particles_isolation = [111, 22]  # photon and pi0
+
+            # Determine isolation particles
+            isolation_particles = []
+            for hadron in fj_particles:
+                # if not part of accepted hadrons, skip
+                pid = pid_hadrons[np.abs(hadron.user_index()) - 1]
+                if pid not in acceptable_particles_isolation:
+                    continue
+                isolation_particles.append(hadron)
+
             for trigger in fj_photon_candidates:
-                # TODO(RJE): Implement full selection, including isolation...
-                if gamma_pt[0] < trigger.pt < gamma_pt[1] and abs(trigger.eta()) < gamma_eta_cut:
+                # Start isolation here by requiring that the are no hadrons.
+                if (
+                    gamma_pt[0] < trigger.pt < gamma_pt[1]
+                    and self.is_isolated(
+                        trigger,
+                        isolation_particles if not suffix else [],
+                        isolation_particles if suffix else [],
+                        isolation_R,
+                        isolation_Et_max_percentage * trigger.pt(),
+                    )
+                    and self.is_prompt_photon(photon=trigger)
+                    and abs(trigger.eta()) < gamma_eta_cut
+                ):
                     photons.append(trigger)
 
             # And then construct the correlation of the trigger photons with the hadrons
@@ -2340,12 +2375,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.observable_dict_event[f"photon_trigger_hadron_IAA_pt_phenix_Ngamma{suffix}"].append(photon.pt())
                 for particle in fj_particles:
                     pid = pid_hadrons[np.abs(particle.user_index()) - 1]
-                    # TODO(RJE): Double check PID selections, etc
                     if (
                         abs(particle.eta()) < recoil_hadron_eta_cut
                         and recoil_hadron_pt[0] < particle.pt() < recoil_hadron_pt[1]
                         and abs(particle.delta_R(photon) - np.pi) < d_phi
-                        and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                        and abs(pid) in acceptable_hadrons
                     ):
                         # store photon.pt and hadron pt to allow to select photon pt ranges later for figure
                         self.observable_dict_event[f"photon_trigger_hadron_IAA_pt_phenix{suffix}"].append(
