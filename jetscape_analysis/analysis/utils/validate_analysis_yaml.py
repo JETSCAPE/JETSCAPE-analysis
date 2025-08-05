@@ -263,6 +263,7 @@ def _check_hadron_trigger_properties(config: dict[str, Any]) -> list[str]:
         issues.append("Missing trigger config!")
     # Use the existing hadron configuration properties
     issues.extend(_check_hadron_properties_impl(config=config, trigger=True))
+    # TODO(RJE): Need to support low and high trigger
     return issues
 
 
@@ -337,20 +338,14 @@ def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:
         issues.append("Missing trigger config!")
 
     # Need either "pt", "pt_min", "Et", or "Et_min"
-    momentum_fields = ["pt", "pt_min", "Et", "Et_min"]
-    available_momentum_fields = [v for v in momentum_fields if v in config]
-    if len(available_momentum_fields) != 1:
-        issues.append(f"Wrong number of momentum fields. Must include one of: {momentum_fields}")
-    for k in available_momentum_fields:
-        value = config[k]
-        logger.debug(f"{k}, {value}, {issues}")
-        if isinstance(value, int):
-            issues.append(f"`{k}` field should be a float, not int. Provided: {value=}")
-        elif isinstance(value, float):
-            if "min" not in k:
-                issues.append(f"`{k}` field not formatted correctly. Needs a single float, provided: {value=}")
-        elif len(value) < 2:
-            issues.append(f"`{k}` field not formatted correctly. Needs at least two values, provided: {value=}")
+    pt_issues = _check_standard_momentum_field(config=config)
+    Et_issues = _check_standard_momentum_field(config=config, check_Et_instead=True)
+    if pt_issues and Et_issues:
+        issues.append(
+            "Need to provide either pt or Et fields, but detected issues with both. Please check the other reported issues for details."
+        )
+        issues.extend(pt_issues)
+        issues.extend(Et_issues)
     # Check for lower case "et" (which is a misspelling of Et)
     if any(v in config for v in ["et", "et_min"]):
         issues.append(
@@ -366,25 +361,36 @@ def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:
     return issues
 
 
-def _check_standard_pt_field(config: dict[str, Any], prefix: str = "") -> list[str]:
-    """Check that a standard pt field is formatted properly.
+def _check_standard_momentum_field(
+    config: dict[str, Any], prefix: str = "", check_Et_instead: bool = False
+) -> list[str]:
+    """Check that a standard momentum field is formatted properly.
 
     Args:
-        config: Configuration containing the pt field(s).
+        config: Configuration containing the momentum field(s).
+        prefix: Prefix to be used when accessing the fields. e.g. if prefix is `muon`,
+            then it would check `muon_pt`.
+        check_Et_instead: Instead of checking for pt, check for Et based fields
+            (generally this is used for photon triggers).
     Returns:
-        List of issues associated with the pt fields.
+        List of issues associated with the momentum fields.
     """
     issues = []
     # Setup
     pt_field_name = "pt"
     pt_min_field_name = "pt_min"
+    if check_Et_instead:
+        pt_field_name = "Et"
+        pt_min_field_name = "Et_min"
+
+    # Assign prefix as needed
     if prefix:
         pt_field_name = f"{prefix}_{pt_field_name}"
         pt_min_field_name = f"{prefix}_{pt_min_field_name}"
 
     # Check for existence of field
     if pt_field_name not in config and pt_min_field_name not in config:
-        issues.append(f"Need either {pt_field_name} or {pt_min_field_name} field")
+        issues.append(f"Need either `{pt_field_name}` or `{pt_min_field_name}` field")
     # Check if both are specified
     if pt_field_name in config and pt_min_field_name in config:
         issues.append(
@@ -406,7 +412,9 @@ def _check_standard_pt_field(config: dict[str, Any], prefix: str = "") -> list[s
 
     pt_min = config.get(pt_min_field_name)
     if pt_min and not isinstance(pt_min, float):
-        issues.append(f"`{pt_min_field_name}` field not formatted correctly. Needs a single float, provided: {pt_min=}")
+        issues.append(
+            f"`{pt_min_field_name}` field not formatted correctly. Field should be a float, but provided: {pt_min=}"
+        )
 
     return issues
 
@@ -429,7 +437,7 @@ def _check_z_trigger_properties(config: dict[str, Any]) -> list[str]:
     # They're not always analyzed, but if they're included, they should be formatted correctly
     electron_included = any("electron" in k for k in config)
     if electron_included:
-        issues.extend(_check_standard_pt_field(config=config, prefix="electron"))
+        issues.extend(_check_standard_momentum_field(config=config, prefix="electron"))
         # Eta requirement
         if not any(v in config for v in ["electron_eta_cut", "electron_y_cut"]):
             issues.append(
@@ -437,7 +445,7 @@ def _check_z_trigger_properties(config: dict[str, Any]) -> list[str]:
             )
     # Muon requirements
     # Muons always seem to be used, so we always check them.
-    issues.extend(_check_standard_pt_field(config=config, prefix="muon"))
+    issues.extend(_check_standard_momentum_field(config=config, prefix="muon"))
     # Eta requirement
     if not any(v in config for v in ["muon_eta_cut", "muon_y_cut"]):
         issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
@@ -446,7 +454,7 @@ def _check_z_trigger_properties(config: dict[str, Any]) -> list[str]:
     if "z_mass" not in config:
         issues.append("Missing z mass selection field.")
     # pt
-    issues.extend(_check_standard_pt_field(config=config, prefix="z"))
+    issues.extend(_check_standard_momentum_field(config=config, prefix="z"))
     # eta selections on Z are often omitted, so we leave them off here.
 
     return issues
@@ -469,7 +477,7 @@ def _check_hadron_correlation_properties(config: dict[str, Any]) -> list[str]:
         issues.append("Missing hadron correlation config!")
 
     # Need either "pt" or "pt_min"
-    issues.extend(_check_standard_pt_field(config=config))
+    issues.extend(_check_standard_momentum_field(config=config))
 
     return issues
 
@@ -506,7 +514,7 @@ def _check_jet_properties_impl(config: dict[str, Any]) -> list[str]:
     if "jet_R" not in config:
         issues.append("Missing jet_R")
     # Need either "pt" or "pt_min"
-    issues.extend(_check_standard_pt_field(config=config))
+    issues.extend(_check_standard_momentum_field(config=config))
     # Eta requirement
     if not any(v in config for v in ["eta_cut", "eta_cut_R", "y_cut"]):
         issues.append(
