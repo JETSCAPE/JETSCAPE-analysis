@@ -936,7 +936,8 @@ dijet_trigger_jet:
       eta_cut: 2.1
     jet:
       jet_R: [0.4]
-      pt_subleading_min: 25.
+      # Subleading min pt
+      pt_min: 25.
       eta_cut: 2.1
 
     custom_data: "custom_data.yaml"

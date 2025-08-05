@@ -422,8 +422,6 @@ hadron_correlation:
 #------------------------------------------------------------------
 inclusive_chjet:
   # ALICE charged jet RAA, ML background subtraction
-  # PMJ 2/28/25: new analysis charged jet RAA with ME background correction
-  # TODO(RJE) 2025/04/07: Need to somehow disambiguate from the ML jet measurement.
   pt_alice:
     enabled: true
     urls:
@@ -445,7 +443,8 @@ inclusive_chjet:
     y_max_pp: 1.5
     skip_pp: True
 
-  # ALICE charged jet RAA, mixed-event background subtraction
+  # ALICE charged jet RAA, mixed-event background subtraction.
+  # Preliminary as of August 2025.
   pt_mixed_events_alice:
     enabled: false
     urls:

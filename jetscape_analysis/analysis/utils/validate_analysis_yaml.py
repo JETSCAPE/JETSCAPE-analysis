@@ -263,7 +263,6 @@ def _check_hadron_trigger_properties(config: dict[str, Any]) -> list[str]:
         issues.append("Missing trigger config!")
     # Use the existing hadron configuration properties
     issues.extend(_check_hadron_properties_impl(config=config, trigger=True))
-    # TODO(RJE): Need to support low and high trigger
     return issues
 
 
