@@ -1875,7 +1875,7 @@ gamma_trigger_jet:
         # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of.
         type: "full"
         R: 0.4
-        Et_max: 5 # GeV
+        Et_max: 5.0 # GeV
     jet:
       jet_R: [0.3]
       pt_min: 30. # GeV
@@ -1948,10 +1948,13 @@ gamma_trigger_jet:
     centrality: [[0, 10], [10, 30], [30, 50]]
 
     trigger:
-      pt_min: ...
-      eta_cut: ...
+      pt: [60., 200.]
+      eta_cut: 1.44
       isolation:
-        R: ...
+        type: "full"
+        R: 0.3
+        Et_max_pp: 0.66 # GeV
+        Et_max_AA: 3.5 # GeV
     jet:
       jet_R: [0.3]
       pt: [30., 100.]
