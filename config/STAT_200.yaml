@@ -449,6 +449,7 @@ gamma_trigger_hadron:
       isolation:
         # NOTE(RJE) 2025/08: These are best guess based on the paper, but needs review by an expert
         type: "neutral"
+        R: 0.4
         Et_max: 0.1 # 10% of photon energy.
     hadron:
       pt: [5., 7.]

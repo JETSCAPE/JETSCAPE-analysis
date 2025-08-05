@@ -322,7 +322,7 @@ def _check_pion_trigger_properties(config: dict[str, Any]) -> list[str]:
     return issues
 
 
-def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:  # noqa: C901
+def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:
     """Check gamma trigger properties in config.
 
     Args:
@@ -356,41 +356,82 @@ def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:  # noq
     if not any(v in config for v in ["eta_cut", "y_cut"]):
         issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
 
-    # Isolation properties
+    # Isolation or smearing properties
     # Need an isolation type
     isolation_config = config.get("isolation")
-    if not isolation_config:
-        issues.append("Must provide an isolation configuration.")
-    else:
-        # Type
-        isolation_type = isolation_config.get("type")
-        if not isolation_type:
-            issues.append("Missing required isolation")
-        elif isolation_type not in ["full", "charged", "neutral"]:
+    smearing_config = config.get("smearing")
+    if not isolation_config and not smearing_config:
+        issues.append("Must provide an isolation or smearing configuration.")
+    elif isolation_config:
+        issues.extend(_isolation_validation(isolation_config=isolation_config))
+    elif smearing_config:
+        issues.extend(_gamma_smearing_validation(smearing_config=smearing_config))
+
+    return issues
+
+
+def _isolation_validation(isolation_config: dict[str, Any]) -> list[str]:
+    """Isolation validation
+
+    Args:
+        isolation_config: Configuration containing the parameters relevant to the isolation parameters.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    issues = []
+    # Type
+    isolation_type = isolation_config.get("type")
+    if not isolation_type:
+        issues.append("Missing required isolation")
+    elif isolation_type not in ["full", "charged", "neutral"]:
+        issues.append(
+            f"Invalid isolation type {isolation_type}. Isolation type must be 'full', 'charged', or 'neutral'."
+        )
+    # Cone size
+    if "R" not in isolation_config:
+        issues.append("Missing isolation R")
+    # Et_max requirements
+    # Should be of the form Et_max or (Et_max_pp and Et_max_AA)
+    Et_fields = [f for f in isolation_config if "Et" in f]
+    if not Et_fields:
+        issues.append("Missing required isolation Et fields. Please provide Et_max or Et_max_{pp,AA}")
+    elif len(Et_fields) > 2:
+        issues.append(f"Too many isolation Et fields. Found: {Et_fields}")
+    elif len(Et_fields) == 2:
+        # Verify the types
+        incorrect_types = {
+            field: isolation_config[field] for field in Et_fields if not isinstance(isolation_config[field], float)
+        }
+        if incorrect_types:
+            issues.append(f"Isolation `Et_max` values should be float. Incorrect value -> index map: {incorrect_types}")
+    elif len(Et_fields) == 1 and not isinstance(isolation_config["Et_max"], float):
+        issues.append("Isolation `Et_max` value should be float.")
+
+    return issues
+
+
+def _gamma_smearing_validation(smearing_config: dict[str, Any]) -> list[str]:
+    """Gamma smearing configuration validation
+
+    Args:
+        smearing_config: Configuration containing the parameters relevant to the smearing parameters.
+    Returns:
+        Any issues observed with the configuration.
+    """
+    issues = []
+    fields = ["detector_level_Et", "particle_level_Et"]
+    for field in fields:
+        values = smearing_config.get(field)
+        if not values:
+            issues.append(f"Missing values for {field}")
+            continue
+
+        # Verify the types
+        incorrect_types = {value: i for i, value in enumerate(values) if not isinstance(value, float)}
+        if incorrect_types:
             issues.append(
-                f"Invalid isolation type {isolation_type}. Isolation type must be 'full', 'charged', or 'neutral'."
+                f"Gamma smearing field `{field}` values should be float. Incorrect value -> index map: {incorrect_types}"
             )
-        # Cone size
-        if "R" not in isolation_config:
-            issues.append("Missing isolation R")
-        # Et_max requirements
-        # Should be of the form Et_max or (Et_max_pp and Et_max_AA)
-        Et_fields = [f for f in isolation_config if "Et" in f]
-        if not Et_fields:
-            issues.append("Missing required isolation Et fields. Please provide Et_max or Et_max_{pp,AA}")
-        elif len(Et_fields) > 2:
-            issues.append(f"Too many isolation Et fields. Found: {Et_fields}")
-        elif len(Et_fields) == 2:
-            # Verify the types
-            incorrect_types = {
-                field: isolation_config[field] for field in Et_fields if not isinstance(isolation_config[field], float)
-            }
-            if incorrect_types:
-                issues.append(
-                    f"Isolation `Et_max` values should be float. Incorrect value -> index map: {incorrect_types}"
-                )
-        elif len(Et_fields) == 1 and not isinstance(isolation_config["Et_max"], float):
-            issues.append("Isolation `Et_max` value should be float.")
 
     return issues
 
