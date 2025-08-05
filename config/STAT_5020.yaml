@@ -451,6 +451,7 @@ inclusive_chjet:
     urls:
       inspire_hep: N/A
       hepdata: N/A
+      custom: https://indico.cern.ch/event/1403965/contributions/6068888/attachments/2936841/5158616/SoftJet28Sep2024_NadineGruenwald.pdf
 
     centrality: [[0, 10]]
     jet_R: [0.2, 0.3, 0.4, 0.5]
@@ -466,8 +467,9 @@ inclusive_chjet:
     skip_pp: True
 
     #bins:
-    # TODO:   "PMJ 2/28/25 for now use bins of width 1 GeV over the full pT range,"
-    # TODO:  " will be adjusted when analysis details are finalized "
+    # TODO(RJE): PMJ 2/28/25 for now use bins of width 1 GeV over the full pT range,
+    #            will be adjusted when analysis details are finalized.
+    #            RJE: This may be too fine binned - to be seen.
 
   # ALICE, zg
   zg_alice:
@@ -584,7 +586,7 @@ inclusive_chjet:
 
     centrality: [[0, 10]]
     jet_R: [0.2, 0.4]
-    pt: [40., 60, 80, 100, 140.]
+    pt: [40., 60., 80., 100., 140.]
     eta_cut_R: 0.9
     axis:
       - { "type": "WTA_Standard" }
@@ -941,7 +943,7 @@ inclusive_jet:
 
     centrality: [[0, 10]]
     jet_R: [0.4]
-    pt: [158, 200, 251, 316, 562]
+    pt: [158., 200., 251., 316., 562.]
     y_cut: 2.8
 
     hepdata: "HEPData-ins1673184-v1-root.root"
@@ -1175,7 +1177,7 @@ inclusive_jet:
 
     centrality: [[0, 10], [10, 30], [30, 50]]
     jet_R: [0.4]
-    pt: [120., 1000000]
+    pt: [120., 1000000.]
     eta_cut: 1.5
     track_pt_min: 1.
     kappa: [0.3, 0.5, 0.7]
@@ -1369,7 +1371,7 @@ inclusive_jet:
 
     centrality: [[0, 10], [10, 30], [30, 50], [50, 80]]
     jet_R: [0.4]
-    pt: [120., 150., 190, 230., 300]
+    pt: [120., 150., 190., 230., 300.]
     eta_cut: 1.6
     axis:
       - { "type": "WTA_Standard" }
@@ -1432,7 +1434,7 @@ inclusive_jet:
 
     centrality: [[0, 10]]
     jet_R: [0.4]
-    pt: [100, 150, 200]
+    pt: [100., 150., 200.]
     eta_cut: 2.0
     SoftDrop:
       - { "zcut": 0.2, "beta": 0 }
@@ -1460,9 +1462,8 @@ inclusive_jet:
     # Recluster R=0.2 jets into R=1.0 jets
     jet_R: [0.2]
     jet_R_reclustered: [1.0]
+    pt: [158., 1000.]
     eta_cut: 3.0
-    pt: [158, 1000]
-    weight: [1., 2.]
 
   # ATLAS dR_12
   # TODO: Update
@@ -1477,7 +1478,7 @@ inclusive_jet:
     jet_R: [0.2]
     jet_R_reclustered: [1.0]
     eta_cut: 3.0
-    pt: [200, 600]
+    pt: [200., 600.]
 
 #------------------------------------------------------------------
 # Hadron triggered charged-particle jet observables
@@ -1504,12 +1505,14 @@ hadron_trigger_chjet:
       #hepdata: https://www.hepdata.net/record/ins2693247
 
     centrality: [[0, 10]]
-    hadron_eta_cut: 0.9
-    low_trigger_range: [5, 7]
-    high_trigger_range: [20, 50]
-    jet_R: [0.2, 0.4, 0.5]
-    pt: [5., 140.]
-    eta_cut_R: 0.9
+    trigger:
+      low_range: [5, 7]
+      high_range: [20, 50]
+      eta_cut: 0.9
+    jet:
+      jet_R: [0.2, 0.4, 0.5]
+      pt: [5., 140.]
+      eta_cut_R: 0.9
     # RJE 2025/04/07: Note that in production, we had c_ref: [0.99, 0.96, 0.93]
     c_ref: [0.90, 0.82, 0.82]
 
@@ -1523,7 +1526,8 @@ hadron_trigger_chjet:
     y_max_pp: 3.0
     skip_pp: True
 
-    bins: [7.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 80.0, 110.0, 140.0]
+    # RJE 2025/08: Now that we have the HEPdata, the binning is not necessary.
+    # bins: [7.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 80.0, 110.0, 140.0]
 
   # PRL Fig 3 [Fig 2 contains these data for R=0.4 only]
   # IAA vs delta_phi
@@ -1539,12 +1543,14 @@ hadron_trigger_chjet:
       # NOTE: Both hepdata files seems to be the same (?)
 
     centrality: [[0, 10]]
-    hadron_eta_cut: 0.9
-    low_trigger_range: [5, 7]
-    high_trigger_range: [20, 50]
-    jet_R: [0.2, 0.4, 0.5]
-    pt: [10., 50.]
-    eta_cut_R: 0.9
+    trigger:
+      low_range: [5, 7]
+      high_range: [20, 50]
+      eta_cut: 0.9
+    jet:
+      jet_R: [0.2, 0.4, 0.5]
+      pt: [10., 50.]
+      eta_cut_R: 0.9
     c_ref: "TODO: see Fig 5 of PRC"
 
     hepdata: "HEPData-ins2693336-v1-root.root"
@@ -1557,7 +1563,8 @@ hadron_trigger_chjet:
     y_max_pp: 9.0
     skip_pp: True
 
-    bins: [1.57, 2.07, 2.42, 2.61, 2.76, 2.89, 3.02, 3.14]
+    # RJE 2025/08: Now that we have the HEPdata, the binning is not necessary.
+    # bins: [1.57, 2.07, 2.42, 2.61, 2.76, 2.89, 3.02, 3.14]
 
 #------------------------------------------------------------------
 # dijet triggered jet observables
@@ -1751,7 +1758,7 @@ gamma_trigger_jet:
 
     trigger:
       eta_cut: 1.48
-      gamma: [40., 100.]
+      pt: [40., 100.]
       isolation:
         type: "full"
         R: 0.4
@@ -1788,14 +1795,14 @@ gamma_trigger_jet:
 
     # Trigger isolated prompt photon
     trigger:
-      # paper mentions an exclusion of eta [1.37,1.56] but we assume this is addressed by their acc correction
-      eta: 2.37
       Et: [80., 126.]
+      # The paper mentions an exclusion of eta [1.37, 1.56] but we assume this is addressed by their acceptance correction
+      eta_cut: 2.37
       isolation:
         type: "full" # specification what particles are consider for isolation, allow for charged, neutral or full
         R: 0.3
         Et_max_pp: 3. # GeV
-        Et_max_AA: 10. # GeV TODO think if we actually need to have 10 GeV here
+        Et_max_AA: 10. # GeV # TODO(FJ): think if we actually need to have 10 GeV here
     jet:
       jet_R: [0.4]
       eta_cut: 2.1
@@ -1823,14 +1830,14 @@ gamma_trigger_jet:
 
     # Trigger isolated prompt photon
     trigger:
-      # paper mentions an exclusion of eta [1.37,1.56] but we assume this is addressed by their acc correction
-      eta: 2.37
       Et: [80., 126.]
+      # The paper mentions an exclusion of eta [1.37, 1.56] but we assume this is addressed by their acceptance correction
+      eta_cut: 2.37
       isolation:
         type: "full" # specification what particles are consider for isolation, allow for charged, neutral or full
         R: 0.3
         Et_max_pp: 3. # GeV
-        Et_max_AA: 10. # GeV TODO think if we actually need to have 10 GeV here
+        Et_max_AA: 10. # GeV # TODO(FJ): Think if we actually need to have 10 GeV here
     jet:
       jet_R: [0.4]
       eta_cut: 2.1
@@ -1857,7 +1864,7 @@ gamma_trigger_jet:
     centrality: [[0, 10], [10, 30], [30, 50], [50, 100]]
 
     trigger:
-      Et_min: 60 # GeV
+      Et_min: 60. # GeV
       eta_cut: 1.44 # |eta| < 1.44
       isolation:
         # Note on isolation:
@@ -1871,7 +1878,7 @@ gamma_trigger_jet:
         Et_max: 5 # GeV
     jet:
       jet_R: [0.3]
-      pt_min: 30 # GeV
+      pt_min: 30. # GeV
       eta_cut: 1.6 # |eta| < 1.6
     dPhi: 7./8. # dPhi > 7/8*pi
 
@@ -1900,7 +1907,7 @@ gamma_trigger_jet:
         R: ...
     jet:
       jet_R: [0.2]
-      pt_min: 40 # GeV
+      pt_min: 40.0 # GeV
       eta_cut: 2.0
     dPhi: 7./8. # dPhi > 7/8*pi
 
@@ -1922,7 +1929,7 @@ gamma_trigger_jet:
         R: ...
     jet:
       jet_R: [0.2]
-      pt_min: 40 # GeV
+      pt_min: 40.0 # GeV
       eta_cut: 2.0
     dPhi: 7./8. # dPhi > 7/8*pi
 
@@ -1947,8 +1954,8 @@ gamma_trigger_jet:
         R: ...
     jet:
       jet_R: [0.3]
-      jet_pt: [30, 100]
-      eta_cut_jet: 1.6
+      pt: [30., 100.]
+      eta_cut: 1.6
     dPhi: 2./3. # dPhi > 2./3.*pi
 
     # Binning from Luna (thanks!)
@@ -2061,8 +2068,8 @@ z_trigger_hadron:
       # both the muons and the reconstructed Z!
       muon_pt_min: 20.0
       muon_eta_cut: 2.4
-      z_mass: [60, 120]
-      z_pt: [40, 350]
+      z_mass: [60., 120.]
+      z_pt: [40., 350.]
       # The Z rapidity cut is extracted from the label in the figures
       z_y_cut: 2.4
     hadron:
