@@ -170,7 +170,7 @@ hadron_trigger_hadron:
 
     # Trigger hadron
     trigger:
-      pt: [[8., 15.]]
+      pt: [8., 15.]
       eta_cut: 1.0
     # Associated hadron
     hadron:

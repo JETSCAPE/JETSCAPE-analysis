@@ -1506,8 +1506,8 @@ hadron_trigger_chjet:
 
     centrality: [[0, 10]]
     trigger:
-      low_range: [5, 7]
-      high_range: [20, 50]
+      low_range: [5., 7.]
+      high_range: [20., 50.]
       eta_cut: 0.9
     jet:
       jet_R: [0.2, 0.4, 0.5]
@@ -1544,8 +1544,8 @@ hadron_trigger_chjet:
 
     centrality: [[0, 10]]
     trigger:
-      low_range: [5, 7]
-      high_range: [20, 50]
+      low_range: [5., 7.]
+      high_range: [20., 50.]
       eta_cut: 0.9
     jet:
       jet_R: [0.2, 0.4, 0.5]

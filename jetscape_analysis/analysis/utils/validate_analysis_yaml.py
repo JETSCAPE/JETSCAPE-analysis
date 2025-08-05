@@ -442,6 +442,7 @@ def _check_standard_momentum_field(
         # Check for incorrectly typed values. Should be float.
         wrong_type_index = [i for i, value in enumerate(pt) if not isinstance(value, float)]
         if wrong_type_index:
+            logger.info(f"{wrong_type_index=}, {pt=}")
             values = {pt[i]: i for i in wrong_type_index}
             issues.append(f"`{pt_field_name}` values should be float. Incorrect value -> index map: {values}")
 
@@ -589,21 +590,33 @@ def _check_hadron_properties_impl(config: dict[str, Any], trigger: bool = False)
     issues = []
     if not config:
         issues.append("Missing hadron config!")
-    # Need either "pt" or "pt_min"
-    if "pt" not in config and "pt_min" not in config:
-        issues.append("Need pt or pt_min")
-    pt = config.get("pt")
-    if pt and (
-        # For the standard case, it must be a list of at least two values.
-        (not trigger and len(pt) < 2)
-        # For the trigger case, it can be a list of trigger pairs (which is to say,
-        # a single value at the first list level would be fine. i.e. [[8., 15.]])
-        or (trigger and len(pt) < 1)
-    ):
-        issues.append(f"`pt` field not formatted correctly. Needs at least two values, provided: {pt=}")
-    pt_min = config.get("pt_min")
-    if pt_min and not isinstance(pt_min, float):
-        issues.append(f"`pt_min` field not formatted correctly. Needs a single value, provided: {pt_min=}")
+
+    # Momentum field
+    check_for_standard_momentum_fields = True
+    if trigger:
+        # Look for low + high range fields instead of the standard.
+        # This tells us it's a semi-inclusive measurement.
+        trigger_ranges = [v for v in config if "_range" in v]
+        if trigger_ranges:
+            check_for_standard_momentum_fields = False
+            # Validate the values.
+            for trigger_range in trigger_ranges:
+                trigger_range_values = config[trigger_range]
+                if len(trigger_range_values) != 2:
+                    issues.append(
+                        f"Wrong specification of trigger range {trigger_range}. Need two values, but provided: {trigger_range_values}"
+                    )
+                incorrect_types = {
+                    i: value for i, value in enumerate(config[trigger_range]) if not isinstance(value, float)
+                }
+                if incorrect_types:
+                    issues.append(
+                        f"Field `{trigger_range}` values should be float. Incorrect value -> index map: {incorrect_types}"
+                    )
+    # We will always do this check, as long as we don't have the special trigger case handled above.
+    if check_for_standard_momentum_fields:
+        issues.extend(_check_standard_momentum_field(config=config))
+
     # Eta requirement
     if not any(v in config for v in ["eta_cut", "y_cut"]):
         issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
