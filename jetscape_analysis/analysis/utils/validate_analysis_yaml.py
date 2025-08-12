@@ -1,19 +1,23 @@
-"""Validation for analysis yaml file.
+"""
+Validation utilities for analysis YAML configuration files using Pydantic.
 
-This isn't comprehensive - it's just what needs to be minimally supported.
+This module provides comprehensive validation for JETSCAPE analysis configuration files
+using Pydantic models for type safety and validation.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+
+from __future__ import annotations
 
 import argparse
 import logging
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal
 
-import attrs
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from jetscape_analysis.base import helpers
 
@@ -28,8 +32,7 @@ def pretty_print_name(name: str) -> str:
     """Translates encoded name into something more readable.
 
     Args:
-        name_substr: Name split into it's substrings for parsing. We don't do this
-            automatically because sometimes you need to e.g. remove the experiment name.
+        name: Name to translate
 
     Returns:
         Readable name
@@ -41,31 +44,418 @@ def pretty_print_name(name: str) -> str:
     return working_str.replace("_", " ")
 
 
-@attrs.define
-class ObservableInfo:
-    observable_class: str = attrs.field()
-    name: str = attrs.field()
-    config: dict[str, Any] = attrs.field()
+class URLConfig(BaseModel):
+    """Configuration for URLs associated with an observable."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, validate_assignment=True, extra="forbid")
+
+    inspire_hep: str = Field(..., description="InspireHEP URL")
+    hepdata: str = Field(..., description="HEPData URL")
+    custom: str | None = Field(None, description="Custom URL")
+
+    @field_validator("inspire_hep", "hepdata", "custom")
+    @classmethod
+    def validate_urls(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if v not in ["N/A", "TODO"] and not v.startswith("http"):
+            msg = "URL must be 'N/A', 'TODO', or start with 'http'"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("inspire_hep")
+    @classmethod
+    def validate_inspire_hep(cls, v: str) -> str:
+        if "hepdata" in v:
+            msg = "inspire_hep link contains hepdata URL - probably transposed"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("hepdata")
+    @classmethod
+    def validate_hepdata(cls, v: str) -> str:
+        if "inspire" in v:
+            msg = "hepdata link contains inspire URL - probably transposed"
+            raise ValueError(msg)
+        return v
+
+
+class SoftDropConfig(BaseModel):
+    """Configuration for SoftDrop grooming."""
+
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    zcut: float = Field(..., description="SoftDrop zcut parameter")
+    beta: float = Field(..., description="SoftDrop beta parameter")
+
+
+class IsolationConfig(BaseModel):
+    """Configuration for photon isolation."""
+
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    type: Literal["full", "charged", "neutral"] = Field(..., description="Isolation type")
+    R: Annotated[float, Field(gt=0)] = Field(..., description="Isolation cone radius")
+    Et_max: Annotated[float, Field(gt=0)] | None = Field(None, description="Maximum Et for isolation")
+    Et_max_pp: Annotated[float, Field(gt=0)] | None = Field(None, description="Maximum Et for pp isolation")
+    Et_max_AA: Annotated[float, Field(gt=0)] | None = Field(None, description="Maximum Et for AA isolation")
+
+    @model_validator(mode="after")
+    def validate_et_fields(self) -> IsolationConfig:
+        # Must have either Et_max or both Et_max_pp and Et_max_AA
+        if self.Et_max is None and (self.Et_max_pp is None or self.Et_max_AA is None):
+            msg = "Must provide either Et_max or both Et_max_pp and Et_max_AA"
+            raise ValueError(msg)
+        if self.Et_max is not None and (self.Et_max_pp is not None or self.Et_max_AA is not None):
+            msg = "Cannot provide both Et_max and Et_max_{pp,AA}"
+            raise ValueError(msg)
+
+        return self
+
+
+class SmearingConfig(BaseModel):
+    """Configuration for gamma smearing."""
+
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    detector_level_Et: list[float] = Field(..., description="Detector level Et values")
+    particle_level_Et: list[float] = Field(..., description="Particle level Et values")
+
+    @field_validator("detector_level_Et", "particle_level_Et")
+    @classmethod
+    def validate_et_values(cls, v: list[float]) -> list[float]:
+        if not v:
+            msg = "Et values cannot be empty"
+            raise ValueError(msg)
+        if not all(isinstance(val, float) for val in v):
+            msg = "All Et values must be floats"
+            raise ValueError(msg)
+        return v
+
+
+class TriggerConfig(BaseModel):
+    """Configuration for trigger particles."""
+
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    # Momentum fields
+    pt: list[float] | None = Field(None, description="Transverse momentum bins")
+    pt_min: Annotated[float, Field(gt=0)] | None = Field(None, description="Minimum transverse momentum")
+    Et: list[float] | None = Field(None, description="Transverse energy bins")
+    Et_min: Annotated[float, Field(gt=0)] | None = Field(None, description="Minimum transverse energy")
+
+    # Range fields for semi-inclusive measurements
+    low_range: list[float] | None = Field(None, description="Low momentum range")
+    high_range: list[float] | None = Field(None, description="High momentum range")
+
+    # Eta/rapidity cuts
+    eta_cut: float | list[float] | None = Field(None, description="Pseudorapidity cut")
+    y_cut: float | None = Field(None, description="Rapidity cut")
+
+    # Specific particle fields
+    electron_pt: list[float] | None = Field(None, description="Electron pt bins")
+    electron_pt_min: Annotated[float, Field(gt=0)] | None = Field(None, description="Minimum electron pt")
+    electron_eta_cut: float | None = Field(None, description="Electron eta cut")
+    electron_y_cut: float | None = Field(None, description="Electron rapidity cut")
+
+    muon_pt: list[float] | None = Field(None, description="Muon pt bins")
+    muon_pt_min: Annotated[float, Field(gt=0)] | None = Field(None, description="Minimum muon pt")
+    muon_eta_cut: float | None = Field(None, description="Muon eta cut")
+    muon_y_cut: float | None = Field(None, description="Muon rapidity cut")
+
+    z_pt: list[float] | None = Field(None, description="Z boson pt bins")
+    z_pt_min: Annotated[float, Field(gt=0)] | None = Field(None, description="Minimum Z boson pt")
+    z_mass: list[float] | None = Field(None, description="Z boson mass range")
+    z_y_cut: float | None = Field(None, description="Z boson rapidity cut")
+
+    # Isolation and smearing
+    isolation: IsolationConfig | None = Field(None, description="Isolation configuration")
+    smearing: SmearingConfig | None = Field(None, description="Smearing configuration")
+
+    @model_validator(mode="after")
+    def validate_momentum_fields(self) -> TriggerConfig:
+        # Check that we have appropriate momentum fields
+        pt_fields = [self.pt, self.pt_min]
+        et_fields = [self.Et, self.Et_min]
+        range_fields = [self.low_range, self.high_range]
+
+        has_pt = any(field is not None for field in pt_fields)
+        has_et = any(field is not None for field in et_fields)
+        has_ranges = any(field is not None for field in range_fields)
+
+        # For triggers, we need either pt, Et, or range fields
+        if not (has_pt or has_et or has_ranges):
+            # Check if we have specific particle fields
+            particle_fields = [self.electron_pt_min, self.muon_pt_min, self.z_pt_min]
+            has_particle_fields = any(field is not None for field in particle_fields)
+            if not has_particle_fields:
+                msg = "Must provide momentum fields (pt, Et, or ranges)"
+                raise ValueError(msg)
+
+        # Cannot have both pt and Et
+        if has_pt and has_et:
+            msg = "Cannot provide both pt and Et fields"
+            raise ValueError(msg)
+
+        # Validate range fields
+        if has_ranges:
+            if self.low_range and len(self.low_range) != 2:
+                msg = "low_range must have exactly 2 values"
+                raise ValueError(msg)
+            if self.high_range and len(self.high_range) != 2:
+                msg = "high_range must have exactly 2 values"
+                raise ValueError(msg)
+
+        return self
+
+    @field_validator("pt", "Et")
+    @classmethod
+    def validate_momentum_bins(cls, v: list[float] | None) -> list[float] | None:
+        if v is not None and len(v) < 2:
+            msg = "Momentum bins must have at least 2 values"
+            raise ValueError(msg)
+        return v
+
+
+class JetConfig(BaseModel):
+    """Configuration for jet parameters."""
+
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    jet_R: list[float] | float = Field(..., description="Jet radius parameter(s)")
+    pt: list[float] | None = Field(None, description="Jet pt range")
+    pt_min: Annotated[float, Field(gt=0)] | None = Field(None, description="Minimum jet pt")
+    eta_cut: float | None = Field(None, description="Jet eta cut")
+    eta_cut_R: float | None = Field(None, description="Jet eta cut relative to R")
+    y_cut: float | None = Field(None, description="Jet rapidity cut")
+
+    @model_validator(mode="after")
+    def validate_jet_config(self) -> JetConfig:
+        # Must have either pt range or pt_min
+        if self.pt is None and self.pt_min is None:
+            msg = "Must provide either pt range or pt_min"
+            raise ValueError(msg)
+
+        # Must have some eta/rapidity cut
+        eta_cuts = [self.eta_cut, self.eta_cut_R, self.y_cut]
+        if not any(field is not None for field in eta_cuts):
+            msg = "Must provide eta_cut, eta_cut_R, or y_cut"
+            raise ValueError(msg)
+
+        return self
+
+
+class HadronConfig(BaseModel):
+    """Configuration for hadron parameters."""
+
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    pt: list[float] | None = Field(None, description="Hadron pt range")
+    pt_min: Annotated[float, Field(gt=0)] | None = Field(None, description="Minimum hadron pt")
+    eta_cut: float | None = Field(None, description="Hadron eta cut")
+    y_cut: float | None = Field(None, description="Hadron rapidity cut")
+
+    @model_validator(mode="after")
+    def validate_hadron_config(self) -> HadronConfig:
+        if self.pt is None and self.pt_min is None:
+            msg = "Must provide either pt range or pt_min"
+            raise ValueError(msg)
+        if self.eta_cut is None and self.y_cut is None:
+            msg = "Must provide eta_cut or y_cut"
+            raise ValueError(msg)
+        return self
+
+
+class BaseObservableConfig(BaseModel):
+    """Base configuration for all observables."""
+
+    model_config = ConfigDict(extra="allow")
+
+    enabled: bool = Field(..., description="Whether the observable is enabled")
+    centrality: list[tuple[int, int]] = Field(..., description="Centrality bins")
+    urls: URLConfig = Field(..., description="URLs for the observable")
+
+    hepdata: str | None = Field(None, description="HEPData file")
+    hepdata_pp: str | None = Field(None, description="HEPData file for pp")
+    hepdata_AA: str | None = Field(None, description="HEPData file for AA")
+    custom_data: str | None = Field(None, description="Custom data file")
+    bins: list[float] | None = Field(None, description="Custom binning")
+
+    @field_validator("centrality")
+    @classmethod
+    def validate_centrality(cls, v: list[tuple[int, int]]) -> list[tuple[int, int]]:
+        for cent_bin in v:
+            if cent_bin[0] >= cent_bin[1]:
+                msg = f"Centrality bin {cent_bin} must be in ascending order"
+                raise ValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def validate_data_source(self) -> BaseObservableConfig:
+        if not any([self.hepdata, self.hepdata_pp, self.hepdata_AA, self.custom_data, self.bins]):
+            msg = "Must provide at least one data source (hepdata, custom_data, or bins)"
+            raise ValueError(msg)
+        return self
+
+
+class HadronObservableConfig(BaseObservableConfig):
+    """Configuration for hadron observables."""
+
+    model_config = ConfigDict(extra="allow", validate_assignment=True, str_strip_whitespace=True)
+
+    pt: list[float] = Field(..., description="Hadron pt range")
+    eta_cut: float | None = Field(None, description="Hadron eta cut")
+    y_cut: float | None = Field(None, description="Hadron rapidity cut")
+
+    @field_validator("pt")
+    @classmethod
+    def validate_pt_range(cls, v: list[float]) -> list[float]:
+        if len(v) != 2:
+            msg = "pt must have exactly 2 values [min, max]"
+            raise ValueError(msg)
+        if v[0] >= v[1]:
+            msg = "pt range must be in ascending order"
+            raise ValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def validate_eta_cut(self) -> HadronObservableConfig:
+        if not any(getattr(self, field, None) is not None for field in ["eta_cut", "y_cut"]):
+            msg = "Must provide eta_cut or y_cut"
+            raise ValueError(msg)
+        return self
+
+
+class HadronCorrelationObservableConfig(BaseObservableConfig):
+    """Configuration for hadron correlation observables."""
+
+    model_config = ConfigDict(extra="allow", validate_assignment=True, str_strip_whitespace=True)
+
+    pt: list[float] = Field(..., description="Hadron pt range")
+    trigger_hadron: dict[str, Any] | None = Field(None, description="Trigger hadron config")
+    associated_hadron: dict[str, Any] | None = Field(None, description="Associated hadron config")
+
+    @field_validator("pt")
+    @classmethod
+    def validate_pt_range(cls, v: list[float]) -> list[float]:
+        if len(v) != 2:
+            msg = "pt must have exactly 2 values [min, max]"
+            raise ValueError(msg)
+        if v[0] >= v[1]:
+            msg = "pt range must be in ascending order"
+            raise ValueError(msg)
+        return v
+
+
+class JetObservableConfig(BaseObservableConfig):
+    """Configuration for jet observables."""
+
+    model_config = ConfigDict(extra="allow", validate_assignment=True, str_strip_whitespace=True)
+
+    jet_R: list[float] | float = Field(..., description="Jet radius parameter(s)")
+    pt: list[float] = Field(..., description="Jet pt range")
+    eta_cut: float | None = Field(None, description="Jet eta cut")
+    eta_cut_R: float | None = Field(None, description="Jet eta cut relative to R")
+    y_cut: float | None = Field(None, description="Jet rapidity cut")
+
+    # Optional jet-specific parameters
+    SoftDrop: list[SoftDropConfig] | None = Field(None, description="SoftDrop configurations")
+    alpha: list[float] | None = Field(None, description="Angularity alpha values")
+    r: list[float] | None = Field(None, description="Subjet radius values")
+    axis: list[dict[str, Any]] | None = Field(None, description="Jet axis configurations")
+    kappa: list[float] | None = Field(None, description="Jet charge kappa values")
+    track_pt_min: float | None = Field(None, description="Minimum track pt")
+    dR: float | None = Field(None, description="Delta R parameter")
+    weight: list[float] | None = Field(None, description="EEC weight parameters")
+    dynamical_grooming_a: list[float] | None = Field(None, description="Dynamical grooming parameter")
+
+    @field_validator("pt")
+    @classmethod
+    def validate_pt_range(cls, v: list[float]) -> list[float]:
+        if len(v) != 2:
+            msg = "pt must have exactly 2 values [min, max]"
+            raise ValueError(msg)
+        if v[0] >= v[1]:
+            msg = "pt range must be in ascending order"
+            raise ValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def validate_eta_cut(self) -> JetObservableConfig:
+        eta_cuts = [self.eta_cut, self.eta_cut_R, self.y_cut]
+        if not any(field is not None for field in eta_cuts):
+            msg = "Must provide eta_cut, eta_cut_R, or y_cut"
+            raise ValueError(msg)
+        return self
+
+
+class TriggeredObservableConfig(BaseObservableConfig):
+    """Configuration for triggered observables."""
+
+    model_config = ConfigDict(extra="allow", validate_assignment=True, str_strip_whitespace=True)
+
+    trigger: TriggerConfig = Field(..., description="Trigger configuration")
+    jet: JetConfig | None = Field(None, description="Jet configuration")
+    hadron: HadronConfig | None = Field(None, description="Hadron configuration")
+
+    # Additional parameters
+    dPhi: float | None = Field(None, description="Delta phi requirement")
+    c_ref: list[float] | str | None = Field(None, description="Reference cross-section")
+
+    @model_validator(mode="after")
+    def validate_recoil_config(self) -> TriggeredObservableConfig:
+        # Must have either jet or hadron configuration for recoil
+        if self.jet is None and self.hadron is None:
+            msg = "Must provide either jet or hadron configuration for recoil"
+            raise ValueError(msg)
+        return self
+
+
+class ObservableInfo(BaseModel):
+    """Information about an observable extracted from configuration."""
+
+    model_config = ConfigDict(validate_assignment=True, str_strip_whitespace=True, extra="forbid")
+
+    observable_class: str = Field(..., description="Class of the observable")
+    name: str = Field(..., description="Name of the observable")
+    config: dict[str, Any] = Field(..., description="Configuration dictionary")
 
     @property
     def identifier(self) -> str:
+        """Unique identifier for the observable."""
         return f"{self.observable_class}_{self.name}"
 
     @property
     def experiment(self) -> str:
+        """Extract experiment name from observable name."""
         return self.name.split("_")[-1].upper()
 
     def display_name(self) -> str:
-        """Pretty print of the observable name"""
-        # -1 removes the experiment name
+        """Pretty print of the observable name."""
+        # Remove the experiment name (last part)
         return pretty_print_name("_".join(self.name.split("_")[:-1]))
 
 
-@attrs.frozen
-class Result:
-    n_observables: int = attrs.field()
-    n_enabled: int = attrs.field()
-    validation_issues: dict[str, list[str]] = attrs.Factory(dict)
+class ValidationResult(BaseModel):
+    """Result of validation process."""
+
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    n_observables: int = Field(..., description="Total number of observables")
+    n_enabled: int = Field(..., description="Number of enabled observables")
+    validation_issues: dict[str, list[str]] = Field(default_factory=dict, description="Validation issues by observable")
+
+    @property
+    def is_valid(self) -> bool:
+        """Check if validation passed."""
+        return len(self.validation_issues) == 0
+
+    @property
+    def enabled_percentage(self) -> float:
+        """Percentage of enabled observables."""
+        if self.n_observables == 0:
+            return 0.0
+        return (self.n_enabled / self.n_observables) * 100
 
 
 def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
@@ -76,7 +466,7 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
     Returns:
         Observable info extracted from the configuration file.
     """
-    # Need to determine which keys are valid classes of observables.
+    # Determine which keys are valid classes of observables
     observable_classes = []
     for k in config:
         # By convention, we always start observables with the simple hadron class
@@ -85,6 +475,9 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
 
     observables = {}
     for observable_class in observable_classes:
+        if not isinstance(config[observable_class], dict):
+            continue
+
         for observable_key in config[observable_class]:
             observable_info = config[observable_class][observable_key]
             observables[f"{observable_class}_{observable_key}"] = ObservableInfo(
@@ -96,582 +489,76 @@ def extract_observables(config: dict[str, Any]) -> dict[str, ObservableInfo]:
     return observables
 
 
-def validate_observables(observables: dict[str, ObservableInfo]) -> dict[str, list]:  # noqa: C901
-    """Validate the observable configuration.
+def validate_observable_with_pydantic(observable_info: ObservableInfo) -> list[str]:
+    """Validate a single observable using Pydantic models.
 
-    NOTE:
-        This **IS NOT** a full specification. Validation checks are just added as
-        they come up.
+    Args:
+        observable_info: Observable information to validate
+
+    Returns:
+        List of validation issues
+    """
+    issues = []
+    config = observable_info.config
+    observable_class = observable_info.observable_class
+
+    try:
+        # Choose the appropriate Pydantic model based on observable class
+        if observable_class == "hadron":
+            HadronObservableConfig(**config)
+        elif observable_class == "hadron_correlation":
+            HadronCorrelationObservableConfig(**config)
+        elif observable_class.startswith("inclusive") and "jet" in observable_class:
+            JetObservableConfig(**config)
+        elif "trigger" in observable_class:
+            TriggeredObservableConfig(**config)
+        else:
+            # Fall back to base observable config
+            BaseObservableConfig(**config)
+
+    except ValidationError as e:
+        for error in e.errors():
+            field_path = " -> ".join(str(loc) for loc in error["loc"])
+            issues.append(f"{field_path}: {error['msg']}")
+
+    return issues
+
+
+def validate_observables(observables: dict[str, ObservableInfo]) -> ValidationResult:
+    """Validate the observable configuration using Pydantic models.
 
     Args:
         observables: Observable info extracted from an analysis config.
     Returns:
-        List of validation issues by observable.
+        Validation result with issues by observable.
     """
-    # Setup
     validation_issues = defaultdict(list)
     n_observables = 0
     n_enabled = 0
 
     for key, observable_info in observables.items():
         logger.debug(f"Checking {key}")
-
         n_observables += 1
-        config = observable_info.config
-        # Required fields
-        # Enabled field
-        if "enabled" not in config:
-            validation_issues[key].append("Missing 'enabled' key")
-        elif config["enabled"]:
-            # Also keep track of what is actually enabled for statistics
+
+        # Check if enabled
+        if observable_info.config.get("enabled", False):
             n_enabled += 1
-        # Centrality field
-        centrality = config.get("centrality", [])
-        if not centrality:
-            validation_issues[key].append("Missing 'centrality' key")
-        else:
-            # logger.debug(f"Checking centrality: {centrality}")
-            # Must be a list of lists
-            for cent in centrality:
-                centrality_issues = []
-                if len(cent) != 2:
-                    centrality_issues.append(f"{cent} is not a pair of two values")
-                elif not (isinstance(cent[0], int) and isinstance(cent[1], int)):
-                    centrality_issues.append(
-                        f"{cent} should be pair of ints, but types are {type(cent[0])}, {type(cent[1])}"
-                    )
 
-            if centrality_issues:
-                validation_issues[key].extend(centrality_issues)
-        # HEPdata or custom_data field
-        if not any(v in ["hepdata", "hepdata_pp", "hepdata_AA", "custom_data", "bins"] for v in observable_info.config):
-            validation_issues[key].append("Missing required hepdata, custom_data, or binning field!")
+        # Validate using Pydantic
+        pydantic_issues = validate_observable_with_pydantic(observable_info)
+        if pydantic_issues:
+            validation_issues[key].extend(pydantic_issues)
 
-        if "urls" not in config:
-            validation_issues[key].append("Missing 'urls'")
-        else:
-            required_url_keys = ["inspire_hep", "hepdata"]
-            possible_url_keys = ["custom"]
-            all_possible_url_keys = required_url_keys + possible_url_keys
+    return ValidationResult(n_observables=n_observables, n_enabled=n_enabled, validation_issues=dict(validation_issues))
 
-            urls = config["urls"]
-            unexpected_keys = [v for v in urls if v not in all_possible_url_keys]
 
-            # Unexpected keys
-            if any(unexpected_keys):
-                validation_issues[key].append(f"Unexpected URL key: {unexpected_keys}")
-
-            # Required keys
-            if not all(v in urls for v in required_url_keys):
-                validation_issues[key].append(
-                    f"Missing required URL key: {required_url_keys=}, provided: {list(urls.keys())}"
-                )
-
-            # Validate what's stored. Needs to be either: N/A, TODO, or start with "http"
-            invalid_urls = {}
-            for k, v in urls.items():
-                if v not in ["N/A", "TODO"] and not v.startswith("http"):
-                    invalid_urls[k] = v
-            if invalid_urls:
-                validation_issues[key].append(f"Invalid URLs. Must be N/A or a URL. Problematic value: {invalid_urls}")
-
-            # Check we haven't transposed URLs (i.e. stored hepdata in inspire_hep or vise-versa)
-            if "hepdata" in urls["inspire_hep"]:
-                validation_issues[key].append(
-                    f"inspire_hep link contains hepdata url. Probably transposed? {urls['inspire_hep']=}"
-                )
-
-            if "inspire" in urls["hepdata"]:
-                validation_issues[key].append(
-                    f"hepdata link contains inspire url. Probably transposed? {urls['hepdata']=}"
-                )
-
-        # Further checks are based on the type of the analysis
-        # Inclusive observables - inclusive hadron, hadron correlations, or inclusive jet
-        if observable_info.observable_class.startswith("inclusive") or observable_info.observable_class == "hadron":
-            issues = []
-            # Jet properties
-            if "jet" in observable_info.observable_class:
-                issues.extend(_check_jet_properties(config=observable_info.config))
-            # Hadron properties
-            if "hadron" in observable_info.observable_class:
-                issues.extend(_check_hadron_properties(config=observable_info.config))
-
-            if issues:
-                validation_issues[key].extend(issues)
-
-        if observable_info.observable_class == "hadron_correlation":
-            issues = []
-            # Hadron correlation properties
-            issues.extend(_check_hadron_correlation_properties(config=observable_info.config))
-
-            if issues:
-                validation_issues[key].extend(issues)
-
-        # Triggered observables
-        if "trigger" in observable_info.observable_class:
-            # Trigger properties
-            issues = []
-            trigger_to_validation_function = {
-                "hadron": _check_hadron_trigger_properties,
-                "dijet": _check_dijet_trigger_properties,
-                "pion": _check_pion_trigger_properties,
-                "gamma": _check_gamma_trigger_properties,
-                "z": _check_z_trigger_properties,
-            }
-            for trigger_name, func in trigger_to_validation_function.items():
-                if f"{trigger_name}_trigger" in observable_info.observable_class:
-                    # The config will always be named "trigger" regardless of the type, so we can
-                    # always ask for the same name here.
-                    res = func(config=observable_info.config.get("trigger", {}))
-                    # Add explicit labels for clarity
-                    issues.extend([f"{trigger_name}_trigger: {v}" for v in res])
-
-            # Recoil/associated properties
-            # NOTE: The observable_class are of the form "X_trigger_Y", where X is the trigger and Y is the recoil/associated.
-            #       Since we only want to target the recoil here, we look for "_trigger_Y" for Y
-            # Jet properties
-            # NOTE: Need to explicitly check for chjet and jet since we're including more of the observable class
-            if (
-                "_trigger_chjet" in observable_info.observable_class
-                or "_trigger_jet" in observable_info.observable_class
-            ):
-                issues.extend(_check_jet_properties(config=observable_info.config.get("jet", {})))
-            # Hadron properties
-            if "_trigger_hadron" in observable_info.observable_class:
-                issues.extend(_check_hadron_properties(config=observable_info.config.get("hadron", {})))
-
-            if issues:
-                validation_issues[key].extend(issues)
-
-    # Convert to standard dict just to avoid confusion
-    return Result(n_observables=n_observables, n_enabled=n_enabled, validation_issues=dict(validation_issues))
-
-
-def _check_hadron_trigger_properties(config: dict[str, Any]) -> list[str]:
-    """Check hadron trigger properties in config.
-
-    Args:
-        config: Configuration containing the parameters relevant to hadron triggers.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    logger.debug("-> Checking hadron trigger properties")
-
-    issues = []
-    if not config:
-        issues.append("Missing trigger config!")
-    # Use the existing hadron configuration properties
-    issues.extend(_check_hadron_properties_impl(config=config, trigger=True))
-    return issues
-
-
-def _check_dijet_trigger_properties(config: dict[str, Any]) -> list[str]:
-    """Check dijet trigger properties in config.
-
-    Args:
-        config: Configuration containing the parameters relevant to dijet triggers.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    logger.debug("-> Checking dijet trigger properties")
-
-    issues = []
-    if not config:
-        issues.append("Missing trigger config!")
-    # Use the existing jet configuration properties
-    issues.extend(_check_jet_properties_impl(config=config))
-    return issues
-
-
-def _check_pion_trigger_properties(config: dict[str, Any]) -> list[str]:
-    """Check pion trigger properties in config.
-
-    Args:
-        config: Configuration containing the parameters relevant to pion triggers.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    logger.debug("-> Checking pion trigger properties")
-
-    issues = []
-    if not config:
-        issues.append("Missing trigger config!")
-
-    # Need either "pt", "pt_min", "Et", or "Et_min"
-    momentum_fields = ["pt", "pt_min", "Et", "Et_min"]
-    available_momentum_fields = [v for v in momentum_fields if v in config]
-    if len(available_momentum_fields) != 1:
-        issues.append(f"Wrong number of momentum fields. Must include one of: {momentum_fields}")
-    for k in available_momentum_fields:
-        value = config[k]
-        if "min" in k and not isinstance(value, float):
-            issues.append(f"`{k}` field not formatted correctly. Needs a single value, provided: {value=}")
-        elif len(value) < 2:
-            issues.append(f"`{k}` field not formatted correctly. Needs at least two values, provided: {value=}")
-    # Check for lower case "et" (which is a misspelling of Et)
-    if any(v in config for v in ["et", "et_min"]):
-        issues.append(
-            f"Contains `et` or `et_min`, which should be spelled `Et` or `Et_min`. Provided keys: {config.keys()}"
-        )
-
-    # Eta requirement
-    if not any(v in config for v in ["eta_cut", "y_cut"]):
-        issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
-
-    return issues
-
-
-def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:
-    """Check gamma trigger properties in config.
-
-    Args:
-        config: Configuration containing the parameters relevant to gamma triggers.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    logger.debug("-> Checking gamma trigger properties")
-
-    issues = []
-    if not config:
-        issues.append("Missing trigger config!")
-
-    # Need either "pt", "pt_min", "Et", or "Et_min"
-    pt_issues = _check_standard_momentum_field(config=config)
-    Et_issues = _check_standard_momentum_field(config=config, check_Et_instead=True)
-    if pt_issues and Et_issues:
-        issues.append(
-            "Need to provide either pt or Et fields, but detected issues with both. Please check the other reported issues for details."
-        )
-        # NOTE: Would use a tab for spacing, but it doesn't evaluate nicely in our printout, so just doing it by hand.
-        issues.extend([f"    {v}" for v in pt_issues])
-        issues.extend([f"    {v}" for v in Et_issues])
-    # Check for lower case "et" (which is a misspelling of Et)
-    if any(v in config for v in ["et", "et_min"]):
-        issues.append(
-            f"Contains `et` or `et_min`, which should be spelled `Et` or `Et_min`. Provided keys: {config.keys()}"
-        )
-
-    # Eta requirement
-    if not any(v in config for v in ["eta_cut", "y_cut"]):
-        issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
-
-    # Isolation or smearing properties
-    # Need an isolation type
-    isolation_config = config.get("isolation")
-    smearing_config = config.get("smearing")
-    if not isolation_config and not smearing_config:
-        issues.append("Must provide an isolation or smearing configuration.")
-    elif isolation_config:
-        issues.extend(_isolation_validation(isolation_config=isolation_config))
-    elif smearing_config:
-        issues.extend(_gamma_smearing_validation(smearing_config=smearing_config))
-
-    return issues
-
-
-def _isolation_validation(isolation_config: dict[str, Any]) -> list[str]:
-    """Isolation validation
-
-    Args:
-        isolation_config: Configuration containing the parameters relevant to the isolation parameters.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    issues = []
-    # Type
-    isolation_type = isolation_config.get("type")
-    if not isolation_type:
-        issues.append("Missing required isolation")
-    elif isolation_type not in ["full", "charged", "neutral"]:
-        issues.append(
-            f"Invalid isolation type {isolation_type}. Isolation type must be 'full', 'charged', or 'neutral'."
-        )
-    # Cone size
-    if "R" not in isolation_config:
-        issues.append("Missing isolation R")
-    # Et_max requirements
-    # Should be of the form Et_max or (Et_max_pp and Et_max_AA)
-    Et_fields = [f for f in isolation_config if "Et" in f]
-    if not Et_fields:
-        issues.append("Missing required isolation Et fields. Please provide Et_max or Et_max_{pp,AA}")
-    elif len(Et_fields) > 2:
-        issues.append(f"Too many isolation Et fields. Found: {Et_fields}")
-    elif len(Et_fields) == 2:
-        # Verify the types
-        incorrect_types = {
-            field: isolation_config[field] for field in Et_fields if not isinstance(isolation_config[field], float)
-        }
-        if incorrect_types:
-            issues.append(f"Isolation `Et_max` values should be float. Incorrect value -> index map: {incorrect_types}")
-    elif len(Et_fields) == 1 and not isinstance(isolation_config["Et_max"], float):
-        issues.append("Isolation `Et_max` value should be float.")
-
-    return issues
-
-
-def _gamma_smearing_validation(smearing_config: dict[str, Any]) -> list[str]:
-    """Gamma smearing configuration validation
-
-    Args:
-        smearing_config: Configuration containing the parameters relevant to the smearing parameters.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    issues = []
-    fields = ["detector_level_Et", "particle_level_Et"]
-    for field in fields:
-        values = smearing_config.get(field)
-        if not values:
-            issues.append(f"Missing values for {field}")
-            continue
-
-        # Verify the types
-        incorrect_types = {value: i for i, value in enumerate(values) if not isinstance(value, float)}
-        if incorrect_types:
-            issues.append(
-                f"Gamma smearing field `{field}` values should be float. Incorrect value -> index map: {incorrect_types}"
-            )
-
-    return issues
-
-
-def _check_standard_momentum_field(
-    config: dict[str, Any], prefix: str = "", check_Et_instead: bool = False
-) -> list[str]:
-    """Check that a standard momentum field is formatted properly.
-
-    Args:
-        config: Configuration containing the momentum field(s).
-        prefix: Prefix to be used when accessing the fields. e.g. if prefix is `muon`,
-            then it would check `muon_pt`.
-        check_Et_instead: Instead of checking for pt, check for Et based fields
-            (generally this is used for photon triggers).
-    Returns:
-        List of issues associated with the momentum fields.
-    """
-    issues = []
-    # Setup
-    pt_field_name = "pt"
-    pt_min_field_name = "pt_min"
-    if check_Et_instead:
-        pt_field_name = "Et"
-        pt_min_field_name = "Et_min"
-
-    # Assign prefix as needed
-    if prefix:
-        pt_field_name = f"{prefix}_{pt_field_name}"
-        pt_min_field_name = f"{prefix}_{pt_min_field_name}"
-
-    # Check for existence of field
-    if pt_field_name not in config and pt_min_field_name not in config:
-        issues.append(f"Need either `{pt_field_name}` or `{pt_min_field_name}` field")
-    # Check if both are specified
-    if pt_field_name in config and pt_min_field_name in config:
-        issues.append(
-            f"Provided both the pt ({pt_field_name}) and pt_min fields ({pt_min_field_name}). Can only provide one!"
-        )
-
-    # If it exists, check the formatting
-    pt = config.get(pt_field_name)
-    if pt:
-        if len(pt) < 2:
-            issues.append(
-                f"`{pt_field_name}` field not formatted correctly. Needs at least two values, provided: {pt=}"
-            )
-        # Check for incorrectly typed values. Should be float.
-        wrong_type_index = [i for i, value in enumerate(pt) if not isinstance(value, float)]
-        if wrong_type_index:
-            logger.info(f"{wrong_type_index=}, {pt=}")
-            values = {pt[i]: i for i in wrong_type_index}
-            issues.append(f"`{pt_field_name}` values should be float. Incorrect value -> index map: {values}")
-
-    pt_min = config.get(pt_min_field_name)
-    if pt_min and not isinstance(pt_min, float):
-        issues.append(
-            f"`{pt_min_field_name}` field not formatted correctly. Field should be a float, but provided: {pt_min=}"
-        )
-
-    return issues
-
-
-def _check_z_trigger_properties(config: dict[str, Any]) -> list[str]:
-    """Check z trigger properties in config.
-
-    Args:
-        config: Configuration containing the parameters relevant to z triggers.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    logger.debug("-> Checking Z boson trigger properties")
-
-    issues = []
-    if not config:
-        issues.append("Missing trigger config!")
-
-    # Electron requirements
-    # They're not always analyzed, but if they're included, they should be formatted correctly
-    electron_included = any("electron" in k for k in config)
-    if electron_included:
-        issues.extend(_check_standard_momentum_field(config=config, prefix="electron"))
-        # Eta requirement
-        if not any(v in config for v in ["electron_eta_cut", "electron_y_cut"]):
-            issues.append(
-                f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}"
-            )
-    # Muon requirements
-    # Muons always seem to be used, so we always check them.
-    issues.extend(_check_standard_momentum_field(config=config, prefix="muon"))
-    # Eta requirement
-    if not any(v in config for v in ["muon_eta_cut", "muon_y_cut"]):
-        issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
-    # z requirements
-    # mass
-    if "z_mass" not in config:
-        issues.append("Missing z mass selection field.")
-    # pt
-    issues.extend(_check_standard_momentum_field(config=config, prefix="z"))
-    # eta selections on Z are often omitted, so we leave them off here.
-
-    return issues
-
-
-def _check_hadron_correlation_properties(config: dict[str, Any]) -> list[str]:
-    """Check hadron correlation properties in config.
-
-    Args:
-        config: Configuration containing the parameters relevant to hadron correlations.
-            Could be the main config, but could also be the more specific config
-            for a triggered observable.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    logger.debug("-> Checking hadron correlation properties")
-
-    issues = []
-    if not config:
-        issues.append("Missing hadron correlation config!")
-
-    # Need either "pt" or "pt_min"
-    issues.extend(_check_standard_momentum_field(config=config))
-
-    return issues
-
-
-def _check_jet_properties(config: dict[str, Any]) -> list[str]:
-    """Check jet properties in config.
-
-    Separated from the implementation for clarity of logging where the call originates.
-
-    Args:
-        config: Configuration containing the parameters relevant to jets.
-            Could be the main config, but could also be e.g. the recoil jet config
-            for a triggered observable.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    logger.debug("-> Checking jet properties")
-    return _check_jet_properties_impl(config=config)
-
-
-def _check_jet_properties_impl(config: dict[str, Any]) -> list[str]:
-    """Check jet properties in config implementation.
-
-    Args:
-        config: Configuration containing the parameters relevant to jets.
-            Could be the main config, but could also be e.g. the recoil jet config
-            for a triggered observable.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    issues = []
-    if not config:
-        issues.append("Missing jet config!")
-    if "jet_R" not in config:
-        issues.append("Missing jet_R")
-    # Need either "pt" or "pt_min"
-    issues.extend(_check_standard_momentum_field(config=config))
-    # Eta requirement
-    if not any(v in config for v in ["eta_cut", "eta_cut_R", "y_cut"]):
-        issues.append(
-            f"Missing eta_cut, eta_cut_R, y_cut, eta_cut_jet (as appropriate for the observable). Provided keys: {config.keys()}"
-        )
-
-    # Label each issue for clarity
-    return [f"jet: {v}" for v in issues]
-
-
-def _check_hadron_properties(config: dict[str, Any]) -> list[str]:
-    """Check hadron properties in config.
-
-    Separated from the implementation for clarity of logging where the call originates.
-
-    Args:
-        config: Configuration containing the parameters relevant to hadrons.
-            Could be the main config, but could also be e.g. the recoil hadron config
-            for a triggered observable.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    logger.debug("-> Checking hadron properties")
-    return _check_hadron_properties_impl(config=config)
-
-
-def _check_hadron_properties_impl(config: dict[str, Any], trigger: bool = False) -> list[str]:
-    """Check hadron properties in config implementation.
-
-    Args:
-        config: Configuration containing the parameters relevant to hadrons.
-            Could be the main config, but could also be e.g. the recoil hadron config
-            for a triggered observable.
-    Returns:
-        Any issues observed with the configuration.
-    """
-    issues = []
-    if not config:
-        issues.append("Missing hadron config!")
-
-    # Momentum field
-    check_for_standard_momentum_fields = True
-    if trigger:
-        # Look for low + high range fields instead of the standard.
-        # This tells us it's a semi-inclusive measurement.
-        trigger_ranges = [v for v in config if "_range" in v]
-        if trigger_ranges:
-            check_for_standard_momentum_fields = False
-            # Validate the values.
-            for trigger_range in trigger_ranges:
-                trigger_range_values = config[trigger_range]
-                if len(trigger_range_values) != 2:
-                    issues.append(
-                        f"Wrong specification of trigger range {trigger_range}. Need two values, but provided: {trigger_range_values}"
-                    )
-                incorrect_types = {
-                    i: value for i, value in enumerate(config[trigger_range]) if not isinstance(value, float)
-                }
-                if incorrect_types:
-                    issues.append(
-                        f"Field `{trigger_range}` values should be float. Incorrect value -> index map: {incorrect_types}"
-                    )
-    # We will always do this check, as long as we don't have the special trigger case handled above.
-    if check_for_standard_momentum_fields:
-        issues.extend(_check_standard_momentum_field(config=config))
-
-    # Eta requirement
-    if not any(v in config for v in ["eta_cut", "y_cut"]):
-        issues.append(f"Missing eta_cut or y_cut (as appropriate for the observable). Provided keys: {config.keys()}")
-
-    # Label each issue for clarity
-    return [f"hadron: {v}" for v in issues]
-
-
-def validate_yaml(filename: Path) -> Result:
+def validate_yaml(filename: Path) -> ValidationResult:
     """Driver function for validating an analysis config.
 
     Args:
         filename: Path to the analysis config.
     Returns:
-        List of validation issues by observable.
+        Validation result.
     """
     logger.info(f"Validating {filename}...")
 
@@ -705,10 +592,13 @@ def validate_yaml_entry_point() -> None:
     result = validate_yaml(
         filename=args.analysis_config,
     )
+
     logger.info(
-        f"Summary:    # observables: {result.n_observables}, # enabled: {result.n_enabled} -> {result.n_enabled / result.n_observables * 100:.2f}% enabled"
+        f"Summary: # observables: {result.n_observables}, "
+        f"# enabled: {result.n_enabled} -> {result.enabled_percentage:.2f}% enabled"
     )
-    if not result.validation_issues:
+
+    if result.is_valid:
         logger.info("🎉 Validation success!")
     else:
         logger.error("Validation issues:")
