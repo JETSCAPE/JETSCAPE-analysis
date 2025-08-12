@@ -16,6 +16,7 @@ import argparse
 import ROOT
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 
 # Base class
 sys.path.append('.')
@@ -70,7 +71,14 @@ class HistogramResults(common_base.CommonBase):
         #       Otherwise the steering will fail because it will see the missing file and think
         #       that the jobs failed.
         self.weights = self.observables_df.get('event_weight', [])
-        self.pt_hat = self.observables_df.get('pt_hat', [])
+        self.pt_hat  = self.observables_df.get('pt_hat', [])
+
+        # Columns that include ALL events (including empty ones)
+        # If absent (older format files), fall back to legacy columns so downstream code still works.
+        self.weights_all = self.observables_df.get('event_weight_all', self.weights)
+        self.pt_hat_all = self.observables_df.get('pt_hat_all', self.pt_hat)
+        self.event_centrality_min_all = self.observables_df.get('centrality_min_all', self.observables_df.get('centrality_min', []))
+        self.event_centrality_max_all = self.observables_df.get('centrality_max_all', self.observables_df.get('centrality_max', []))
 
         # Read metadata from parquet file to determine centrality mode
         try:
@@ -91,6 +99,7 @@ class HistogramResults(common_base.CommonBase):
         # - In precomputed hydro mode (use_event_based_centrality = False), all events share the same values,
         #   inherited from the hydro profile used to generate the events.
         # These are used to determine whether an event should be included in a given observable's centrality bin.
+        # Note: the *_all variants above include empty events if those columns were written.
         self.event_centrality_min = self.observables_df.get('centrality_min', [])
         self.event_centrality_max = self.observables_df.get('centrality_max', [])
 
@@ -165,20 +174,41 @@ class HistogramResults(common_base.CommonBase):
         # This is needed so that when we merge histograms of different centralities, we retain access to
         #   the normalization factors for each observable's centrality bin
         if self.is_AA:
+            # Use numpy arrays for efficient, vectorized operations
+            w_all = np.asarray(self.weights_all, dtype=float)
+            cmin_all = np.asarray(self.event_centrality_min_all, dtype=float)
+            cmax_all = np.asarray(self.event_centrality_max_all, dtype=float)
+
+            # If there are no rows, there's nothing to do.
+            if w_all.size == 0:
+                return
+
             for centrality in self.observable_centrality_list:
+                lo, hi = centrality
+
                 if not self.use_event_based_centrality:
-                    # Only need to check once if centrality matches the entire dataset
-                    if not self.centrality_accepted(centrality, event_index=0):
+                    # PRECOMPUTED: all events share the same (file-level) centrality.
+                    # Check once using the first row (safe because all rows match).
+                    if not (float(cmin_all[0]) >= lo and float(cmax_all[0]) <= hi):
                         continue
+                    
+                    # The sum of weights is simply the total sum of all weights.
+                    sum_weights = w_all.sum()
+                    # The weights to fill the histogram are all weights.
+                    weights = w_all
+
                 else:
-                    # Check if at least one event falls within this observable centrality range
-                    has_matching_event = any(
-                        self.centrality_accepted(centrality, event_index=i)
-                        for i in range(len(self.event_centrality_min))
-                    )
-                    if not has_matching_event:
+                    # EVENT-BASED: restrict to events in this observable centrality bin.
+                    mask = (cmin_all >= lo) & (cmax_all <= hi)
+                    if not np.any(mask):
                         continue
 
+                    # Per-bin weight sum for this centrality bin (includes empty events).
+                    sum_weights = w_all[mask].sum()
+                    # For the h_weights QA shape, include only weights inside this bin.
+                    weights = w_all[mask]
+
+                # Save cross section
                 h = ROOT.TH1F(f'h_xsec_{centrality}', f'h_xsec_{centrality}', 1, 0, 1)
                 h.SetBinContent(1, self.cross_section)
                 self.output_list.append(h)
@@ -189,18 +219,21 @@ class HistogramResults(common_base.CommonBase):
 
                 # Save sum of weights (effective number of events), in order to keep track of normalization uncertainty
                 h = ROOT.TH1F(f'h_weight_sum_{centrality}', f'h_weight_sum_{centrality}', 1, 0, 1)
-                h.SetBinContent(1, self.sum_weights)
+                h.SetBinContent(1, float(sum_weights))
                 self.output_list.append(h)
 
                 # Save event weights
                 bins = np.logspace(np.log10( np.power(self.pt_ref/(self.sqrts/2),self.power) ), np.log10( np.power(self.pt_ref/2,self.power)  ), 10000)
                 h = ROOT.TH1F(f'h_weights_{centrality}', f'h_weights_{centrality}', bins.size-1, bins)
-                for weight in self.weights:
-                    h.Fill(weight)
+                for weight in weights:
+                    h.Fill(float(weight))
                 self.output_list.append(h)
 
         # For pp, we can just save a single histogram for each
         else:
+            # Use data from all events
+            sum_weights = w_all.sum()
+            weights = w_all
 
             h = ROOT.TH1F('h_xsec', 'h_xsec', 1, 0, 1)
             h.SetBinContent(1, self.cross_section)
@@ -212,13 +245,13 @@ class HistogramResults(common_base.CommonBase):
 
             # Save sum of weights (effective number of events), in order to keep track of normalization uncertainty
             h = ROOT.TH1F('h_weight_sum', 'h_weight_sum', 1, 0, 1)
-            h.SetBinContent(1, self.sum_weights)
+            h.SetBinContent(1, float(sum_weights))
             self.output_list.append(h)
 
             # Save event weights
             bins = np.logspace(np.log10( np.power(self.pt_ref/(self.sqrts/2),self.power) ), np.log10( np.power(self.pt_ref/2,self.power)  ), 10000)
             h = ROOT.TH1F('h_weights', 'h_weights', bins.size-1, bins)
-            for weight in self.weights:
+            for weight in weights:
                 h.Fill(weight)
             self.output_list.append(h)
 
@@ -234,7 +267,7 @@ class HistogramResults(common_base.CommonBase):
 
             # Histogram for event-by-event centrality
             h = ROOT.TH1F('h_event_centrality_generated', 'h_event_centrality_generated', 100, 0, 100)
-            for cent in self.event_centrality_min:
+            for cent in self.event_centrality_min_all:
                 h.Fill(cent)
             self.output_list.append(h)
         else:
@@ -246,15 +279,15 @@ class HistogramResults(common_base.CommonBase):
         bins = np.logspace(np.log10(1.), np.log10(self.sqrts/2), 100)
         h = ROOT.TH1F('h_pt_hat', 'h_pt_hat', bins.size-1, bins)
         h.Sumw2()
-        for pt_hat in self.pt_hat:
+        for pt_hat in self.pt_hat_all:
             h.Fill(pt_hat)
         self.output_list.append(h)
 
         # Save weighted pt-hat
         h = ROOT.TH1F('h_pt_hat_weighted', 'h_pt_hat_weighted', bins.size-1, bins)
         h.Sumw2()
-        for i,pt_hat in enumerate(self.pt_hat):
-            h.Fill(pt_hat, self.weights[i])
+        for i,pt_hat in enumerate(self.pt_hat_all):
+            h.Fill(pt_hat, self.weights_all[i])
         self.output_list.append(h)
 
     #-------------------------------------------------------------------------------------------
@@ -554,7 +587,7 @@ class HistogramResults(common_base.CommonBase):
             column_name = f'{column_name}_Njets'
             col = self.observables_df[column_name]
             bins = np.array([block['pt'][pt_bin], block['pt'][pt_bin+1]])
-            self.histogram_1d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix)
+            self.histogram_1d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix, skip_eventwise_check=skip_eventwise_check)
 
         # Also store N_trig for dihadron correlations
         # NOTE: We use pt_bin being set as a signal whether we should histogram the triggers.
@@ -568,7 +601,7 @@ class HistogramResults(common_base.CommonBase):
             # NOTE: This assumes that the triggers ranges do not overlap.
             # NOTE: The unique ensures that the binning is valid if the bin edges match up.
             bins = np.unique(np.array([v for trig_range in block["pt_trig"] for v in trig_range]))  # type: ignore
-            self.histogram_1d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix)
+            self.histogram_1d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix, skip_eventwise_check=skip_eventwise_check)
 
     #-------------------------------------------------------------------------------------------
     # Histogram a single observable

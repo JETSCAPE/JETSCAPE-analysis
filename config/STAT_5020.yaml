@@ -565,9 +565,9 @@ inclusive_chjet:
     y_max_pp: 1.5
     skip_pp: True
 
-    bins: |
-      "PMJ 2/28/25 for now use bins of width 1 GeV over the full pT range,"
-      " will be adjusted when analysis details are finalized "
+    bins: []
+      # "PMJ 2/28/25 for now use bins of width 1 GeV over the full pT range,"
+      # " will be adjusted when analysis details are finalized "
 
   # https://inspirehep.net/literature/1893479 (no hepdata yet)
   # TODO: update hepdata
