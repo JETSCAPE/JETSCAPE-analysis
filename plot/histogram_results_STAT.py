@@ -71,12 +71,11 @@ class HistogramResults(common_base.CommonBase):
         #       Otherwise the steering will fail because it will see the missing file and think
         #       that the jobs failed.
         self.weights = self.observables_df.get('event_weight', [])
-        self.pt_hat  = self.observables_df.get('pt_hat', [])
+        self.pt_hat = self.observables_df.get('pt_hat', [])
 
         # Columns that include ALL events (including empty ones)
         # If absent (older format files), fall back to legacy columns so downstream code still works.
         self.weights_all = self.observables_df.get('event_weight_all', self.weights)
-        self.pt_hat_all = self.observables_df.get('pt_hat_all', self.pt_hat)
         self.event_centrality_min_all = self.observables_df.get('centrality_min_all', self.observables_df.get('centrality_min', []))
         self.event_centrality_max_all = self.observables_df.get('centrality_max_all', self.observables_df.get('centrality_max', []))
 
@@ -279,14 +278,14 @@ class HistogramResults(common_base.CommonBase):
         bins = np.logspace(np.log10(1.), np.log10(self.sqrts/2), 100)
         h = ROOT.TH1F('h_pt_hat', 'h_pt_hat', bins.size-1, bins)
         h.Sumw2()
-        for pt_hat in self.pt_hat_all:
+        for pt_hat in self.pt_hat:
             h.Fill(pt_hat)
         self.output_list.append(h)
 
         # Save weighted pt-hat
         h = ROOT.TH1F('h_pt_hat_weighted', 'h_pt_hat_weighted', bins.size-1, bins)
         h.Sumw2()
-        for i,pt_hat in enumerate(self.pt_hat_all):
+        for i,pt_hat in enumerate(self.pt_hat):
             h.Fill(pt_hat, self.weights_all[i])
         self.output_list.append(h)
 
