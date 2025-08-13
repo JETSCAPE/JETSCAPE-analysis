@@ -69,11 +69,21 @@ def expand_group(group: dict[str, Any], inherited_params: dict[str, Any] | None 
 
     Each mapping has:
         - parameters: dict[str, Any] (fully resolved, scalar values)
+
+    and
         - table: int
         - entry: int
+    or
+        - combinations: list
+          List of more specific parameters to specify further histograms.
 
-
+    Args:
+        group: Group of HEPdata hists to be processed. May be nested
+        inherited_params: Parameters that are already specified.
+    Returns:
+        list of histograms, specified by a dict of with their flattened parameters, the histogram table and entry.
     """
+    # Setup
     inherited_params = inherited_params or {}
 
     # Merge inherited parameters with this group's parameters
@@ -117,7 +127,7 @@ def expand_yaml(data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     return expanded
 
 
-def validate_no_duplicates(expanded: dict[str, list[dict[str, Any]]]) -> None:
+def validate_no_parameter_duplicates(expanded: dict[str, list[dict[str, Any]]]) -> None:
     """
     Validate that there are no duplicate parameter sets within each dataset.
     """
@@ -169,8 +179,13 @@ def validate_missing_combinations(
 
 
 def write_csv(expanded: dict[str, list[dict[str, Any]]], filename: Path) -> None:
-    """
-    Write expanded mappings to a CSV file for debugging.
+    """Write expanded mappings to a CSV file for debugging.
+
+    Args:
+        expanded: Expanded configuration.
+        filename: Output filename.
+    Returns:
+        None
     """
     # Determine all parameter keys
     all_params: set[str] = set()
@@ -189,7 +204,7 @@ def write_csv(expanded: dict[str, list[dict[str, Any]]], filename: Path) -> None
                 writer.writerow(row)
 
 
-if __name__ == "__main__":
+def main() -> None:
     helpers.setup_logging(level=logging.INFO)
     # Example usage
     yaml_file = Path("example.yaml")
@@ -197,9 +212,9 @@ if __name__ == "__main__":
         config: dict[str, Any] = yaml.safe_load(f)
 
     expanded = expand_yaml(config)
-    validate_no_duplicates(expanded)
+    validate_no_parameter_duplicates(expanded)
 
-    # Example expected parameter grid (provided separately in your workflow)
+    # Example expected parameter grid (provided separately in the workflow)
     expected_grid: dict[str, list[Any]] = {
         "jet_R": [0.2, 0.3],
         "soft_drop": ["z_cut_02_beta_0"],
@@ -212,3 +227,7 @@ if __name__ == "__main__":
     write_csv(expanded, Path("expanded_mapping.csv"))
 
     logger.info("✅ Expansion complete. CSV written to expanded_mapping.csv")
+
+
+if __name__ == "__main__":
+    main()
