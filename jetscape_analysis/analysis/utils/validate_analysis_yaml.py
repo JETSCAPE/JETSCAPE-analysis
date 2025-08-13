@@ -14,10 +14,18 @@ import logging
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Protocol
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictFloat,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from jetscape_analysis.base import helpers
 
@@ -250,8 +258,8 @@ class HadronConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
-    pt: list[float] | None = Field(None, description="Hadron pt range")
-    pt_min: Annotated[float, Field(gt=0)] | None = Field(None, description="Minimum hadron pt")
+    pt: list[StrictFloat] | None = Field(None, description="Hadron pt range")
+    pt_min: Annotated[StrictFloat, Field(gt=0)] | None = Field(None, description="Minimum hadron pt")
     eta_cut: float | None = Field(None, description="Hadron eta cut")
     y_cut: float | None = Field(None, description="Hadron rapidity cut")
 
@@ -298,25 +306,58 @@ class BaseObservableConfig(BaseModel):
         return self
 
 
+def validate_pt(v: list[float] | None) -> list[float] | None:
+    if v is None:
+        return v
+    if len(v) < 2:
+        msg = "pt must contain at least two values"
+        raise ValueError(msg)
+    if sorted(v) != v:
+        msg = "pt values must be in ascending order"
+        raise ValueError(msg)
+    return v
+
+
+class HasPtFields(Protocol):
+    pt: list[float] | None
+    pt_min: float | None
+
+
+def validate_pt_fields(obj: HasPtFields) -> HasPtFields:
+    # Require exactly one of pt_min or pt
+    if (obj.pt_min is None) and (obj.pt is None):
+        msg = "Must provide either pt_min or pt"
+        raise ValueError(msg)
+    if (obj.pt_min is not None) and (obj.pt is not None):
+        msg = "Cannot provide both pt_min and pt at the same time"
+        raise ValueError(msg)
+
+    # Validate pt_min
+    if obj.pt_min is not None:
+        # Nothing to be done here...
+        ...
+
+    # Validate pt list
+    if obj.pt is not None and sorted(obj.pt) != obj.pt:
+        msg = "pt values must be in ascending order"
+        raise ValueError(msg)
+
+    return obj
+
+
 class HadronObservableConfig(BaseObservableConfig):
     """Configuration for hadron observables."""
 
     model_config = ConfigDict(extra="allow", validate_assignment=True, str_strip_whitespace=True)
 
-    pt: list[float] = Field(..., description="Hadron pt range")
+    pt: list[StrictFloat] = Field(..., description="Hadron pt range")
     eta_cut: float | None = Field(None, description="Hadron eta cut")
     y_cut: float | None = Field(None, description="Hadron rapidity cut")
 
     @field_validator("pt")
     @classmethod
-    def validate_pt_range(cls, v: list[float]) -> list[float]:
-        if len(v) != 2:
-            msg = "pt must have exactly 2 values [min, max]"
-            raise ValueError(msg)
-        if v[0] >= v[1]:
-            msg = "pt range must be in ascending order"
-            raise ValueError(msg)
-        return v
+    def _validate_pt(cls, v: list[float] | None) -> list[float] | None:
+        return validate_pt(v)
 
     @model_validator(mode="after")
     def validate_eta_cut(self) -> HadronObservableConfig:
@@ -347,18 +388,28 @@ class HadronCorrelationObservableConfig(BaseObservableConfig):
         return v
 
 
+StrictFloatType = Annotated[float, Field(strict=True)]
+
+
 class JetObservableConfig(BaseObservableConfig):
     """Configuration for jet observables."""
 
     model_config = ConfigDict(extra="allow", validate_assignment=True, str_strip_whitespace=True)
 
     jet_R: list[float] | float = Field(..., description="Jet radius parameter(s)")
-    pt: list[float] = Field(..., description="Jet pt range")
+    pt: Annotated[list[StrictFloat] | None, Field(min_length=2)] = Field(None, description="Jet pt range")
+    # pt_min: Annotated[float | None, BeforeValidator(float)] = None
+    pt_min: Annotated[float, Field(gt=0, strict=True)] | None = Field(None, description="Min pt")
+    # pt_min: Annotated[float, Field(gt=0, strict=True)] = Field(default=None, description="Min pt")
+    # pt_min: Annotated[StrictFloatType, Field(gt=0)] = Field(
+    #    default=None, description="Min pt"
+    # )
+
     eta_cut: float | None = Field(None, description="Jet eta cut")
     eta_cut_R: float | None = Field(None, description="Jet eta cut relative to R")
     y_cut: float | None = Field(None, description="Jet rapidity cut")
 
-    # Optional jet-specific parameters
+    # Optional jet-observable specific parameters
     SoftDrop: list[SoftDropConfig] | None = Field(None, description="SoftDrop configurations")
     alpha: list[float] | None = Field(None, description="Angularity alpha values")
     r: list[float] | None = Field(None, description="Subjet radius values")
@@ -369,16 +420,19 @@ class JetObservableConfig(BaseObservableConfig):
     weight: list[float] | None = Field(None, description="EEC weight parameters")
     dynamical_grooming_a: list[float] | None = Field(None, description="Dynamical grooming parameter")
 
-    @field_validator("pt")
+    @field_validator("pt_min", mode="before")
     @classmethod
-    def validate_pt_range(cls, v: list[float]) -> list[float]:
-        if len(v) != 2:
-            msg = "pt must have exactly 2 values [min, max]"
-            raise ValueError(msg)
-        if v[0] >= v[1]:
-            msg = "pt range must be in ascending order"
+    def must_be_float(cls, v: float):
+        logger.warning(f"{v=}, {type(v)=}")
+        if not isinstance(v, float):
+            msg = f"pt_min must be float, provided: {type(v)}"
             raise ValueError(msg)
         return v
+
+    @model_validator(mode="after")
+    def _validate_pt_fields(self) -> JetObservableConfig:
+        logger.warning("validate_pt_fields")
+        return validate_pt_fields(self)
 
     @model_validator(mode="after")
     def validate_eta_cut(self) -> JetObservableConfig:
