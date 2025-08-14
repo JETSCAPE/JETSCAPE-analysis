@@ -26,6 +26,8 @@ from jetscape_analysis.base import helpers
 
 logger = logging.getLogger(__name__)
 
+# TODO(RJE): Define shared types here...
+
 
 def cartesian_expand(params: dict[str, Any]) -> list[dict[str, Any]]:
     """Expand parameters via a cartesian product.
@@ -102,6 +104,9 @@ def expand_group(group: dict[str, Any], inherited_params: dict[str, Any] | None 
                 results.extend(expand_group(child, param_set))
     else:
         # This is a final mapping (must have table + entry)
+        if group.get("skip"):
+            msg = f"Skipping {param_set} as requested"
+            logger.info(msg)
         if "table" not in group or "entry" not in group:
             msg = f"Final mapping missing table/entry: {group}"
             raise ValueError(msg)
@@ -111,38 +116,64 @@ def expand_group(group: dict[str, Any], inherited_params: dict[str, Any] | None 
     return results
 
 
-def expand_yaml(data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+def expand_yaml(data: dict[str, Any]) -> dict[str, dict[str, list[dict[str, Any]]]]:
     """
     Expand the grouped_spectra for each dataset (AA, pp, etc.)
     into a flat list of mappings.
     """
-    expanded: dict[str, list[dict[str, Any]]] = {}
-    for dataset_name, dataset in data.get("data", {}).items():
+    expanded: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for collision_system, dataset in data.get("data", {}).items():
+        expanded[collision_system] = {}
         hepdata: dict[str, Any] = dataset.get("hepdata", {})
-        groups: list[dict[str, Any]] = hepdata.get("grouped_spectra", [])
-        all_mappings: list[dict[str, Any]] = []
-        for group in groups:
-            all_mappings.extend(expand_group(group))
-        expanded[dataset_name] = all_mappings
+
+        # We want to retrieve all groups
+        available_keys = list(hepdata)
+        # Skip the filename, since it's not a group
+        available_keys.remove("filename")
+
+        for name in available_keys:
+            logger.info(f"Searching for group '{name}'")
+            groups: list[dict[str, Any]] = hepdata.get(name, [])
+            all_mappings: list[dict[str, Any]] = []
+            for group in groups:
+                all_mappings.extend(expand_group(group))
+            expanded[collision_system][name] = all_mappings
     return expanded
 
 
-def validate_no_parameter_duplicates(expanded: dict[str, list[dict[str, Any]]]) -> None:
+def validate_no_parameter_duplicates(expanded: dict[str, dict[str, list[dict[str, Any]]]]) -> None:
+    """Validate that there are no duplicate parameter sets within each dataset.
+
+    Args:
+        expanded: Expanded HEPdata config.
+    Returns:
+        None.
+    Raises:
+        ValueError if duplicated parameters are found.
     """
-    Validate that there are no duplicate parameter sets within each dataset.
-    """
-    for dataset, mappings in expanded.items():
-        seen: set[tuple[tuple[str, Any], ...]] = set()
-        for m in mappings:
-            key = tuple(sorted(m["parameters"].items()))
-            if key in seen:
-                msg = f"Duplicate parameters in dataset '{dataset}': {m['parameters']}"
-                raise ValueError(msg)
-            seen.add(key)
+    for collision_system, group_mappings in expanded.items():
+        for group_name, mappings in group_mappings.items():
+            seen: set[tuple[tuple[str, Any], ...]] = set()
+            for m in mappings:
+                logger.info(f"{m}")
+                key = tuple(sorted(m["parameters"].items()))
+                if key in seen:
+                    msg = f"Duplicate parameters in collision system '{collision_system}', group: '{group_name}': {m['parameters']}"
+                    logger.error(msg)
+                    raise ValueError(msg)
+                seen.add(key)
+
+
+# We have a minimal set of required keys for each collision system.
+# There may be others for custom cases, but those may not be so trivially validated.
+REQUIRED_KEYS = {
+    "pp": ["spectra"],
+    "AA": ["spectra", "ratio"],
+}
 
 
 def validate_missing_combinations(
-    expanded: dict[str, list[dict[str, Any]]], expected_grid: dict[str, list[Any]]
+    expanded: dict[str, dict[str, list[dict[str, Any]]]], expected_grid: dict[str, list[Any]]
 ) -> None:
     """
     Validate that all combinations from the expected parameter grid
@@ -157,25 +188,28 @@ def validate_missing_combinations(
     expected_combos: list[tuple[Any, ...]] = list(itertools.product(*normalized_grid.values()))
     expected_keys: list[str] = list(expected_grid.keys())
 
-    for dataset, mappings in expanded.items():
-        found_set: set[tuple[Any, ...]] = {tuple(m["parameters"].get(k) for k in expected_keys) for m in mappings}
-        missing: list[dict[str, Any]] = []
-        for combo in expected_combos:
-            if combo not in found_set:
-                missing.append(dict(zip(expected_keys, combo, strict=True)))
+    for collision_system, group_mappings in expanded.items():
+        for group_name, mappings in group_mappings.items():
+            found_set: set[tuple[Any, ...]] = {tuple(m["parameters"].get(k) for k in expected_keys) for m in mappings}
+            missing: list[dict[str, Any]] = []
+            for combo in expected_combos:
+                if combo not in found_set:
+                    missing.append(dict(zip(expected_keys, combo, strict=True)))
 
-        if missing:
-            logger.warning(f"Missing {len(missing)} combinations for dataset '{dataset}':")
-            for m in missing:
-                logger.warning(f"  - {m}")
+            if missing:
+                logger.warning(
+                    f"Missing {len(missing)} combinations for dataset '{collision_system}', group: {group_name}:"
+                )
+                for m in missing:
+                    logger.warning(f"  - {m}")
 
-            # Grouped summary by parameter values
-            logger.info(f"[SUMMARY] Missing combinations breakdown for '{dataset}':")
-            for key in expected_keys:
-                counts: Counter[Any] = Counter(m[key] for m in missing)
-                for val, count in counts.items():
-                    logger.info(f"  {key} = {val}: {count} missing")
-            logger.info("")
+                # Grouped summary by parameter values
+                logger.info(f"[SUMMARY] Missing combinations breakdown for '{collision_system}', group: {group_name}:")
+                for key in expected_keys:
+                    counts: Counter[Any] = Counter(m[key] for m in missing)
+                    for val, count in counts.items():
+                        logger.info(f"  {key} = {val}: {count} missing")
+                logger.info("")
 
 
 def write_csv(expanded: dict[str, list[dict[str, Any]]], filename: Path) -> None:
@@ -189,19 +223,25 @@ def write_csv(expanded: dict[str, list[dict[str, Any]]], filename: Path) -> None
     """
     # Determine all parameter keys
     all_params: set[str] = set()
-    for mappings in expanded.values():
-        for m in mappings:
-            all_params.update(m["parameters"].keys())
-    param_keys: list[str] = sorted(all_params)
+    for group_mappings in expanded.values():
+        for mappings in group_mappings.values():
+            for m in mappings:
+                all_params.update(m["parameters"].keys())
+        param_keys: list[str] = sorted(all_params)
 
     with filename.open("w", newline="") as f:
         writer = csv.writer(f)
         header = ["dataset", *param_keys, "table", "entry"]
         writer.writerow(header)
-        for dataset, mappings in expanded.items():
-            for m in mappings:
-                row = [dataset] + [m["parameters"].get(k) for k in param_keys] + [m["table"], m["entry"]]
-                writer.writerow(row)
+        for collision_system, group_mappings in expanded.items():
+            for group_name, mappings in group_mappings.items():
+                for m in mappings:
+                    row = (
+                        [collision_system, group_name]
+                        + [m["parameters"].get(k) for k in param_keys]
+                        + [m["table"], m["entry"]]
+                    )
+                    writer.writerow(row)
 
 
 def main() -> None:
