@@ -132,7 +132,7 @@ def expand_yaml(data: dict[str, Any]) -> dict[str, dict[str, list[dict[str, Any]
         available_keys.remove("filename")
 
         for name in available_keys:
-            logger.info(f"Searching for group '{name}'")
+            logger.info(f"Searching for '{collision_system}', group '{name}'")
             groups: list[dict[str, Any]] = hepdata.get(name, [])
             all_mappings: list[dict[str, Any]] = []
             for group in groups:
@@ -155,7 +155,7 @@ def validate_no_parameter_duplicates(expanded: dict[str, dict[str, list[dict[str
         for group_name, mappings in group_mappings.items():
             seen: set[tuple[tuple[str, Any], ...]] = set()
             for m in mappings:
-                logger.info(f"{m}")
+                # logger.info(f"{m}")
                 key = tuple(sorted(m["parameters"].items()))
                 if key in seen:
                     msg = f"Duplicate parameters in collision system '{collision_system}', group: '{group_name}': {m['parameters']}"
@@ -189,7 +189,15 @@ def validate_missing_combinations(
     expected_keys: list[str] = list(expected_grid.keys())
 
     for collision_system, group_mappings in expanded.items():
+        missing_required_keys = [k for k in REQUIRED_KEYS[collision_system] if k not in group_mappings]
+        if any(missing_required_keys):
+            msg = f"Missing required key for {collision_system}: {missing_required_keys}"
+            logger.warning(msg)
+
         for group_name, mappings in group_mappings.items():
+            if group_name not in REQUIRED_KEYS[collision_system]:
+                msg = f"Cannot reliably validate {group_name} since it may not have exactly the same parameters. Interpret the related errors with caution!"
+                logger.warning(msg)
             found_set: set[tuple[Any, ...]] = {tuple(m["parameters"].get(k) for k in expected_keys) for m in mappings}
             missing: list[dict[str, Any]] = []
             for combo in expected_combos:
