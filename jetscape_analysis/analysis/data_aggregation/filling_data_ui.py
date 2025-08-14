@@ -22,55 +22,45 @@ logger = logging.getLogger(__name__)
 
 # TODO(RJE): Rename "histogram_name" to something more appropriate
 
+
 def generate_histogram_config_page(
     expected_grid: dict[str, list[Any]],
     existing_data: list[dict[str, Any]] | None = None,
-    title: str = "Histogram Configurator"
+    title: str = "Histogram Configurator",
 ) -> str:
-    """Generate a standalone HTML page for configuring histogram mappings with nested YAML output.
-
-    Features:
-        - Live updates combinations when checkboxes are changed.
-        - Supports multiple collision systems and histogram names.
-
-    Args:
-        expected_grid: Parameter grid as a dict of parameter -> list of values.
-        existing_data: Optional list of existing mappings, where each mapping is:
-                       {
-                           "collision_system": str,
-                           "histogram_name": str,
-                           "parameters": dict[str, Any],
-                           "table": int,
-                           "entry": int
-                       }. Default: None.
-        title: Title of the HTML page. Default: "Histogram Configurator".
-
-    Returns:
-        HTML content as a string.
+    """
+    HTML page for editing histogram mappings.
+    Shows full parameter grid, auto-saves to localStorage, supports reset, copy-to-clipboard,
+    and outputs YAML with inline parameter lists only.
     """
     param_order = list(expected_grid.keys())
 
-        # Generate full Cartesian product of parameters
-    def normalize(v: Any) -> Any:
-        return tuple(v) if isinstance(v, list) else v
-
-    normalized_grid = {
-        k: [normalize(x) for x in v] for k, v in expected_grid.items()
-    }
+    # Generate full Cartesian product
     all_combos = []
-    for values in itertools.product(*normalized_grid.values()):
+    for values in itertools.product(*expected_grid.values()):
         params = dict(zip(param_order, values, strict=True))
         all_combos.append(params)
 
-    # Ensure consistent key ordering for JSON serialization
-    sorted_combos = [{k: combo[k] for k in param_order} for combo in all_combos]
+    # Precompute JSON keys consistently
+    def json_key(params: dict[str, Any]) -> str:
+        return json.dumps(params, separators=(",", ":"), sort_keys=True)
 
-    # Map existing data to quick lookup
-    existing_lookup: dict[str, dict[str, Any]] = {}
+    sorted_combos = []
+    for combo in all_combos:
+        sorted_combo = {k: combo[k] for k in param_order}
+        sorted_combos.append({"params": sorted_combo, "json_key": json_key(sorted_combo)})
+
+    # Map existing data for quick lookup, nested by (collision_system, histogram_name)
+    existing_lookup: dict[str, dict[str, dict[str, Any]]] = {}
     if existing_data:
         for entry in existing_data:
-            key = json.dumps({k: entry["parameters"][k] for k in param_order})
-            existing_lookup[key] = {"table": entry["table"], "entry": entry["entry"]}
+            cs = entry.get("collision_system", "AA")
+            hist = entry.get("histogram_name", "spectra")
+            key = json_key({k: entry["parameters"][k] for k in param_order})
+            existing_lookup.setdefault(cs, {}).setdefault(hist, {})[key] = {
+                "table": entry["table"],
+                "entry": entry["entry"],
+            }
 
     template_str = r"""
 <!DOCTYPE html>
@@ -93,7 +83,6 @@ def generate_histogram_config_page(
 <body>
 <h1>{{ title }}</h1>
 
-<!-- Collision + Histogram selection -->
 <label>Collision System:
 <select id="collision-system">
     <option value="AA">AA</option>
@@ -112,15 +101,15 @@ def generate_histogram_config_page(
 
 <hr>
 
-<!-- Bulk edit selection -->
 <h2>Bulk Edit Selection</h2>
 <div id="parameter-selectors">
     {% for param, values in expected_grid.items() %}
     <div class="param-group" data-param="{{ param }}">
         <h3>{{ param }}</h3>
+        <label><input type="checkbox" class="select-all"> <strong>Select All</strong></label><br>
         {% for val in values %}
             <label>
-                <input type="checkbox" class="param-value" value="{{ val|tojson }}">
+                <input type="checkbox" class="param-value" value="{{ (val if val is not none else 'null')|tojson|e }}">
                 {{ val }}
             </label><br>
         {% endfor %}
@@ -130,10 +119,10 @@ def generate_histogram_config_page(
 <label>Table: <input type="number" id="bulk-table" class="table-entry-input"></label>
 <label>Entry: <input type="number" id="bulk-entry" class="table-entry-input"></label>
 <button id="apply-bulk">Apply to Selection</button>
+<button id="reset-storage">Reset to Existing Data</button>
 
 <hr>
 
-<!-- Combinations table -->
 <h2>All Combinations</h2>
 <table id="combinations-table">
     <thead>
@@ -147,22 +136,20 @@ def generate_histogram_config_page(
     </thead>
     <tbody>
         {% for combo in sorted_combos %}
-        {% set key = combo|tojson %}
-        <tr data-params='{{ key|e }}'>
+        <tr data-params='{{ combo.json_key }}'>
             {% for param in param_order %}
-            <td>{{ combo[param] }}</td>
+            <td>{{ combo.params[param] }}</td>
             {% endfor %}
-            <td><input type="number" class="table-entry-input table-input" value="{{ existing_lookup.get(key, {}).get('table','') }}"></td>
-            <td><input type="number" class="table-entry-input entry-input" value="{{ existing_lookup.get(key, {}).get('entry','') }}"></td>
+            <td><input type="number" class="table-entry-input table-input"></td>
+            <td><input type="number" class="table-entry-input entry-input"></td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 
 <hr>
-<button id="save-local">Save to Local Storage</button>
-<button id="load-local">Load from Local Storage</button>
 <button id="export-yaml">Export YAML</button>
+<button id="copy-yaml">Copy to Clipboard</button>
 
 <h2>YAML Output</h2>
 <pre id="yaml-output" class="output"></pre>
@@ -170,24 +157,97 @@ def generate_histogram_config_page(
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 <script>
 const paramOrder = {{ param_order|tojson }};
+const existingLookup = {{ existing_lookup|tojson }};
 
-document.getElementById('set-custom-histogram').addEventListener('click', () => {
-    const customName = document.getElementById('custom-histogram').value.trim();
-    if (customName) {
-        const histSelect = document.getElementById('histogram-name');
-        let opt = document.createElement('option');
-        opt.value = customName;
-        opt.textContent = customName;
-        histSelect.appendChild(opt);
-        histSelect.value = customName;
+function storageKey(cs, hist) {
+    return 'histogramConfig_' + cs + '_' + hist;
+}
+
+function clearBulkSelections() {
+    document.querySelectorAll('.param-value').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.select-all').forEach(cb => cb.checked = false);
+    document.getElementById('bulk-table').value = '';
+    document.getElementById('bulk-entry').value = '';
+}
+
+function loadDataToTable() {
+    clearBulkSelections();
+    const cs = document.getElementById('collision-system').value;
+    const hist = document.getElementById('histogram-name').value;
+    const key = storageKey(cs, hist);
+    let combos = JSON.parse(localStorage.getItem(key) || 'null');
+
+    if (!combos) {
+        combos = [];
+        const existingSubset = (existingLookup[cs] && existingLookup[cs][hist]) ? existingLookup[cs][hist] : {};
+        document.querySelectorAll('#combinations-table tbody tr').forEach(tr => {
+            const paramsKey = tr.dataset.params;
+            const existing = existingSubset[paramsKey] || {};
+            combos.push({
+                parameters: JSON.parse(paramsKey),
+                table: existing.table ?? null,
+                entry: existing.entry ?? null
+            });
+        });
+        localStorage.setItem(key, JSON.stringify(combos));
     }
+
+    const lookup = {};
+    combos.forEach(c => lookup[JSON.stringify(c.parameters, Object.keys(c.parameters).sort())] = c);
+    document.querySelectorAll('#combinations-table tbody tr').forEach(tr => {
+        const paramsKey = tr.dataset.params;
+        if (lookup[paramsKey]) {
+            tr.querySelector('.table-input').value = lookup[paramsKey].table ?? '';
+            tr.querySelector('.entry-input').value = lookup[paramsKey].entry ?? '';
+        } else {
+            tr.querySelector('.table-input').value = '';
+            tr.querySelector('.entry-input').value = '';
+        }
+    });
+}
+
+function saveTableToStorage() {
+    const cs = document.getElementById('collision-system').value;
+    const hist = document.getElementById('histogram-name').value;
+    const key = storageKey(cs, hist);
+    const combos = [];
+    document.querySelectorAll('#combinations-table tbody tr').forEach(tr => {
+        combos.push({
+            parameters: JSON.parse(tr.dataset.params),
+            table: parseInt(tr.querySelector('.table-input').value) || null,
+            entry: parseInt(tr.querySelector('.entry-input').value) || null
+        });
+    });
+    localStorage.setItem(key, JSON.stringify(combos));
+}
+
+document.getElementById('collision-system').addEventListener('change', loadDataToTable);
+document.getElementById('histogram-name').addEventListener('change', loadDataToTable);
+
+document.querySelectorAll('.select-all').forEach(cb => {
+    cb.addEventListener('change', function() {
+        const group = this.closest('.param-group');
+        group.querySelectorAll('.param-value').forEach(valCb => valCb.checked = this.checked);
+    });
 });
+
+function valuesEqual(a, b) {
+    return JSON.stringify(a) === JSON.stringify(b);
+}
 
 document.getElementById('apply-bulk').addEventListener('click', () => {
     const selectedParams = {};
     document.querySelectorAll('.param-group').forEach(group => {
         const param = group.dataset.param;
-        const checked = Array.from(group.querySelectorAll('.param-value:checked')).map(cb => JSON.parse(cb.value));
+        const checked = [];
+        Array.from(group.querySelectorAll('.param-value:checked')).forEach(cb => {
+            if (!cb.value || cb.value.trim() === '') return; // skip empty
+            try {
+                checked.push(JSON.parse(cb.value));
+            } catch (e) {
+                console.warn("Invalid JSON in checkbox value:", cb.value, e);
+            }
+        });
         if (checked.length > 0) selectedParams[param] = checked;
     });
 
@@ -198,7 +258,7 @@ document.getElementById('apply-bulk').addEventListener('click', () => {
         const params = JSON.parse(tr.dataset.params);
         let match = true;
         for (let key in selectedParams) {
-            if (!selectedParams[key].some(v => JSON.stringify(v) === JSON.stringify(params[key]))) {
+            if (!selectedParams[key].some(v => valuesEqual(v, params[key]))) {
                 match = false;
                 break;
             }
@@ -208,51 +268,50 @@ document.getElementById('apply-bulk').addEventListener('click', () => {
             if (bulkEntry !== '') tr.querySelector('.entry-input').value = bulkEntry;
         }
     });
+
+    saveTableToStorage();
+    clearBulkSelections();
 });
 
-document.getElementById('save-local').addEventListener('click', () => {
+document.querySelector('#combinations-table').addEventListener('input', saveTableToStorage);
+
+document.getElementById('reset-storage').addEventListener('click', () => {
     const cs = document.getElementById('collision-system').value;
     const hist = document.getElementById('histogram-name').value;
-    const key = 'histogramConfig_' + cs + '_' + hist;
-    const combos = [];
-    document.querySelectorAll('#combinations-table tbody tr').forEach(tr => {
-        combos.push({
-            parameters: JSON.parse(tr.dataset.params),
-            table: parseInt(tr.querySelector('.table-input').value) || null,
-            entry: parseInt(tr.querySelector('.entry-input').value) || null
-        });
-    });
-    localStorage.setItem(key, JSON.stringify(combos));
-    alert('Configuration saved for ' + cs + ' / ' + hist);
+    const key = storageKey(cs, hist);
+    localStorage.removeItem(key);
+    loadDataToTable();
+    alert('Reset to existing data for ' + cs + ' / ' + hist);
 });
 
-document.getElementById('load-local').addEventListener('click', () => {
-    const cs = document.getElementById('collision-system').value;
-    const hist = document.getElementById('histogram-name').value;
-    const key = 'histogramConfig_' + cs + '_' + hist;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-        const combos = JSON.parse(stored);
-        const lookup = {};
-        combos.forEach(c => {
-            lookup[JSON.stringify(c.parameters, Object.keys(c.parameters).sort())] = c;
-        });
-        document.querySelectorAll('#combinations-table tbody tr').forEach(tr => {
-            const paramsKey = JSON.stringify(JSON.parse(tr.dataset.params), Object.keys(JSON.parse(tr.dataset.params)).sort());
-            if (lookup[paramsKey]) {
-                tr.querySelector('.table-input').value = lookup[paramsKey].table ?? '';
-                tr.querySelector('.entry-input').value = lookup[paramsKey].entry ?? '';
+function markParameterListsInline(obj) {
+    if (Array.isArray(obj)) {
+        return obj;
+    } else if (obj && typeof obj === 'object') {
+        const newObj = {};
+        for (let k in obj) {
+            if (k === 'parameters' && typeof obj[k] === 'object') {
+                const paramsObj = {};
+                for (let pk in obj[k]) {
+                    if (Array.isArray(obj[k][pk])) {
+                        paramsObj[pk] = Object.assign([], obj[k][pk]);
+                        paramsObj[pk].style = 'flow'; // mark for inline
+                    } else {
+                        paramsObj[pk] = obj[k][pk];
+                    }
+                }
+                newObj[k] = paramsObj;
+            } else {
+                newObj[k] = markParameterListsInline(obj[k]);
             }
-        });
-        alert('Configuration loaded for ' + cs + ' / ' + hist);
-    } else {
-        alert('No saved configuration found for ' + cs + ' / ' + hist);
+        }
+        return newObj;
     }
-});
+    return obj;
+}
 
 function buildNestedYAML(combos, level=0) {
     if (level >= paramOrder.length) return [];
-
     const param = paramOrder[level];
     const grouped = {};
     combos.forEach(c => {
@@ -260,12 +319,10 @@ function buildNestedYAML(combos, level=0) {
         if (!grouped[val]) grouped[val] = [];
         grouped[val].push(c);
     });
-
     const result = [];
     for (let valStr in grouped) {
         const val = JSON.parse(valStr);
         const groupEntry = { parameters: { [param]: Array.isArray(val) ? [val] : [val] } };
-
         if (level === paramOrder.length - 1) {
             const leaves = grouped[valStr];
             if (leaves.length === 1) {
@@ -301,9 +358,19 @@ document.getElementById('export-yaml').addEventListener('click', () => {
         }
     }
 
-    const yamlStr = jsyaml.dump(yamlObj, { noRefs: true });
+    const processed = markParameterListsInline(yamlObj);
+    const yamlStr = jsyaml.dump(processed, { noRefs: true, styles: { '!!seq': 'flow' } });
     document.getElementById('yaml-output').textContent = yamlStr;
 });
+
+document.getElementById('copy-yaml').addEventListener('click', () => {
+    const yamlText = document.getElementById('yaml-output').textContent;
+    navigator.clipboard.writeText(yamlText).then(() => {
+        alert('YAML copied to clipboard');
+    });
+});
+
+loadDataToTable();
 </script>
 </body>
 </html>
@@ -314,7 +381,7 @@ document.getElementById('export-yaml').addEventListener('click', () => {
         expected_grid=expected_grid,
         param_order=param_order,
         sorted_combos=sorted_combos,
-        existing_lookup=existing_lookup
+        existing_lookup=existing_lookup,
     )
 
 
@@ -328,8 +395,20 @@ def main() -> None:
         "jet_pt": [[100, 200], [200, 300]],
     }
     existing_data = [
-        {"collision_system": "AA", "histogram_name": "spectra", "parameters": {"jet_R": 0.2, "soft_drop": "z_cut_02_beta_0", "centrality": [0, 10], "jet_pt": [100, 200]}, "table": 15, "entry": 0},
-        {"collision_system": "pp", "histogram_name": "spectra", "parameters": {"jet_R": 0.3, "soft_drop": "z_cut_02_beta_0", "centrality": [10, 20], "jet_pt": [200, 300]}, "table": 12, "entry": 1}
+        {
+            "collision_system": "AA",
+            "histogram_name": "spectra",
+            "parameters": {"jet_R": 0.2, "soft_drop": "z_cut_02_beta_0", "centrality": [0, 10], "jet_pt": [100, 200]},
+            "table": 15,
+            "entry": 0,
+        },
+        {
+            "collision_system": "pp",
+            "histogram_name": "spectra",
+            "parameters": {"jet_R": 0.3, "soft_drop": "z_cut_02_beta_0", "centrality": [10, 20], "jet_pt": [200, 300]},
+            "table": 12,
+            "entry": 1,
+        },
     ]
     html_content = generate_histogram_config_page(expected_grid, existing_data)
 
@@ -337,6 +416,7 @@ def main() -> None:
         f.write(html_content)
 
     logger.info("HTML page written to histogram_config.html")
+
 
 if __name__ == "__main__":
     main()
