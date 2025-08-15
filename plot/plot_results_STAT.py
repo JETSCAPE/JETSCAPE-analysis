@@ -938,7 +938,7 @@ class PlotResults(common_base.CommonBase):
         self.plot_utils.setup_legend(legend, 0.045, sep=-0.1)
 
         if not self.skip_AA_ratio:
-            if not h_pp or not isinstance(h_pp, ROOT.TH1):
+            if not h_pp:
                 print(f"WARNING: Histogram {h_pp_name} not found or not valid. Skipping.")
                 return
             self.bins = np.array(h_pp.GetXaxis().GetXbins())
@@ -1190,7 +1190,10 @@ class PlotResults(common_base.CommonBase):
             for centrality in self.observable_centrality_list:
 
                 # Only plot those centralities that exist
-                if np.isclose(self.input_file.Get(f'h_centrality_range_generated').Integral(centrality[0]+1, centrality[1]), 0):
+                # Retrieve the h_weight_sum histogram for the current centrality bin
+                h_weight_sum = self.input_file.Get(f'h_weight_sum_{centrality}')
+                # Check if the histogram exists and if its content is non-zero
+                if not h_weight_sum or h_weight_sum.GetBinContent(1) == 0:
                     continue
                 print(centrality)
 

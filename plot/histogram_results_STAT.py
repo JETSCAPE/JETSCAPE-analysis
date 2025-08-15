@@ -131,7 +131,8 @@ class HistogramResults(common_base.CommonBase):
     #-------------------------------------------------------------------------------------------
     def histogram_results(self):
 
-        if len(self.observables_df) != 0:
+        # only executed if there is at least one non-empty event
+        if self.observables_df['event_weight'].notna().sum() > 0:
             # Hadron histograms
             self.histogram_hadron_observables(observable_type='hadron')
 
@@ -174,38 +175,37 @@ class HistogramResults(common_base.CommonBase):
         #   the normalization factors for each observable's centrality bin
         if self.is_AA:
             # Use numpy arrays for efficient, vectorized operations
-            w_all = np.asarray(self.weights_all, dtype=float)
-            cmin_all = np.asarray(self.event_centrality_min_all, dtype=float)
-            cmax_all = np.asarray(self.event_centrality_max_all, dtype=float)
+            weight_all = np.asarray(self.weights_all, dtype=np.float32)
+            centrality_min_all = np.asarray(self.event_centrality_min_all, dtype=np.float32)
+            centrality_max_all = np.asarray(self.event_centrality_max_all, dtype=np.float32)
 
             # If there are no rows, there's nothing to do.
-            if w_all.size == 0:
+            if weight_all.size == 0:
                 return
 
             for centrality in self.observable_centrality_list:
-                lo, hi = centrality
 
                 if not self.use_event_based_centrality:
                     # PRECOMPUTED: all events share the same (file-level) centrality.
                     # Check once using the first row (safe because all rows match).
-                    if not (float(cmin_all[0]) >= lo and float(cmax_all[0]) <= hi):
+                    if not self.centrality_accepted(centrality, event_index=0):
                         continue
                     
                     # The sum of weights is simply the total sum of all weights.
-                    sum_weights = w_all.sum()
+                    sum_weights = self.sum_weights
                     # The weights to fill the histogram are all weights.
-                    weights = w_all
+                    weights = weight_all
 
                 else:
                     # EVENT-BASED: restrict to events in this observable centrality bin.
-                    mask = (cmin_all >= lo) & (cmax_all <= hi)
+                    mask = (centrality_min_all >= centrality[0]) & (centrality_max_all <= centrality[1])
                     if not np.any(mask):
                         continue
 
                     # Per-bin weight sum for this centrality bin (includes empty events).
-                    sum_weights = w_all[mask].sum()
+                    sum_weights = weight_all[mask].sum()
                     # For the h_weights QA shape, include only weights inside this bin.
-                    weights = w_all[mask]
+                    weights = weight_all[mask]
 
                 # Save cross section
                 h = ROOT.TH1F(f'h_xsec_{centrality}', f'h_xsec_{centrality}', 1, 0, 1)
@@ -218,21 +218,18 @@ class HistogramResults(common_base.CommonBase):
 
                 # Save sum of weights (effective number of events), in order to keep track of normalization uncertainty
                 h = ROOT.TH1F(f'h_weight_sum_{centrality}', f'h_weight_sum_{centrality}', 1, 0, 1)
-                h.SetBinContent(1, float(sum_weights))
+                h.SetBinContent(1, sum_weights)
                 self.output_list.append(h)
 
                 # Save event weights
                 bins = np.logspace(np.log10( np.power(self.pt_ref/(self.sqrts/2),self.power) ), np.log10( np.power(self.pt_ref/2,self.power)  ), 10000)
                 h = ROOT.TH1F(f'h_weights_{centrality}', f'h_weights_{centrality}', bins.size-1, bins)
                 for weight in weights:
-                    h.Fill(float(weight))
+                    h.Fill(weight)
                 self.output_list.append(h)
 
         # For pp, we can just save a single histogram for each
         else:
-            # Use data from all events
-            sum_weights = w_all.sum()
-            weights = w_all
 
             h = ROOT.TH1F('h_xsec', 'h_xsec', 1, 0, 1)
             h.SetBinContent(1, self.cross_section)
@@ -244,13 +241,13 @@ class HistogramResults(common_base.CommonBase):
 
             # Save sum of weights (effective number of events), in order to keep track of normalization uncertainty
             h = ROOT.TH1F('h_weight_sum', 'h_weight_sum', 1, 0, 1)
-            h.SetBinContent(1, float(sum_weights))
+            h.SetBinContent(1, self.sum_weights)
             self.output_list.append(h)
 
             # Save event weights
             bins = np.logspace(np.log10( np.power(self.pt_ref/(self.sqrts/2),self.power) ), np.log10( np.power(self.pt_ref/2,self.power)  ), 10000)
             h = ROOT.TH1F('h_weights', 'h_weights', bins.size-1, bins)
-            for weight in weights:
+            for weight in self.weights_all:
                 h.Fill(weight)
             self.output_list.append(h)
 
@@ -569,7 +566,7 @@ class HistogramResults(common_base.CommonBase):
         # Find dimension of observable
         dim_observable = 0
         for i,_ in enumerate(col):
-            if col[i] is not None:
+            if isinstance(col[i], list) and len(col[i]) > 0:
                 dim_observable = col[i][0].size
                 break
 
@@ -612,7 +609,7 @@ class HistogramResults(common_base.CommonBase):
 
         # Check for valid events and fill histogram
         for i, _ in enumerate(col):
-            if col[i] is not None:
+            if isinstance(col[i], list) and len(col[i]) > 0:
                 # Check if the current event's centrality is accepted
                 if not skip_eventwise_check:
                     if not self.centrality_accepted(centrality, event_index=i):
@@ -645,7 +642,7 @@ class HistogramResults(common_base.CommonBase):
 
             # Fill histogram
             for i,_ in enumerate(col):
-                if col[i] is not None:
+                if isinstance(col[i], list) and len(col[i]) > 0:
                     if not skip_eventwise_check and not self.centrality_accepted(centrality, event_index=i):
                         continue
                     if h is None:
@@ -669,7 +666,7 @@ class HistogramResults(common_base.CommonBase):
 
         # Fill histogram
         for i, _ in enumerate(col):
-            if col[i] is not None:
+            if isinstance(col[i], list) and len(col[i]) > 0:
                 if not skip_eventwise_check and not self.centrality_accepted(centrality, event_index=i):
                     continue
                 if h is None:
