@@ -10,7 +10,7 @@ from __future__ import annotations
 import itertools
 import logging
 from collections.abc import Iterator
-from typing import Any, ClassVar, Generic, Protocol, TypeVar, cast, runtime_checkable
+from typing import Any, ClassVar, Generic, Protocol, TypeVar, cast, get_args, get_origin, runtime_checkable
 
 import attrs
 import numpy as np
@@ -76,6 +76,25 @@ SpecDecoderRegistry = DecoderRegistry()
 
 
 @attrs.frozen
+class CentralitySpec(ParameterSpec):
+    low: float
+    high: float
+
+    def __str__(self) -> str:
+        return f"{self.low}-{self.high}%"
+
+    def encode(self) -> str:
+        return f"{self.low!s}_{self.high!s}"
+
+    @classmethod
+    def decode(cls, value: str) -> CentralitySpec:
+        # `value` is of the form: "{self.low}_{self.high}"
+        # indices:                 0           1
+        low, high = value.split("_")
+        return cls(low=float(low), high=float(high))
+
+
+@attrs.frozen
 class PtSpec(ParameterSpec):
     low: float
     high: float | None
@@ -92,7 +111,7 @@ class PtSpec(ParameterSpec):
     @classmethod
     def decode(cls, value: str) -> PtSpec:
         # `value` is of the form: "{self.low}_{self.high}"
-        # indices:                 0   1  2
+        # indices:                 0           1
         low, high = value.split("_")
         return cls(low=float(low), high=float(high) if not np.isclose(float(high), -1.0) else None)
 
@@ -241,9 +260,23 @@ class ParameterSpecs(Generic[T]):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        # if cls.name is None:
-        #    msg = f"{cls.__name__} must define name as a ClassVar[str]"
-        #    raise ValueError(msg)
+
+        # Automatically extract and store the spec type
+        if hasattr(cls, "__orig_bases__"):
+            for base in cls.__orig_bases__:
+                if get_origin(base) is ParameterSpecs:
+                    args = get_args(base)
+                    if args:
+                        cls.spec_type = args[0]
+                        break
+        # Cross check
+        if cls.spec_type is ParameterSpec:
+            msg = f"Unable to determine ParameterSpec. Did you set it? Name: {cls.__name__}, {cls}"
+            raise ValueError(msg)
+
+        # We want to register the decoder for both the ParameterSpec and ParameterSpecs
+        # Since we'll instantiate each of the ParameterSpecs if they're available, this
+        # is a convenient way to register both.
         SpecDecoderRegistry.register(cls.name, cls.spec_type)
         SpecsDecoderRegistry.register(cls.name, cls)
 
@@ -266,10 +299,6 @@ class ParameterSpecs(Generic[T]):
 
         return cls(values=values)
 
-    # @classmethod
-    # def decode(cls, value: str) -> ParameterSpecs[Any]:
-    #    raise NotImplementedError
-
     @classmethod
     def _decode_validity_check(cls, value: str) -> str:
         """Check that the variable is valid to decode the value.
@@ -287,44 +316,100 @@ class ParameterSpecs(Generic[T]):
             raise ValueError(msg)
         return value[value.find(cls.name) + len(cls.name) :]
 
+    def from_config(cls, config: dict[str, Any]) -> ParameterSpecs[T]:
+        raise NotImplementedError
+
 
 # Decoder registry for parameter specs
 SpecsDecoderRegistry = DecoderRegistry()
 
 
 @attrs.define
+class CentralitySpecs(ParameterSpecs[CentralitySpec]):
+    name: ClassVar[str] = "centrality"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> CentralitySpecs:
+        return cls(
+            values=[CentralitySpec(*v) for v in config["centrality"]],
+        )
+
+
+@attrs.define
 class PtSpecs(ParameterSpecs[PtSpec]):
     name: ClassVar[str] = "pt"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> PtSpecs:
+        return cls(
+            values=[PtSpec(*v) for v in itertools.pairwise(config["pt"])],
+        )
 
 
 @attrs.define
 class JetRSpecs(ParameterSpecs[JetRSpec]):
     name: ClassVar[str] = "jet_R"
 
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> JetRSpecs:
+        return cls(
+            values=[JetRSpec(v) for v in config["jet_R"]],
+        )
+
 
 @attrs.define
 class SoftDropSpecs(ParameterSpecs[SoftDropSpec]):
     name: ClassVar[str] = "soft_drop"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> SoftDropSpecs:
+        return cls(
+            values=[SoftDropSpec(**v) for v in config["soft_drop"]],
+        )
 
 
 @attrs.define
 class DynamicalGroomingSpecs(ParameterSpecs[DynamicalGroomingSpec]):
     name: ClassVar[str] = "dynamical_grooming"
 
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> DynamicalGroomingSpecs:
+        return cls(
+            values=[DynamicalGroomingSpec(**v) for v in config["dynamical_grooming"]],
+        )
+
 
 @attrs.define
 class JetAxisDifferenceSpecs(ParameterSpecs[JetAxisDifferenceSpec]):
     name: ClassVar[str] = "axis"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> JetAxisDifferenceSpecs:
+        return cls(
+            values=[JetAxisDifferenceSpec(**v) for v in config["axis"]],
+        )
 
 
 @attrs.define
 class AngularitySpecs(ParameterSpecs[AngularitySpec]):
     name: ClassVar[str] = "kappa"
 
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> AngularitySpecs:
+        return cls(
+            values=[AngularitySpec(v) for v in config["kappa"]],
+        )
+
 
 @attrs.define
 class SubjetZSpecs(ParameterSpecs[SubjetZSpec]):
     name: ClassVar[str] = "subjet_z"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> SubjetZSpecs:
+        return cls(
+            values=[SubjetZSpec(v) for v in config["r"]],
+        )
 
 
 # All parameters that are relevant for an observable
