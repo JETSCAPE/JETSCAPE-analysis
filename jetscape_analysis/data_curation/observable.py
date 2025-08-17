@@ -10,7 +10,7 @@ from __future__ import annotations
 import itertools
 import logging
 from collections.abc import Iterator
-from typing import Any, ClassVar, Generic, Protocol, TypeVar, runtime_checkable
+from typing import Any, ClassVar, Generic, Protocol, TypeVar, cast, runtime_checkable
 
 import attrs
 import numpy as np
@@ -20,13 +20,63 @@ logger = logging.getLogger(__name__)
 
 @runtime_checkable
 class Encodable(Protocol):
+    """Interface for an object that can be encoded and decoded."""
+
     def encode(self) -> str: ...
     @classmethod
     def decode(cls, value: str) -> Encodable: ...
 
 
+EncodableT = TypeVar("EncodableT", bound=Encodable)
+
+
+class DecoderRegistry:
+    def __init__(self) -> None:
+        self._registry: dict[str, type[Encodable]] = {}
+
+    def register(self, name: str, decoder_type: type[Encodable]) -> None:
+        self._registry[name] = decoder_type
+
+    def get_type(self, name: str) -> type[Encodable]:
+        if name not in self._registry:
+            msg = f"Unknown decoder type: {name}"
+            raise ValueError(msg)
+        return self._registry[name]
+
+    def decode(self, name: str, value: str) -> Encodable:
+        decoder_type = self.get_type(name)
+        return decoder_type.decode(value)
+
+    def decode_as(self, expected_type: type[EncodableT], name: str, value: str) -> EncodableT:
+        decoder_type = self.get_type(name)
+        if decoder_type != expected_type:
+            msg = f"Expected {expected_type.__name__}, but {name} is registered as {decoder_type.__name__}"
+            raise TypeError(msg)
+        # NOTE: The cast is necessary since mypy won't be able to type infer through all of this generic code
+        return cast(EncodableT, decoder_type.decode(value))
+
+
+class ParameterSpec:
+    """Defines a single parameter specification.
+
+    This is just "Encodable", but the more specific name is helpful
+    for designing the rest of the code.
+    """
+
+    def encode(self) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    def decode(cls, value: str) -> ParameterSpec:
+        raise NotImplementedError
+
+
+# Decoder registry for a single parameter
+SpecDecoderRegistry = DecoderRegistry()
+
+
 @attrs.frozen
-class PtSpec:
+class PtSpec(ParameterSpec):
     low: float
     high: float | None
 
@@ -48,7 +98,7 @@ class PtSpec:
 
 
 @attrs.frozen
-class JetRSpec:
+class JetRSpec(ParameterSpec):
     R: float
 
     def __str__(self) -> str:
@@ -66,7 +116,7 @@ class JetRSpec:
 
 
 @attrs.frozen
-class SoftDropSpec:
+class SoftDropSpec(ParameterSpec):
     z_cut: float
     beta: float
 
@@ -88,7 +138,7 @@ class SoftDropSpec:
 
 
 @attrs.frozen
-class DynamicalGroomingSpec:
+class DynamicalGroomingSpec(ParameterSpec):
     a: float
 
     def __str__(self) -> str:
@@ -108,7 +158,7 @@ class DynamicalGroomingSpec:
 
 
 @attrs.frozen
-class JetAxisDifferenceSpec:
+class JetAxisDifferenceSpec(ParameterSpec):
     type: str
     grooming_settings: SoftDropSpec | None
 
@@ -140,7 +190,7 @@ class JetAxisDifferenceSpec:
 
 
 @attrs.frozen
-class AngularitySpec:
+class AngularitySpec(ParameterSpec):
     kappa: float
 
     def __str__(self) -> str:
@@ -160,7 +210,7 @@ class AngularitySpec:
 
 
 @attrs.frozen
-class SubjetZSpec:
+class SubjetZSpec(ParameterSpec):
     r: float
 
     def __str__(self) -> str:
@@ -179,32 +229,46 @@ class SubjetZSpec:
         )
 
 
-T = TypeVar("T")
+T = TypeVar("T", bound=ParameterSpec)
 
 
 @attrs.define
 class ParameterSpecs(Generic[T]):
     values: list[T]
     # NOTE: The name of the Variable must match the
-    name: ClassVar[str] = "Variable"
+    name: ClassVar[str] = "ParameterSpecs"
+    spec_type: ClassVar[type[ParameterSpec]] = ParameterSpec
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         # if cls.name is None:
         #    msg = f"{cls.__name__} must define name as a ClassVar[str]"
         #    raise ValueError(msg)
-        SpecDecoderRegistry._registry[cls.name] = cls
+        SpecDecoderRegistry.register(cls.name, cls.spec_type)
+        SpecsDecoderRegistry.register(cls.name, cls)
 
     def encode(self) -> str:
         encoded = self.name
         for v in self.values:
-            v_encoded = v.encode() if isinstance(v, Encodable) else str(v)
+            v_encoded = v.encode() if isinstance(v, ParameterSpec) else str(v)
             encoded += f"__{v_encoded}"
         return encoded
 
     @classmethod
-    def decode(cls, value: str) -> ParameterSpecs[Any]:
-        raise NotImplementedError
+    def decode(cls, value: str) -> ParameterSpecs[T]:
+        cleaned_value = cls._decode_validity_check(value)
+        # values: list[SoftDropSpec] = []
+        values: list[T] = []
+        for s in cleaned_value.split("__"):
+            spec = SpecDecoderRegistry.decode(cls.name, s)
+            # We know this is the correct type, so we're just helping out mypy
+            values.append(cast(T, spec))
+
+        return cls(values=values)
+
+    # @classmethod
+    # def decode(cls, value: str) -> ParameterSpecs[Any]:
+    #    raise NotImplementedError
 
     @classmethod
     def _decode_validity_check(cls, value: str) -> str:
@@ -224,48 +288,43 @@ class ParameterSpecs(Generic[T]):
         return value[value.find(cls.name) + len(cls.name) :]
 
 
+# Decoder registry for parameter specs
+SpecsDecoderRegistry = DecoderRegistry()
+
+
+@attrs.define
+class PtSpecs(ParameterSpecs[PtSpec]):
+    name: ClassVar[str] = "pt"
+
+
+@attrs.define
+class JetRSpecs(ParameterSpecs[JetRSpec]):
+    name: ClassVar[str] = "jet_R"
+
+
 @attrs.define
 class SoftDropSpecs(ParameterSpecs[SoftDropSpec]):
     name: ClassVar[str] = "soft_drop"
-
-    @classmethod
-    def decode(cls, value: str) -> SoftDropSpecs:
-        cleaned_value = cls._decode_validity_check(value)
-        values: list[SoftDropSpec] = []
-        for s in cleaned_value.split("__"):
-            values.append(SpecDecoderRegistry.decode(cls.name, s))
-
-        return cls(values=values)
 
 
 @attrs.define
 class DynamicalGroomingSpecs(ParameterSpecs[DynamicalGroomingSpec]):
     name: ClassVar[str] = "dynamical_grooming"
 
-    @classmethod
-    def decode(cls, value: str) -> DynamicalGroomingSpecs: ...
+
+@attrs.define
+class JetAxisDifferenceSpecs(ParameterSpecs[JetAxisDifferenceSpec]):
+    name: ClassVar[str] = "axis"
 
 
-# TODO: A class for each parameter. Needs to describe how to decode and encode a parameter. Use grooming as an example
+@attrs.define
+class AngularitySpecs(ParameterSpecs[AngularitySpec]):
+    name: ClassVar[str] = "kappa"
 
 
-VariableT = TypeVar("VariableT", bound=ParameterSpecs[Any])
-
-
-class SpecDecoderRegistry:
-    _registry: ClassVar[dict[str, type[ParameterSpecs[Any]]]] = {}
-
-    @classmethod
-    def get_type(cls, name: str) -> type[ParameterSpecs[Any]]:
-        if name not in cls._registry:
-            msg = f"Unknown parameter type: {name}"
-            raise ValueError(msg)
-        return cls._registry[name]
-
-    @classmethod
-    def decode(cls, name: str, value: str) -> ParameterSpecs[Any]:
-        param_type = cls.get_type(name)
-        return param_type.decode(value)
+@attrs.define
+class SubjetZSpecs(ParameterSpecs[SubjetZSpec]):
+    name: ClassVar[str] = "subjet_z"
 
 
 # All parameters that are relevant for an observable
