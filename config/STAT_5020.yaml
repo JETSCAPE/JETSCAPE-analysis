@@ -1040,7 +1040,7 @@ inclusive_jet:
     hepdata_pp_dir_R1.0: "Figure 5-6"
     # RJE: This was the previous version:
     # hepdata_pp_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3']
-    hepdata_pp_gname: ["Graph1D_y5"]
+    hepdata_pp_gname: ["Graph1D_y5", "Graph1D_y5", "Graph1D_y5"]
     ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
     y_min_pp: 2e-8
     y_max_pp: 1e2
