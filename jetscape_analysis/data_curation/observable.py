@@ -454,8 +454,9 @@ class PtParameters:
         if "pt" in config:
             pt_values = config["pt"]
             values = [(pt_low, pt_high) for pt_low, pt_high in itertools.pairwise(pt_values)]
-        elif "pt_min" in config:
-            values = [(config["pt_min"], -1)]
+        # Removed as an option in August 2025
+        # elif "pt_min" in config:
+        #     values = [(config["pt_min"], -1)]
 
         if values:
             # Wrap it in a "pt" key to handle it similarly to the other parameters

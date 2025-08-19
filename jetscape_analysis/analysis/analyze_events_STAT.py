@@ -3503,9 +3503,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # ATLAS, z triggered hadron IAA_pt
         if self.measure_observable_for_current_event(self.z_trigger_hadron_observables, observable_name="IAA_pt_atlas"):
-            z_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["pt_min"]
+            z_pt_min, _ = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["pt"]
             z_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["z_trigger"]["eta_cut"]
-            recoil_hadron_pt_min = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["pt_min"]
+            recoil_hadron_pt_min, _ = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["pt"]
             recoil_hadron_eta_cut = self.z_trigger_hadron_observables["IAA_pt_atlas"]["recoil_hadron"]["eta_cut"]
             d_phi = self.z_trigger_hadron_observables["IAA_pt_atlas"]["dPhi"]
 
@@ -3539,9 +3539,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #       are the same, and thus this is just fine.
         # -----------------------------------------------------------
         if self.measure_observable_for_current_event(self.z_trigger_hadron_observables, observable_name="xi_cms"):
-            z_pt_min = self.z_trigger_hadron_observables["xi_cms"]["z_trigger"]["pt_min"]
+            z_pt_min, _ = self.z_trigger_hadron_observables["xi_cms"]["z_trigger"]["pt"]
             z_eta_cut = self.z_trigger_hadron_observables["xi_cms"]["z_trigger"]["eta_cut"]
-            recoil_hadron_pt_min = self.z_trigger_hadron_observables["xi_cms"]["recoil_hadron"]["pt_min"]
+            recoil_hadron_pt_min, _ = self.z_trigger_hadron_observables["xi_cms"]["recoil_hadron"]["pt"]
             recoil_hadron_eta_cut = self.z_trigger_hadron_observables["xi_cms"]["recoil_hadron"]["eta_cut"]
             d_phi = self.z_trigger_hadron_observables["xi_cms"]["dPhi"]
 
@@ -3647,9 +3647,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #    - For negative_recombiner case, no subtraction is needed
             #    - For constituent_subtraction, no subtraction is needed
             # -----------------------------------------------------------
-            z_pt_min = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["pt_min"]
+            z_pt_min, _ = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["pt"]
             z_eta_cut = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["eta_cut"]
-            recoil_jet_pt_min = self.z_trigger_jet_observables["xj_z_cms"]["recoil_jet"]["pt_min"]
+            recoil_jet_pt_min, _ = self.z_trigger_jet_observables["xj_z_cms"]["recoil_jet"]["pt"]
             recoil_jet_eta_cut = self.z_trigger_jet_observables["xj_z_cms"]["recoil_jet"]["eta_cut"]
             d_phi = self.z_trigger_jet_observables["xj_z_cms"]["dPhi"]
 

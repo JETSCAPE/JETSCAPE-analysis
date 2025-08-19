@@ -298,8 +298,8 @@ def _check_pion_trigger_properties(config: dict[str, Any]) -> list[str]:
     if not config:
         issues.append("Missing trigger config!")
 
-    # Need either "pt", "pt_min", "Et", or "Et_min"
-    momentum_fields = ["pt", "pt_min", "Et", "Et_min"]
+    # Need either "pt" or "Et"
+    momentum_fields = ["pt", "Et"]
     available_momentum_fields = [v for v in momentum_fields if v in config]
     if len(available_momentum_fields) != 1:
         issues.append(f"Wrong number of momentum fields. Must include one of: {momentum_fields}")
@@ -336,7 +336,7 @@ def _check_gamma_trigger_properties(config: dict[str, Any]) -> list[str]:
     if not config:
         issues.append("Missing trigger config!")
 
-    # Need either "pt", "pt_min", "Et", or "Et_min"
+    # Need either "pt" or "Et"
     pt_issues = _check_standard_momentum_field(config=config)
     Et_issues = _check_standard_momentum_field(config=config, check_Et_instead=True)
     if pt_issues and Et_issues:
@@ -453,24 +453,12 @@ def _check_standard_momentum_field(
     issues = []
     # Setup
     pt_field_name = "pt"
-    pt_min_field_name = "pt_min"
     if check_Et_instead:
         pt_field_name = "Et"
-        pt_min_field_name = "Et_min"
 
     # Assign prefix as needed
     if prefix:
         pt_field_name = f"{prefix}_{pt_field_name}"
-        pt_min_field_name = f"{prefix}_{pt_min_field_name}"
-
-    # Check for existence of field
-    if pt_field_name not in config and pt_min_field_name not in config:
-        issues.append(f"Need either `{pt_field_name}` or `{pt_min_field_name}` field")
-    # Check if both are specified
-    if pt_field_name in config and pt_min_field_name in config:
-        issues.append(
-            f"Provided both the pt ({pt_field_name}) and pt_min fields ({pt_min_field_name}). Can only provide one!"
-        )
 
     # If it exists, check the formatting
     pt = config.get(pt_field_name)
@@ -479,18 +467,18 @@ def _check_standard_momentum_field(
             issues.append(
                 f"`{pt_field_name}` field not formatted correctly. Needs at least two values, provided: {pt=}"
             )
+        # Account for the min_pt case, where the last value is null rather than being set.
+        treat_as_min_pt = pt[-1] is None
+        ending_index = -1 if treat_as_min_pt else None
+
         # Check for incorrectly typed values. Should be float.
-        wrong_type_index = [i for i, value in enumerate(pt) if not isinstance(value, float)]
+        wrong_type_index = [i for i, value in enumerate(pt[:ending_index]) if not isinstance(value, float)]
         if wrong_type_index:
             logger.info(f"{wrong_type_index=}, {pt=}")
             values = {pt[i]: i for i in wrong_type_index}
             issues.append(f"`{pt_field_name}` values should be float. Incorrect value -> index map: {values}")
-
-    pt_min = config.get(pt_min_field_name)
-    if pt_min and not isinstance(pt_min, float):
-        issues.append(
-            f"`{pt_min_field_name}` field not formatted correctly. Field should be a float, but provided: {pt_min=}"
-        )
+    else:
+        issues.append(f"Need field `{pt_field_name}`")
 
     return issues
 
