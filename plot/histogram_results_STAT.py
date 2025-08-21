@@ -566,7 +566,7 @@ class HistogramResults(common_base.CommonBase):
         # Find dimension of observable
         dim_observable = 0
         for i,_ in enumerate(col):
-            if isinstance(col[i], list) and len(col[i]) > 0:
+            if (isinstance(col.iloc[i], list) or isinstance(col.iloc[i], np.ndarray)) and len(col.iloc[i]) > 0:
                 dim_observable = col[i][0].size
                 break
 
@@ -609,7 +609,7 @@ class HistogramResults(common_base.CommonBase):
 
         # Check for valid events and fill histogram
         for i, _ in enumerate(col):
-            if isinstance(col[i], list) and len(col[i]) > 0:
+            if (isinstance(col.iloc[i], list) or isinstance(col.iloc[i], np.ndarray)) and len(col.iloc[i]) > 0:
                 # Check if the current event's centrality is accepted
                 if not skip_eventwise_check:
                     if not self.centrality_accepted(centrality, event_index=i):
@@ -642,7 +642,7 @@ class HistogramResults(common_base.CommonBase):
 
             # Fill histogram
             for i,_ in enumerate(col):
-                if isinstance(col[i], list) and len(col[i]) > 0:
+                if (isinstance(col.iloc[i], list) or isinstance(col.iloc[i], np.ndarray)) and len(col.iloc[i]) > 0:
                     if not skip_eventwise_check and not self.centrality_accepted(centrality, event_index=i):
                         continue
                     if h is None:
@@ -666,7 +666,7 @@ class HistogramResults(common_base.CommonBase):
 
         # Fill histogram
         for i, _ in enumerate(col):
-            if isinstance(col[i], list) and len(col[i]) > 0:
+            if (isinstance(col.iloc[i], list) or isinstance(col.iloc[i], np.ndarray)) and len(col.iloc[i]) > 0:
                 if not skip_eventwise_check and not self.centrality_accepted(centrality, event_index=i):
                     continue
                 if h is None:
