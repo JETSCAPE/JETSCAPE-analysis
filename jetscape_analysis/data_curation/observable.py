@@ -421,6 +421,56 @@ class SubjetZSpecs(ParameterSpecs[SubjetZSpec]):
         )
 
 
+def extract_hadron_parameters(config: dict[str, Any], label: str) -> list[ParameterSpecs[Any]]:
+    # There's no clear hadron proxy, so we'll assume that the user was responsible
+    # and checked whether hadron fields are relevant.
+    parameters = []
+    _field_to_specs_type = {
+        "pt": PtSpecs,
+    }
+    for field_name, specs_type in _field_to_specs_type.items():
+        if field_name in config:
+            parameters.append(specs_type.from_config(config, label=label))
+
+    return parameters
+
+
+def extract_hadron_correlations_parameters(config: dict[str, Any]) -> list[ParameterSpecs[Any]]:
+    # There's no clear hadron proxy, so we'll assume that the user was responsible
+    # and checked whether hadron fields are relevant.
+    parameters = []
+    _field_to_specs_type = {
+        "pt": PtSpecs,
+    }
+    for field_name, specs_type in _field_to_specs_type.items():
+        if field_name in config:
+            parameters.append(specs_type.from_config(config))
+
+    return parameters
+
+
+def extract_jet_parameters(config: dict[str, Any], label: str = "") -> list[ParameterSpecs[Any]]:
+    # We'll use jet_R as a proxy for a jet config being available since it's required
+    if "jet_R" not in config:
+        return []
+
+    parameters = []
+    _field_to_specs_type = {
+        "jet_R": JetRSpecs,
+        "pt": PtSpecs,
+        "soft_drop": SoftDropSpecs,
+        "dynamical_grooming": DynamicalGroomingSpecs,
+        "axis": JetAxisDifferenceSpecs,
+        "kappa": AngularitySpecs,
+        "r": SubjetZSpecs,
+    }
+    for field_name, specs_type in _field_to_specs_type.items():
+        if field_name in config:
+            parameters.append(specs_type.from_config(config, label=label))
+
+    return parameters
+
+
 # All parameters that are relevant for an observable
 AllParameters = dict[str, list[Any]]
 # A selection of parameters that correspond to one configuration of one observable
@@ -644,7 +694,7 @@ class Observable:
 
         return hepdata_id, int(hepdata_version)
 
-    def parameters(self) -> tuple[list[Parameters], list[Indices]]:
+    def parameters(self) -> tuple[list[ParameterSpecs[Any]], list[Indices]]:
         """The parameters that are relevant to the observable.
 
         Note:
@@ -654,13 +704,61 @@ class Observable:
         Returns:
             Parameters, bin indices associated with the parameters (e.g. pt).
         """
-        _parameters = BaseParameters.construct_parameters(observable=self, config=self.config)
-        # TODO(RJE): Handle trigger appropriately...
-        if "trigger" in self.observable_class:
-            ...
+        # Base parameters
+        _parameters = [CentralitySpecs.from_config(config=self.config)]
 
-        if "jet_R" in self.config:
-            _parameters.update(JetParameters.construct_parameters(observable=self, config=self.config))
+        if self.observable_class.startswith("inclusive") or self.observable_class == "hadron":
+            # Jet parameters
+            if "jet" in self.observable_class:
+                _parameters.extend(extract_jet_parameters(config=self.config, label=""))
+
+            # Hadron parameters
+            if "hadron" in self.observable_class:
+                _parameters.extend(extract_hadron_parameters(config=self.config, label=""))
+
+        # Hadron correlations
+        if self.observable_class == "hadron_correlation":
+            _parameters.extend(extract_hadron_correlations_parameters(config=self.config))
+
+        # TODO(RJE): Handle trigger appropriately...
+        # THIS IS WHAT I NEED NEXT!!
+        # TODO(RJE): Instead of trigger / assoc label, could just label by quantity?
+        #            i.e. hadron_pt, jet_pt, z_pt, ...
+        # NOTE: Need to handle the inclusive case prefix too
+        if "trigger" in self.observable_class:
+            trigger_to_parameter_specs = {
+                "hadron": extract_hadron_parameters,
+                "dijet": extract_jet_parameters,
+                # TEMP: Use hadron just for testing so I can run the code
+                # "pion": extract_pion_parameters,
+                # "gamma": extract_gamma_parameters,
+                # "z": extract_z_parameters,
+                "pion": extract_hadron_parameters,
+                "gamma": extract_hadron_parameters,
+                "z": extract_hadron_parameters,
+                # ENDTEMP
+            }
+            for trigger_name, func in trigger_to_parameter_specs.items():
+                if f"{trigger_name}_trigger" in self.observable_class:
+                    # The config will always be named "trigger" regardless of the type, so we can
+                    # always ask for the same name here.
+                    res = func(config=self.config.get("trigger", {}), label=f"trigger_{trigger_name}")
+                    # TODO(RJE): Add explicit trigger label for clarity
+                    # _parameters.extend([f"{trigger_name}_trigger: {v}" for v in res])
+                    _parameters.extend(res)
+
+            # And then
+            # Recoil/associated properties
+            # NOTE: The observable_class are of the form "X_trigger_Y", where X is the trigger and Y is the recoil/associated.
+            #       Since we only want to target the recoil here, we look for "_trigger_Y" for Y
+            # Jet properties
+            # NOTE: Need to explicitly check for chjet and jet since we're including more of the observable class
+            if "_trigger_chjet" in self.observable_class or "_trigger_jet" in self.observable_class:
+                _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label="jet"))
+
+            # Hadron properties
+            if "_trigger_hadron" in self.observable_class:
+                _parameters.extend(extract_hadron_parameters(config=self.config.get("hadron", {}), label="hadron"))
 
         return _parameters
 
@@ -761,3 +859,87 @@ class Observable:
         Returns:
             Lines formatted suitably for a csv-like.
         """
+
+
+def main(jetscape_analysis_config_path: Path) -> None:
+    import yaml
+
+    # Parameters
+    sqrt_s_values = [200, 2760, 5020]
+
+    # Read configuration files
+    configs = {}
+    observable_classes = {}
+    for sqrt_s in sqrt_s_values:
+        with (jetscape_analysis_config_path / f"STAT_{sqrt_s}.yaml").open() as f:
+            configs[sqrt_s] = yaml.safe_load(f)
+
+        observable_classes[sqrt_s] = []
+        found_start_of_observables = False
+        for k in configs[sqrt_s]:
+            if "hadron" in k or found_start_of_observables:
+                observable_classes[sqrt_s].append(k)
+                found_start_of_observables = True
+
+    # Now extract all of the observables
+    observables = {}
+    for sqrt_s, config in configs.items():
+        observables[sqrt_s] = {}
+        for observable_class in observable_classes[sqrt_s]:
+            for observable_key in config[observable_class]:
+                observable_info = config[observable_class][observable_key]
+                observables[sqrt_s][f"{observable_class}_{observable_key}"] = Observable(
+                    sqrt_s=sqrt_s,
+                    observable_class=observable_class,
+                    name=observable_key,
+                    config=observable_info,
+                )
+
+    here = Path(__file__).parent
+
+    # Just some testing code...
+    for sqrt_s in sorted(observables.keys()):
+        output_line_base = f"{sqrt_s}"
+        # Group by observable class
+        class_to_obs: dict[str, list[Observable]] = {}
+        for obs in observables[sqrt_s].values():
+            class_to_obs.setdefault(obs.observable_class, []).append(obs)
+        for obs_class_name, obs_class in class_to_obs.items():
+            for obs in sorted(obs_class, key=lambda o: o.name):
+                base_values = [
+                    output_line_base,
+                    obs_class_name,
+                    obs.internal_name_without_experiment,
+                    obs.display_name,
+                    obs.experiment,
+                ]
+                columns_to_print_separately = ["centrality"]
+                full_set_of_parameters = obs.parameters()
+
+                if "trigger" in obs_class_name:
+                    logger.info(f"{full_set_of_parameters=}")
+                    # import IPython; IPython.embed()
+                    # import sys; sys.exit(1)
+
+
+if __name__ == "__main__":
+    from jetscape_analysis.base import helpers
+
+    helpers.setup_logging(level=logging.DEBUG)
+
+    import argparse
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Convert JETSCAPE-analysis YAML configuration files to a list for PR purposes."
+    )
+    parser.add_argument(
+        "-c",
+        "--jetscape-analysis-config",
+        type=Path,
+        help="Path to the jetscape-analysis config directory.",
+        required=True,
+    )
+    args = parser.parse_args()
+
+    main(jetscape_analysis_config_path=args.jetscape_analysis_config)
