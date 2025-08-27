@@ -302,14 +302,13 @@ class ParameterSpecs(Generic[T]):
     def encode(self) -> str:
         encoded = self.name
         for v in self.values:
-            v_encoded = v.encode() if isinstance(v, ParameterSpec) else str(v)
+            v_encoded = v.encode() if isinstance(v, ParameterSpec) else str(v)  # type: ignore[redundant-expr]
             encoded += f"__{v_encoded}"
         return encoded
 
     @classmethod
     def decode(cls, value: str) -> ParameterSpecs[T]:
         cleaned_value = cls._decode_validity_check(value)
-        # values: list[SoftDropSpec] = []
         values: list[T] = []
         for s in cleaned_value.split("__"):
             spec = SpecDecoderRegistry.decode(cls.name, s)
@@ -368,13 +367,13 @@ class PtSpecs(ParameterSpecs[PtSpec]):
 
 
 @attrs.define
-class EtaSpecs(ParameterSpecs[PtSpec]):
+class EtaSpecs(ParameterSpecs[EtaSpec]):
     name: ClassVar[str] = "eta"
 
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> EtaSpecs:
         return cls(
-            values=[EtaSpec(v) for v in itertools.pairwise(config["eta_cut"])],
+            values=[EtaSpec(config["eta_cut"])],
             label=label,
         )
 
@@ -451,13 +450,17 @@ class SubjetZSpecs(ParameterSpecs[SubjetZSpec]):
         )
 
 
-def extract_hadron_parameters(config: dict[str, Any], label: str) -> list[ParameterSpecs[Any]]:
+class ExtractParameters(Protocol):
+    def __call__(self, config: dict[str, Any], label: str) -> AllParameters: ...
+
+
+def extract_hadron_parameters(config: dict[str, Any], label: str) -> AllParameters:
     # There's no clear hadron proxy, so we'll assume that the user was responsible
     # and checked whether hadron fields are relevant.
     parameters = []
-    _field_to_specs_type = {
+    _field_to_specs_type: dict[str, type[ParameterSpecs[Any]]] = {
         "pt": PtSpecs,
-        "eta": EtaSpecs,
+        "eta_cut": EtaSpecs,
     }
     for field_name, specs_type in _field_to_specs_type.items():
         if field_name in config:
@@ -466,11 +469,11 @@ def extract_hadron_parameters(config: dict[str, Any], label: str) -> list[Parame
     return parameters
 
 
-def extract_hadron_correlations_parameters(config: dict[str, Any]) -> list[ParameterSpecs[Any]]:
+def extract_hadron_correlations_parameters(config: dict[str, Any]) -> AllParameters:
     # There's no clear hadron proxy, so we'll assume that the user was responsible
     # and checked whether hadron fields are relevant.
-    parameters = []
-    _field_to_specs_type = {
+    parameters: AllParameters = []
+    _field_to_specs_type: dict[str, type[ParameterSpecs[Any]]] = {
         "pt": PtSpecs,
     }
     for field_name, specs_type in _field_to_specs_type.items():
@@ -480,13 +483,13 @@ def extract_hadron_correlations_parameters(config: dict[str, Any]) -> list[Param
     return parameters
 
 
-def extract_jet_parameters(config: dict[str, Any], label: str = "") -> list[ParameterSpecs[Any]]:
+def extract_jet_parameters(config: dict[str, Any], label: str = "") -> AllParameters:
     # We'll use jet_R as a proxy for a jet config being available since it's required
     if "jet_R" not in config:
         return []
 
     parameters = []
-    _field_to_specs_type = {
+    _field_to_specs_type: dict[str, type[ParameterSpecs[Any]]] = {
         "jet_R": JetRSpecs,
         "pt": PtSpecs,
         "soft_drop": SoftDropSpecs,
@@ -503,130 +506,11 @@ def extract_jet_parameters(config: dict[str, Any], label: str = "") -> list[Para
 
 
 # All parameters that are relevant for an observable
-AllParameters = dict[str, list[Any]]
+AllParameters = list[ParameterSpecs[Any]]
 # A selection of parameters that correspond to one configuration of one observable
-Parameters = dict[str, Any]
-# The indices of a selection of parameters that correspond to one configuration of one observable
-Indices = dict[str, int]
-
-
-class ParameterGroup(Protocol):
-    """Group of parameters.
-
-    This is an interface that each group of parameters must implement.
-    """
-
-    def construct_parameters(observable: Observable, config: dict[str, Any]) -> dict[str, list[Any]]: ...
-
-    def format_parameters_for_printing(parameters: dict[str, list[Any]]) -> dict[str, list[str]]: ...
-
-
-class BaseParameters:
-    def construct_parameters(observable: Observable, config: dict[str, Any]) -> dict[str, list[Any]]:
-        base_parameters = {}
-        # Centrality
-        base_parameters["centrality"] = [tuple(v) for v in config["centrality"]]
-        return base_parameters
-
-    def format_parameters_for_printing(parameters: dict[str, list[Any]]) -> dict[str, list[str]]:
-        # output_parameters = collections.defaultdict(list)
-        output_parameters = {}
-        # Centrality
-        cent_low, cent_high = parameters["centrality"]
-        output_parameters["centrality"] = f"{cent_low}-{cent_high}%"
-
-        return output_parameters
-
-
-class PtParameters:
-    def construct_parameters(observable: Observable, config: dict[str, Any]) -> dict[str, list[Any]]:
-        values = []
-        if "pt" in config:
-            pt_values = config["pt"]
-            values = [(pt_low, pt_high) for pt_low, pt_high in itertools.pairwise(pt_values)]
-        # Removed as an option in August 2025
-        # elif "pt_min" in config:
-        #     values = [(config["pt_min"], -1)]
-
-        if values:
-            # Wrap it in a "pt" key to handle it similarly to the other parameters
-            return {"pt": values}
-        # Nothing to construct out of this
-        return {}
-
-    def format_parameters_for_printing(parameters: dict[str, list[Any]]) -> dict[str, list[str]]:
-        # output_parameters = collections.defaultdict(list)
-        output_parameters = {}
-        if "pt" in parameters:
-            pt_low, pt_high = parameters["pt"]
-            if pt_high == -1:
-                output_parameters["pt"] = f"pt > {pt_low}"
-            else:
-                output_parameters["pt"] = f"{pt_low} < pt < {pt_high}"
-        # return _propagate_rest_of_parameters(output_parameters=output_parameters, parameters=parameters)
-        return output_parameters
-
-
-class JetParameters:
-    def construct_parameters(observable: Observable, config: dict[str, Any]) -> dict[str, list[Any]]:
-        values = {}
-
-        # Handle standard cases first
-        # Standardize parameter names
-        parameter_names = {
-            "jet_R": "jet_R",
-            "axis": "axis",
-            "kappa": "kappa",
-            "r": "subjet_zr",
-            "SoftDrop": "soft_drop",
-            "dynamical_grooming_a": "dynamical_grooming",
-        }
-        for input_name, output_name in parameter_names.items():
-            if input_name in config:
-                values[output_name] = config[input_name]
-        # Finally, handle special cases:
-        # i.e. the pt
-        values.update(PtParameters.construct_parameters(observable=observable, config=config))
-
-        return values
-
-    def format_parameters_for_printing(parameters: dict[str, list[Any]]) -> dict[str, list[str]]:
-        # output_parameters = collections.defaultdict(list)
-        output_parameters = {}
-        # Jet R
-        if "jet_R" in parameters:
-            output_parameters["jet_R"] = f"R={parameters['jet_R']}"
-        # pt
-        if "pt" in parameters:
-            output_parameters.update(PtParameters.format_parameters_for_printing(parameters=parameters))
-        # Axis
-        if "axis" in parameters:
-            param = parameters["axis"]
-            description = f"{param['type']}"
-            if "grooming_settings" in param:
-                description += (
-                    f", SD z_cut={param['grooming_settings']['zcut']}, beta={param['grooming_settings']['beta']}"
-                )
-            output_parameters["axis"] = description
-        # Kappa
-        if "kappa" in parameters:
-            output_parameters["kappa"] = f"ang. kappa={parameters['kappa']}"
-        # Subjet z
-        if "subjet_zr" in parameters:
-            output_parameters["subjet_zr"] = f"Subjet r={parameters['subjet_zr']}"
-        # Grooming
-        # Soft Drop
-        if "soft_drop" in parameters:
-            # output_parameters["soft_drop"].extend(f"SD z_cut={param['zcut']}, beta={param['beta']}" for param in parameters["soft_drop"])
-            param = parameters["soft_drop"]
-            output_parameters["soft_drop"] = f"SD z_cut={param['zcut']}, beta={param['beta']}"
-        # DyG
-        if "dynamical_grooming" in parameters:
-            # output_parameters["dynamical_grooming"].extend(f"DyG a={a}" for a in parameters["dynamical_grooming"])
-            output_parameters["dynamical_grooming"] = f"DyG a={parameters['dynamical_grooming']}"
-
-        return output_parameters
-
+Parameters = dict[ParameterSpec, str]
+# The indices of a selection of parameters that correspond to one configuration of one observable (i.e. a ParameterSpec)
+Indices = dict[ParameterSpec, int]
 
 # Translate the encoded name into something more readable. It's not perfect, but good enough for most of our purposes.
 _name_translation_map = {
@@ -725,19 +609,23 @@ class Observable:
 
         return hepdata_id, int(hepdata_version)
 
-    def parameters(self) -> tuple[list[ParameterSpecs[Any]], list[Indices]]:
-        """The parameters that are relevant to the observable.
+    def parameters(self) -> AllParameters:
+        """The parameter specifications that are relevant to the observable.
 
-        Note:
-            The bin indices are not meant to be comprehensive - just those that are
-            relevant for the observable.
+        NOTE:
+            It's usually most convenient to access these values by iterating through a
+            generator/list of combinations. However, it's also useful to be able to get
+            the whole set together, so we provide this to the user too.
 
         Returns:
-            Parameters, bin indices associated with the parameters (e.g. pt).
+            Parameters.
         """
         # Base parameters
-        _parameters = [CentralitySpecs.from_config(config=self.config)]
+        _parameters: AllParameters = [CentralitySpecs.from_config(config=self.config)]
 
+        ######################
+        # Inclusive parameters
+        ######################
         if self.observable_class.startswith("inclusive") or self.observable_class == "hadron":
             # Jet parameters
             if "jet" in self.observable_class:
@@ -751,12 +639,14 @@ class Observable:
         if self.observable_class == "hadron_correlation":
             _parameters.extend(extract_hadron_correlations_parameters(config=self.config))
 
-        # Handle the trigger cases.
+        ####################
+        # Trigger parameters
+        ####################
         # For the trigger / associated case, parameters are labeled by the quantities
         # i.e. hadron_pt, jet_pt, z_pt, ...
-        # TODO: Need to handle the inclusive case prefix too
+        # TODO(RJE): Need to handle the inclusive case prefix too(?)
         if "trigger" in self.observable_class:
-            trigger_to_parameter_specs = {
+            trigger_to_parameter_specs: dict[str, ExtractParameters] = {
                 "hadron": extract_hadron_parameters,
                 "dijet": extract_jet_parameters,
                 # TEMP: Use hadron just for testing so I can run the code
@@ -792,20 +682,7 @@ class Observable:
 
         return _parameters
 
-    def format_parameters_for_printing(self, parameters: dict[str, Any]) -> dict[str, str]:
-        output_parameters = BaseParameters.format_parameters_for_printing(parameters)
-        if "jet_R" in self.config:
-            output_parameters.update(JetParameters.format_parameters_for_printing(parameters))
-        # TODO(RJE): Handle trigger appropriately...
-
-        missing_keys = set(parameters).difference(set(output_parameters))
-        if missing_keys:
-            logger.warning(f"missing formatting for {missing_keys}")
-
-        # NOTE: Wrapped in dict to avoid leaking the defaultdict
-        return dict(output_parameters)
-
-    def generate_parameters(self, parameters: dict[str, list[Any]]) -> Iterator[tuple[str, dict[str, int]]]:
+    def generate_parameters(self, parameters: AllParameters) -> Iterator[tuple[str, dict[str, int]]]:
         """Generate combinations of parameters that are relevant to the observable.
 
         Note:
@@ -813,15 +690,14 @@ class Observable:
             relevant for the observable.
 
         Returns:
-            Description of parameters, bins associated with the parameters (e.g. pt).
+            List of parameter specs, list of bins associated with the parameters (e.g. pt). These
+            can be zipped together to provide the appropriate indices.
         """
         # Add indices before each parameters:
         # e.g. "pt": [[1, 2], [2, 3]] -> [(0, [1,2]), (1, [2,3])]
         # parameters_with_indices = {
         #    p: [(i, v) for i, v in enumerate(values)] for p, values in parameters.items()
         # }
-        # TODO(RJE): Grooming parameters are mutually exclusive, so we need to handle them one-by-one
-        # grooming_parameters
         # We get the same combinations, but also with the indices.
         indices = {p: list(range(len(values))) for p, values in parameters.items()}
         # Get all combinations
@@ -924,8 +800,6 @@ def main(jetscape_analysis_config_path: Path) -> None:
                     name=observable_key,
                     config=observable_info,
                 )
-
-    here = Path(__file__).parent
 
     # Just some testing code...
     for sqrt_s in sorted(observables.keys()):
