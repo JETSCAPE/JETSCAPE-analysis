@@ -257,6 +257,7 @@ class ParameterSpecs(Generic[T]):
     # NOTE: The name of the Variable must match the
     name: ClassVar[str] = "ParameterSpecs"
     spec_type: ClassVar[type[ParameterSpec]] = ParameterSpec
+    label: str = attrs.field(default="")
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -316,7 +317,7 @@ class ParameterSpecs(Generic[T]):
             raise ValueError(msg)
         return value[value.find(cls.name) + len(cls.name) :]
 
-    def from_config(cls, config: dict[str, Any]) -> ParameterSpecs[T]:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> ParameterSpecs[T]:
         raise NotImplementedError
 
 
@@ -329,20 +330,23 @@ class CentralitySpecs(ParameterSpecs[CentralitySpec]):
     name: ClassVar[str] = "centrality"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> CentralitySpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> CentralitySpecs:
         return cls(
             values=[CentralitySpec(*v) for v in config["centrality"]],
+            label=label,
         )
 
 
 @attrs.define
 class PtSpecs(ParameterSpecs[PtSpec]):
     name: ClassVar[str] = "pt"
+    #label: str = attrs.field(default="")
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> PtSpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> PtSpecs:
         return cls(
             values=[PtSpec(*v) for v in itertools.pairwise(config["pt"])],
+            label=label,
         )
 
 
@@ -351,9 +355,10 @@ class JetRSpecs(ParameterSpecs[JetRSpec]):
     name: ClassVar[str] = "jet_R"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> JetRSpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> JetRSpecs:
         return cls(
             values=[JetRSpec(v) for v in config["jet_R"]],
+            label=label,
         )
 
 
@@ -362,9 +367,10 @@ class SoftDropSpecs(ParameterSpecs[SoftDropSpec]):
     name: ClassVar[str] = "soft_drop"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> SoftDropSpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> SoftDropSpecs:
         return cls(
             values=[SoftDropSpec(**v) for v in config["soft_drop"]],
+            label="",
         )
 
 
@@ -373,9 +379,10 @@ class DynamicalGroomingSpecs(ParameterSpecs[DynamicalGroomingSpec]):
     name: ClassVar[str] = "dynamical_grooming"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> DynamicalGroomingSpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> DynamicalGroomingSpecs:
         return cls(
             values=[DynamicalGroomingSpec(**v) for v in config["dynamical_grooming"]],
+            label=label,
         )
 
 
@@ -384,9 +391,10 @@ class JetAxisDifferenceSpecs(ParameterSpecs[JetAxisDifferenceSpec]):
     name: ClassVar[str] = "axis"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> JetAxisDifferenceSpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> JetAxisDifferenceSpecs:
         return cls(
             values=[JetAxisDifferenceSpec(**v) for v in config["axis"]],
+            label=label,
         )
 
 
@@ -395,9 +403,10 @@ class AngularitySpecs(ParameterSpecs[AngularitySpec]):
     name: ClassVar[str] = "kappa"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> AngularitySpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> AngularitySpecs:
         return cls(
             values=[AngularitySpec(v) for v in config["kappa"]],
+            label=label,
         )
 
 
