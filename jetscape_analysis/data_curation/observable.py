@@ -179,7 +179,7 @@ class DynamicalGroomingSpec(ParameterSpec):
 @attrs.frozen
 class JetAxisDifferenceSpec(ParameterSpec):
     type: str
-    grooming_settings: SoftDropSpec | None
+    grooming_settings: SoftDropSpec | None = None
 
     def __str__(self) -> str:
         output = f"Jet-axis difference, {self.type.replace('_', '-')}"
@@ -340,7 +340,6 @@ class CentralitySpecs(ParameterSpecs[CentralitySpec]):
 @attrs.define
 class PtSpecs(ParameterSpecs[PtSpec]):
     name: ClassVar[str] = "pt"
-    #label: str = attrs.field(default="")
 
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> PtSpecs:
@@ -370,7 +369,7 @@ class SoftDropSpecs(ParameterSpecs[SoftDropSpec]):
     def from_config(cls, config: dict[str, Any], label: str = "") -> SoftDropSpecs:
         return cls(
             values=[SoftDropSpec(**v) for v in config["soft_drop"]],
-            label="",
+            label=label,
         )
 
 
@@ -415,9 +414,10 @@ class SubjetZSpecs(ParameterSpecs[SubjetZSpec]):
     name: ClassVar[str] = "subjet_z"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> SubjetZSpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> SubjetZSpecs:
         return cls(
             values=[SubjetZSpec(v) for v in config["r"]],
+            label=label,
         )
 
 
