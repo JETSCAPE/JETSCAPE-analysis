@@ -10,10 +10,24 @@ from __future__ import annotations
 import itertools
 import logging
 from collections.abc import Iterator
-from typing import Any, ClassVar, Generic, Protocol, TypeVar, cast, get_args, get_origin, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    Protocol,
+    TypeVar,
+    cast,
+    get_args,
+    get_origin,
+    runtime_checkable,
+)
 
 import attrs
 import numpy as np
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -687,7 +701,7 @@ class Observable:
 
         return _parameters
 
-    def generate_parameters(self, parameters: AllParameters) -> Iterator[tuple[Parameters, Indices]]:
+    def generate_parameter_combinations(self, parameters: AllParameters) -> Iterator[tuple[Parameters, Indices]]:
         """Generate combinations of parameters that are relevant to the observable.
 
         Note:
@@ -698,13 +712,9 @@ class Observable:
             List of parameter specs, list of bins associated with the parameters (e.g. pt). These
             can be zipped together to provide the appropriate indices.
         """
-        # Add indices before each parameters:
-        # e.g. "pt": [[1, 2], [2, 3]] -> [(0, [1,2]), (1, [2,3])]
-        # parameters_with_indices = {
-        #    p: [(i, v) for i, v in enumerate(values)] for p, values in parameters.items()
-        # }
-        # We get the same combinations, but also with the indices.
+        # Need the names for labeling later
         parameter_specs_names = [p.encode_name() for p in parameters]
+        # And then determine all of the values, as well as the indices
         values_of_parameters = [p.values for p in parameters]
         indices = [list(range(len(p))) for p in values_of_parameters]
         # Get all combinations
@@ -719,59 +729,26 @@ class Observable:
             strict=True,
         )
 
-    def to_markdown(self, name_prefix: str | None = None) -> str:  # noqa: C901
-        """Return a pretty, formatted markdown string for this observable."""
-        display_name = self.display_name
-        if name_prefix is not None:
-            display_name = f"{name_prefix} {display_name}"
-        lines = [f"- **Name:** {display_name}", f"  - **Experiment:** {self.experiment}"]
-        try:
-            hep_id, hep_version = self.inspire_hep_identifier()
-            lines.append(f"  - **InspireHEP ID:** {hep_id} (v{hep_version})")
-        except Exception:
-            lines.append("  - **InspireHEP ID:** Not found")
-        implementation_status = "Work-in-progress"
-        if self.config["enabled"]:
-            implementation_status = "Implemented"
-        lines.append(f"  - **Implementation status**: {implementation_status}")
+    def parameter_combinations_data_frame(self) -> pd.DataFrame:
+        """Define a dataframe with all of the parameters.
 
-        # Special handling for particular keys:
-        parameters = ["jet_R", "kappa", "axis", "SoftDrop"]
-        if any(parameter in self.config for parameter in parameters):
-            lines.append("  - **Parameters**:")
-            if "jet_R" in self.config:
-                lines.append(f"     - Jet R: {self.config['jet_R']}")
-            if "kappa" in self.config:
-                lines.append(f"     - Angularity kappa: {self.config['kappa']}")
-            if "axis" in self.config:
-                lines.append("     - Jet-axis difference:")
-                for parameters in self.config["axis"]:
-                    description = f"{parameters['type']}"
-                    if "grooming_settings" in parameters:
-                        description += f", z_cut={parameters['grooming_settings']['zcut']}, beta={parameters['grooming_settings']['beta']}"
-                    lines.append(f"       - {description}")
-            if "SoftDrop" in self.config:
-                lines.append("     - SoftDrop:")
-                for parameters in self.config["SoftDrop"]:
-                    lines.append(f"       - z_cut={parameters['zcut']}, beta={parameters['beta']}")
-            if "dynamical_grooming_a" in self.config:
-                lines.append("     - Dynamical grooming:")
-                for param in self.config["dynamical_grooming_a"]:
-                    lines.append(f"       - a = {param}")
+        NOTE:
+            This is _NOT_ a high performance data frame. However, it's quite convenient for representing
+            our parameter combinations, so we live with it.
 
-        return "\n".join(lines)
-
-    def to_csv_like(self, separator: str = "\t") -> str:
-        """Convert observable into a csv-like entries.
-
-        If there are multiple parameters that would justify multiple entries,
-        then multiple lines are provided.
-
-        Args:
-            separator: Separator used to differentiate fields. Default: `\t`.
         Returns:
-            Lines formatted suitably for a csv-like.
+            Dataframe with one row per parameter combination.
         """
+        # Delayed import to reduce dependence
+        import pandas as pd  # noqa: PLC0415
+
+        g = self.generate_parameter_combinations(self.parameters())
+
+        # Retrieve the parameter combinations by label
+        data = [v[0] for v in g]
+
+        # And then convert into dataframe
+        return pd.DataFrame(data)
 
 
 def main(jetscape_analysis_config_path: Path) -> None:
