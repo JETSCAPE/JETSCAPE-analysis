@@ -117,6 +117,24 @@ class PtSpec(ParameterSpec):
 
 
 @attrs.frozen
+class EtaSpec(ParameterSpec):
+    value: float
+
+    def __str__(self) -> str:
+        return f"|eta|<={self.value}"
+
+    def encode(self) -> str:
+        return f"{self.value!s}"
+
+    @classmethod
+    def decode(cls, value: str) -> EtaSpec:
+        # `value` is of the form: "{self.value}"
+        return cls(
+            value=float(value),
+        )
+
+
+@attrs.frozen
 class JetRSpec(ParameterSpec):
     R: float
 
@@ -350,6 +368,18 @@ class PtSpecs(ParameterSpecs[PtSpec]):
 
 
 @attrs.define
+class EtaSpecs(ParameterSpecs[PtSpec]):
+    name: ClassVar[str] = "eta"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> EtaSpecs:
+        return cls(
+            values=[EtaSpec(v) for v in itertools.pairwise(config["eta_cut"])],
+            label=label,
+        )
+
+
+@attrs.define
 class JetRSpecs(ParameterSpecs[JetRSpec]):
     name: ClassVar[str] = "jet_R"
 
@@ -427,6 +457,7 @@ def extract_hadron_parameters(config: dict[str, Any], label: str) -> list[Parame
     parameters = []
     _field_to_specs_type = {
         "pt": PtSpecs,
+        "eta": EtaSpecs,
     }
     for field_name, specs_type in _field_to_specs_type.items():
         if field_name in config:
@@ -720,11 +751,10 @@ class Observable:
         if self.observable_class == "hadron_correlation":
             _parameters.extend(extract_hadron_correlations_parameters(config=self.config))
 
-        # TODO(RJE): Handle trigger appropriately...
-        # THIS IS WHAT I NEED NEXT!!
-        # TODO(RJE): Instead of trigger / assoc label, could just label by quantity?
-        #            i.e. hadron_pt, jet_pt, z_pt, ...
-        # NOTE: Need to handle the inclusive case prefix too
+        # Handle the trigger cases.
+        # For the trigger / associated case, parameters are labeled by the quantities
+        # i.e. hadron_pt, jet_pt, z_pt, ...
+        # TODO: Need to handle the inclusive case prefix too
         if "trigger" in self.observable_class:
             trigger_to_parameter_specs = {
                 "hadron": extract_hadron_parameters,
@@ -743,8 +773,6 @@ class Observable:
                     # The config will always be named "trigger" regardless of the type, so we can
                     # always ask for the same name here.
                     res = func(config=self.config.get("trigger", {}), label=f"trigger_{trigger_name}")
-                    # TODO(RJE): Add explicit trigger label for clarity
-                    # _parameters.extend([f"{trigger_name}_trigger: {v}" for v in res])
                     _parameters.extend(res)
 
             # And then
@@ -754,7 +782,9 @@ class Observable:
             # Jet properties
             # NOTE: Need to explicitly check for chjet and jet since we're including more of the observable class
             if "_trigger_chjet" in self.observable_class or "_trigger_jet" in self.observable_class:
-                _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label="jet"))
+                # Either ch_jet or jet
+                jet_label = self.observable_class.split("_")[-1]
+                _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label=jet_label))
 
             # Hadron properties
             if "_trigger_hadron" in self.observable_class:
