@@ -299,6 +299,11 @@ class ParameterSpecs(Generic[T]):
         SpecDecoderRegistry.register(cls.name, cls.spec_type)
         SpecsDecoderRegistry.register(cls.name, cls)
 
+    def encode_name(self) -> str:
+        if self.label:
+            return f"{self.label}_{self.name}"
+        return self.name
+
     def encode(self) -> str:
         encoded = self.name
         for v in self.values:
@@ -508,9 +513,9 @@ def extract_jet_parameters(config: dict[str, Any], label: str = "") -> AllParame
 # All parameters that are relevant for an observable
 AllParameters = list[ParameterSpecs[Any]]
 # A selection of parameters that correspond to one configuration of one observable
-Parameters = dict[ParameterSpec, str]
+Parameters = dict[str, str]
 # The indices of a selection of parameters that correspond to one configuration of one observable (i.e. a ParameterSpec)
-Indices = dict[ParameterSpec, int]
+Indices = dict[str, int]
 
 # Translate the encoded name into something more readable. It's not perfect, but good enough for most of our purposes.
 _name_translation_map = {
@@ -662,7 +667,7 @@ class Observable:
                 if f"{trigger_name}_trigger" in self.observable_class:
                     # The config will always be named "trigger" regardless of the type, so we can
                     # always ask for the same name here.
-                    res = func(config=self.config.get("trigger", {}), label=f"trigger_{trigger_name}")
+                    res = func(config=self.config.get("trigger", {}), label=f"{trigger_name}_trigger")
                     _parameters.extend(res)
 
             # And then
@@ -682,7 +687,7 @@ class Observable:
 
         return _parameters
 
-    def generate_parameters(self, parameters: AllParameters) -> Iterator[tuple[str, dict[str, int]]]:
+    def generate_parameters(self, parameters: AllParameters) -> Iterator[tuple[Parameters, Indices]]:
         """Generate combinations of parameters that are relevant to the observable.
 
         Note:
@@ -699,16 +704,18 @@ class Observable:
         #    p: [(i, v) for i, v in enumerate(values)] for p, values in parameters.items()
         # }
         # We get the same combinations, but also with the indices.
-        indices = {p: list(range(len(values))) for p, values in parameters.items()}
+        parameter_specs_names = [p.encode_name() for p in parameters]
+        values_of_parameters = [p.values for p in parameters]
+        indices = [list(range(len(p))) for p in values_of_parameters]
         # Get all combinations
-        combinations = itertools.product(*parameters.values())
-        indices_combinations = itertools.product(*indices.values())
+        combinations = itertools.product(*values_of_parameters)
+        indices_combinations = itertools.product(*indices)
 
         # And then return them labeled by the parameter name
         # We want: ({"pt": [], ...], {"pt": }})
         yield from zip(
-            (dict(zip(parameters.keys(), values, strict=True)) for values in combinations),
-            (dict(zip(parameters.keys(), values, strict=True)) for values in indices_combinations),
+            (dict(zip(parameter_specs_names, values, strict=True)) for values in combinations),
+            (dict(zip(parameter_specs_names, values, strict=True)) for values in indices_combinations),
             strict=True,
         )
 
@@ -822,8 +829,12 @@ def main(jetscape_analysis_config_path: Path) -> None:
 
                 if "trigger" in obs_class_name:
                     logger.info(f"{full_set_of_parameters=}")
-                    # import IPython; IPython.embed()
-                    # import sys; sys.exit(1)
+                    import IPython
+
+                    IPython.embed()
+                    import sys
+
+                    sys.exit(1)
 
 
 if __name__ == "__main__":
