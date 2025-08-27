@@ -663,7 +663,7 @@ class Observable:
         ####################
         # For the trigger / associated case, parameters are labeled by the quantities
         # i.e. hadron_pt, jet_pt, z_pt, ...
-        # TODO(RJE): Need to handle the inclusive case prefix too(?)
+        # TODO(RJE): Consider adding an explicit inclusive case prefix too(?) Maybe it's not needed...?
         if "trigger" in self.observable_class:
             trigger_to_parameter_specs: dict[str, ExtractParameters] = {
                 "hadron": extract_hadron_parameters,
@@ -752,7 +752,7 @@ class Observable:
 
 
 def main(jetscape_analysis_config_path: Path) -> None:
-    import yaml
+    import yaml  # noqa: PLC0415
 
     # Parameters
     sqrt_s_values = [200, 2760, 5020]
@@ -787,31 +787,20 @@ def main(jetscape_analysis_config_path: Path) -> None:
 
     # Just some testing code...
     for sqrt_s in sorted(observables.keys()):
-        output_line_base = f"{sqrt_s}"
         # Group by observable class
         class_to_obs: dict[str, list[Observable]] = {}
         for obs in observables[sqrt_s].values():
             class_to_obs.setdefault(obs.observable_class, []).append(obs)
         for obs_class_name, obs_class in class_to_obs.items():
             for obs in sorted(obs_class, key=lambda o: o.name):
-                base_values = [
-                    output_line_base,
-                    obs_class_name,
-                    obs.internal_name_without_experiment,
-                    obs.display_name,
-                    obs.experiment,
-                ]
-                columns_to_print_separately = ["centrality"]
                 full_set_of_parameters = obs.parameters()
 
                 if "trigger" in obs_class_name:
                     logger.info(f"{full_set_of_parameters=}")
-                    import IPython
-
-                    IPython.embed()
-                    import sys
-
-                    sys.exit(1)
+                    # fmt:off
+                    import IPython; IPython.embed()  # noqa: PLC0415,I001,E702
+                    import sys; sys.exit(1)  # noqa: PLC0415,I001,E702
+                    # fmt:on
 
 
 if __name__ == "__main__":
