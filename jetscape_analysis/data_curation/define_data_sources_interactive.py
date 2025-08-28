@@ -381,7 +381,7 @@ def main() -> None:
 
     st.title("Configure data sources")
 
-    st.selectbox(
+    observable = st.selectbox(
         "Observable: sqrt_s, exp., observable class, observable name (internal name)",
         st.session_state.observables.values(),
         format_func=lambda o: f"{o.sqrt_s}, {o.experiment}, {o.observable_class}, {o.display_name} ({o.internal_name_without_experiment})",
@@ -401,28 +401,34 @@ def main() -> None:
 
     st.divider()
 
+    # Now that we know what we're working with, we need to setup the parameters
+    all_parameters = observable.parameters()
+
     # Load current data
+    # TODO(RJE): Need to update this parsing...
     current_data = load_existing_data(collision_system, histogram_name)
 
     # Bulk edit section
     st.header("Bulk Edit Selection")
 
     bulk_selections: dict[str, list[Any]] = {}
-    bulk_cols = st.columns(len(PARAM_ORDER))
+    bulk_cols = st.columns(len(all_parameters))
 
-    for i, param in enumerate(PARAM_ORDER):
+    for i, param in enumerate(all_parameters):
         with bulk_cols[i]:
-            st.subheader(param)
-            select_all = st.checkbox(f"Select All {param}", key=f"select_all_{param}")
+            param_name = param.encode_name()
+            param_display_name = " ".join(param.encode_name().split("_"))
+            st.subheader(param_display_name)
+            select_all = st.checkbox("Select all", key=f"select_all_{param_name}")
 
             selected_values: list[Any] = []
-            for value in PARAM_CONFIG[param]:
+            for value in param.values:
                 value_str = str(value)
-                is_selected = st.checkbox(value_str, key=f"{param}_{value_str}", value=select_all)
+                is_selected = st.checkbox(value_str, key=f"{param_name}_{value_str}", value=select_all)
                 if is_selected:
                     selected_values.append(value)
 
-            bulk_selections[param] = selected_values
+            bulk_selections[param_name] = selected_values
 
     # Bulk edit inputs
     bulk_col1, bulk_col2, bulk_col3 = st.columns([1, 1, 2])
