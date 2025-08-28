@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import requests
 import streamlit as st
 import yaml
 
@@ -61,6 +62,104 @@ def load_hepdata_file(filename: Path, table: str | int, index: int) -> Systemati
     # This should return a dictionary of systematic uncertainties
     # For now, returning dummy data
     return {"stat": "0.05", "syst_jet_energy": "0.03", "syst_tracking": "0.02"}
+
+
+def get_hepdata_uncertainties(url: str, table_name: str, entry_index: int = 0, version: int = 1) -> dict[str, str]:
+    """Download a HEPData table and extract uncertainty names from a specific entry.
+
+    Args:
+        url: HEPData record URL (e.g., 'https://www.hepdata.net/record/ins1234567')
+        table_name: Name of the table to extract
+        entry_index: Index of the entry in the table to examine (default: 0)
+
+    Returns:
+        List of uncertainty names found in the specified entry
+
+    Raises:
+        requests.RequestException: If the HTTP request fails
+        KeyError: If the table or entry is not found
+        IndexError: If the entry_index is out of range
+    """
+    import urllib.parse
+
+    # Extract record ID from URL
+    if "ins" not in url:
+        msg = "Invalid HEPData URL format"
+        raise ValueError(msg)
+    record_id = url.split("ins")[-1].split("/")[0]
+
+    # Construct API URL for JSON data
+    # api_url = f"https://www.hepdata.net/record/ins{record_id}?format=json"
+    # api_url = f"https://www.hepdata.net/record/ins{record_id}?version={version}&table={quote_plus(table_name)}"
+    api_url = f"https://www.hepdata.net/download/table/ins{record_id}/{urllib.parse.quote(table_name)}/{version}/json"
+    logger.warning(api_url)
+    logger.warning("https://www.hepdata.net/download/table/ins1638996/Table%203/1/json (correct)")
+
+    # Download the data
+    response = requests.get(api_url)
+    response.raise_for_status()
+
+    data = response.json()
+
+    # Double check that we have the specific table
+    if data.get("name") != table_name:
+        msg = f"Wrong table name. Available: {data.get('name')}"
+        raise ValueError(msg)
+    # Find the specified table
+    table_data = data.get("values")
+
+    # table_data = None
+    # for table in data.get('tables', []):
+    #    if data.get('name') == table_name:
+    #        table_data = table
+    #        break
+
+    if table_data is None:
+        available_tables = [table.get("name") for table in data.get("tables", [])]
+        msg = f"Table '{table_name}' not found. Available tables: {available_tables}"
+        raise KeyError(msg)
+
+    # Get the dependent variables (which contain the uncertainties)
+    # dependent_vars = table_data.get('dependent_variables', [])
+    # if not dependent_vars:
+    #    return []
+    dependent_vars = [{"values": table_data}]
+
+    # Extract uncertainties from the specified entry
+    uncertainties = []
+
+    for dep_var in dependent_vars:
+        values = dep_var.get("values", [])
+        if entry_index >= len(values):
+            msg = f"Entry index {entry_index} out of range. Table has {len(values)} entries."
+            raise IndexError(msg)
+
+        entry = values[entry_index]
+
+        # Check for systematic and statistical uncertainties
+        for error_type in ["errors", "uncertainties"]:
+            if error_type in entry:
+                for error in entry[error_type]:
+                    if "label" in error:
+                        uncertainties.append(error["label"])
+                    else:
+                        msg = "Uncertainty not labeled..."
+                        raise ValueError(msg)
+                    # elif 'symerror' in error:
+                    #    uncertainties.append('symmetric_error')
+                    # elif 'asymerror' in error:
+                    #    uncertainties.append('asymmetric_error')
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_uncertainties = []
+    for unc in uncertainties:
+        if unc not in seen:
+            seen.add(unc)
+            unique_uncertainties.append(unc)
+
+    logger.warning(unique_uncertainties)
+    return {v: v for v in unique_uncertainties}
 
 
 def generate_combinations() -> list[ParameterDict]:
@@ -502,12 +601,11 @@ def main() -> None:
             col1, col2 = st.columns(2)
 
             with col1:
-                table_val = st.number_input(
+                table_val = st.text_input(
                     "Table",
                     value=combo_data["table"] if combo_data["table"] is not None else 0,
-                    step=1,
                     key=f"table_{i}",
-                    help="HEPData table number",
+                    help="HEPData table",
                 )
                 combo_data["table"] = table_val if table_val != 0 else None
 
@@ -526,14 +624,23 @@ def main() -> None:
                 col1, col2 = st.columns([1, 3])
                 with col1:
                     if st.button("📥 Load Systematics", key=f"load_sys_{i}"):
-                        try:
-                            filename = Path(f"{collision_system}_data.yaml")
-                            loaded_sys = load_hepdata_file(filename, combo_data["table"], combo_data["entry"])
+                        # try:
+                        filename = Path(f"{collision_system}_data.yaml")
+                        # TODO(RJE): Make this more sophisticated...
+                        # loaded_sys = load_hepdata_file(filename, combo_data["table"], combo_data["entry"])
+                        if "hepdata" in observable.config["urls"]:
+                            loaded_sys = get_hepdata_uncertainties(
+                                observable.config["urls"]["hepdata"],
+                                table_name=combo_data["table"],
+                                entry_index=combo_data["entry"],
+                            )
                             combo_data["systematics"].update(loaded_sys)
                             st.success(f"✅ Loaded {len(loaded_sys)} systematic uncertainties")
                             st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Failed to load systematics: {e}")
+                        else:
+                            st.error(f"❌ HEPData info not available for: {observable}")
+                    # except Exception as e:
+                    #    st.error(f"❌ Failed to load systematics: {e}")
                 with col2:
                     st.caption("Load systematic uncertainties from HEPData file using table and entry numbers")
             else:
