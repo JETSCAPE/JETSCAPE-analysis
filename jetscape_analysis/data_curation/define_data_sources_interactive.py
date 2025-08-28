@@ -434,10 +434,10 @@ def main() -> None:
     bulk_col1, bulk_col2, bulk_col3 = st.columns([1, 1, 2])
 
     with bulk_col1:
-        bulk_table = st.number_input("Table", value=None, step=1, key="bulk_table")
+        bulk_table = st.number_input("HEPdata Table identifier", value=None, step=1, key="bulk_table")
 
     with bulk_col2:
-        bulk_entry = st.number_input("Entry", value=None, step=1, key="bulk_entry")
+        bulk_entry = st.number_input("HEPData table index", value=None, step=1, key="bulk_entry")
 
     with bulk_col3:
         if st.button("Apply to Selection"):
@@ -507,7 +507,7 @@ def main() -> None:
                     value=combo_data["table"] if combo_data["table"] is not None else 0,
                     step=1,
                     key=f"table_{i}",
-                    help="HepData table number",
+                    help="HEPData table number",
                 )
                 combo_data["table"] = table_val if table_val != 0 else None
 
@@ -535,7 +535,7 @@ def main() -> None:
                         except Exception as e:
                             st.error(f"❌ Failed to load systematics: {e}")
                 with col2:
-                    st.caption("Load systematic uncertainties from HepData file using table and entry numbers")
+                    st.caption("Load systematic uncertainties from HEPData file using table and entry numbers")
             else:
                 st.info("💡 Set both Table and Entry numbers to enable systematic loading")
 
