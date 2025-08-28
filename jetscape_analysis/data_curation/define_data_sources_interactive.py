@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from itertools import product
 from pathlib import Path
 from typing import Any
@@ -9,7 +10,14 @@ import pandas as pd
 import streamlit as st
 import yaml
 
+from jetscape_analysis.data_curation import observable
+
+logger = logging.getLogger(__name__)
+
 # Initialize session state
+# Containing the existing observables
+if "observables" not in st.session_state:
+    st.session_state.observables = {}
 if "combinations_data" not in st.session_state:
     st.session_state.combinations_data = {}
 
@@ -357,23 +365,39 @@ def create_overview_dataframe(current_data: list[CombinationData]) -> pd.DataFra
     return pd.DataFrame(overview_data)
 
 
+def setup_observables() -> None:
+    if not st.session_state.observables:
+        _here = Path(__file__).parent
+        st.session_state.observables = observable.read_observables_from_config(
+            jetscape_analysis_config_path=_here.parent.parent / "config"
+        )
+
+
 def main() -> None:
     """Main Streamlit application"""
-    st.title("Histogram Configurator")
 
-    # Top controls
+    # Setup
+    setup_observables()
+
+    st.title("Configure data sources")
+
+    st.selectbox(
+        "Observable: sqrt_s, exp., observable class, observable name (internal name)",
+        st.session_state.observables.values(),
+        format_func=lambda o: f"{o.sqrt_s}, {o.experiment}, {o.observable_class}, {o.display_name} ({o.internal_name_without_experiment})",
+    )
+
+    # Configure the histogram
     col1, col2 = st.columns(2)
 
     with col1:
         collision_system = st.selectbox("Collision System", ["AA", "pp"])
 
     with col2:
-        histogram_options = ["spectra", "ratio"]
-        histogram_name = st.selectbox("Histogram Name", histogram_options)
+        histogram_options = ["spectra", "ratio"] if collision_system == "AA" else ["spectra"]
+        histogram_name = st.selectbox("Histogram Name", histogram_options, accept_new_options=True)
 
-        custom_histogram = st.text_input("Custom histogram name")
-        if st.button("Set Custom") and custom_histogram:
-            histogram_name = custom_histogram
+    st.write(f'Configuring histogram "{histogram_name}"')
 
     st.divider()
 
