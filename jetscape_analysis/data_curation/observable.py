@@ -10,6 +10,7 @@ from __future__ import annotations
 import itertools
 import logging
 from collections.abc import Iterator
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -25,6 +26,7 @@ from typing import (
 
 import attrs
 import numpy as np
+import yaml
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -751,8 +753,9 @@ class Observable:
         return pd.DataFrame(data)
 
 
-def main(jetscape_analysis_config_path: Path) -> None:
-    import yaml  # noqa: PLC0415
+def read_observables_from_config(jetscape_analysis_config_path: Path) -> dict[str, Observable]:
+    # Validation
+    jetscape_analysis_config_path = Path(jetscape_analysis_config_path)
 
     # Parameters
     sqrt_s_values = [200, 2760, 5020]
@@ -774,33 +777,44 @@ def main(jetscape_analysis_config_path: Path) -> None:
     # Now extract all of the observables
     observables = {}
     for sqrt_s, config in configs.items():
-        observables[sqrt_s] = {}
         for observable_class in observable_classes[sqrt_s]:
             for observable_key in config[observable_class]:
                 observable_info = config[observable_class][observable_key]
-                observables[sqrt_s][f"{observable_class}_{observable_key}"] = Observable(
+                observables[f"{sqrt_s}_{observable_class}_{observable_key}"] = Observable(
                     sqrt_s=sqrt_s,
                     observable_class=observable_class,
                     name=observable_key,
                     config=observable_info,
                 )
 
-    # Just some testing code...
-    for sqrt_s in sorted(observables.keys()):
-        # Group by observable class
-        class_to_obs: dict[str, list[Observable]] = {}
-        for obs in observables[sqrt_s].values():
-            class_to_obs.setdefault(obs.observable_class, []).append(obs)
-        for obs_class_name, obs_class in class_to_obs.items():
-            for obs in sorted(obs_class, key=lambda o: o.name):
-                full_set_of_parameters = obs.parameters()
+    return observables
 
-                if "trigger" in obs_class_name:
-                    logger.info(f"{full_set_of_parameters=}")
-                    # fmt:off
-                    import IPython; IPython.embed()  # noqa: PLC0415,I001,E702
-                    import sys; sys.exit(1)  # noqa: PLC0415,I001,E702
-                    # fmt:on
+
+def main(jetscape_analysis_config_path: Path) -> None:
+    """Just some testing and development code.
+
+    Not for actual use...
+    """
+    # Just some testing code...
+    observables = read_observables_from_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
+
+    # for obs in sorted(observables):
+    # for sqrt_s in sorted(observables.keys()):
+    for obs in sorted(observables.values(), key=lambda o: (o.sqrt_s, o.observable_class, o.name)):
+        # Group by observable class
+        # class_to_obs: dict[str, list[Observable]] = {}
+        # for obs in observables[sqrt_s].values():
+        #    class_to_obs.setdefault(obs.observable_class, []).append(obs)
+        # for obs_class_name, obs_class in class_to_obs.items():
+        # for obs in sorted(obs_class, key=lambda o: (o.sqrt_s, o.observable_class, o.name)):
+        full_set_of_parameters = obs.parameters()
+
+        if "trigger" in obs.observable_class:
+            logger.info(f"{full_set_of_parameters=}")
+            # fmt:off
+            import IPython; IPython.embed()  # noqa: PLC0415,I001,E702
+            import sys; sys.exit(1)  # noqa: PLC0415,I001,E702
+            # fmt:on
 
 
 if __name__ == "__main__":
