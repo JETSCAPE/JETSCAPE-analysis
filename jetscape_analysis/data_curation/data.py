@@ -81,3 +81,7 @@ class HEPDataBlock:
 
     filename: Path
     histograms: dict[str, HEPDataHistogramClass]
+
+
+def load_first_production_hepdata_info(observable: observable.Observable) -> HEPDataBlock:
+    ...
