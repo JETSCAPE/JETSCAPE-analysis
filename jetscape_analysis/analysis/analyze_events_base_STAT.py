@@ -206,7 +206,22 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                     centrality_range_min = min(self.centrality[0], centrality_range_min)
                     centrality_range_max = max(self.centrality[1], centrality_range_max)
 
+                # Record per-event “all events” fields for non-empty events
+                self.observable_dict_event['event_weight_all']   = event_weight
+                self.observable_dict_event['centrality_min_all'] = self.centrality[0] if self.is_AA else None
+                self.observable_dict_event['centrality_max_all'] = self.centrality[1] if self.is_AA else None
+
                 self.output_event_list.append(self.observable_dict_event)
+
+            # Append a minimal stub row for empty events so their weight/centrality are preserved
+            else:
+                stub = {
+                    'event_weight_all':   event_weight,
+                    'pt_hat':             event['pt_hat'],
+                    'centrality_min_all': self.centrality[0] if self.is_AA else None,
+                    'centrality_max_all': self.centrality[1] if self.is_AA else None,
+                }
+                self.output_event_list.append(stub)
 
         # Get total cross-section (same for all events at this point), weight sum, and centrality
         self.cross_section_dict['cross_section'] = event['cross_section']
