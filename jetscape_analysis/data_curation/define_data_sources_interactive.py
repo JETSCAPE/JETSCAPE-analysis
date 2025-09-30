@@ -486,6 +486,11 @@ def main() -> None:
         format_func=lambda o: f"{o.sqrt_s}, {o.experiment}, {o.observable_class}, {o.display_name} ({o.internal_name_without_experiment})",
     )
 
+    # output_str = ""
+    # for o in st.session_state.observables.values():
+    #     output_str += "\n" + f"{o.sqrt_s}, {o.experiment}, {o.observable_class}, {o.display_name} ({o.internal_name_without_experiment})"
+    # print(output_str)
+
     # Configure the histogram
     col1, col2 = st.columns(2)
 
@@ -670,7 +675,7 @@ def main() -> None:
     # Quick overview table (read-only)
     st.header("Quick Overview")
     overview_df = create_overview_dataframe(current_data)
-    st.dataframe(overview_df, use_container_width=True)
+    st.dataframe(overview_df, width="stretch")
 
     st.divider()
 
