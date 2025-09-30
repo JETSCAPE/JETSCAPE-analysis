@@ -608,27 +608,29 @@ class Observable:
 
     def inspire_hep_identifier(self) -> tuple[str, int]:
         """Extract InspireHEP identifier from the config if possible."""
-        # Attempt to extract from the HEPdata filename.
+        # Attempt to extract from the HEPdata URL.
+        urls = self.config["urls"]
 
         # Validation
         # We mostly don't care about the pp HEPdata - it's mostly about the AA
-        if not ("hepdata" in self.config or "hepdata_AA" in self.config):
+        if not ("hepdata" in urls or "hepdata_AA" in urls):
             msg = f"Cannot find HEPdata key for observable {self.identifier}"
             raise ValueError(msg)
 
         hepdata_key = "hepdata"
-        if hepdata_key not in self.config:
+        if hepdata_key not in urls:
             hepdata_key = "hepdata_AA"
 
-        # Example: "HEPData-ins1127262-v2-root.root"
+        # Example: "https://www.hepdata.net/record/ins2845788"
         hepdata = self.config[hepdata_key]
-        _, hepdata_id, hepdata_version, *_ = hepdata.split("-")
+        value = hepdata.split("/")[-1]
         # Remove "ins"
-        hepdata_id = hepdata_id.replace("ins", "")
+        hepdata_id = value.replace("ins", "")
         # Extract just the numerical version number
-        hepdata_version = hepdata_version.replace("v", "")
+        # NOTE: Unable to do this as of Sept 2025, since we don't record the version number here. Better to take it from our database
+        # hepdata_version = hepdata_version.replace("v", "")
 
-        return hepdata_id, int(hepdata_version)
+        return hepdata_id, -1
 
     def parameters(self) -> AllParameters:
         """The parameter specifications that are relevant to the observable.
