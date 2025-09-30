@@ -998,7 +998,8 @@ pion_trigger_hadron:
     data:
       pp:
         hepdata:
-          filename: ...
+          inspire_hep_record: 123456
+          inspire_hep_version: 2
           # Required: "spectra" in pp, "spectra" + "ratio" in AA,
           #           otherwise, free form
           spectra:
