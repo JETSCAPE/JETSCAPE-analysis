@@ -19,13 +19,12 @@ import ruamel.yaml
 if TYPE_CHECKING:
     from jetscape_analysis.data_curation import observable
 
-
 logger = logging.getLogger(__name__)
 
 _here = Path(__file__).parent
-# TODO(RJE): Update this value once I switch to the new repo!
-# base_data_dir = _here.parent.parent / "data" / "STAT"
-base_data_dir = _here.parent.parent.parent / "hard-sector-data-curation"
+# TODO(RJE): Update this value once I switch to the new repo! the data curation repo will then be a git submodule
+# BASE_DATA_DIR = _here.parent.parent / "data" / "STAT"
+BASE_DATA_DIR = _here.parent.parent.parent / "hard-sector-data-curation"
 DEFAULT_DATABASE_NAME: Final[Path] = Path("hepdata_database.yaml")
 
 
@@ -73,7 +72,7 @@ def hepdata_filename_from_parameters(record_id: int, version: int | None = None)
 URLParams = dict[str, Any]
 
 
-def extract_hepdata_url_parameters(url: str) -> tuple[int, URLParams]:
+def extract_info_from_hepdata_url(url: str) -> tuple[int, int, URLParams]:
     """Validate the HEPData url matches out expectations.
 
     We tend to store the HEPData url in yaml config because it's convenient for the user
@@ -82,7 +81,7 @@ def extract_hepdata_url_parameters(url: str) -> tuple[int, URLParams]:
     Args:
         url: HEPData url.
     Returns:
-        InspireHEP record id, list of URL options if the URL is validated. Raises exceptions otherwise.
+        InspireHEP record id, record version, list of URL parameters if the URL is validated. Raises exceptions otherwise.
     Raises:
         ValueError if the URL is not formatted correctly.
     """
@@ -90,7 +89,8 @@ def extract_hepdata_url_parameters(url: str) -> tuple[int, URLParams]:
     # https://www.hepdata.net/record/ins{record_id}?option_a=2&option_b=3
 
     # First, extract the InspireHEP record_id
-    # Check that the URL parses as expected - namely, it should have format as above, and shouldn't have e.g. a ins{record_id}/v2
+    # Check that the URL parses as expected - namely, it should have format as above, and shouldn't have
+    # e.g. any slashes after the record id (e.g. should not have '/v2/')
     url_split_on_slash = url.split("/")
     if len(url_split_on_slash) != 5:
         msg = f"URL appears to have the wrong number of '/' (provided: {url}). We expect starting with 'https://' and no additional slashes after the 'ins{{record_id}}'"
@@ -100,7 +100,9 @@ def extract_hepdata_url_parameters(url: str) -> tuple[int, URLParams]:
     full_record_with_possible_options = url_split_on_slash[-1]
     # Remove the options to get the record - even if there is no options (corresponding to "?"),
     # by taking the first value, we'll get the record_id
-    record_id = int(full_record_with_possible_options.split("?")[0])
+    record_id_without_params = full_record_with_possible_options.split("?")[0]
+    # And then need to remove "ins" for the URL
+    record_id = int(record_id_without_params.split("ins")[-1])
 
     # Now we can parse out the options.
     #
@@ -139,19 +141,21 @@ def extract_hepdata_url_parameters(url: str) -> tuple[int, URLParams]:
             logger.warning(msg)
 
     # Set the types of allowed values
-    version = query_params.get("version")
-    if version:
-        query_params["version"] = int(version)
-    else:
-        # Default to -1, which corresponds to be we don't know the version.
-        query_params["version"] = -1
+    # We don't want the version to be passed through the query_params - we want to handle it explicitly.
+    version = query_params.pop("version", None)
+    # Default to -1, which corresponds to be we don't know the version.
+    version = int(version) if version else -1
 
-    return record_id, query_params
+    return record_id, version, query_params
 
 
 def download_hepdata(
-    record_id: int, output_file_path: Path, version: int | None = None, base_dir: Path | None = None
-) -> Path:
+    record_id: int,
+    output_file_path: Path,
+    version: int | None = None,
+    base_dir: Path | None = None,
+    additional_query_params: dict[str, Any] | None = None,
+) -> tuple[Path, int]:
     """Download HEPData file.
 
     Args:
@@ -160,13 +164,19 @@ def download_hepdata(
         version: HEPData version. Default: None, which corresponds to the latest version.
         base_dir: Base directory for data. The output path will be: `base_dir/output_file_path/filename`. Default: None,
             which will correspond to the `data` directory in the repository.
+    Returns:
+        Path to downloaded file, version extracted from HEPData.
     """
     # Validation
-    # Grab the record_id (and validate the url)
-    # record_id = extract_record_id_from_hepdata_url(hepdata_url)
-    # And the paths
+    # First, check the paths
     output_file_path = Path(output_file_path)
-    base_dir = base_data_dir if base_dir is None else Path(base_dir)
+    base_dir = BASE_DATA_DIR if base_dir is None else Path(base_dir)
+    # Additional query params to add the url
+    if not additional_query_params:
+        additional_query_params = {}
+    if "version" in additional_query_params:
+        msg = f"version needs to be passed explicitly - not through the additional_query_params. Provided: {additional_query_params=}"
+        raise ValueError(msg)
 
     # api_url = f"https://www.hepdata.net/download/submission/ins{record_id}/yaml"
     api_url = f"https://www.hepdata.net/record/ins{record_id}"
@@ -174,7 +184,8 @@ def download_hepdata(
     # Specify the request format. The options are documented here: https://www.hepdata.net/formats
     #
     # We'll always want to download the full YAML archive.
-    options = {"format": "yaml"}
+    # NOTE: We put the additional_query_params first because we need to over
+    options = {**additional_query_params, "format": "yaml"}
     # And we can also specify a version if we need to
     if version != -1:
         # But we can specify a version if we really need...
@@ -210,7 +221,7 @@ def download_hepdata(
 
     # And then retrieve the version from HEPData using json too, just so we can ensure we're being consistent.
     api_url = f"https://www.hepdata.net/record/ins{record_id}"
-    options = {"format": "json", "light": "true"}
+    options = {**additional_query_params, "format": "json", "light": "true"}
     if version != -1:
         # But we can specify a version if we really need...
         options["version"] = str(version)
@@ -230,7 +241,8 @@ def extract_archive(file_path: Path) -> Path:
     # Extract the downloaded file to the directory
     with tarfile.open(file_path, "r:gz") as f_tar:
         logger.warning(file_path.parent)
-        f_tar.extractall(file_path.parent)
+        # NOTE: The filter only use the minimal features necessary
+        f_tar.extractall(file_path.parent, filter=tarfile.data_filter)
     logger.warning(f"Successfully extracted {file_path=}")
 
     # Return the path without the `.tar.gz`, which is where the files
@@ -263,7 +275,7 @@ def read_metadata_from_HEPData_files(hepdata_dir: Path) -> tuple[int, dict[str, 
     return version, table_name_to_filename_map
 
 
-@attrs.define
+@attrs.define(frozen=True)
 class HEPDataInfo:
     directory: Path
     inspire_hep_record_id: int
@@ -290,7 +302,7 @@ class HEPDataInfo:
 
 def read_database() -> dict[str, list[HEPDataInfo]]:
     y = ruamel.yaml.YAML()
-    database_filename = base_data_dir / DEFAULT_DATABASE_NAME
+    database_filename = BASE_DATA_DIR / DEFAULT_DATABASE_NAME
     with database_filename.open() as f:
         hepdata_database = y.load(f)
 
@@ -314,10 +326,13 @@ def write_info_to_database(
     """
     # Validation
     database_filename = Path(DEFAULT_DATABASE_NAME) if database_filename is None else Path(database_filename)
-    database_filename = base_data_dir / database_filename
+    database_filename = BASE_DATA_DIR / database_filename
     # Encode the values
     entries_to_write = {k: [_v.encode() for _v in v] for k, v in entries_to_write.items()}
 
+    # NOTE: From here, we're working entirely with **ENCODED VALUES**. That is to say, dicts
+
+    # Need to read the database first so we can update it.
     y = ruamel.yaml.YAML()
     with database_filename.open() as f:
         database: dict[str, Any] = y.load(f)
@@ -325,8 +340,28 @@ def write_info_to_database(
     # Validation (can happen if the file is totally empty)
     if database is None:
         database = {}
-    # Append entries, sort, and write back
-    database.update(entries_to_write)
+
+    # Add entries, sort, and write back
+    # If the record_id is the same, we'll replace the entry. Otherwise, we'll append to the list for the observable.
+    # import IPython; IPython.embed()
+    logger.warning(f"{entries_to_write=}")
+    for k, v in entries_to_write.items():
+        logger.warning(f"{v=}")
+        existing_info_entries: list[HEPDataInfo] = database.get(k, [])
+        # Only keep existing records if they won't be replaced by new records.
+        # NOTE: We ignore the version here since we should be safe to assume that anything we're trying
+        #       to write is intentional.
+        new_record_ids = [_v["inspire_hep_record_id"] for _v in v]
+        logger.warning(f"{new_record_ids=}")
+        new_info_entries = [_v for _v in existing_info_entries if _v["inspire_hep_record_id"] not in new_record_ids]
+        # And the new info entries
+        new_info_entries.extend(v)
+        # Ensure they're sorted for consistency.
+        new_info_entries = sorted(new_info_entries)
+        # And finally, store
+        database[k] = new_info_entries
+
+    # Finally, keep the database sorted so it's easier to keep track of changes
     database = dict(sorted(database.items()))
     with database_filename.open("w") as f:
         y.dump(database, f)
@@ -335,7 +370,11 @@ def write_info_to_database(
 
 
 def retrieve_observable_hepdata(
-    observable_str_as_path: Path, inspire_hep_record_id: int, version: int = -1
+    observable_str_as_path: Path,
+    inspire_hep_record_id: int,
+    version: int = -1,
+    base_dir: Path | None = None,
+    additional_query_params: dict[str, Any] | None = None,
 ) -> HEPDataInfo:
     """Retrieve a single HEPData for the observable.
 
@@ -343,68 +382,115 @@ def retrieve_observable_hepdata(
         An observable may need multiple HEPData files, but they can be loaded
         here one-by-one.
 
+    Args:
+        observable_str_as_path: The observable string (e.g. (sqrt_s, observable_class, name)), with each
+            value treated as a directory in a path.
+        inspire_hep_record_id: Inspire HEP record ID
+        version: Version of Inspire HEP record. Default: -1, which corresponds to the newest.
+        base_dir: Base directory where the data will be accessed and stored. Default: BASE_DATA_DIR.
+        additional_query_params: Additional query parameters to pass when downloading from HEPData. Default: None.
     """
-    # TODO(RJE): I have a bit of a mismatch here: I take a single inspire_hep record,
-    #            but then in principle I support multiple HEPDataInfo files...
-    #            I need to treat it uniformly either way - just need to support multiple at some point...
+    # Setup and validation
+    base_dir = BASE_DATA_DIR if base_dir is None else Path(base_dir)
+    # By convention, we keep the data in a directory called "data", so we always
+    # want to add it on
+    base_dir /= "data"
+    # Ensure we have something valid
+    if not additional_query_params:
+        additional_query_params = {}
 
     # First, let's check if we already have everything and can just skip ahead.
     # We'll start with the the database
     hepdata_database = read_database()
     all_hepdata_info = hepdata_database.get(str(observable_str_as_path))
 
-    # Keep track of the state of the data
-    tar_gz_files_exist, data_directories_exist = False, False
-
-    # Checking the database information
+    # Checking the database information first
     if all_hepdata_info:
-        # If we have something in the database, let's check that we have all of the input files too.
-        # If not, then we're probably missing data and need to download it
-        tar_gz_files = [
-            base_data_dir
-            / Path("hepdata")
-            / observable_str_as_path
-            / f"{hepdata_filename_from_parameters(record_id=v.inspire_hep_record_id, version=v.version)}.tar.gz"
-            for v in all_hepdata_info
+        # Look for the record_id and version in the database
+        # NOTE: If the version is -1, we can't actually restrict on the version. So we just take what's there.
+        #       If we need to go to a newer version, we must request it explicitly.
+        possible_hepdata_info = [
+            h
+            for h in all_hepdata_info
+            if h.inspire_hep_record_id == inspire_hep_record_id and (h.version == version if version != -1 else True)
         ]
-        tar_gz_files_exist = [_v.exists() for _v in tar_gz_files]
-        # Also for the directories where we unarchive everything
-        data_directories = [_v.directory for _v in all_hepdata_info]
-        data_directories_exist = [_v.exists() for _v in data_directories]
+        if len(possible_hepdata_info) > 1:
+            msg = f"Found multiple records - not sure what to do here. Please take a look: {possible_hepdata_info}"
+            raise ValueError(msg)
 
-    if all(tar_gz_files_exist) and all(data_directories_exist):
-        logger.warning("All files exist - returning HEPData info.")
-        return all_hepdata_info
+        if len(possible_hepdata_info) == 1:
+            # If we've found it, we'll assume it's okay and just proceed.
+            logger.warning(f"Found {inspire_hep_record_id} in database - returning info.")
+            return possible_hepdata_info[0]
 
-    if all(tar_gz_files_exist):
-        ...
-    logger.warning(f"Missing files: {locations_to_check} - proceeding to download them.")
+        # If nothing is found, there's nothing else to be done - we'll just continue with the regular process,
+        # which defaults to downloading and extracting files as needed.
+        logger.warning("Could not find entry in database. Proceeding to download.")
+
+    # At this point, we need to figure out what operations are required.
+    # First, let's check on whether we have .tar.gz archive.
+    # If we have the version available, we can just construct the path
+    archive_path = (
+        base_dir
+        / observable_str_as_path
+        / hepdata_filename_from_parameters(record_id=inspire_hep_record_id, version=version)
+    )
+    if version == -1:
+        # But if we only passed -1, we don't know the value a priori, so we need to search for it.
+        archive_path = list((base_dir / observable_str_as_path).glob(f"*{inspire_hep_record_id}*.tar.gz"))
+        # If we find many, then bail out - I'm not sure what to do in that case.
+        if len(archive_path) > 1:
+            msg = f"Looking for existing archive, but found more than one?? {archive_path}"
+            raise ValueError(msg)
+        # If there's only one, we've probably found it, so
+        if len(archive_path) == 1:
+            archive_path = archive_path[0]
+        # If we found nothing, then leave the default path as above - it probably won't be found, which is fine
+
+    # This is strictly redundant in the case of version == -1, but it simplifies the flow, so will just go with it.
+    archive_exists = archive_path.exists()
 
     # If not available, then it should be downloaded and extracted
-    if not all(tar_gz_files_exist):
-        archive_output_path, extracted_version = download_hepdata(
-            record_id=inspire_hep_record_id, output_file_path=Path("hepdata") / observable_str_as_path, version=version
+    if not archive_exists:
+        archive_path, extracted_version_from_hepdata_website = download_hepdata(
+            record_id=inspire_hep_record_id,
+            output_file_path=observable_str_as_path,
+            version=version,
+            base_dir=base_dir,
+            additional_query_params=additional_query_params,
         )
+    else:
+        # We already have the archive, so we can skip on to the next step.
+        # We don't have a version to extract from the website, so let's skip it (as -1)
+        extracted_version_from_hepdata_website = -1
 
-    yaml_output_path = extract_archive(file_path=archive_output_path)
-    # Extract info
-    extracted_version_from_metadata, table_name_to_filename_map = read_metadata_from_HEPData_files(yaml_output_path)
+    # Now, let's check for the directories where we unarchive everything
+    # NOTE: Need to use split(".") rather than .stem because stem on `.tar.gz` return `.tar`
+    yaml_data_dir = archive_path.parent / archive_path.stem.split(".")[0]
+    if not archive_exists or not yaml_data_dir.exists():
+        # We already have the path, so we don't need to keep track of the returned value
+        extract_archive(file_path=archive_path)
 
-    # Validation on what we've downloaded.
-    if version != -1 and extracted_version != version:  # noqa: PLR1714
-        msg = (
-            f"Mismatch between extracted_version ({extracted_version}) and requested version ({version}). Please check"
-        )
+    # Extract info from the submission.yaml file
+    extracted_version_from_metadata, table_name_to_filename_map = read_metadata_from_HEPData_files(yaml_data_dir)
+
+    # Validation the versions that we have available.
+    # Can only check the requested version vs the one extracted from the hepdata website if they're both specified
+    if version != -1 and extracted_version_from_hepdata_website not in [-1, version]:
+        msg = f"Mismatch between extracted_version ({extracted_version_from_hepdata_website}) and requested version ({version}). Please check"
         raise ValueError(msg)
-    if extracted_version != extracted_version_from_metadata:
-        msg = f"Extracted version ({extracted_version}) does not match version from metadata ({extracted_version_from_metadata})!"
+    # NOTE: We don't need to check extracted_version_from_metadata != -1 since we're always
+    #       have valid metadata and a valid version from the metadata at this point in the function.
+    if extracted_version_from_hepdata_website not in [-1, extracted_version_from_metadata]:
+        msg = f"Extracted version ({extracted_version_from_hepdata_website}) does not match version from metadata ({extracted_version_from_metadata})!"
         raise ValueError(msg)
+    # We've done all the validation we can, so may as well set the
     # Ensure we always take the right version from here...
-    version = extracted_version
+    version = extracted_version_from_metadata
 
     # And write it to the hepdata database
     hepdata_info = HEPDataInfo(
-        directory=yaml_output_path.relative_to(base_data_dir),
+        directory=yaml_data_dir.relative_to(base_dir),
         inspire_hep_record_id=inspire_hep_record_id,
         version=version,
         tables_to_filenames=table_name_to_filename_map,
@@ -412,7 +498,7 @@ def retrieve_observable_hepdata(
     write_info_to_database(entries_to_write={str(observable_str_as_path): [hepdata_info]})
 
     # And then it can be provided.
-    return [hepdata_info]
+    return hepdata_info
 
 
 def retrieve_hepdata(obs: observable.Observable) -> ...:
@@ -423,3 +509,20 @@ def retrieve_hepdata(obs: observable.Observable) -> ...:
     retrieve_observable_hepdata(
         observable_str_as_path=observable_str_as_path, inspire_hep_record_id=record_id, version=version
     )
+
+
+def main() -> None:
+    from jetscape_analysis.base import helpers  # noqa: PLC0415
+
+    helpers.setup_logging(level=logging.INFO)
+    for observable_str, url in [
+        ("5020/inclusive_chjet/angularity_alice", "https://www.hepdata.net/record/ins2845788"),
+        ("5020/hadron/pt_ch_cms", "https://www.hepdata.net/record/ins1496050"),
+    ]:
+        record_id, version, query_params = extract_info_from_hepdata_url(url)
+        logger.info(f"Querying with {record_id=}, {version=}, {query_params=}")
+        retrieve_observable_hepdata(Path(observable_str), inspire_hep_record_id=record_id, version=version)
+
+
+if __name__ == "__main__":
+    main()
