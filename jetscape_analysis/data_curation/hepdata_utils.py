@@ -310,7 +310,7 @@ def read_database() -> dict[str, list[HEPDataInfo]]:
     if hepdata_database is None:
         hepdata_database = {}
 
-    # Decode into the objects
+    # Decode into the objects (better would be to properly register with YAML, but this good enough and easier).
     hepdata_database = {k: [HEPDataInfo.decode(_v) for _v in v] for k, v in hepdata_database.items()}
     return hepdata_database  # noqa: RET504
 
@@ -327,7 +327,7 @@ def write_info_to_database(
     # Validation
     database_filename = Path(DEFAULT_DATABASE_NAME) if database_filename is None else Path(database_filename)
     database_filename = BASE_DATA_DIR / database_filename
-    # Encode the values
+    # Encode the values (better would be to properly register with YAML, but this good enough and easier).
     entries_to_write = {k: [_v.encode() for _v in v] for k, v in entries_to_write.items()}
 
     # NOTE: From here, we're working entirely with **ENCODED VALUES**. That is to say, dicts
