@@ -75,10 +75,9 @@ def _extract_archive(file_path: Path) -> Path:
     """Extract files from an .tar.gz archive."""
     # Extract the downloaded file to the directory
     with tarfile.open(file_path, "r:gz") as f_tar:
-        logger.warning(file_path.parent)
         # NOTE: The filter only use the minimal features necessary
         f_tar.extractall(file_path.parent, filter=tarfile.data_filter)
-    logger.warning(f"Successfully extracted {file_path=}")
+    logger.debug(f"Successfully extracted {file_path=}")
 
     # Return the path without the `.tar.gz`, which is where the files
     # are stored by convention.
@@ -180,15 +179,15 @@ def write_info_to_database(
 
     # Add entries, sort, and write back
     # If the record_id is the same, we'll replace the entry. Otherwise, we'll append to the list for the observable.
-    logger.warning(f"{entries_to_write=}")
+    # logger.debug(f"Writing: {entries_to_write=}")
     for k, v in entries_to_write.items():
-        logger.warning(f"{v=}")
+        logger.debug(f"Writing to {k} with {v=}")
         existing_info_entries: list[HEPDataInfo] = database.get(k, [])
         # Only keep existing records if they won't be replaced by new records.
         # NOTE: We ignore the version here since we should be safe to assume that anything we're trying
         #       to write is intentional.
         new_record_ids = [_v["inspire_hep_record_id"] for _v in v]
-        logger.warning(f"{new_record_ids=}")
+        logger.debug(f"Record IDs of new entries: {new_record_ids=}")
         new_info_entries = [_v for _v in existing_info_entries if _v["inspire_hep_record_id"] not in new_record_ids]
         # And the new info entries
         new_info_entries.extend(v)
@@ -283,7 +282,7 @@ def extract_info_from_hepdata_url(url: str) -> tuple[int, int, URLParams]:
 
 
 def download_files_from_hepdata(
-    record_id: int,
+    inspire_hep_record_id: int,
     version: int,
     output_file_path: Path,
     base_dir: Path | None = None,
@@ -292,7 +291,7 @@ def download_files_from_hepdata(
     """Download HEPData file.
 
     Args:
-        record_id: InspireHEP ID, which is also used to identify the HEPData entry.
+        inspire_hep_record_id: InspireHEP ID, which is also used to identify the HEPData entry.
         output_file_path: Path to where the downloaded file should be stored.
         version: HEPData version. Default: None, which corresponds to the latest version.
         base_dir: Base directory for data. The output path will be: `base_dir/output_file_path/filename`. Default: None,
@@ -312,8 +311,10 @@ def download_files_from_hepdata(
         msg = f"version needs to be passed explicitly - not through the additional_query_params. Provided: {additional_query_params=}"
         raise ValueError(msg)
 
+    logger.info(f"Downloading InspireHEP record ID {inspire_hep_record_id}, version {version} from HEPData website")
+
     # api_url = f"https://www.hepdata.net/download/submission/ins{record_id}/yaml"
-    api_url = f"https://www.hepdata.net/record/ins{record_id}"
+    api_url = f"https://www.hepdata.net/record/ins{inspire_hep_record_id}"
 
     # Specify the request format. The options are documented here: https://www.hepdata.net/formats
     #
@@ -335,7 +336,7 @@ def download_files_from_hepdata(
     # Get filename from headers
     # NOTE: If we can't get the filename, we're unable to determine the version until we read the
     #       submission.yaml. So as the fallback, we'll just take it without the version.
-    filename = f"{_hepdata_filename_from_parameters(record_id=record_id, version=version)}.tar.gz"
+    filename = f"{_hepdata_filename_from_parameters(record_id=inspire_hep_record_id, version=version)}.tar.gz"
     content_disposition = response.headers.get("Content-Disposition")
     if content_disposition:
         # Only set if we get something meaningful. Otherwise, go with the fallback
@@ -352,7 +353,7 @@ def download_files_from_hepdata(
     logger.debug(f"Successfully download file to {file_path=}")
 
     # Finally, retrieve the version from HEPData using json too, just so we can ensure we're being consistent.
-    api_url = f"https://www.hepdata.net/record/ins{record_id}"
+    api_url = f"https://www.hepdata.net/record/ins{inspire_hep_record_id}"
     options = {**additional_query_params, "format": "json", "light": "true"}
     # We don't specify the version unless it's provided
     if version != -1:
@@ -433,6 +434,10 @@ def retrieve_observable_hepdata(
     if not additional_query_params:
         additional_query_params = {}
 
+    logger.info(
+        f"Querying {observable_str_as_path=} for\n\t-> {inspire_hep_record_id=}, {version=}, {additional_query_params=}"
+    )
+
     # First, let's check if we already have everything and can just skip ahead.
     # We'll start with the the database
     hepdata_database = read_database()
@@ -454,12 +459,12 @@ def retrieve_observable_hepdata(
 
         if len(possible_hepdata_info) == 1:
             # If we've found it, we'll assume it's okay and just proceed.
-            logger.warning(f"Found {inspire_hep_record_id} in database - returning info.")
+            logger.debug(f"Found {inspire_hep_record_id} in database - returning info.")
             return possible_hepdata_info[0]
 
         # If nothing is found, there's nothing else to be done - we'll just continue with the regular process,
         # which defaults to downloading and extracting files as needed.
-        logger.warning("Could not find entry in database. Proceeding to download.")
+        logger.debug("Could not find entry in database. Proceeding to download.")
 
     # At this point, we need to figure out what operations are required.
     # First, let's check on whether we have .tar.gz archive.
@@ -471,14 +476,14 @@ def retrieve_observable_hepdata(
     )
     if version == -1:
         # But if we only passed -1, we don't know the version a priori, so we need to search for it.
-        archive_path = list((base_dir / observable_str_as_path).glob(f"*{inspire_hep_record_id}*.tar.gz"))
+        possible_archive_path = list((base_dir / observable_str_as_path).glob(f"*{inspire_hep_record_id}*.tar.gz"))
         # If we find many, then bail out - I'm not sure what to do in that case.
-        if len(archive_path) > 1:
-            msg = f"Looking for existing archive, but found more than one?? {archive_path}"
+        if len(possible_archive_path) > 1:
+            msg = f"Looking for existing archive, but found more than one?? {possible_archive_path}"
             raise ValueError(msg)
         # If there's only one, we've probably found it, so proceed with that.
-        if len(archive_path) == 1:
-            archive_path = archive_path[0]
+        if len(possible_archive_path) == 1:
+            archive_path = possible_archive_path[0]
         # If we found nothing, then leave the default path as above - it probably won't be found, which is fine
 
     # This check is redundant in the case of version == -1, but it simplifies the flow, so will just go with it.
@@ -487,7 +492,7 @@ def retrieve_observable_hepdata(
     # If not available, then it should be downloaded and extracted
     if not archive_exists:
         archive_path, extracted_version_from_hepdata_website = download_files_from_hepdata(
-            record_id=inspire_hep_record_id,
+            inspire_hep_record_id=inspire_hep_record_id,
             version=version,
             output_file_path=observable_str_as_path,
             base_dir=base_dir,
@@ -553,9 +558,8 @@ def main() -> None:
         ("5020/inclusive_chjet/angularity_alice", "https://www.hepdata.net/record/ins2845788"),
         ("5020/hadron/pt_ch_cms", "https://www.hepdata.net/record/ins1496050"),
     ]:
-        record_id, version, query_params = extract_info_from_hepdata_url(url)
-        logger.info(f"Querying with {record_id=}, {version=}, {query_params=}")
-        retrieve_observable_hepdata(Path(observable_str), inspire_hep_record_id=record_id, version=version)
+        inspire_hep_record_id, version, query_params = extract_info_from_hepdata_url(url)
+        retrieve_observable_hepdata(Path(observable_str), inspire_hep_record_id=inspire_hep_record_id, version=version)
 
 
 if __name__ == "__main__":
