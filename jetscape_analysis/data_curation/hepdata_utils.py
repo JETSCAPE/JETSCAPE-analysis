@@ -27,6 +27,8 @@ _here = Path(__file__).parent
 BASE_DATA_DIR = _here.parent.parent.parent / "hard-sector-data-curation"
 DEFAULT_DATABASE_NAME: Final[Path] = Path("hepdata_database.yaml")
 
+URLParams = dict[str, Any]
+
 
 def _parse_content_disposition(content_disposition: str) -> str | None:
     """Parse out content-disposition header to determine the filename.
@@ -63,13 +65,144 @@ def _encode_query_params(query_params: dict[str, Any]) -> str:
     return ""
 
 
-def hepdata_filename_from_parameters(record_id: int, version: int | None = None):
+def _hepdata_filename_from_parameters(record_id: int, version: int):
     if version != -1:
         return f"HEPData-ins{record_id}-v{version}-yaml"
     return f"HEPData-ins{record_id}-yaml"
 
 
-URLParams = dict[str, Any]
+def _extract_archive(file_path: Path) -> Path:
+    """Extract files from an .tar.gz archive."""
+    # Extract the downloaded file to the directory
+    with tarfile.open(file_path, "r:gz") as f_tar:
+        logger.warning(file_path.parent)
+        # NOTE: The filter only use the minimal features necessary
+        f_tar.extractall(file_path.parent, filter=tarfile.data_filter)
+    logger.warning(f"Successfully extracted {file_path=}")
+
+    # Return the path without the `.tar.gz`, which is where the files
+    # are stored by convention.
+    return file_path.parent / file_path.name.split(".")[0]
+
+
+@attrs.define(frozen=True)
+class HEPDataInfo:
+    directory: Path
+    inspire_hep_record_id: int
+    version: int
+    tables_to_filenames: dict[str, Path]
+
+    def encode(self) -> dict[str, Any]:
+        return {
+            "directory": str(self.directory),
+            "inspire_hep_record_id": self.inspire_hep_record_id,
+            "version": self.version,
+            "tables_to_filenames": {k: str(v) for k, v in self.tables_to_filenames.items()},
+        }
+
+    @classmethod
+    def decode(cls, values: dict[str, Any]) -> HEPDataInfo:
+        return cls(
+            directory=values["directory"],
+            inspire_hep_record_id=values["inspire_hep_record_id"],
+            version=values["version"],
+            tables_to_filenames={k: Path(v) for k, v in values["tables_to_filenames"].items()},
+        )
+
+
+def read_database(
+    database_filename: Path | None = None, base_data_dir: Path | None = None
+) -> dict[str, list[HEPDataInfo]]:
+    """Read database containing HEPData info per observable.
+
+    Args:
+        database_filename: Filename of the database. Default: DEFAULT_DATABASE_NAME.
+        base_data_dir: Base directory where the data will be accessed and stored. Default: BASE_DATA_DIR.
+    Returns:
+        The read database, with observable_str as keys, and lists of HEPDataInfo as values.
+    """
+    # Validation
+    database_filename = Path(DEFAULT_DATABASE_NAME) if database_filename is None else Path(database_filename)
+    if base_data_dir is None:
+        base_data_dir = BASE_DATA_DIR
+    base_data_dir = Path(base_data_dir)
+
+    y = ruamel.yaml.YAML()
+    database_filename = base_data_dir / database_filename
+    with database_filename.open() as f:
+        hepdata_database = y.load(f)
+
+    # If the file is empty, it will return back as None, so we protected against this
+    if hepdata_database is None:
+        hepdata_database = {}
+
+    # Decode into the objects (better would be to properly register with YAML, but this good enough and easier).
+    hepdata_database = {k: [HEPDataInfo.decode(_v) for _v in v] for k, v in hepdata_database.items()}
+    return hepdata_database  # noqa: RET504
+
+
+def write_info_to_database(
+    entries_to_write: dict[str, list[HEPDataInfo]],
+    database_filename: Path | None = None,
+) -> bool:
+    """Write HEPData info to the database for observable(s).
+
+    NOTE:
+        Using a list of HEPDataInfo entries to allow for multiple HEPData files to be relevant for a single observable.
+
+    NOTE:
+        We store the HEPDataInfo per observable because we (in principle) could want to use a different version
+        per observable. It would be better for them to be kept up to date together, but there are exceptional times
+        where it may be needed (older productions, etc).
+
+    Args:
+        entries_to_write: List of HEPDataInfo entries to write per observable_str.
+        database_filename: Filename of the database. Default: DEFAULT_DATABASE_NAME.
+    Returns:
+        True if writing was successful. Raises exceptions otherwise.
+    """
+    # Validation
+    database_filename = Path(DEFAULT_DATABASE_NAME) if database_filename is None else Path(database_filename)
+    database_filename = BASE_DATA_DIR / database_filename
+    # Encode the values (better would be to properly register with YAML, but this good enough and easier).
+    entries_to_write = {k: [_v.encode() for _v in v] for k, v in entries_to_write.items()}
+
+    # NOTE: From here, we're working entirely with **ENCODED VALUES**. That is to say, dicts
+
+    # Need to read the database first so we can update it.
+    y = ruamel.yaml.YAML()
+    with database_filename.open() as f:
+        database: dict[str, Any] = y.load(f)
+
+    # Validation (can happen if the file is totally empty)
+    if database is None:
+        database = {}
+
+    # Add entries, sort, and write back
+    # If the record_id is the same, we'll replace the entry. Otherwise, we'll append to the list for the observable.
+    logger.warning(f"{entries_to_write=}")
+    for k, v in entries_to_write.items():
+        logger.warning(f"{v=}")
+        existing_info_entries: list[HEPDataInfo] = database.get(k, [])
+        # Only keep existing records if they won't be replaced by new records.
+        # NOTE: We ignore the version here since we should be safe to assume that anything we're trying
+        #       to write is intentional.
+        new_record_ids = [_v["inspire_hep_record_id"] for _v in v]
+        logger.warning(f"{new_record_ids=}")
+        new_info_entries = [_v for _v in existing_info_entries if _v["inspire_hep_record_id"] not in new_record_ids]
+        # And the new info entries
+        new_info_entries.extend(v)
+        # Ensure they're sorted for consistency.
+        new_info_entries = sorted(new_info_entries)
+        # And finally, store
+        database[k] = new_info_entries
+
+    # Finally, keep the database sorted so it's easier to keep track of changes
+    database = dict(sorted(database.items()))
+    with database_filename.open("w") as f:
+        y.dump(database, f)
+
+    return True
 
 
 def extract_info_from_hepdata_url(url: str) -> tuple[int, int, URLParams]:
@@ -81,7 +214,7 @@ def extract_info_from_hepdata_url(url: str) -> tuple[int, int, URLParams]:
     Args:
         url: HEPData url.
     Returns:
-        InspireHEP record id, record version, list of URL parameters if the URL is validated. Raises exceptions otherwise.
+        If the URL is validated: InspireHEP record id, record version, list of URL parameters. Raises exceptions otherwise.
     Raises:
         ValueError if the URL is not formatted correctly.
     """
@@ -149,12 +282,12 @@ def extract_info_from_hepdata_url(url: str) -> tuple[int, int, URLParams]:
     return record_id, version, query_params
 
 
-def download_hepdata(
+def download_files_from_hepdata(
     record_id: int,
+    version: int,
     output_file_path: Path,
-    version: int | None = None,
     base_dir: Path | None = None,
-    additional_query_params: dict[str, Any] | None = None,
+    additional_query_params: URLParams | None = None,
 ) -> tuple[Path, int]:
     """Download HEPData file.
 
@@ -164,6 +297,7 @@ def download_hepdata(
         version: HEPData version. Default: None, which corresponds to the latest version.
         base_dir: Base directory for data. The output path will be: `base_dir/output_file_path/filename`. Default: None,
             which will correspond to the `data` directory in the repository.
+        additional_query_params: Additional query parameters to pass when downloading from HEPData. Default: None.
     Returns:
         Path to downloaded file, version extracted from HEPData.
     """
@@ -193,15 +327,15 @@ def download_hepdata(
     api_url += _encode_query_params(options)
     logger.debug(f"Accessing '{api_url}'...")
 
-    # Download the data
+    # Request the data from HEPData
     response = requests.get(api_url, stream=True)
-    # Raise an exceptions, as needed
+    # Raise exceptions as needed
     response.raise_for_status()
 
     # Get filename from headers
     # NOTE: If we can't get the filename, we're unable to determine the version until we read the
     #       submission.yaml. So as the fallback, we'll just take it without the version.
-    filename = f"{hepdata_filename_from_parameters(record_id=record_id, version=version)}.tar.gz"
+    filename = f"{_hepdata_filename_from_parameters(record_id=record_id, version=version)}.tar.gz"
     content_disposition = response.headers.get("Content-Disposition")
     if content_disposition:
         # Only set if we get something meaningful. Otherwise, go with the fallback
@@ -209,25 +343,23 @@ def download_hepdata(
         if res:
             filename = res
 
-    # Define the path to download files to.
+    # Store the file retrieved in the request.
     file_path = base_dir / output_file_path / filename
-    # import IPython; IPython.embed()
-
     file_path.parent.mkdir(exist_ok=True, parents=True)
     with file_path.open("wb") as f:
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
     logger.debug(f"Successfully download file to {file_path=}")
 
-    # And then retrieve the version from HEPData using json too, just so we can ensure we're being consistent.
+    # Finally, retrieve the version from HEPData using json too, just so we can ensure we're being consistent.
     api_url = f"https://www.hepdata.net/record/ins{record_id}"
     options = {**additional_query_params, "format": "json", "light": "true"}
+    # We don't specify the version unless it's provided
     if version != -1:
-        # But we can specify a version if we really need...
         options["version"] = str(version)
     api_url += _encode_query_params(options)
     response = requests.get(api_url, stream=True)
-    # Raise an exceptions, as needed
+    # Raise exceptions as needed
     response.raise_for_status()
     # And then retrieve the version
     data = response.json()
@@ -236,21 +368,14 @@ def download_hepdata(
     return (file_path, extracted_version)
 
 
-def extract_archive(file_path: Path) -> Path:
-    """Extract files from an .tar.gz archive."""
-    # Extract the downloaded file to the directory
-    with tarfile.open(file_path, "r:gz") as f_tar:
-        logger.warning(file_path.parent)
-        # NOTE: The filter only use the minimal features necessary
-        f_tar.extractall(file_path.parent, filter=tarfile.data_filter)
-    logger.warning(f"Successfully extracted {file_path=}")
+def read_metadata_from_hepdata_files(hepdata_dir: Path) -> tuple[int, dict[str, Path]]:
+    """Read the metadata from the HEPData submission.yaml
 
-    # Return the path without the `.tar.gz`, which is where the files
-    # are stored by convention.
-    return file_path.parent / file_path.name.split(".")[0]
-
-
-def read_metadata_from_HEPData_files(hepdata_dir: Path) -> tuple[int, dict[str, Path]]:
+    Args:
+        hepdata_dir: Directory containing the un-archived HEPData yaml files.
+    Returns:
+        version, map of table names to filenames in the directory
+    """
     # Validation
     hepdata_dir = Path(hepdata_dir)
 
@@ -269,104 +394,13 @@ def read_metadata_from_HEPData_files(hepdata_dir: Path) -> tuple[int, dict[str, 
     # - [-1] grabs the entry around the version (it will be there even for v1)
     # - [1:] removes the "v" from the string
     version = int(all_metadata[0]["hepdata_doi"].split(".")[-1][1:])
+
+    # Map from the name of the table in e.g. the HEPData interface to the name of the actual file.
+    # (That is to say, there's no standard convention for how those files are named, so we have to adapt.)
     # NOTE: We create this map from [1:] because the first entry is solely metadata - nothing to do with a table
     table_name_to_filename_map = {m["name"]: Path(m["data_file"]) for m in all_metadata[1:]}
 
     return version, table_name_to_filename_map
-
-
-@attrs.define(frozen=True)
-class HEPDataInfo:
-    directory: Path
-    inspire_hep_record_id: int
-    version: int
-    tables_to_filenames: dict[str, Path]
-
-    def encode(self) -> dict[str, Any]:
-        return {
-            "directory": str(self.directory),
-            "inspire_hep_record_id": self.inspire_hep_record_id,
-            "version": self.version,
-            "tables_to_filenames": {k: str(v) for k, v in self.tables_to_filenames.items()},
-        }
-
-    @classmethod
-    def decode(cls, values: dict[str, Any]) -> HEPDataInfo:
-        return cls(
-            directory=values["directory"],
-            inspire_hep_record_id=values["inspire_hep_record_id"],
-            version=values["version"],
-            tables_to_filenames={k: Path(v) for k, v in values["tables_to_filenames"].items()},
-        )
-
-
-def read_database() -> dict[str, list[HEPDataInfo]]:
-    y = ruamel.yaml.YAML()
-    database_filename = BASE_DATA_DIR / DEFAULT_DATABASE_NAME
-    with database_filename.open() as f:
-        hepdata_database = y.load(f)
-
-    # If the file is empty, it will return back as None, so we protected against this
-    if hepdata_database is None:
-        hepdata_database = {}
-
-    # Decode into the objects (better would be to properly register with YAML, but this good enough and easier).
-    hepdata_database = {k: [HEPDataInfo.decode(_v) for _v in v] for k, v in hepdata_database.items()}
-    return hepdata_database  # noqa: RET504
-
-
-def write_info_to_database(
-    entries_to_write: dict[str, list[HEPDataInfo]],
-    database_filename: Path | None = None,
-) -> bool:
-    """Write HEPData info to the database for observable(s).
-
-    NOTE:
-        Using a list of HEPDataInfo entries to allow for multiple HEPData files to be relevant for a single observable.
-    """
-    # Validation
-    database_filename = Path(DEFAULT_DATABASE_NAME) if database_filename is None else Path(database_filename)
-    database_filename = BASE_DATA_DIR / database_filename
-    # Encode the values (better would be to properly register with YAML, but this good enough and easier).
-    entries_to_write = {k: [_v.encode() for _v in v] for k, v in entries_to_write.items()}
-
-    # NOTE: From here, we're working entirely with **ENCODED VALUES**. That is to say, dicts
-
-    # Need to read the database first so we can update it.
-    y = ruamel.yaml.YAML()
-    with database_filename.open() as f:
-        database: dict[str, Any] = y.load(f)
-
-    # Validation (can happen if the file is totally empty)
-    if database is None:
-        database = {}
-
-    # Add entries, sort, and write back
-    # If the record_id is the same, we'll replace the entry. Otherwise, we'll append to the list for the observable.
-    # import IPython; IPython.embed()
-    logger.warning(f"{entries_to_write=}")
-    for k, v in entries_to_write.items():
-        logger.warning(f"{v=}")
-        existing_info_entries: list[HEPDataInfo] = database.get(k, [])
-        # Only keep existing records if they won't be replaced by new records.
-        # NOTE: We ignore the version here since we should be safe to assume that anything we're trying
-        #       to write is intentional.
-        new_record_ids = [_v["inspire_hep_record_id"] for _v in v]
-        logger.warning(f"{new_record_ids=}")
-        new_info_entries = [_v for _v in existing_info_entries if _v["inspire_hep_record_id"] not in new_record_ids]
-        # And the new info entries
-        new_info_entries.extend(v)
-        # Ensure they're sorted for consistency.
-        new_info_entries = sorted(new_info_entries)
-        # And finally, store
-        database[k] = new_info_entries
-
-    # Finally, keep the database sorted so it's easier to keep track of changes
-    database = dict(sorted(database.items()))
-    with database_filename.open("w") as f:
-        y.dump(database, f)
-
-    return True
 
 
 def retrieve_observable_hepdata(
@@ -374,9 +408,9 @@ def retrieve_observable_hepdata(
     inspire_hep_record_id: int,
     version: int = -1,
     base_dir: Path | None = None,
-    additional_query_params: dict[str, Any] | None = None,
+    additional_query_params: URLParams | None = None,
 ) -> HEPDataInfo:
-    """Retrieve a single HEPData for the observable.
+    """Retrieve a single HEPData for the given observable string.
 
     NOTE:
         An observable may need multiple HEPData files, but they can be loaded
@@ -433,29 +467,29 @@ def retrieve_observable_hepdata(
     archive_path = (
         base_dir
         / observable_str_as_path
-        / hepdata_filename_from_parameters(record_id=inspire_hep_record_id, version=version)
+        / _hepdata_filename_from_parameters(record_id=inspire_hep_record_id, version=version)
     )
     if version == -1:
-        # But if we only passed -1, we don't know the value a priori, so we need to search for it.
+        # But if we only passed -1, we don't know the version a priori, so we need to search for it.
         archive_path = list((base_dir / observable_str_as_path).glob(f"*{inspire_hep_record_id}*.tar.gz"))
         # If we find many, then bail out - I'm not sure what to do in that case.
         if len(archive_path) > 1:
             msg = f"Looking for existing archive, but found more than one?? {archive_path}"
             raise ValueError(msg)
-        # If there's only one, we've probably found it, so
+        # If there's only one, we've probably found it, so proceed with that.
         if len(archive_path) == 1:
             archive_path = archive_path[0]
         # If we found nothing, then leave the default path as above - it probably won't be found, which is fine
 
-    # This is strictly redundant in the case of version == -1, but it simplifies the flow, so will just go with it.
+    # This check is redundant in the case of version == -1, but it simplifies the flow, so will just go with it.
     archive_exists = archive_path.exists()
 
     # If not available, then it should be downloaded and extracted
     if not archive_exists:
-        archive_path, extracted_version_from_hepdata_website = download_hepdata(
+        archive_path, extracted_version_from_hepdata_website = download_files_from_hepdata(
             record_id=inspire_hep_record_id,
-            output_file_path=observable_str_as_path,
             version=version,
+            output_file_path=observable_str_as_path,
             base_dir=base_dir,
             additional_query_params=additional_query_params,
         )
@@ -469,10 +503,10 @@ def retrieve_observable_hepdata(
     yaml_data_dir = archive_path.parent / archive_path.stem.split(".")[0]
     if not archive_exists or not yaml_data_dir.exists():
         # We already have the path, so we don't need to keep track of the returned value
-        extract_archive(file_path=archive_path)
+        _extract_archive(file_path=archive_path)
 
     # Extract info from the submission.yaml file
-    extracted_version_from_metadata, table_name_to_filename_map = read_metadata_from_HEPData_files(yaml_data_dir)
+    extracted_version_from_metadata, table_name_to_filename_map = read_metadata_from_hepdata_files(yaml_data_dir)
 
     # Validation the versions that we have available.
     # Can only check the requested version vs the one extracted from the hepdata website if they're both specified
