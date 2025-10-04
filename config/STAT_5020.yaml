@@ -797,40 +797,147 @@ inclusive_chjet:
     eta_cut_R: 0.9
     SoftDrop:
       - { "zcut": 0.2, "beta": 0 }
-    dynamical_grooming_a: [1.0]
+    dynamical_grooming:
+      - { "a": 1.0 }
 
-    hepdata: "HEPData-ins2831271-v1-root.root"
+    # hepdata: "HEPData-ins2831271-v1-root.root"
 
-    # Soft Drop
-    hepdata_pp_dir_R0.2_zcut0.2_beta0: "Table 4"
-    hepdata_pp_gname: "Graph1D_y1"
-    ytitle_pp: "#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}"
-    y_min_pp: 1e-3
-    y_max_pp: 0.8
-    logy_pp: True
+    # # Soft Drop
+    # hepdata_pp_dir_R0.2_zcut0.2_beta0: "Table 4"
+    # hepdata_pp_gname: "Graph1D_y1"
+    # ytitle_pp: "#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}"
+    # y_min_pp: 1e-3
+    # y_max_pp: 0.8
+    # logy_pp: True
 
-    # The list corresponds to the centrality dependence
-    hepdata_AA_dir_R0.2_zcut0.2_beta0: ["Table 10", "Table 9"]
-    hepdata_AA_gname: ["Graph1D_y1"]
-    hepdata_AA_hname: "Hist1D_y1"
-    ytitle_AA: "PbPb / pp"
-    y_min_AA: 0.
-    y_max_AA: 2.
+    # # The list corresponds to the centrality dependence
+    # hepdata_AA_dir_R0.2_zcut0.2_beta0: ["Table 10", "Table 9"]
+    # hepdata_AA_gname: ["Graph1D_y1"]
+    # hepdata_AA_hname: "Hist1D_y1"
+    # ytitle_AA: "PbPb / pp"
+    # y_min_AA: 0.
+    # y_max_AA: 2.
 
-    # Dynamical grooming
-    hepdata_pp_dir_R0.2_a1.0: "Table 1"
-    #hepdata_pp_gname: 'Graph1D_y1'
-    #ytitle_pp: '#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}'
-    #y_min_pp: 1e-3
-    #y_max_pp: 0.8
-    #logy_pp: True
+    # # Dynamical grooming
+    # hepdata_pp_dir_R0.2_a1.0: "Table 1"
+    # #hepdata_pp_gname: 'Graph1D_y1'
+    # #ytitle_pp: '#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}'
+    # #y_min_pp: 1e-3
+    # #y_max_pp: 0.8
+    # #logy_pp: True
 
-    hepdata_AA_dir_R0.2_a1.0: ["Table 8", "Table 7"]
-    #hepdata_AA_gname: ['Graph1D_y1']
-    #hepdata_AA_hname: 'Hist1D_y1'
-    #ytitle_AA: 'PbPb / pp'
-    #y_min_AA: 0.
-    #y_max_AA: 2.
+    # hepdata_AA_dir_R0.2_a1.0: ["Table 8", "Table 7"]
+    # #hepdata_AA_gname: ['Graph1D_y1']
+    # #hepdata_AA_hname: 'Hist1D_y1'
+    # #ytitle_AA: 'PbPb / pp'
+    # #y_min_AA: 0.
+    # #y_max_AA: 2.
+
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_id: 2831271
+            version: 1
+            # Optional...
+            additional_params: {}
+          # Required: "spectra" in pp, "spectra" + "ratio" in AA,
+          #           otherwise, free form
+          spectra:
+            quantity: "ktg"
+            x_axis:
+              label: "#it{k}_{T,g}"
+            y_axis:
+              label: "#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}"
+              range: [1e-3, 0.8]
+              log: True
+            tables:
+              - parameters: { "centrality": [[0, 10], [30, 50]], "jet_R": [0.2], "pt": [60, 80] }
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "soft_drop": "soft_drop_z_cut" }
+                    table: "Table 4"
+                    index: 0
+                  - parameters: { "dynamical_grooming": "a_1.0" }
+                    table: "Table 1"
+                    index: 0
+              ## Equivalent to:
+              #- parameters: {"pt": [60, 80], "centrality": [[0, 10], [30, 50]], "soft_drop": "soft_drop_z_cut"}
+              #  table: "Table 4"
+              #  index: 0
+              #  systematics_names: {}
+              #  additional_systematics: {}
+              #- parameters: {"pt": [60, 80], "centrality": [[0, 10], [30, 50]], "dynamical_grooming": "a_1.0"}
+              #  table: "Table 1"
+              #  index: 0
+              #  systematics_names: {}
+              #  additional_systematics: {}
+      AA:
+        hepdata:
+          record:
+            inspire_id: 2831271
+            version: 1
+            # Optional...
+            additional_params: {}
+          # Required: "spectra" and "ratio", since in AA. Otherwise, free form for more complicated cases.
+          spectra:
+            quantity: "ktg"
+            x_axis:
+              label: "#it{k}_{T,g}"
+            y_axis:
+              label: "#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}"
+              range: [1e-3, 0.8]
+              log: True
+            tables:
+              - parameters: { "jet_R": [0.2], "pt": [60, 80] }
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "soft_drop": "soft_drop_z_cut" }
+                    combinations:
+                      - parameters: { "centrality": [[0, 10]] }
+                        table: "Table 3"
+                        index: 0
+                      - parameters: { "centrality": [[30, 50]] }
+                        table: "Table 2"
+                        index: 0
+                  - parameters: { "dynamical_grooming": "a_1.0" }
+                    combinations:
+                      - parameters: { "centrality": [[0, 10]] }
+                        table: "Table 6"
+                        index: 0
+                      - parameters: { "centrality": [[30, 50]] }
+                        table: "Table 5"
+                        index: 0
+          ratio:
+            quantity: "ktg"
+            x_axis:
+              label: "#it{k}_{T,g}"
+            y_axis:
+              label: "PbPb / pp"
+              range: [0, 2]
+            tables:
+              - parameters: { "jet_R": [0.2], "pt": [60, 80] }
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "soft_drop": "soft_drop_z_cut" }
+                    combinations:
+                      - parameters: { "centrality": [[0, 10]] }
+                        table: "Table 10"
+                        index: 0
+                      - parameters: { "centrality": [[30, 50]] }
+                        table: "Table 9"
+                        index: 0
+                  - parameters: { "dynamical_grooming": "a_1.0" }
+                    combinations:
+                      - parameters: { "centrality": [[0, 10]] }
+                        table: "Table 8"
+                        index: 0
+                      - parameters: { "centrality": [[30, 50]] }
+                        table: "Table 7"
+                        index: 0
 
 #------------------------------------------------------------------
 # Inclusive jet observables -- full jets
