@@ -852,27 +852,37 @@ inclusive_chjet:
               range: [1e-3, 0.8]
               log: True
             tables:
-              - parameters: { "centrality": [[0, 10], [30, 50]], "jet_R": [0.2], "pt": [60, 80] }
+              - parameters: { "centrality": ["0_10", "30_50"], "jet_R": [0.2], "pt": ["60_80"] }
                 systematics_names: {}
                 additional_systematics: {}
                 combinations:
-                  - parameters: { "soft_drop": "soft_drop_z_cut" }
+                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
                     table: "Table 4"
                     index: 0
                   - parameters: { "dynamical_grooming": "a_1.0" }
                     table: "Table 1"
                     index: 0
-              ## Equivalent to:
-              #- parameters: {"pt": [60, 80], "centrality": [[0, 10], [30, 50]], "soft_drop": "soft_drop_z_cut"}
-              #  table: "Table 4"
-              #  index: 0
-              #  systematics_names: {}
-              #  additional_systematics: {}
-              #- parameters: {"pt": [60, 80], "centrality": [[0, 10], [30, 50]], "dynamical_grooming": "a_1.0"}
-              #  table: "Table 1"
-              #  index: 0
-              #  systematics_names: {}
-              #  additional_systematics: {}
+              # # Equivalent to:
+              # - parameters: {"pt": ["60_80"], "centrality": ["0_10"], "soft_drop": "z_cut_020_beta_0"}
+              #   table: "Table 4"
+              #   index: 0
+              #   systematics_names: {}
+              #   additional_systematics: {}
+              # - parameters: {"pt": ["60_80"], "centrality": ["30_50"], "soft_drop": "z_cut_020_beta_0"}
+              #   table: "Table 4"
+              #   index: 0
+              #   systematics_names: {}
+              #   additional_systematics: {}
+              # - parameters: {"pt": ["60_80"], "centrality": ["0_10"], "dynamical_grooming": "a_1.0"}
+              #   table: "Table 1"
+              #   index: 0
+              #   systematics_names: {}
+              #   additional_systematics: {}
+              # - parameters: {"pt": ["60_80"], "centrality": ["30_50"], "dynamical_grooming": "a_1.0"}
+              #   table: "Table 1"
+              #   index: 0
+              #   systematics_names: {}
+              #   additional_systematics: {}
       AA:
         hepdata:
           record:
@@ -880,6 +890,7 @@ inclusive_chjet:
             version: 1
             # Optional...
             additional_params: {}
+          # Define the "tables" of the observables
           # Required: "spectra" and "ratio", since in AA. Otherwise, free form for more complicated cases.
           spectra:
             quantity: "ktg"
@@ -890,24 +901,44 @@ inclusive_chjet:
               range: [1e-3, 0.8]
               log: True
             tables:
-              - parameters: { "jet_R": [0.2], "pt": [60, 80] }
+              - parameters: { "jet_R": [0.2], "pt": ["60_80"] }
                 systematics_names: {}
                 additional_systematics: {}
                 combinations:
-                  - parameters: { "soft_drop": "soft_drop_z_cut" }
+                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
                     combinations:
-                      - parameters: { "centrality": [[0, 10]] }
+                      - parameters: { "centrality": ["0_10"] }
                         table: "Table 3"
                         index: 0
-                      - parameters: { "centrality": [[30, 50]] }
+                      - parameters: { "centrality": ["30_50"] }
                         table: "Table 2"
                         index: 0
                   - parameters: { "dynamical_grooming": "a_1.0" }
                     combinations:
-                      - parameters: { "centrality": [[0, 10]] }
+                      - parameters: { "centrality": ["0_10"] }
                         table: "Table 6"
                         index: 0
-                      - parameters: { "centrality": [[30, 50]] }
+                      - parameters: { "centrality": ["30_50"] }
+                        table: "Table 5"
+                        index: 0
+              - parameters: { "jet_R": [0.3], "pt": ["60_80"] }
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
+                    combinations:
+                      - parameters: { "centrality": ["0_10"] }
+                        table: "Table 3"
+                        index: 0
+                      - parameters: { "centrality": ["30_50"] }
+                        table: "Table 2"
+                        index: 0
+                  - parameters: { "dynamical_grooming": "a_1.0" }
+                    combinations:
+                      - parameters: { "centrality": ["0_10"] }
+                        table: "Table 6"
+                        index: 0
+                      - parameters: { "centrality": ["30_50"] }
                         table: "Table 5"
                         index: 0
           ratio:
@@ -918,24 +949,24 @@ inclusive_chjet:
               label: "PbPb / pp"
               range: [0, 2]
             tables:
-              - parameters: { "jet_R": [0.2], "pt": [60, 80] }
+              - parameters: { "jet_R": [0.2], "pt": ["60_80"] }
                 systematics_names: {}
                 additional_systematics: {}
                 combinations:
-                  - parameters: { "soft_drop": "soft_drop_z_cut" }
+                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
                     combinations:
-                      - parameters: { "centrality": [[0, 10]] }
+                      - parameters: { "centrality": ["0_10"] }
                         table: "Table 10"
                         index: 0
-                      - parameters: { "centrality": [[30, 50]] }
+                      - parameters: { "centrality": ["30_50"] }
                         table: "Table 9"
                         index: 0
                   - parameters: { "dynamical_grooming": "a_1.0" }
                     combinations:
-                      - parameters: { "centrality": [[0, 10]] }
+                      - parameters: { "centrality": ["0_10"] }
                         table: "Table 8"
                         index: 0
-                      - parameters: { "centrality": [[30, 50]] }
+                      - parameters: { "centrality": ["30_50"] }
                         table: "Table 7"
                         index: 0
 

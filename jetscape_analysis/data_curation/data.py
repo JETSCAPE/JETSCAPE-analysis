@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import copy
+import itertools
 import logging
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +11,7 @@ import attrs
 import numpy as np
 import numpy.typing as npt
 
-from jetscape_analysis.data_curation import hepdata_utils
+from jetscape_analysis.data_curation import hepdata_utils, observable
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +108,7 @@ class HEPDataEntry:
         table_index: HEPData table index. There are sometimes more than one array of
             values in a HEPData table. If so, the index corresponding to the data of interest
             should be specified here. Indexed from 0.
-        systematic_names: Map of str -> str from the entry in the HEPdata to what it actually
+        systematics_names: Map of str -> str from the entry in the HEPdata to what it actually
             corresponds to. If the systematics names are meaningful, this mapping isn't needed.
             However, if they are not, this provides information on how we should interpret each
             systematic.
@@ -117,26 +120,193 @@ class HEPDataEntry:
     parameters: Parameters
     table: str
     table_index: int
-    systematic_names: dict[str, str]
-    additional_systematic_values: dict[str, float]
+    systematics_names: dict[str, str]
+    additional_systematics_values: dict[str, float]
 
+    @classmethod
+    def from_flat_config(cls, entry: Config) -> HEPDataEntry:
+        """Construct a HEPDataEntry from a dictionary.
 
-def parse_nested_hepdata_yaml(
-    tables: dict[str, Any], expected_parameters: list[str], specified_parameters: dict[str, Any]
-) -> ...:
-    if "table" in tables and "index" in tables:
-        parameters = specified_parameters.copy()
-        parameters.update(tables["parameters"])
-        # We've found the specification for a histogram.
-        # We need to construct the object and include this.
-        HEPDataEntry(
-            parameters=parameters,
-            table=tables["table"],
-            table_index=tables["index"],
-            # TODO(RJE): Need to somehow have this available...? Presumably just pass this in.
-            systematic_names=systematic_names,
-            additional_systematic_values=additional_systematic_values,
+        NOTE:
+            This requires the parameters to be encoded in the YAML config. It looks somewhat less nice,
+            but RJE supposes that it's not the end of the world.
+
+        Args:
+            entry: Dict containing parameters, HEPData table and index, and additional systematics.
+        Returns:
+            HEPDataEntry constructed from the entry.
+        """
+        return cls(
+            parameters={k: observable.SpecDecoderRegistry.decode(k, v) for k, v in entry["parameters"].items()},
+            table=entry["table"],
+            table_index=entry["index"],
+            systematics_names=entry["systematics_names"],
+            additional_systematics_values=entry["additional_systematics"],
         )
+
+
+# def parse_tables_hepdata_yaml(
+#    tables: list[dict[str, Any]],
+#    requested_parameters: observable.Parameters,
+#
+# )
+
+
+# def parse_nested_hepdata_yaml(
+#     config: dict[str, Any], requested_parameters: observable.Parameters, specified_parameters: dict[str, Any]
+# ) -> ...:
+#     # For a given set of request parameters, search for the corresponding specification.
+#     # To do so, we:
+#     # - Look at the existing parameters in this block
+#     # - If the parameter is in this block, then we check in the values for that parameter are in the request parameters
+#     #   - If the parameter is not provided, we'll recurse into the combinations
+#     # - If the parameter is different, (e.g. request 1, but the parameter only covers 2 and 3), but bail out and
+#     #   continue to the next table
+#     matched_parameters = {}
+#     config_parameters = config.get("parameters")
+#     for requested_parameter, requested_parameter_values in requested_parameters.items():
+#         config_parameter = config_parameters.get(requested_parameter)
+#         # Construct the config parameter
+#         if config_parameter:
+#             if config_parameter in requested_parameter_values:
+#                 matched_parameters[requested_parameter] = True
+#         else:
+#             # If the parameter is not provided , we'll recurse into the combinations
+#             config.get("combinations")
+#
+#     if "table" in tables and "index" in tables:
+#         parameters = specified_parameters.copy()
+#         parameters.update(tables["parameters"])
+#         # We've found the specification for a histogram.
+#         # We need to construct the object and include this.
+#         HEPDataEntry(
+#             parameters=parameters,
+#             table=tables["table"],
+#             table_index=tables["index"],
+#             # TODO(RJE): Need to somehow have this available...? Presumably just pass this in.
+#             systematics_names=systematics_names,
+#             additional_systematics_values=additional_systematics_values,
+#         )
+
+
+def _expand_parameters(config: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    """Expand a single configuration's parameters into all combinations.
+
+    For parameters with list values that contain lists themselves (like centrality),
+    each inner list is treated as a single value.
+
+    For parameters with list values that are simple lists (like jet_R),
+    each element is a separate value to combine.
+    """
+    if "parameters" not in config:
+        yield config
+        return
+
+    parameters = config["parameters"]
+
+    # Separate parameters that need expansion from those that don't
+    params_to_expand = {}
+    params_fixed = {}
+
+    for key, value in parameters.items():
+        if isinstance(value, list) and len(value) > 0:
+            # Check if this is a list of values to expand
+            # If the first element is a list, treat each sublist as a single value
+            if isinstance(value[0], list):
+                # e.g., centrality: [[0, 10], [30, 50]]
+                params_to_expand[key] = value
+            else:
+                # e.g., jet_R: [0.2, 0.3]
+                params_to_expand[key] = value
+        else:
+            # Single value, no expansion needed
+            params_fixed[key] = value
+
+    # If no parameters to expand, return the config as-is
+    if not params_to_expand:
+        yield config
+        return
+
+    # Generate all combinations
+    param_names = list(params_to_expand.keys())
+    param_values = [params_to_expand[name] for name in param_names]
+
+    for combination in itertools.product(*param_values):
+        # Create new config for this combination
+        new_config = copy.deepcopy(config)
+        new_params = copy.deepcopy(params_fixed)
+
+        # Add the combined parameters
+        for name, value in zip(param_names, combination, strict=True):
+            new_params[name] = value
+
+        new_config["parameters"] = new_params
+        yield new_config
+
+
+def _expand_parameter_combinations_into_individual_configs(config: dict[str, Any]) -> list[dict[str, Any]]:
+    """Expand a configuration with combinatorial parameters into individual configs.
+
+    Args:
+        config: Configuration dictionary that may contain a "combinations" key
+
+    Returns:
+        List of expanded configuration dictionaries
+    """
+    # If there are combinations, process them first (before expanding parameters)
+    if config.get("combinations"):
+        combinations = config["combinations"]
+        base_config = {k: v for k, v in config.items() if k != "combinations"}
+
+        # Recursively expand each combination
+        all_results = []
+        for combination in combinations:
+            # Merge base config with this combination
+            merged = _merge_configs(base_config, combination)
+
+            # Recursively expand in case this combination has its own combinations
+            expanded = _expand_parameter_combinations_into_individual_configs(merged)
+            all_results.extend(expanded)
+
+        return all_results
+
+    # No more combinations - now expand the parameters
+    return list(_expand_parameters(config))
+
+
+def expand_parameter_combinations_into_individual_configs(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Expand a list of configurations.
+
+    Args:
+        configs: List of configuration dictionaries
+
+    Returns:
+        List of all expanded configurations
+    """
+    all_results = []
+    for config in configs:
+        expanded = _expand_parameter_combinations_into_individual_configs(config)
+        all_results.extend(expanded)
+    return all_results
+
+
+def _merge_configs(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """
+    Merge two configurations, with override taking precedence.
+    Special handling for the 'parameters' key to merge dictionaries.
+    """
+    logger.info(f"Calling merging configs with {base=}, {override=}")
+    result = copy.deepcopy(base)
+
+    for key, value in override.items():
+        if key == "parameters" and key in result:
+            # Merge parameters dictionaries
+            result["parameters"] = {**result["parameters"], **value}
+        else:
+            result[key] = copy.deepcopy(value)
+
+    return result
 
 
 @attrs.define
@@ -150,19 +320,35 @@ class HEPDataBlock:
 
     histogram_properties: HistogramProperties
     histograms: list[HEPDataEntry]
-    # systematic_names: dict[str, str] = attrs.field(factory=dict)
-    # additional_systematic_values: dict[str, float] = attrs.field(factory=dict)
+    # systematics_names: dict[str, str] = attrs.field(factory=dict)
+    # additional_systematics_values: dict[str, float] = attrs.field(factory=dict)
 
     @classmethod
-    def from_config(cls, config: Config, expected_parameters: list[str]) -> HEPDataBlock:
-        # TODO(RJE): Not sure about the type of expected_parameters...
-        histograms = []
-        tables = config["tables"]
+    def from_config(cls, config: Config) -> HEPDataBlock:
+        """Construct the HEPData block from a yaml configuration.
 
-        parse_nested_hepdata_yaml()
+        Args:
+            config: Configuration containing the HEPData block. e.g. the values of a "spectra" block.
+        Returns:
+            Block of HEPData configurations.
+        """
+        # Histogram configurations are contained in the "tables"
+        tables_config = config["tables"]
+        # We need to expand the parameters into
+        full_set_of_table_configs = expand_parameter_combinations_into_individual_configs(tables_config)
+
+        # And then construct all of the histograms
+        # NOTE: This requires the parameters to be encoded in the YAML config. It looks somewhat less nice,
+        #       but RJE supposes that it's not the end of the world.
+        logger.info(f"{full_set_of_table_configs=}")
+        histograms = []
+        # There can be multiple
+        # for tables in full_set_of_table_configs:
+        histograms = [HEPDataEntry.from_flat_config(entry) for entry in full_set_of_table_configs]
 
         return cls(
             histogram_properties=HistogramProperties.from_config(config),
+            histograms=histograms,
         )
 
 
@@ -170,10 +356,10 @@ class HEPDataBlock:
 class HEPData:
     """Block of HEPData information corresponding to a set of histogram classes."""
 
-    record: hepdata_utils.HEPDataIdentifier
+    identifier: hepdata_utils.HEPDataIdentifier
     additional_params: dict[str, Any] = attrs.Factory(dict)
     # These are the required blocks
-    blocks: dict[str, HEPDataBlock]
+    observable_blocks: dict[str, HEPDataBlock] = attrs.Factory(dict)
 
     @classmethod
     def from_config(cls, collision_system: str, config: Config) -> HEPData:
@@ -185,16 +371,16 @@ class HEPData:
 
         keys = list(config.keys())
         # Skip the record since it's the only entry that isn't a histogram block.
-        keys.pop("record")
+        keys.pop(keys.index("record"))
 
-        blocks = {}
+        observable_blocks = {}
         for k in keys:
-            blocks[k] = HEPDataBlock.from_config(config[k])
+            observable_blocks[k] = HEPDataBlock.from_config(config[k])
 
         return cls(
             identifier=identifier,
             additional_params=config["record"].get("additional_params", {}),
-            blocks=blocks,
+            observable_blocks=observable_blocks,
         )
 
 
@@ -206,6 +392,7 @@ def parse_data_block(observable_str: str, config: dict[str, Any]) -> ...:
         raise ValueError(msg)
 
     # Handle each collision system
+    data_blocks = {}
     for collision_system in ["pp", "AA"]:
         collision_system_data = data.get(collision_system)
         if not collision_system_data:
@@ -220,6 +407,16 @@ def parse_data_block(observable_str: str, config: dict[str, Any]) -> ...:
             c = parse_custom_data_block(observable_str, collision_system_data["custom"])
         elif "bins" in collision_system_data:
             c = parse_binning_block(observable_str, collision_system_data["binning"])
+
+        data_blocks[collision_system] = c
+
+    return data_blocks
+
+
+def parse_custom_data_block(observable_str: str, config: Config) -> CustomData: ...
+
+
+def parse_binning_block(observable_str: str, config: Config) -> Binning: ...
 
 
 def _check_for_required_histogram_blocks(collision_system: str, config: Config) -> bool:
@@ -236,4 +433,73 @@ def _check_for_required_histogram_blocks(collision_system: str, config: Config) 
     return True
 
 
-def load_first_production_hepdata_info(observable: observable.Observable) -> HEPDataBlock: ...
+def load_first_production_hepdata_info(observable: observable.Observable) -> HEPDataBlock:
+    """Load HEPData info from the first production.
+
+    Our first production had everything flattened out.
+
+    See the other functionality in define_dat_sources(?) where I've already done this...
+    """
+
+
+def example_search_for_table(obs: observable.Observable) -> None:
+    """Example function in searching for a table. Adapt as appropriate."""
+
+    # Full example for one observable: construct combinations from the available parameters.
+    # TODO(RJE): How would this work for the double_ratio?
+    #            The best options seems like:
+    #             - Turn off validation for that block and handle by hand in the histogramming.
+    #             - Alternatively, would need the double R ratio definition in the parameters. But this could get trickier.
+    #
+    # Select an observable, and retrieve the tables
+    tables = obs.config["data"]["pp"]["hepdata"]["spectra"]["tables"]
+    # We could have multiple tables, but in this particular case, we set it up with one entry in the tables,
+    # which we need to expand
+    res = expand_parameter_combinations_into_individual_configs(tables[0])
+    # Then determine what parameters are available based on the observable parameter combinations
+    # NOTE: This requires the parameters to be encoded. It looks somewhat less nice, but I suppose it's not the end of the world.
+    available_parameters = [
+        {k: observable.SpecDecoderRegistry.decode(k, v) for k, v in r["parameters"].items()} for r in res
+    ]
+    g = obs.generate_parameter_combinations(obs.parameters())
+    # Grab the first one
+    desired_parameters = next(g)
+    # And find it
+    index_of_table_corresponding_to_desired_parameters = available_parameters.index(desired_parameters[0])
+    logger.warning(f"{index_of_table_corresponding_to_desired_parameters=}")
+
+    import IPython  # noqa: PLC0415
+
+    IPython.embed()
+
+
+def example_construct_observables(observables: dict[str, observable.Observable]) -> None:
+    """Example of constructing a data block for an observable."""
+
+    data_blocks = {}
+    for observable_str, obs in observables.items():
+        # Skip for testing...
+        if "ktg" not in observable_str:
+            continue
+        data_blocks[observable_str] = parse_data_block(observable_str=observable_str, config=obs.config)
+
+    import IPython  # noqa: PLC0415
+
+    IPython.embed()
+
+
+def main() -> None:
+    """Testing function"""
+
+    from jetscape_analysis.base import helpers  # noqa: PLC0415
+
+    helpers.setup_logging(level=logging.INFO)
+
+    observables = observable.read_observables_from_config(jetscape_analysis_config_path=Path("config"))
+
+    # example_search_for_table(obs=observables["5020_inclusive_chjet_ktg_alice"])
+    example_construct_observables(observables=observables)
+
+
+if __name__ == "__main__":
+    main()

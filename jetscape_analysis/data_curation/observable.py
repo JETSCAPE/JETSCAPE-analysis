@@ -128,6 +128,7 @@ class PtSpec(ParameterSpec):
     def decode(cls, value: str) -> PtSpec:
         # `value` is of the form: "{self.low}_{self.high}"
         # indices:                 0           1
+        logger.warning(f"{value=}")
         low, high = value.split("_")
         return cls(low=float(low), high=float(high) if not np.isclose(float(high), -1.0) else None)
 
@@ -177,7 +178,8 @@ class SoftDropSpec(ParameterSpec):
         return f"Soft Drop(z_cut={self.z_cut}, beta={self.beta})"
 
     def encode(self) -> str:
-        return f"z_cut_{self.z_cut}_beta_{self.beta}"
+        # By convention, we have 0.2, but we want 020, so we multiply by 100
+        return f"z_cut_{int(self.z_cut * 100):03g}_beta_{self.beta}"
 
     @classmethod
     def decode(cls, value: str) -> SoftDropSpec:
@@ -185,7 +187,8 @@ class SoftDropSpec(ParameterSpec):
         # indices:                 0 1    2           3     4
         split = value.split("_")
         return cls(
-            z_cut=float(split[2]),
+            # By convention, we write 020, but we want 0.2, so we divide by 100
+            z_cut=float(split[2]) / 100,
             beta=float(split[4]),
         )
 
@@ -688,7 +691,7 @@ class Observable:
                     res = func(config=self.config.get("trigger", {}), label=f"{trigger_name}_trigger")
                     _parameters.extend(res)
 
-            # And then
+            # And then:
             # Recoil/associated properties
             # NOTE: The observable_class are of the form "X_trigger_Y", where X is the trigger and Y is the recoil/associated.
             #       Since we only want to target the recoil here, we look for "_trigger_Y" for Y
@@ -811,7 +814,8 @@ def main(jetscape_analysis_config_path: Path) -> None:
         # for obs in sorted(obs_class, key=lambda o: (o.sqrt_s, o.observable_class, o.name)):
         full_set_of_parameters = obs.parameters()
 
-        if "trigger" in obs.observable_class:
+        # if "trigger" in obs.observable_class:
+        if "ktg" in obs.name:
             logger.info(f"{full_set_of_parameters=}")
             # fmt:off
             import IPython; IPython.embed()  # noqa: PLC0415,I001,E702
