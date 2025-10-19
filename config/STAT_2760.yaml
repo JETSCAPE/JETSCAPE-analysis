@@ -996,10 +996,14 @@ pion_trigger_hadron:
         bins: [1,2,3,4,]
 
     data:
+      # So if pp is different than PbPb, we just identify a different record...
       pp:
         hepdata:
-          inspire_hep_record: 123456
-          inspire_hep_version: 2
+          inspire_record:
+            id: 123456
+            version: 2
+            # Optional...
+            additional_params: {}
           # Required: "spectra" in pp, "spectra" + "ratio" in AA,
           #           otherwise, free form
           spectra:
