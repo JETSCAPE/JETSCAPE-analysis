@@ -317,8 +317,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # For pp:
         # - 1 and 2 will show up due to precision and energy conservation, but can be ignored.
         # For AA:
-        # - -1 is the negative wake
-        # - -2 is the positive wake
+        # - 1 is the negative wake
+        # - 2 is the positive wake
         if self.model_name == "hybrid":
             # Remove the outgoing partons
             status_mask = status_mask & (event["status"] != -2)
@@ -339,12 +339,15 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         # Define status_factor -- either +1 (positive status) or -1 (negative status)
         status_selected = event['status'][full_mask] # Either 0 (positive) or -1 (negative)
-        #import pdb; pdb.set_trace()
-        # TODO(HYBRID): Since the factors are different, we need a different way to encode the particles.
-        #               So for a first test, we'll just take 0 as the final state hadrons and everything else
-        #               as the "negative" particles.
-        status_factor = np.where(status_selected == 0, 1, -1)
-        #status_factor = 2*status_selected + 1 # Change to +1 (positive) or -1 (negative)
+        if self.model_name == "hybrid":
+            # Need a different paradigm than jetscape. Here, we'll use:
+            # - Positive status: Regular shower particles (0) and positive wake (2)
+            # - Negative status: Negative wake (1)
+            # NOTE: In the case of pp, this should work equally well (it will just be selecting less)
+            status_factor = np.where(np.isin(status_selected, [0, 2]), 1, -1)
+        else:
+            # Change (0, -1) -> +1 (positive) or -1 (negative)
+            status_factor = np.where(status_selected == 0, 1, -1)
         # NOTE: Need to explicitly convert to np.int8 -> np.int32 so that the status factor can be
         #       set properly below. Otherwise, it will overflow when setting the user index if there
         #       are too many particles.
