@@ -145,50 +145,6 @@ class HEPDataEntry:
         )
 
 
-# def parse_tables_hepdata_yaml(
-#    tables: list[dict[str, Any]],
-#    requested_parameters: observable.Parameters,
-#
-# )
-
-
-# def parse_nested_hepdata_yaml(
-#     config: dict[str, Any], requested_parameters: observable.Parameters, specified_parameters: dict[str, Any]
-# ) -> ...:
-#     # For a given set of request parameters, search for the corresponding specification.
-#     # To do so, we:
-#     # - Look at the existing parameters in this block
-#     # - If the parameter is in this block, then we check in the values for that parameter are in the request parameters
-#     #   - If the parameter is not provided, we'll recurse into the combinations
-#     # - If the parameter is different, (e.g. request 1, but the parameter only covers 2 and 3), but bail out and
-#     #   continue to the next table
-#     matched_parameters = {}
-#     config_parameters = config.get("parameters")
-#     for requested_parameter, requested_parameter_values in requested_parameters.items():
-#         config_parameter = config_parameters.get(requested_parameter)
-#         # Construct the config parameter
-#         if config_parameter:
-#             if config_parameter in requested_parameter_values:
-#                 matched_parameters[requested_parameter] = True
-#         else:
-#             # If the parameter is not provided , we'll recurse into the combinations
-#             config.get("combinations")
-#
-#     if "table" in tables and "index" in tables:
-#         parameters = specified_parameters.copy()
-#         parameters.update(tables["parameters"])
-#         # We've found the specification for a histogram.
-#         # We need to construct the object and include this.
-#         HEPDataEntry(
-#             parameters=parameters,
-#             table=tables["table"],
-#             table_index=tables["index"],
-#             # TODO(RJE): Need to somehow have this available...? Presumably just pass this in.
-#             systematics_names=systematics_names,
-#             additional_systematics_values=additional_systematics_values,
-#         )
-
-
 def _expand_parameters(config: dict[str, Any]) -> Iterator[dict[str, Any]]:
     """Expand a single configuration's parameters into all combinations.
 
@@ -275,8 +231,7 @@ def _expand_parameter_combinations_into_individual_configs(config: dict[str, Any
 
 
 def expand_parameter_combinations_into_individual_configs(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """
-    Expand a list of configurations.
+    """Expand a list of configurations.
 
     Args:
         configs: List of configuration dictionaries
@@ -292,8 +247,8 @@ def expand_parameter_combinations_into_individual_configs(configs: list[dict[str
 
 
 def _merge_configs(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """
-    Merge two configurations, with override taking precedence.
+    """Merge two configurations, with override taking precedence.
+
     Special handling for the 'parameters' key to merge dictionaries.
     """
     logger.info(f"Calling merging configs with {base=}, {override=}")
@@ -316,6 +271,9 @@ class HEPDataBlock:
     This contains a list of histograms.
 
     Attributes:
+        histogram_properties: Shared properties of the histograms - e.g. axes titles, etc.
+        histograms: List of HEPDataEntry objects, with each one corresponding to a
+            single set of properties and a HEPData table + index.
     """
 
     histogram_properties: HistogramProperties
