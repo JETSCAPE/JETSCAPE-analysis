@@ -41,7 +41,7 @@ _string_to_split_on_by_model = {
 }
 
 
-def split_file_on_string(filename: Path, model: str, string_to_split_on: str | None = None) -> bool:
+def split_file_on_string(filename: Path, model_name: str, string_to_split_on: str | None = None) -> bool:
     """Split a text file into new files whenever a key string is encountered.
 
     This can be used to split apart merged ascii output files which have been
@@ -63,7 +63,7 @@ def split_file_on_string(filename: Path, model: str, string_to_split_on: str | N
     """
     # Validation
     if string_to_split_on is None:
-        string_to_split_on = _string_to_split_on_by_model[model]
+        string_to_split_on = _string_to_split_on_by_model[model_name]
 
     # Keep track of how where we are
     file_index = 0
@@ -140,7 +140,7 @@ def entry_point() -> None:
 
     res = split_file_on_string(
         filename=args.input_file,
-        model=args.model,
+        model_name=args.model,
     )
     if res:
         logger.info("🎉 Success!")
