@@ -35,13 +35,15 @@ import fjext
 
 from jetscape_analysis.base import common_base
 
+_SUPPORTED_MODELS_FOR_ANALYSIS = ["jetscape", "hybrid"]
+
 ################################################################
 class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(self, config_file="", input_file="", output_dir="", **kwargs):
+    def __init__(self, config_file="", input_file="", output_dir="", model_name="jetscape", **kwargs):
         super(AnalyzeJetscapeEvents_BaseSTAT, self).__init__(**kwargs)
 
         self.config_file = config_file
@@ -60,11 +62,26 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
             self.thermal_rejection_fraction = config.get('thermal_rejection_fraction', 0.)
 
+        # Keep track of the model name, allowing for the customization of analysis by model when necessary.
+        self.model_name = model_name
+        if self.model_name not in _SUPPORTED_MODELS_FOR_ANALYSIS:
+            msg = f"Requested to analyze {model_name=}, but not in supported list of {_SUPPORTED_MODELS_FOR_ANALYSIS}. Please check arguments"
+            raise ValueError(msg)
+
         # Check whether pp or AA
         if 'PbPb' in self.input_file_hadrons or 'AuAu' in self.input_file_hadrons:
             self.is_AA = True
         else:
             self.is_AA = False
+
+        # Expected status codes.
+        # Default: For jetscape, we expect status codes of [0, -1]
+        # For hybrid, we expect:
+        # - pp: [0]
+        # - AA: [0, 1, 2]
+        self.expected_status_codes = [0, -1]
+        if self.model_name == "hybrid":
+            self.expected_status_codes = [0, 1, 2] if self.is_AA else [0]
 
         # If AA, get centrality bin
         self.use_event_based_centrality = False
@@ -157,12 +174,14 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             if self.is_AA:
                 if self.use_event_based_centrality:
                     # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
-                    # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
-                    self.centrality = [5, 10]
-                    #if i == 0 and "centrality" not in event:
-                    #    msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
-                    #    raise ValueError(msg)
-                    #self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
+                    if self.model_name == "hybrid":
+                        # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
+                        self.centrality = [5, 10]
+                    else:
+                        if i == 0 and "centrality" not in event:
+                            msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
+                            raise ValueError(msg)
+                        self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
                 else:
                     self.centrality = self.default_centrality  # Use fixed centrality; values are passed from the Run_info.yaml file
 
@@ -290,10 +309,22 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         else:
             # Picked a value to make an all true mask. We don't select anything
             status_mask = event['status'] > -1e6
-        # TODO(HYBRID): For hybrid model, remove the outgoing partons
-        status_mask = status_mask & event["status"] != -2
-        #print(f"{len(event['status'])=}")
-        #print(f"{np.all(status_mask)=}, {select_status=}")
+
+        # In the case of the hybrid model, we need to add some further selections:
+        # Shared:
+        # - -2 corresponds to the outgoing partons. We always want to exclude them for analysis
+        #   since we expect final state hadrons/partons
+        # For pp:
+        # - 1 and 2 will show up due to precision and energy conservation, but can be ignored.
+        # For AA:
+        # - -1 is the negative wake
+        # - -2 is the positive wake
+        if self.model_name == "hybrid":
+            # Remove the outgoing partons
+            status_mask = status_mask & (event["status"] != -2)
+            # Remove status 1 and 2 if in pp
+            if self.is_AA:
+                status_mask = status_mask & (event["status"] < 1)
 
         # Construct indices according to charge
         charged_mask = get_charged_mask(event['particle_ID'], select_charged)
@@ -319,10 +350,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         #       are too many particles.
         status_factor = status_factor.astype(np.int32)
         for status in np.unique(status_selected): # Check that we only encounter expected statuses
-            if status not in [0,-1]:
-                pass
-                # TODO(HYBRID): Hybrid codes go to -2, so need to figure out how to make this check reliable
-                #sys.exit(f'ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}')
+            if status not in self.expected_status_codes:
+                sys.exit(f'ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}')
 
         # Create a vector of fastjet::PseudoJets from arrays of px,py,pz,e
         fj_particles = fjext.vectorize_px_py_pz_e(px, py, pz, e)
