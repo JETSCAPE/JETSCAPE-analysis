@@ -1432,6 +1432,16 @@ if __name__ == "__main__":
         default="/home/jetscape-user/JETSCAPE-analysis/TestOutput",
         help="Output directory for output to be written to",
     )
+    parser.add_argument(
+        "-m",
+        "--model-name",
+        action="store",
+        type=str,
+        required=False,
+        metavar="model_name",
+        default="jetscape",
+        help="Name of the model which we are analyzing. Default: 'jetscape'",
+    )
 
     # Parse the arguments
     args = parser.parse_args()
@@ -1446,5 +1456,5 @@ if __name__ == "__main__":
         print('File "{0}" does not exist! Exiting!'.format(args.inputFile))
         sys.exit(0)
 
-    analysis = AnalyzeJetscapeEvents_STAT(config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir)
+    analysis = AnalyzeJetscapeEvents_STAT(config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir, model_name=args.model_name)
     analysis.analyze_jetscape_events()
