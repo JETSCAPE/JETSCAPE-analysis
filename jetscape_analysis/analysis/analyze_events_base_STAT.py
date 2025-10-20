@@ -75,8 +75,6 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         if self.model_name not in _SUPPORTED_MODELS_FOR_ANALYSIS:
             msg = f"Requested to analyze {model_name=}, but not in supported list of {_SUPPORTED_MODELS_FOR_ANALYSIS}. Please check arguments"
             raise ValueError(msg)
-        msg = f"Analyzing using outputs from model: {self.model_name}"
-        print(msg)
 
         # Check whether pp or AA
         if 'PbPb' in self.input_file_hadrons or 'AuAu' in self.input_file_hadrons:
@@ -186,7 +184,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                     # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
                     if self.model_name == "hybrid":
                         # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
-                        self.centrality = [5, 10]
+                        self.centrality = [0, 5]
                     else:
                         if i == 0 and "centrality" not in event:
                             msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
