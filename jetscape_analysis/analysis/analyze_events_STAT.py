@@ -1439,8 +1439,8 @@ if __name__ == "__main__":
         type=str,
         required=False,
         metavar="model_name",
-        default="jetscape",
-        help="Name of the model which we are analyzing. Default: 'jetscape'",
+        default="",
+        help="Name of the model which we are analyzing. Default: '', which uses autodetection, using jetscape if it can't be identified.",
     )
 
     # Parse the arguments

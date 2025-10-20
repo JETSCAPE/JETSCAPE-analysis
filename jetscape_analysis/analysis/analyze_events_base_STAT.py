@@ -63,10 +63,20 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             self.thermal_rejection_fraction = config.get('thermal_rejection_fraction', 0.)
 
         # Keep track of the model name, allowing for the customization of analysis by model when necessary.
-        self.model_name = model_name
+        if model_name == "":
+            # attempt auto-detection based on the filename
+            name_to_check = str(self.input_file_hadrons).lower()
+            if "hybrid" in name_to_check:
+                self.model_name = "hybrid"
+            else:
+                self.model_name = "jetscape"
+        else:
+            self.model_name = model_name
         if self.model_name not in _SUPPORTED_MODELS_FOR_ANALYSIS:
             msg = f"Requested to analyze {model_name=}, but not in supported list of {_SUPPORTED_MODELS_FOR_ANALYSIS}. Please check arguments"
             raise ValueError(msg)
+        msg = f"Analyzing using outputs from model: {self.model_name}"
+        print(msg)
 
         # Check whether pp or AA
         if 'PbPb' in self.input_file_hadrons or 'AuAu' in self.input_file_hadrons:
