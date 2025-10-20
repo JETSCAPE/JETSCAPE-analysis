@@ -383,7 +383,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             # Remove the outgoing partons
             status_mask = status_mask & (event["status"] != -2)
             # Remove status 1 and 2 if in pp
-            if self.is_AA:
+            if not self.is_AA:
                 status_mask = status_mask & (event["status"] < 1)
 
         # Construct indices according to charge
