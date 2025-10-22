@@ -325,8 +325,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # For pp:
         # - 1 and 2 will show up due to precision and energy conservation, but can be ignored.
         # For AA:
-        # - 1 is the negative wake
-        # - 2 is the positive wake
+        # - 1 is the positive wake
+        # - 2 is the negative wake
         if self.model_name == "hybrid":
             # Remove the outgoing partons
             status_mask = status_mask & (event["status"] != -2)
@@ -349,10 +349,10 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         status_selected = event['status'][full_mask] # Either 0 (positive) or -1 (negative)
         if self.model_name == "hybrid":
             # Need a different paradigm than jetscape. Here, we'll use:
-            # - Positive status: Regular shower particles (0) and positive wake (2)
-            # - Negative status: Negative wake (1)
+            # - Positive status: Regular shower particles (0) and positive wake (1)
+            # - Negative status: Negative wake (2)
             # NOTE: In the case of pp, this should work equally well (it will just be selecting less)
-            status_factor = np.where(np.isin(status_selected, [0, 2]), 1, -1)
+            status_factor = np.where(np.isin(status_selected, [0, 1]), 1, -1)
         else:
             # Change (0, -1) -> +1 (positive) or -1 (negative)
             status_factor = np.where(status_selected == 0, 1, -1)
