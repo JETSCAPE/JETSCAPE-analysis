@@ -185,6 +185,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                     if self.model_name == "hybrid":
                         # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
                         self.centrality = [0, 5]
+                        # self.centrality = [5, 10]
                     else:
                         if i == 0 and "centrality" not in event:
                             msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
@@ -309,30 +310,42 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # ---------------------------------------------------------------
     def fill_fastjet_constituents(self, event, select_status=None, select_charged=False):
 
-        # Construct indices according to particle status
-        if select_status == '-':
-            status_mask = (event['status'] < 0)
-        elif select_status == '+':
-            status_mask = (event['status'] > -1)
-        else:
-            # Picked a value to make an all true mask. We don't select anything
-            status_mask = event['status'] > -1e6
-
-        # In the case of the hybrid model, we need to add some further selections:
-        # Shared:
-        # - -2 corresponds to the outgoing partons. We always want to exclude them for analysis
-        #   since we expect final state hadrons/partons
-        # For pp:
-        # - 1 and 2 will show up due to precision and energy conservation, but can be ignored.
-        # For AA:
-        # - 1 is the positive wake
-        # - 2 is the negative wake
         if self.model_name == "hybrid":
-            # Remove the outgoing partons
+            # In the case of the hybrid model, we need to select with a different paradigm:add some further selections:
+            # Start with an all true mask (picked a value to make an all true mask).
+            status_mask = event['status'] > -1e6
+            # Shared:
+            # - -2 corresponds to the outgoing partons. We always want to exclude them for analysis
+            #   since we expect final state hadrons/partons
             status_mask = status_mask & (event["status"] != -2)
-            # Remove status 1 and 2 if in pp
+
+            # For pp:
+            # . 1 and 2 will show up due to precision and energy conservation, but can be ignored.
             if not self.is_AA:
                 status_mask = status_mask & (event["status"] < 1)
+            # For AA:
+            # . 1 is the positive wake
+            # . 2 is the negative wake
+            # By convention,
+            # . "-" correspnods to holes/negative wake
+            # . "+" corrresponds to shower+recoil, positive wake
+
+            # NOTE: For pp, we've already removed everything but status code 0.
+            #       So this will also work as expected in this case.
+            if select_status == '-':
+                status_mask = status_mask & np.isin(event['status'], [2])
+            elif select_status == '+':
+                status_mask = status_mask & np.isin(event['status'], [0, 1])
+        else:
+            # Construct indices according to particle status
+            if select_status == '-':
+                status_mask = (event['status'] < 0)
+            elif select_status == '+':
+                status_mask = (event['status'] > -1)
+            else:
+                # Picked a value to make an all true mask. We don't select anything
+                status_mask = event['status'] > -1e6
+
 
         # Construct indices according to charge
         charged_mask = get_charged_mask(event['particle_ID'], select_charged)
