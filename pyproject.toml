@@ -94,6 +94,7 @@ module = [
     "nox",
     "numba",
     "pyarrow.*",
+    "pyhepmc_ng",
     "ROOT",
     "scipy.*",
 ]
