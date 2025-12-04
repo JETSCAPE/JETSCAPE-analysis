@@ -102,10 +102,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         else:
             logger.info("Constituent subtractor is disabled.")
 
-    # ---------------------------------------------------------------
-    # Main processing function
-    # ---------------------------------------------------------------
-    def analyze_jetscape_events(self):
+    def analyze_jetscape_events(self) -> None:
+        """Main processing function."""
         logger.info("Analyzing events ...")
 
         # Initialize output objects
@@ -125,10 +123,16 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         logger.info("Done!")
 
-    # ---------------------------------------------------------------
-    # Analyze event chunk
-    # ---------------------------------------------------------------
-    def analyze_event_chunk(self, df_event_chunk):
+    def analyze_event_chunk(self, df_event_chunk: pd.DataFrame) -> None:
+        """Analyze event chunk
+
+        This steers the main analysis, iterating event-by-event.
+
+        Args:
+            df_event_chunk: Dataframe containing a chunk (i.e. group) of events.
+        Returns:
+            None.
+        """
         # Loop through events
         start = time.time()
         weight_sum = 0.0
@@ -187,10 +191,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             self.cross_section_dict["centrality_range_min"] = int(np.floor(centrality_range_min))
             self.cross_section_dict["centrality_range_max"] = int(np.ceil(centrality_range_max))
 
-    # ---------------------------------------------------------------
-    # Initialize output objects
-    # ---------------------------------------------------------------
-    def initialize_output_objects(self):
+    def initialize_output_objects(self) -> None:
+        """Initialize output objects"""
         # Initialize list to store observables
         # Each entry in the list stores a dict for a given event
         self.output_event_list = []
@@ -198,15 +200,18 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Store also the total cross-section (one number per file)
         self.cross_section_dict = {}
 
-    # ---------------------------------------------------------------
-    # Save output event list into a dataframe
-    # ---------------------------------------------------------------
-    def event_has_entries(self, event_dict):
+    def event_has_entries(self, event_dict) -> bool:
+        """Check if the current event contains entries in the observables dict.
+
+        If order to save space, We only want to write if we actually have observables.
+
+        Args:
+            event_dict: Dict containing observables from a given event.
+        Returns:
+            True if there are any observables with entries.
+        """
         return bool([obs for obs in event_dict.values() if obs != []])
 
-    # ---------------------------------------------------------------
-    # Check if event centrality is within observable's centrality
-    # ---------------------------------------------------------------
     def centrality_accepted(self, observable_centrality_list) -> bool:
         """True if the observable should be measured based on it's required centrality.
 
@@ -260,10 +265,14 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Only measure the observable if all conditions are met
         return all(return_values)
 
-    # ---------------------------------------------------------------
-    # Save output event list into a dataframe
-    # ---------------------------------------------------------------
-    def write_output_objects(self):
+    def write_output_objects(self) -> None:
+        """Write output event list into a dataframe
+
+        Args:
+            None
+        Returns:
+            None
+        """
         # Convert to pandas, and then arrow.
         self.output_dataframe = pd.DataFrame(self.output_event_list)
         # self.output_dataframe = ak.Array(self.output_event_list)
@@ -294,19 +303,26 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         filename = self.output_file.replace("observables", "cross_section")
         pq.write_table(cross_section_table, self.output_dir / filename, compression="zstd")
 
-    # ---------------------------------------------------------------
-    # Fill hadrons into vector of fastjet PseudoJets
-    #
-    # By default, select all particles
-    # If select_status='+', select only positive status particles
-    # If select_status='-', select only negative status particles
-    #
-    # We return the list of fastjet::PseudoJets, where the user_index is set to:
-    #   user_index = (+/-)i,
-    #   where i is the index in the list, and is weighted by (+/-) for positive/negative status particles
-    # We also return the list of PID values, so that it can later be determined from the index i
-    # ---------------------------------------------------------------
     def fill_fastjet_constituents(self, event, select_status: str | None = None, select_charged: bool = False):
+        """Fill hadrons into vector of fastjet PseudoJets
+
+        By default, select all particles
+        If select_status='+', select only positive status particles
+        If select_status='-', select only negative status particles
+
+        We return the list of fastjet::PseudoJets, where the user_index is set to:
+          user_index = (+/-)i,
+          where i is the index in the list, and is weighted by (+/-) for positive/negative status particles
+        We also return the list of PID values, so that it can later be determined from the index i
+
+        Args:
+            event: Dataframe containing the particles for the current event.
+            select_status: Which particles to select. See above in this docstring
+                for the convention. Default: None.
+            select_charged: If True, select only charged particles. Default: False.
+        Returns:
+            PseudoJet array of select_particles, array of Particle ID values
+        """
         status_mask = mask_from_select_status(event, select_status)
 
         # Construct indices according to charge
@@ -362,8 +378,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         logger.warning("is_prompt_photon is not yet implemented!")
         return True
 
-    # find out if the particle is isolated or not
-    def is_isolated(self, trigger_particle, iso_particles_charged_pos, iso_particles_charged_neg, iso_R, iso_Et_max):
+    def is_isolated(
+        self, trigger_particle, iso_particles_charged_pos, iso_particles_charged_neg, iso_R: float, iso_Et_max: float
+    ) -> bool:
         """Find out if the particle is isolated or not.
 
         Args:
@@ -394,8 +411,14 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Return whether sum Et is below threshold
         return sum_Et < iso_Et_max
 
-    # TODO implement this after asking Peter
-    def build_trigger_response_matrix_STAR(self):
+    def build_trigger_response_matrix_STAR(self) -> npt.NDArray[np.float64]:
+        """Construct a smearing matrix.
+
+        NOTE:
+            This is a work in progress, using STAR as the example case.
+
+        # TODO(FJ): Implement this after asking Peter
+        """
         # create a 2D matrix from 6 to 30 GeV/c in bine of 1 GeV
         Et_part_bins = np.arange(6, 30, 1)
         Et_det_bins = np.arange(9, 20, 1)
@@ -569,18 +592,20 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             jet_pt = jet_pt_uncorrected - negative_pt  # corrected pt: shower+recoil-holes
         return jet_pt, jet_pt_uncorrected
 
-    # ---------------------------------------------------------------
-    # This function is called once per event
-    # You must implement this
-    # ---------------------------------------------------------------
-    def analyze_event(self, event):
+    def analyze_event(self, event) -> None:
+        """Main analysis method.
+
+        This function is called once per event. You must implement this!
+
+        Args:
+            event: Dataframe containing the particles in the event.
+        Returns:
+            None.
+        """
         msg = "You must implement analyze_event()!"
         raise NotImplementedError(msg)
 
 
-# ---------------------------------------------------------------
-# Construct charged particle mask
-# ---------------------------------------------------------------
 @jit(nopython=True)
 def get_charged_mask(pid: npt.NDArray[np.int32], select_charged: bool) -> npt.NDArray[np.bool_]:
     """Create mask for selected a set of charged particles based on PID.
