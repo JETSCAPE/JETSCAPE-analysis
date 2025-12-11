@@ -582,7 +582,7 @@ def pretty_print_name(name: str) -> str:
 
 @attrs.define
 class Observable:
-    sqrt_s: float = attrs.field()
+    sqrt_s: int = attrs.field()
     observable_class: str = attrs.field()
     name: str = attrs.field()
     config: dict[str, Any] = attrs.field()
@@ -792,7 +792,13 @@ def read_observables_from_config(jetscape_analysis_config_path: Path) -> dict[st
                     config=observable_info,
                 )
 
-    return observables
+    # Return them sorted by convention
+    return sort_observables(observables)
+
+
+def sort_observables(observables: dict[str, Observable]) -> dict[str, Observable]:
+    """Convenience function for providing sorted observables"""
+    return dict(sorted(observables.items(), key=lambda o: (o[1].sqrt_s, o[1].observable_class, o[1].name)))
 
 
 def main(jetscape_analysis_config_path: Path) -> None:
@@ -805,7 +811,7 @@ def main(jetscape_analysis_config_path: Path) -> None:
 
     # for obs in sorted(observables):
     # for sqrt_s in sorted(observables.keys()):
-    for obs in sorted(observables.values(), key=lambda o: (o.sqrt_s, o.observable_class, o.name)):
+    for obs in observables.values():
         # Group by observable class
         # class_to_obs: dict[str, list[Observable]] = {}
         # for obs in observables[sqrt_s].values():
