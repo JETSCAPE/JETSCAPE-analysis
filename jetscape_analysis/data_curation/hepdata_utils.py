@@ -86,6 +86,13 @@ def _extract_archive(file_path: Path) -> Path:
 
 @attrs.define(frozen=True)
 class HEPDataIdentifier:
+    """HEPData record identifier
+
+    Attributes:
+        inspire_hep_id: Identifier record.
+        version: Version of the record.
+    """
+
     inspire_hep_id: int
     version: int
 
@@ -99,6 +106,15 @@ class HEPDataIdentifier:
 
 @attrs.define(frozen=True)
 class HEPDataInfo:
+    """HEPData information
+
+    Attributes:
+        directory: Directory where the HEPData record is stored
+        identifier: HEPData record identifier
+        tables_to_filenames: Map from the name of the table to the filename.
+            This is often trivial, but not always.
+    """
+
     directory: Path
     identifier: HEPDataIdentifier
     tables_to_filenames: dict[str, Path]
@@ -543,8 +559,10 @@ def retrieve_observable_hepdata(
     # And write it to the hepdata database
     hepdata_info = HEPDataInfo(
         directory=yaml_data_dir.relative_to(base_dir),
-        inspire_hep_id=inspire_hep_id,
-        version=version,
+        identifier=HEPDataIdentifier(
+            inspire_hep_id=inspire_hep_id,
+            version=version,
+        ),
         tables_to_filenames=table_name_to_filename_map,
     )
     write_info_to_database(entries_to_write={str(observable_str_as_path): [hepdata_info]})
@@ -553,17 +571,23 @@ def retrieve_observable_hepdata(
     return hepdata_info
 
 
-def retrieve_hepdata(obs: observable.Observable) -> ...:
+def retrieve_hepdata(obs: observable.Observable) -> HEPDataInfo:
+    """Retrieve the HEPdata based on the provided observable.
+
+    This is just a convenience function.
+    """
+    # TODO(RJE): Deprecate this function?
     record_id, version = obs.inspire_hep_identifier()
 
-    observable_str_as_path = Path(obs.sqrt_s) / obs.observable_class / obs.name
+    observable_str_as_path = Path(str(obs.sqrt_s)) / obs.observable_class / obs.name
 
-    retrieve_observable_hepdata(
+    return retrieve_observable_hepdata(
         observable_str_as_path=observable_str_as_path, inspire_hep_id=record_id, version=version
     )
 
 
 def main() -> None:
+    """Example functionality for retrieving HEPData files."""
     from jetscape_analysis.base import helpers  # noqa: PLC0415
 
     helpers.setup_logging(level=logging.INFO)

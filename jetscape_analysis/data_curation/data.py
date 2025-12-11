@@ -300,8 +300,11 @@ class HEPDataBlock:
         #       but RJE supposes that it's not the end of the world.
         logger.info(f"{full_set_of_table_configs=}")
         histograms = []
-        # There can be multiple
-        # for tables in full_set_of_table_configs:
+        # There can be multiple histograms
+        # NOTE: The list comprehension is cleaner, but for debugging, it can be helpful to split out the list
+        # for entry in full_set_of_table_configs:
+        #     logger.info(f"{entry=}")
+        #     histograms.append(HEPDataEntry.from_flat_config(entry))
         histograms = [HEPDataEntry.from_flat_config(entry) for entry in full_set_of_table_configs]
 
         return cls(
@@ -342,17 +345,29 @@ class HEPData:
         )
 
 
+class MissingDataBlock(ValueError):
+    """Missing data block in the observable definition."""
+
+
+class MissingPPDataBlock(MissingDataBlock):
+    """Missing the pp data block in the observable definition."""
+
+
+class MissingAADataBlock(MissingDataBlock):
+    """Missing the AA data block in the observable definition."""
+
+
 def parse_data_block(observable_str: str, config: dict[str, Any]) -> ...:
     data = config.get("data")
 
     if not data:
         msg = f"Data block is required for observable: {observable_str}"
-        raise ValueError(msg)
+        raise MissingDataBlock(msg)
 
     # Handle each collision system
     data_blocks = {}
     for collision_system in ["pp", "AA"]:
-        collision_system_data = data.get(collision_system)
+        collision_system_data = data.get(collision_system, {})
         if not collision_system_data:
             logger.info(f"Unable to find {collision_system} data for {observable_str}")
 
@@ -364,7 +379,12 @@ def parse_data_block(observable_str: str, config: dict[str, Any]) -> ...:
         elif "custom" in collision_system_data:
             c = parse_custom_data_block(observable_str, collision_system_data["custom"])
         elif "bins" in collision_system_data:
-            c = parse_binning_block(observable_str, collision_system_data["binning"])
+            c = parse_binning_block(observable_str, collision_system_data["bins"])
+        else:
+            msg = f"Missing data block for '{collision_system}' for '{observable_str}'"
+            if collision_system == "pp":
+                raise MissingPPDataBlock(msg)
+            raise MissingAADataBlock(msg)
 
         data_blocks[collision_system] = c
 
