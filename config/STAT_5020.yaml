@@ -1195,8 +1195,8 @@ inclusive_jet:
       # So if pp is different than PbPb, we just identify a different record...
       pp:
         hepdata:
-          inspire_record:
-            id: 1848440
+          record:
+            inspire_id: 1848440
             version: 1
           spectra:
             quantity: "pt"
@@ -1207,33 +1207,33 @@ inclusive_jet:
               range: [2e-8, 1e2]
               log: True
             tables:
-              - parameters: { "centrality": [[0, 10], [10, 30], [30, 50]] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+              - parameters: { "centrality": ["0_10", "10_30", "30_50"] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 combinations:
                   - parameters: { "jet_R": [0.2] }
                     table: "Figure 5-1"
-                    entry: 4
+                    index: 4
                   - parameters: { "jet_R": [0.3] }
                     table: "Figure 5-2"
-                    entry: 4
+                    index: 4
                   - parameters: { "jet_R": [0.4] }
                     table: "Figure 5-3"
-                    entry: 4
+                    index: 4
                   - parameters: { "jet_R": [0.6] }
                     table: "Figure 5-4"
-                    entry: 4
+                    index: 4
                   - parameters: { "jet_R": [0.8] }
                     table: "Figure 5-5"
-                    entry: 4
+                    index: 4
                   - parameters: { "jet_R": [1.0] }
                     table: "Figure 5-6"
-                    entry: 4
+                    index: 4
 
       AA:
         hepdata:
-          inspire_record:
-            id: 1848440
+          record:
+            inspire_id: 1848440
             version: 1
           spectra:
             quantity: "pt"
@@ -1245,71 +1245,71 @@ inclusive_jet:
               log: True
             tables:
               - parameters: { "jet_R": [0.2] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 5-1"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [0.3] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 5-2"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [0.4] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 5-3"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [0.6] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 5-4"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [0.8] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 5-5"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [1.0] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 5-6"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
           ratio:
             quantity: "jet_pt"
             x_axis:
@@ -1320,71 +1320,71 @@ inclusive_jet:
               log: True
             tables:
               - parameters: { "jet_R": [0.2] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 7-1"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [0.3] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 7-2"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [0.4] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 7-3"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [0.6] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 7-4"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [0.8] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 7-5"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
               - parameters: { "jet_R": [1.0] }
-                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
                 table: "Figure 7-6"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    entry: 0
+                    index: 0
                   - parameters: { "centrality": ["10_30"] }
-                    entry: 1
+                    index: 1
                   - parameters: { "centrality": ["30_50"] }
-                    entry: 2
+                    index: 2
 
   # ATLAS D(z)
   Dz_atlas:
