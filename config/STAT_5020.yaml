@@ -1165,46 +1165,226 @@ inclusive_jet:
     pt: [200., 1000.]
     eta_cut: 2.0
 
-    hepdata: "HEPData-ins1848440-v1-root.root"
+    # hepdata_pp_dir_R0.2: "Figure 5-1"
+    # hepdata_pp_dir_R0.3: "Figure 5-2"
+    # hepdata_pp_dir_R0.4: "Figure 5-3"
+    # hepdata_pp_dir_R0.6: "Figure 5-4"
+    # hepdata_pp_dir_R0.8: "Figure 5-5"
+    # hepdata_pp_dir_R1.0: "Figure 5-6"
+    # # RJE: This was the previous version:
+    # # hepdata_pp_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3']
+    # hepdata_pp_gname: ["Graph1D_y5", "Graph1D_y5", "Graph1D_y5"]
 
-    xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
-    logy: True
+    # hepdata_AA_dir_R0.2: "Figure 7-1"
+    # hepdata_AA_dir_R0.3: "Figure 7-2"
+    # hepdata_AA_dir_R0.4: "Figure 7-3"
+    # hepdata_AA_dir_R0.6: "Figure 7-4"
+    # hepdata_AA_dir_R0.8: "Figure 7-5"
+    # hepdata_AA_dir_R1.0: "Figure 7-6"
+    # hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3"]
+    # hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3"]
 
-    hepdata_pp_dir_R0.2: "Figure 5-1"
-    hepdata_pp_dir_R0.3: "Figure 5-2"
-    hepdata_pp_dir_R0.4: "Figure 5-3"
-    hepdata_pp_dir_R0.6: "Figure 5-4"
-    hepdata_pp_dir_R0.8: "Figure 5-5"
-    hepdata_pp_dir_R1.0: "Figure 5-6"
-    # RJE: This was the previous version:
-    # hepdata_pp_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3']
-    hepdata_pp_gname: ["Graph1D_y5", "Graph1D_y5", "Graph1D_y5"]
-    ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
-    y_min_pp: 2e-8
-    y_max_pp: 1e2
+    # hepdata_AA_distribution_dir_R0.2: "Figure 5-1"
+    # hepdata_AA_distribution_dir_R0.3: "Figure 5-2"
+    # hepdata_AA_distribution_dir_R0.4: "Figure 5-3"
+    # hepdata_AA_distribution_dir_R0.6: "Figure 5-4"
+    # hepdata_AA_distribution_dir_R0.8: "Figure 5-5"
+    # hepdata_AA_distribution_dir_R1.0: "Figure 5-6"
 
-    hepdata_AA_dir_R0.2: "Figure 7-1"
-    hepdata_AA_dir_R0.3: "Figure 7-2"
-    hepdata_AA_dir_R0.4: "Figure 7-3"
-    hepdata_AA_dir_R0.6: "Figure 7-4"
-    hepdata_AA_dir_R0.8: "Figure 7-5"
-    hepdata_AA_dir_R1.0: "Figure 7-6"
-    hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3"]
-    hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3"]
-    ytitle_AA: "#it{R}_{AA}"
-    y_min_AA: 0.
-    y_max_AA: 1.9
+    data:
+      # So if pp is different than PbPb, we just identify a different record...
+      pp:
+        hepdata:
+          inspire_record:
+            id: 1848440
+            version: 1
+          spectra:
+            quantity: "pt"
+            x_axis:
+              label: "#it{p}_{T,jet} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
+              range: [2e-8, 1e2]
+              log: True
+            tables:
+              - parameters: { "centrality": [[0, 10], [10, 30], [30, 50]] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "jet_R": [0.2] }
+                    table: "Figure 5-1"
+                    entry: 4
+                  - parameters: { "jet_R": [0.3] }
+                    table: "Figure 5-2"
+                    entry: 4
+                  - parameters: { "jet_R": [0.4] }
+                    table: "Figure 5-3"
+                    entry: 4
+                  - parameters: { "jet_R": [0.6] }
+                    table: "Figure 5-4"
+                    entry: 4
+                  - parameters: { "jet_R": [0.8] }
+                    table: "Figure 5-5"
+                    entry: 4
+                  - parameters: { "jet_R": [1.0] }
+                    table: "Figure 5-6"
+                    entry: 4
 
-    hepdata_AA_distribution_dir_R0.2: "Figure 5-1"
-    hepdata_AA_distribution_dir_R0.3: "Figure 5-2"
-    hepdata_AA_distribution_dir_R0.4: "Figure 5-3"
-    hepdata_AA_distribution_dir_R0.6: "Figure 5-4"
-    hepdata_AA_distribution_dir_R0.8: "Figure 5-5"
-    hepdata_AA_distribution_dir_R1.0: "Figure 5-6"
-    hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3"]
-    ytitle_AA_distribution: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
-    y_min_AA_distribution: 2e-8
-    y_max_AA_distribution: 1e2
+      AA:
+        hepdata:
+          inspire_record:
+            id: 1848440
+            version: 1
+          spectra:
+            quantity: "pt"
+            x_axis:
+              label: "#it{p}_{T,jet} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
+              range: [2e-8, 1e2]
+              log: True
+            tables:
+              - parameters: { "jet_R": [0.2] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-1"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [0.3] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-2"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [0.4] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-3"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [0.6] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-4"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [0.8] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-5"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [1.0] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-6"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+          ratio:
+            quantity: "jet_pt"
+            x_axis:
+              label: "#it{p}_{T,jet} (GeV/#it{c})"
+            y_axis:
+              label: "#it{R}_{AA}"
+              y_range: [0., 1.9]
+              log: True
+            tables:
+              - parameters: { "jet_R": [0.2] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-1"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [0.3] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-2"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [0.4] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-3"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [0.6] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-4"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [0.8] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-5"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
+              - parameters: { "jet_R": [1.0] }
+                systematics_map: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-6"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    entry: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    entry: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    entry: 2
 
   # ATLAS D(z)
   Dz_atlas:
