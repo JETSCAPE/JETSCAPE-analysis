@@ -466,6 +466,46 @@ def example_construct_observables(observables: dict[str, observable.Observable])
     IPython.embed()
 
 
+def build_hepdata_repository(observables: dict[str, observable.Observable]) -> None:
+    """Retrieve all available data from HEPData and store it in our repository."""
+    import time  # noqa: PLC0415
+
+    from jetscape_analysis.base import helpers  # noqa: PLC0415
+
+    helpers.setup_logging(level=logging.INFO)
+
+    for observable_str, obs in observables.items():
+        logger.info(f"Processing '{observable_str}'")
+
+        # Attempt to use the new data block, but then fall back to the URLs if not provided
+        # (the URLs are less preferred because there could be multiple HEPdata for one observable).
+        data_block = {}
+        try:
+            data_block = parse_data_block(observable_str=observable_str, config=obs.config)
+        except MissingDataBlock:
+            logger.info("Missing data block - falling back to urls")
+        if not data_block:
+            urls = obs.config.get("urls", {})
+            hepdata_url = urls.get("hepdata")
+            if not hepdata_url or hepdata_url == "N/A":
+                logger.info(f"Skipping {observable_str} due to missing HEPData url")
+                continue
+
+        inspire_hep_id, version, query_params = hepdata_utils.extract_info_from_hepdata_url(
+            obs.config["urls"]["hepdata"]
+        )
+
+        observable_str_as_path = Path(str(obs.sqrt_s)) / obs.observable_class / obs.name
+        _info = hepdata_utils.retrieve_observable_hepdata(
+            observable_str_as_path=observable_str_as_path, inspire_hep_id=inspire_hep_id, version=version
+        )
+
+        logger.info(f"Completed '{observable_str}'")
+
+        # We don't want to hit HEPData too often, so we slow it down a bit
+        time.sleep(0.5)
+
+
 def main() -> None:
     """Testing function"""
 
@@ -476,7 +516,8 @@ def main() -> None:
     observables = observable.read_observables_from_config(jetscape_analysis_config_path=Path("config"))
 
     # example_search_for_table(obs=observables["5020_inclusive_chjet_ktg_alice"])
-    example_construct_observables(observables=observables)
+    # example_construct_observables(observables=observables)
+    build_hepdata_repository(observables=observables)
 
 
 if __name__ == "__main__":
