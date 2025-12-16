@@ -518,6 +518,19 @@ def main() -> None:
     # example_search_for_table(obs=observables["5020_inclusive_chjet_ktg_alice"])
     # example_construct_observables(observables=observables)
     build_hepdata_repository(observables=observables)
+    # sorted_obs = dict(sorted(observables.items(), key=lambda o: (o[1].observable_class, o[1].sqrt_s, o[1].name)))
+    # output = {}
+    # for k, obs in sorted_obs.items():
+    #     if obs.observable_class not in output:
+    #         output[obs.observable_class] = []
+    #     s = ", ".join(map(str, (obs.sqrt_s, obs.experiment, obs.name, obs.display_name)))
+    #     output[obs.observable_class].append(s)
+
+    # for k, v in output.items():
+    #     logger.info(f"\t{k}")
+    #     for a in v:
+    #         logger.info(a)
+    #         #logger.info(", ".join(a))
 
 
 if __name__ == "__main__":
