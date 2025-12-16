@@ -1,6 +1,28 @@
 """Represent the information about a single Observable.
 
 An Observable is measured for a set parameters, such as jet_R, pt, etc.
+This module defines how that observable should be treated, and how those
+parameters are represented by observables.
+
+For each parameter, we define a `ParameterSpec` (i.e. parameter specification)
+which represents a single value of that parameter. Each specification contains
+the information needed to define that parameter (could be a single value,
+such as jet R, or could be multiple values, such as in the centrality range),
+names (internal + display), and serialization information (more on this below).
+A set of parameter values are stored in a `ParameterSpecs` class (note the plural
+name!).
+
+
+## Serialization
+
+Each `ParameterSpec` and `ParameterSpecs` class are defined to be serialized
+in and out of the yaml configuration file. The concept here is to enforce
+consistency on how parameters are defined.
+
+- Serialization for individual specifications is handled through the `SpecDecoderRegistry`
+- Serialization for set of parameter specifications is handled through the `SpecsDecoderRegistry`
+
+In each case, they are expected to implement the `Encodable` protocol.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
@@ -588,16 +610,24 @@ class Observable:
     config: dict[str, Any] = attrs.field()
 
     @property
-    def identifier(self) -> str:
-        return f"{self.observable_class}_{self.name}"
+    def identifier(self) -> tuple[float, str, str]:
+        """Identify the observable."""
+        return self.sqrt_s, self.observable_class, self.name
+
+    @property
+    def observable_str(self) -> str:
+        """Observable identifier as a string."""
+        return map(str, *self._identifier)
 
     @property
     def internal_name_without_experiment(self) -> str:
+        """Internal observable name, excluding the experiment name."""
         *name, _ = self.name.split("_")
         return "_".join(name)
 
     @property
     def experiment(self) -> str:
+        """Experiment which made this measurement."""
         return self.name.split("_")[-1].upper()
 
     @property
@@ -607,10 +637,13 @@ class Observable:
         It's fairly ad-hoc, but at least gives us something to work with.
         """
         # -1 removes the experiment name
-        return pretty_print_name("_".join(self.name.split("_")[:-1]))
+        return pretty_print_name(self.internal_name_without_experiment)
 
     def inspire_hep_identifier(self) -> tuple[str, int]:
         """Extract InspireHEP identifier from the config if possible."""
+        # TODO(RJE): Deprecate this approach. Convert all of the old blocks to new blocks
+        #           (even without the tables), and then this can just be a list of URLs, with
+        #           comments noting which HEPdata corresponds to what (if it's not just one).
         # Attempt to extract from the HEPdata URL.
         urls = self.config["urls"]
 
@@ -759,6 +792,16 @@ class Observable:
 
 
 def read_observables_from_config(jetscape_analysis_config_path: Path) -> dict[str, Observable]:
+    """Construct Observables from the configuration files at a given path.
+
+    Note:
+        This aggregation is built for STAT, so we assume that we're looking for STAT configs.
+
+    Args:
+        jetscape_analysis_config_path: Path to the configuration directory.
+    Returns:
+        A mapping of observable_str -> Observable built from all configuration files.
+    """
     # Validation
     jetscape_analysis_config_path = Path(jetscape_analysis_config_path)
 
