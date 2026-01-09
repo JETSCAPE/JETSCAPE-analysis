@@ -497,3 +497,18 @@ RJE will continue to document this. In the meantime, please reach out to him wit
 Next steps:
 
 - [ ] Connect the data curation web app to the YAML. The pieces are these, but needs follow through to fully connect with the existing module
+
+## Data options
+
+### Binning only
+
+When the measured data is not available through HEPdata or in a custom format, we can fall back to just providing the axis binning.
+One option is to provide bin edges, via the `bins` key.
+
+```yaml
+data:
+  pp:
+    # By convention, please add a comment to label what parameter this binning corresponds to.
+    # e.g. for the CMS jet RAA case, we should note that this is jet pt
+    bins: [100.0, 120.0, 140.0, ...]
+```
