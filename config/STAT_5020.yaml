@@ -797,40 +797,178 @@ inclusive_chjet:
     eta_cut_R: 0.9
     SoftDrop:
       - { "zcut": 0.2, "beta": 0 }
-    dynamical_grooming_a: [1.0]
+    dynamical_grooming:
+      - { "a": 1.0 }
 
-    hepdata: "HEPData-ins2831271-v1-root.root"
+    # hepdata: "HEPData-ins2831271-v1-root.root"
 
-    # Soft Drop
-    hepdata_pp_dir_R0.2_zcut0.2_beta0: "Table 4"
-    hepdata_pp_gname: "Graph1D_y1"
-    ytitle_pp: "#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}"
-    y_min_pp: 1e-3
-    y_max_pp: 0.8
-    logy_pp: True
+    # # Soft Drop
+    # hepdata_pp_dir_R0.2_zcut0.2_beta0: "Table 4"
+    # hepdata_pp_gname: "Graph1D_y1"
+    # ytitle_pp: "#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}"
+    # y_min_pp: 1e-3
+    # y_max_pp: 0.8
+    # logy_pp: True
 
-    # The list corresponds to the centrality dependence
-    hepdata_AA_dir_R0.2_zcut0.2_beta0: ["Table 10", "Table 9"]
-    hepdata_AA_gname: ["Graph1D_y1"]
-    hepdata_AA_hname: "Hist1D_y1"
-    ytitle_AA: "PbPb / pp"
-    y_min_AA: 0.
-    y_max_AA: 2.
+    # # The list corresponds to the centrality dependence
+    # hepdata_AA_dir_R0.2_zcut0.2_beta0: ["Table 10", "Table 9"]
+    # hepdata_AA_gname: ["Graph1D_y1"]
+    # hepdata_AA_hname: "Hist1D_y1"
+    # ytitle_AA: "PbPb / pp"
+    # y_min_AA: 0.
+    # y_max_AA: 2.
 
-    # Dynamical grooming
-    hepdata_pp_dir_R0.2_a1.0: "Table 1"
-    #hepdata_pp_gname: 'Graph1D_y1'
-    #ytitle_pp: '#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}'
-    #y_min_pp: 1e-3
-    #y_max_pp: 0.8
-    #logy_pp: True
+    # # Dynamical grooming
+    # hepdata_pp_dir_R0.2_a1.0: "Table 1"
+    # #hepdata_pp_gname: 'Graph1D_y1'
+    # #ytitle_pp: '#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}'
+    # #y_min_pp: 1e-3
+    # #y_max_pp: 0.8
+    # #logy_pp: True
 
-    hepdata_AA_dir_R0.2_a1.0: ["Table 8", "Table 7"]
-    #hepdata_AA_gname: ['Graph1D_y1']
-    #hepdata_AA_hname: 'Hist1D_y1'
-    #ytitle_AA: 'PbPb / pp'
-    #y_min_AA: 0.
-    #y_max_AA: 2.
+    # hepdata_AA_dir_R0.2_a1.0: ["Table 8", "Table 7"]
+    # #hepdata_AA_gname: ['Graph1D_y1']
+    # #hepdata_AA_hname: 'Hist1D_y1'
+    # #ytitle_AA: 'PbPb / pp'
+    # #y_min_AA: 0.
+    # #y_max_AA: 2.
+
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_id: 2831271
+            version: 1
+            # Optional...
+            additional_params: {}
+          # Required: "spectra" in pp, "spectra" + "ratio" in AA,
+          #           otherwise, free form
+          spectra:
+            quantity: "ktg"
+            x_axis:
+              label: "#it{k}_{T,g}"
+            y_axis:
+              label: "#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}"
+              range: [1e-3, 0.8]
+              log: True
+            tables:
+              - parameters: { "centrality": ["0_10", "30_50"], "jet_R": [0.2], "pt": ["60_80"] }
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
+                    table: "Table 4"
+                    index: 0
+                  - parameters: { "dynamical_grooming": "a_1.0" }
+                    table: "Table 1"
+                    index: 0
+              # # Equivalent to:
+              # - parameters: {"pt": ["60_80"], "centrality": ["0_10"], "soft_drop": "z_cut_020_beta_0"}
+              #   table: "Table 4"
+              #   index: 0
+              #   systematics_names: {}
+              #   additional_systematics: {}
+              # - parameters: {"pt": ["60_80"], "centrality": ["30_50"], "soft_drop": "z_cut_020_beta_0"}
+              #   table: "Table 4"
+              #   index: 0
+              #   systematics_names: {}
+              #   additional_systematics: {}
+              # - parameters: {"pt": ["60_80"], "centrality": ["0_10"], "dynamical_grooming": "a_1.0"}
+              #   table: "Table 1"
+              #   index: 0
+              #   systematics_names: {}
+              #   additional_systematics: {}
+              # - parameters: {"pt": ["60_80"], "centrality": ["30_50"], "dynamical_grooming": "a_1.0"}
+              #   table: "Table 1"
+              #   index: 0
+              #   systematics_names: {}
+              #   additional_systematics: {}
+      AA:
+        hepdata:
+          record:
+            inspire_id: 2831271
+            version: 1
+            # Optional...
+            additional_params: {}
+          # Define the "tables" of the observables
+          # Required: "spectra" and "ratio", since in AA. Otherwise, free form for more complicated cases.
+          spectra:
+            quantity: "ktg"
+            x_axis:
+              label: "#it{k}_{T,g}"
+            y_axis:
+              label: "#frac{1}{N_{jets}} #frac{dN}{d#it{k}_{T,g}}"
+              range: [1e-3, 0.8]
+              log: True
+            tables:
+              - parameters: { "jet_R": [0.2], "pt": ["60_80"] }
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
+                    combinations:
+                      - parameters: { "centrality": ["0_10"] }
+                        table: "Table 3"
+                        index: 0
+                      - parameters: { "centrality": ["30_50"] }
+                        table: "Table 2"
+                        index: 0
+                  - parameters: { "dynamical_grooming": "a_1.0" }
+                    combinations:
+                      - parameters: { "centrality": ["0_10"] }
+                        table: "Table 6"
+                        index: 0
+                      - parameters: { "centrality": ["30_50"] }
+                        table: "Table 5"
+                        index: 0
+              - parameters: { "jet_R": [0.3], "pt": ["60_80"] }
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
+                    combinations:
+                      - parameters: { "centrality": ["0_10"] }
+                        table: "Table 3"
+                        index: 0
+                      - parameters: { "centrality": ["30_50"] }
+                        table: "Table 2"
+                        index: 0
+                  - parameters: { "dynamical_grooming": "a_1.0" }
+                    combinations:
+                      - parameters: { "centrality": ["0_10"] }
+                        table: "Table 6"
+                        index: 0
+                      - parameters: { "centrality": ["30_50"] }
+                        table: "Table 5"
+                        index: 0
+          ratio:
+            quantity: "ktg"
+            x_axis:
+              label: "#it{k}_{T,g}"
+            y_axis:
+              label: "PbPb / pp"
+              range: [0, 2]
+            tables:
+              - parameters: { "jet_R": [0.2], "pt": ["60_80"] }
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
+                    combinations:
+                      - parameters: { "centrality": ["0_10"] }
+                        table: "Table 10"
+                        index: 0
+                      - parameters: { "centrality": ["30_50"] }
+                        table: "Table 9"
+                        index: 0
+                  - parameters: { "dynamical_grooming": "a_1.0" }
+                    combinations:
+                      - parameters: { "centrality": ["0_10"] }
+                        table: "Table 8"
+                        index: 0
+                      - parameters: { "centrality": ["30_50"] }
+                        table: "Table 7"
+                        index: 0
 
 #------------------------------------------------------------------
 # Inclusive jet observables -- full jets
@@ -1027,46 +1165,226 @@ inclusive_jet:
     pt: [200., 1000.]
     eta_cut: 2.0
 
-    hepdata: "HEPData-ins1848440-v1-root.root"
+    # hepdata_pp_dir_R0.2: "Figure 5-1"
+    # hepdata_pp_dir_R0.3: "Figure 5-2"
+    # hepdata_pp_dir_R0.4: "Figure 5-3"
+    # hepdata_pp_dir_R0.6: "Figure 5-4"
+    # hepdata_pp_dir_R0.8: "Figure 5-5"
+    # hepdata_pp_dir_R1.0: "Figure 5-6"
+    # # RJE: This was the previous version:
+    # # hepdata_pp_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3']
+    # hepdata_pp_gname: ["Graph1D_y5", "Graph1D_y5", "Graph1D_y5"]
 
-    xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
-    logy: True
+    # hepdata_AA_dir_R0.2: "Figure 7-1"
+    # hepdata_AA_dir_R0.3: "Figure 7-2"
+    # hepdata_AA_dir_R0.4: "Figure 7-3"
+    # hepdata_AA_dir_R0.6: "Figure 7-4"
+    # hepdata_AA_dir_R0.8: "Figure 7-5"
+    # hepdata_AA_dir_R1.0: "Figure 7-6"
+    # hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3"]
+    # hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3"]
 
-    hepdata_pp_dir_R0.2: "Figure 5-1"
-    hepdata_pp_dir_R0.3: "Figure 5-2"
-    hepdata_pp_dir_R0.4: "Figure 5-3"
-    hepdata_pp_dir_R0.6: "Figure 5-4"
-    hepdata_pp_dir_R0.8: "Figure 5-5"
-    hepdata_pp_dir_R1.0: "Figure 5-6"
-    # RJE: This was the previous version:
-    # hepdata_pp_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3']
-    hepdata_pp_gname: ["Graph1D_y5"]
-    ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
-    y_min_pp: 2e-8
-    y_max_pp: 1e2
+    # hepdata_AA_distribution_dir_R0.2: "Figure 5-1"
+    # hepdata_AA_distribution_dir_R0.3: "Figure 5-2"
+    # hepdata_AA_distribution_dir_R0.4: "Figure 5-3"
+    # hepdata_AA_distribution_dir_R0.6: "Figure 5-4"
+    # hepdata_AA_distribution_dir_R0.8: "Figure 5-5"
+    # hepdata_AA_distribution_dir_R1.0: "Figure 5-6"
 
-    hepdata_AA_dir_R0.2: "Figure 7-1"
-    hepdata_AA_dir_R0.3: "Figure 7-2"
-    hepdata_AA_dir_R0.4: "Figure 7-3"
-    hepdata_AA_dir_R0.6: "Figure 7-4"
-    hepdata_AA_dir_R0.8: "Figure 7-5"
-    hepdata_AA_dir_R1.0: "Figure 7-6"
-    hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3"]
-    hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3"]
-    ytitle_AA: "#it{R}_{AA}"
-    y_min_AA: 0.
-    y_max_AA: 1.9
+    data:
+      # So if pp is different than PbPb, we just identify a different record...
+      pp:
+        hepdata:
+          record:
+            inspire_id: 1848440
+            version: 1
+          spectra:
+            quantity: "pt"
+            x_axis:
+              label: "#it{p}_{T,jet} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
+              range: [2e-8, 1e2]
+              log: True
+            tables:
+              - parameters: { "centrality": ["0_10", "10_30", "30_50"] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                combinations:
+                  - parameters: { "jet_R": [0.2] }
+                    table: "Figure 5-1"
+                    index: 4
+                  - parameters: { "jet_R": [0.3] }
+                    table: "Figure 5-2"
+                    index: 4
+                  - parameters: { "jet_R": [0.4] }
+                    table: "Figure 5-3"
+                    index: 4
+                  - parameters: { "jet_R": [0.6] }
+                    table: "Figure 5-4"
+                    index: 4
+                  - parameters: { "jet_R": [0.8] }
+                    table: "Figure 5-5"
+                    index: 4
+                  - parameters: { "jet_R": [1.0] }
+                    table: "Figure 5-6"
+                    index: 4
 
-    hepdata_AA_distribution_dir_R0.2: "Figure 5-1"
-    hepdata_AA_distribution_dir_R0.3: "Figure 5-2"
-    hepdata_AA_distribution_dir_R0.4: "Figure 5-3"
-    hepdata_AA_distribution_dir_R0.6: "Figure 5-4"
-    hepdata_AA_distribution_dir_R0.8: "Figure 5-5"
-    hepdata_AA_distribution_dir_R1.0: "Figure 5-6"
-    hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3"]
-    ytitle_AA_distribution: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
-    y_min_AA_distribution: 2e-8
-    y_max_AA_distribution: 1e2
+      AA:
+        hepdata:
+          record:
+            inspire_id: 1848440
+            version: 1
+          spectra:
+            quantity: "pt"
+            x_axis:
+              label: "#it{p}_{T,jet} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[nb/(GeV/c)^{-1}#right]"
+              range: [2e-8, 1e2]
+              log: True
+            tables:
+              - parameters: { "jet_R": [0.2] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-1"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [0.3] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-2"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [0.4] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-3"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [0.6] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-4"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [0.8] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-5"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [1.0] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 5-6"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+          ratio:
+            quantity: "jet_pt"
+            x_axis:
+              label: "#it{p}_{T,jet} (GeV/#it{c})"
+            y_axis:
+              label: "#it{R}_{AA}"
+              y_range: [0., 1.9]
+              log: True
+            tables:
+              - parameters: { "jet_R": [0.2] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-1"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [0.3] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-2"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [0.4] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-3"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [0.6] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-4"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [0.8] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-5"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
+              - parameters: { "jet_R": [1.0] }
+                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                additional_systematics: {}
+                table: "Figure 7-6"
+                combinations:
+                  - parameters: { "centrality": ["0_10"] }
+                    index: 0
+                  - parameters: { "centrality": ["10_30"] }
+                    index: 1
+                  - parameters: { "centrality": ["30_50"] }
+                    index: 2
 
   # ATLAS D(z)
   Dz_atlas:
@@ -1176,7 +1494,7 @@ inclusive_jet:
 
     centrality: [[0, 10], [10, 30], [30, 50]]
     jet_R: [0.4]
-    pt: [120., 1000000.]
+    pt: [120., null]
     eta_cut: 1.5
     track_pt_min: 1.
     kappa: [0.3, 0.5, 0.7]
@@ -1623,7 +1941,7 @@ gamma_trigger_jet:
     centrality: [[0, 10], [10, 30]]
     trigger:
       eta_cut: 2.37
-      pt_min: 50.0
+      pt: [50.0, null]
       isolation:
         type: "full"
         R: 0.3
@@ -1766,7 +2084,7 @@ gamma_trigger_jet:
     jet:
       jet_R: [0.3]
       eta_cut: 1.6
-      pt: [30., 9999.]
+      pt: [30., -1.]
     dPhi: 7./8. # dPhi > 7/8*pi
 
     hepdata: "HEPData-ins1638996-v1-root.root"
@@ -1863,7 +2181,7 @@ gamma_trigger_jet:
     centrality: [[0, 10], [10, 30], [30, 50], [50, 100]]
 
     trigger:
-      Et_min: 60. # GeV
+      Et: [60., null] # GeV
       eta_cut: 1.44 # |eta| < 1.44
       isolation:
         # Note on isolation:
@@ -1877,7 +2195,7 @@ gamma_trigger_jet:
         Et_max: 5.0 # GeV
     jet:
       jet_R: [0.3]
-      pt_min: 30. # GeV
+      pt: [30., null] # GeV
       eta_cut: 1.6 # |eta| < 1.6
     dPhi: 7./8. # dPhi > 7/8*pi
 
@@ -1900,7 +2218,7 @@ gamma_trigger_jet:
 
     trigger:
       # NOTE: Only the highest pt isolated photon is used if multiple pass the selections.
-      pt_min: 100.
+      pt: [100., null]
       eta_cut: 1.44
       isolation:
         type: "full"
@@ -1911,7 +2229,7 @@ gamma_trigger_jet:
         Et_max: 5. # GeV
     jet:
       jet_R: [0.2]
-      pt_min: 40.0 # GeV
+      pt: [40.0, null] # GeV
       eta_cut: 2.0
     dPhi: 7./8. # dPhi > 7/8*pi
 
@@ -1928,7 +2246,7 @@ gamma_trigger_jet:
 
     trigger:
       # NOTE: Only the highest pt isolated photon is used if multiple pass the selections.
-      pt_min: 100.
+      pt: [100., null]
       eta_cut: 1.44
       isolation:
         type: "full"
@@ -1939,7 +2257,7 @@ gamma_trigger_jet:
         Et_max: 5. # GeV
     jet:
       jet_R: [0.2]
-      pt_min: 40.0 # GeV
+      pt: [40.0, null] # GeV
       eta_cut: 2.0
     dPhi: 7./8. # dPhi > 7/8*pi
 
@@ -1990,20 +2308,20 @@ z_trigger_hadron:
     trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
-      electron_pt_min: 20.
+      electron_pt: [20., null]
       # NOTE: electrons from 1.37 < |eta| < 1.52 are excluded experimentally due to detector
       #       acceptance. This is trickier to encode here, so we'll just encode it in
       #       the implementation.
       electron_eta_cut: 2.47
       # Muons
-      muon_pt_min: 20.
+      muon_pt: [20., null]
       muon_eta_cut: 2.5
       # Z candidates
       z_mass: [76., 106.]
-      z_pt_min: 15.
+      z_pt: [15., null]
       # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
     hadron:
-      pt_min: 1.
+      pt: [1., null]
       eta_cut: 2.5
     dPhi: 3./4. # dPhi > 3/4*pi
 
@@ -2021,18 +2339,18 @@ z_trigger_hadron:
     trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
-      electron_pt_min: 20.
+      electron_pt: [20., null]
       electron_eta_cut: 2.1
       # Muons
-      muon_pt_min: 20.
+      muon_pt: [20., null]
       muon_eta_cut: 2.4
       # Z candidates
       z_mass: [60., 120.]
-      z_pt_min: 30.
+      z_pt: [30., null]
       # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
       #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
     hadron:
-      pt_min: 1.0
+      pt: [1.0, null]
       eta_cut: 2.4
 
     dPhi: 7./8. # dPhi > 7/8*pi
@@ -2051,18 +2369,18 @@ z_trigger_hadron:
     trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
-      electron_pt_min: 20.
+      electron_pt: [20., null]
       electron_eta_cut: 2.1
       # Muons
-      muon_pt_min: 20.
+      muon_pt: [20., null]
       muon_eta_cut: 2.4
       # Z candidates
       z_mass: [60., 120.]
-      z_pt_min: 30.
+      z_pt: [30., null]
       # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
       #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
     hadron:
-      pt_min: 1.0
+      pt: [1.0, null]
       eta_cut: 2.4
 
     hepdata: "HEPData-ins1850859-v1-root.root"
@@ -2079,7 +2397,7 @@ z_trigger_hadron:
     trigger:
       # This analysis uses Z -> mu+mu-, so there are requirements on
       # both the muons and the reconstructed Z!
-      muon_pt_min: 20.0
+      muon_pt: [20.0, null]
       muon_eta_cut: 2.4
       z_mass: [60., 120.]
       z_pt: [40., 350.]
@@ -2110,22 +2428,22 @@ z_trigger_jet:
     trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
-      electron_pt_min: 20.
+      electron_pt: [20., null]
       # NOTE: electrons from 1.44 < |eta| < 1.57 are excluded experimentally due to detector
       #       acceptance. This is trickier to encode here, so we'll just encode it in
       #       the implementation.
       electron_eta_cut: 2.5
       # Muons
-      muon_pt_min: 20.
+      muon_pt: [20., null]
       muon_eta_cut: 2.4
       # Z candidates
       z_mass: [70., 110.]
-      z_pt_min: 60.
+      z_pt: [60., null]
       # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
       #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
     jet:
       jet_R: [0.3]
-      pt_min: 30.
+      pt: [30., null]
       eta_cut: 1.6 # |eta| < 1.6
     dPhi: 7./8. # dPhi > 7/8*pi
 
@@ -2146,22 +2464,22 @@ z_trigger_jet:
     trigger:
       # This analysis uses Z->ll, so need to specify both electrons and muons.
       # Electrons
-      electron_pt_min: 20.
+      electron_pt: [20., null]
       # NOTE: electrons in the transition from 1.44 < |eta| < 1.57 are excluded experimentally
       #       due to detector acceptance effects. This is trickier to encode here, so we'll just
       #       encode it in the implementation.
       electron_eta_cut: 2.5
       # Muons
-      muon_pt_min: 20.
+      muon_pt: [20., null]
       muon_eta_cut: 2.4
       # Z candidates
       z_mass: [70., 110.]
-      z_pt_min: 60.
+      z_pt: [60., null]
       # NOTE: There is no explicitly specific Z rapidity requirement, so we do not apply one here.
       #       However, the simulations are done with z_y_cut: 2.5, so we could employ that if necessary later.
     jet:
       jet_R: [0.3]
-      pt_min: 30.
+      pt: [30., null]
       eta_cut: 1.6 # |eta| < 1.6
     dPhi: 7./8. # dPhi > 7/8*pi
 

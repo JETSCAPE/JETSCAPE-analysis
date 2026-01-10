@@ -1,12 +1,12 @@
 ---
 #------------------------------------------------------------------
 # We group observables into blocks according to type of observable
-# for convenience, e.g. {type}: {observable}_{experiment}
+# for convenience, e.g. {observable_class/type}: {observable}_{experiment}
 #
 # For each observable, we include its specific cuts in its block
 #
 # In the analysis code, we will store observables in a dictionary,
-# labeled as: {type}_{observable}_{experiment}_{suffix}
+# labeled as: {observable_class/type}_{observable}_{experiment}_{suffix}
 # For example: hadron_pt_cms
 #              jet_mass_alice_R0.2
 # where the optional suffix is only present when needed.
@@ -397,6 +397,7 @@ pion_trigger_chjet:
     urls:
       inspire_hep: https://inspirehep.net/literature/2919952
       hepdata: N/A
+      # July 2025 - paper on arXiv, but HEPdata not yet available.
       custom: TODO
 
     centrality: [[0, 15]]

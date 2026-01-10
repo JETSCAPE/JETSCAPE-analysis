@@ -937,7 +937,7 @@ dijet_trigger_jet:
     jet:
       jet_R: [0.4]
       # Subleading min pt
-      pt_min: 25.
+      pt: [25., null]
       eta_cut: 2.1
 
     custom_data: "custom_data.yaml"
@@ -976,12 +976,92 @@ pion_trigger_hadron:
     hadron:
       # Measured down to 0.5 GeV, but we cutoff at 6 to align with the bin edges and keep the data volume reasonable
       pt: [6., 8., 10.]
+      jet_pt: [100, 200, 300]
       eta_cut: 0.8
     dPhi: 1.1
 
     hepdata: "HEPData-ins1483164-v1-root.root"
 
-    # pp correlations
+    #### TODO(RJE): This was used to prototype the new interface. I will come back and clean this up later
+    #### TODO(RJE): Interface prototype for accessing HEPdata...
+    #### res = hepdata(observable, label: str = "near_side") -> dict[str, list[value]]:
+    #### jet_R = 0.2
+    #### centrality = [0, 10]
+    #### data = res[{"jet_R": 0.2, "centrality": [0,10]}]
+
+    #### res = hepdata(observable, filter={"jet_R": 0.2})
+
+    #### pp correlations
+    ###data:
+    ###  pp:
+    ###    bins: [1,2,3,4,]
+
+    ###data:
+    ###  # So if pp is different than PbPb, we just identify a different record...
+    ###  pp:
+    ###    hepdata:
+    ###      inspire_record:
+    ###        id: 123456
+    ###        version: 2
+    ###        # Optional...
+    ###        additional_params: {}
+    ###      # Required: "spectra" in pp, "spectra" + "ratio" in AA,
+    ###      #           otherwise, free form
+    ###      spectra:
+    ###        # effectively, x_axis (?) Something to tell the reader what is being plotted
+    ###        # TODO: Need to add a block title from the analysis parameters
+    ###        quantity: "jet_pt"
+    ###        y_axis: ...
+    ###        y_range: ...
+    ###        tables:
+    ###          - parameters: {"pt": [100, 200], "centrality": (0, 10)}
+    ###            table: 2
+    ###            entry: 1
+    ###          - parameters: {"pt": [200, 300], "centrality": (0, 10), jet_R: 0.2}
+    ###            systematics_map: {"var1": "var2"}
+    ###            additional_systematics: {}
+    ###            table: 2
+    ###            entry: 2
+    ###      double_ratio:
+    ###        quantity: "jet_pt"
+    ###        y_axis: ...
+    ###        y_range: ...
+    ###        tables:
+    ###          # jet_R: We now have two values!
+    ###          - parameters: {"pt": [200, 300], "centrality": (0, 10)}
+    ###            table: 2
+    ###            entry: 2
+    ###      #  # or...
+    ###      #  - parameters_encoded: "str_encoding_them"
+    ###      #    table: ...
+    ###      #    entry: ...
+    ###      ## Or...
+    ###      #skip_spectra: True
+    ###      #spectra: []
+    ###      ## Or... (Aug 13)
+    ###      #spectra:
+    ###      #  - parameters: {}
+    ###      #    table: ...
+    ###      #    entry: ...
+    ###      #  # or...
+    ###      #  - parameters_encoded: "str_encoding_them"
+    ###      #    table: ...
+    ###      #    entry: ...
+    ###      #  # or...
+    ###      #  - parameters: {jet_R: [0.2, 0.3], soft_drop: "z_cut_02_beta_0"}
+    ###      #    combinations:
+    ###      #      - parameters: {"jet_pt": [100, 200]}
+    ###      #        table: ...
+    ###      #        entry: ...
+    ###      #      - parameters: {"jet_pt": [200, 300]}
+    ###      #        table: ...
+    ###      #        entry: ...
+    ###      #      - parameters: {}
+    ###      #        combinations:
+    ###      #        - parameters: {}
+    ###      #          table: ...
+    ###      #          entry: ...
+
     hepdata_pp_dir_pt0: "Table 1"
     hepdata_pp_gname_pt0: "Graph1D_y3"
     hepdata_pp_dir_pt1: "Table 1"
