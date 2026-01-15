@@ -299,7 +299,7 @@ data:
           - parameters: { "jet_R": [0.2] }
             systematics_names: { "TAA": "TAA", "lumi": "lumi" }
             additional_systematics: {}
-            # Same exercise as above, but now we have a different figurej
+            # Same exercise as above, but now we have a different figure
             table: "Figure 7-1"
             combinations:
               - parameters: { "centrality": ["0_10"] }
