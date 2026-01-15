@@ -288,6 +288,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 pid_hadrons_negative,
                 pid_hadrons_positive_charged,
                 pid_hadrons_negative_charged,
+                fj_pion_candidates_positive,
                 fj_photon_candidates_positive,
                 fj_z_boson_candidates,
                 jet_collection_label=jet_collection_label,
@@ -371,7 +372,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
             # ALICE
             # Neutral pions
-            if self.measure_observable_for_current_event(self.hadron_observables["pt_pi0_alice"]):
+            if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_pi0_alice"):
                 pt_min = self.hadron_observables["pt_pi0_alice"]["pt"][0]
                 pt_max = self.hadron_observables["pt_pi0_alice"]["pt"][1]
                 if (
@@ -625,6 +626,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     jets_selected, hadrons_negative, jetR, jet_collection_label=jet_collection_label
                 )
             # Gamma triggered observables
+            # TODO(RJE): This doesn't properly check if not here. Check on this. Maybe conditional selection
             if self.gamma_trigger_jet_observables:
                 jetR_list_photon = []
                 if self.sqrts == 5020:
@@ -671,10 +673,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.fill_z_trigger_jet_observables(
                     fj_z_boson_candidates,
                     jets_selected,
-                    hadrons_for_jet_finding,
+                    # hadrons_for_jet_finding,
                     hadrons_negative,
-                    pid_hadrons_positive,
-                    pid_hadrons_negative,
+                    # pid_hadrons_positive,
+                    # pid_hadrons_negative,
                     jetR,
                     jet_collection_label,
                 )
@@ -911,7 +913,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For shower_recoil case, subtract recoils within R from four-vector (also store unsubtracted case)
         #    - For negative_recombiner case, no subtraction is needed
         #    - For constituent_subtraction, no subtraction is needed
-        if self.measure_observable_for_current_event(self.inclusive_chjet_observables["mass_alice"]):
+        if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="mass_alice"):
             pt_min = self.inclusive_chjet_observables["mass_alice"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["mass_alice"]["pt"][-1]
             if (
@@ -1316,7 +1318,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # ATLAS RAA -- rapidity-dependence
         if self.sqrts in [5020] and self.measure_observable_for_current_event(
-            self.inclusive_jet_observables["pt_y_atlas"]
+            self.inclusive_jet_observables, observable_name="pt_y_atlas"
         ):
             pt_min = self.inclusive_jet_observables["pt_y_atlas"]["pt"][0]
             pt_max = self.inclusive_jet_observables["pt_y_atlas"]["pt"][-1]
@@ -1397,7 +1399,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, we will using hadrons_for_jet_finding (which are positive only)
         #   Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
         acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-        if self.sqrts == 2760 and self.measure_observable_for_current_event(self.inclusive_jet_observables["Dz_cms"]):
+        if self.sqrts == 2760 and self.measure_observable_for_current_event(
+            self.inclusive_jet_observables, observable_name="Dz_cms"
+        ):
             pt_min = self.inclusive_jet_observables["Dz_cms"]["pt"][0]
             pt_max = self.inclusive_jet_observables["Dz_cms"]["pt"][-1]
             eta_range = self.inclusive_jet_observables["Dz_cms"]["eta_cut"]
@@ -1658,7 +1662,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #       it's very easy to have an O(n^2) loop looking for trigger and associated particles.
         #       We keep track of the particles which pass our conditions, so the double loop ends up
         #       running for small n rather than the full event multiplicity
-        if self.measure_observable_for_current_event(self.hadron_trigger_hadron_observables["dihadron_star"]):
+        if self.measure_observable_for_current_event(
+            self.hadron_trigger_hadron_observables, observable_name="dihadron_star"
+        ):
             # Keep track of the trigger particles in pt ranges
             trigger_particles = defaultdict(list)
             # Keep track of the associated particles in pt ranges
@@ -1822,7 +1828,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         # NOTE: We're using the IAA as a proxy for the dphi being enabled here!
                         #       (This should be a reasonable assumption - just noting to be explicit)
                         if self.measure_observable_for_current_event(
-                            self.hadron_trigger_chjet_observables["IAA_pt_alice"]
+                            self.hadron_trigger_chjet_observables, observable_name="IAA_pt_alice"
                         ):
                             # TODO(RJE): Simplify this based on updated the trigger range, and then if statement
                             #            can be much simpler.
@@ -1957,7 +1963,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                         if (
                             self.measure_observable_for_current_event(
-                                self.hadron_trigger_chjet_observables["nsubjettiness_alice"]
+                                self.hadron_trigger_chjet_observables,
+                                observable_name="nsubjettiness_alice",
                             )
                             and jetR in self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet_R"]
                         ):
@@ -2030,7 +2037,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                         # Jet yield and Delta phi
                         if self.measure_observable_for_current_event(
-                            self.hadron_trigger_chjet_observables["IAA_pt_star"]
+                            self.hadron_trigger_chjet_observables, observable_name="IAA_pt_star"
                         ):
                             if (
                                 jetR in self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet_R"]
@@ -2169,7 +2176,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # TODO(RJE): Remove sqrt_s check once trigger finding is moved behind observable switch
         if self.sqrts == 2760 and self.measure_observable_for_current_event(
-            self.pion_trigger_hadron_observables["pi0_hadron_alice"]
+            self.pion_trigger_hadron_observables, observable_name="pi0_hadron_alice"
         ):
             # ALICE, pion-hadron correlations
             pion_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["pt"]
@@ -2271,7 +2278,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             jet_pt = jet_pt_unsubtracted = jet.pt()
 
                         if self.measure_observable_for_current_event(
-                            self.pion_trigger_chjet_observables["IAA_pt_star"]
+                            self.pion_trigger_chjet_observables,
+                            observable_name="IAA_pt_star",
                         ):
                             # IAA
                             if (
@@ -2319,7 +2327,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if status == "-":
             suffix = "_holes"
 
-        if self.measure_observable_for_current_event(self.gamma_trigger_hadron_observables["IAA_pt_phenix"]):
+        if self.measure_observable_for_current_event(
+            self.gamma_trigger_hadron_observables, observable_name="IAA_pt_phenix"
+        ):
             # PHENIX, gamma-hadron correlations
             gamma_pt = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["gamma_trigger"]["pt"]
             gamma_eta_cut = self.gamma_trigger_hadron_observables["IAA_pt_phenix"]["gamma_trigger"]["eta_cut"]
@@ -3377,7 +3387,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             None
         """
         # CMS, gamma-triggered Rg
-        if self.measure_observable_for_current_event(self.gamma_trigger_jet_observables["rg_cms"]):
+        if self.measure_observable_for_current_event(self.gamma_trigger_jet_observables, observable_name="rg_cms"):
             # MARK: Copied from xj_gamma_cms!
             gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_jet_observables["rg_cms"]["gamma_pT"]
             gamma_eta_min, gamma_eta_max = self.gamma_trigger_jet_observables["rg_cms"]["gamma_eta"]
@@ -3634,7 +3644,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         Returns:
             None.
         """
-        if self.measure_observable_for_current_event(self.z_trigger_jet_observables["xj_z_cms"]):
+        if self.measure_observable_for_current_event(self.z_trigger_jet_observables, observable_name="xj_z_cms"):
             # -----------------------------------------------------------
             # Z-trigger jet x_{j,z} CNS
             # NOTE: We use the xj_z parameters as a proxy for the dphi acoplanarity.
