@@ -947,11 +947,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             if (
                 jetR in self.inclusive_chjet_observables["pt_alice"]["jet_R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["eta_cut"])
+                # TODO(RJE): I think this is broken. Double check what the right thing is.
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["eta_cut_R"])
             ):
                 # Check leading track requirement
                 accept_jet = False
                 for constituent in jet.constituents():
+                    # TODO(RJE): This is not implemented in the config. May be for the ML vs not?
                     if (
                         constituent.pt() > self.inclusive_chjet_observables["pt_alice"]["leading_track_min_pt"]
                         # (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
@@ -1133,6 +1135,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         if not jet_groomed_lund:
             return
+
+        # TODO(RJE): Double check grooming settings and their definition here. It's not done right.
 
         # Soft Drop zg and theta_g
         #   Hole treatment:
