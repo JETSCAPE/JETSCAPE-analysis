@@ -2419,7 +2419,7 @@ z_trigger_jet:
   # CMS xj_z
   # Not unfolded, but a smearing matrix is provided for the jet pt!
   xj_z_cms:
-    enabled: true
+    enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/1512112
       hepdata: https://www.hepdata.net/record/ins1512112
