@@ -30,6 +30,9 @@ For development of the analysis code, you're need some simulation outputs. In pr
 
 This is not a full guide to containers, but only covers essential information. I strongly recommend searching or using an LLM to help you understand the options.
 
+> [!TIP]
+> If an observable that you're not working on isn't working, try disabling it in the config, or worse case, temporarily commenting it out. This codebase is rapidly changing, and things are sometimes broken.
+
 ### Using the container apps
 
 For "standard" development cases, you can let the container do much of the work of steering the analysis. To do so, there are two apps built into the apptainer container:
@@ -90,6 +93,8 @@ module use ${JS_OPT}/heppy/modules
 module load heppy/1.0
 ```
 
+Now, to run the analysis:
+
 ```bash
 # From the root directory of the repository. In the container, this is `/jetscapeOpt/jetscape-analysis`
 # Run the analysis-code, outputting the observables skim
@@ -97,6 +102,9 @@ python3 -m jetscape_analysis.analysis.analyze_events_STAT -c /jetscapeOpt/jetsca
 # Convert the observable skim to histograms
 python3 -m plot.histogram_results_STAT -c  /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml -i /storage/analysis_output/observables/jetscape_PbPb_5020_0000_observables_00.parquet -o /storage/analysis_output/histograms/
 ```
+
+> [!TIP]
+> You can always check the help with `python3 -m jetscape_analysis.analysis.analyze_events_STAT --help`
 
 And then you can go onto [plotting](#histogramming-plotting-and-normalization) (don't forget to hadd histograms from different files first). An example of running the plotting is below:
 
