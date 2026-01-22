@@ -4,6 +4,115 @@ Below I attempt to outline the information needed to get up to speed on the jets
 
 Work is ongoing in the [dev-stat-observables](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-stat-observables) branch
 
+# Essentials for running the code
+
+Before getting to code structure, a quick primer on running the code:
+
+## Containers
+
+JETSCAPE-analysis relies on a number of packages that are not so trivial to install, so it's easiest to run in a container. There are two potential options:
+
+1. Use the STAT singularity/apptainer container. This is guaranteed to work. As of 2026 Jan, the most recent container for development (e.g. mostly unoptimized, denoted as "local") is v5.2, and it can be [found here](https://cernbox.cern.ch/s/RKBPlvHr5wxe16C).
+2. Use the main JETSCAPE docker container. This has not been tested by RJE. You can try, but no promises. (It worked at some point, but changes in the architecture broke it at some point - especially for folks on ARM chips, such as Macs. See some discussion [here](https://jetscapeworkspace.slack.com/archives/C0128SDRUG4/p1750462354926279)).
+
+The following instructions are assuming that you're using option #1. Note that if you don't have apptainer or singularity available, you can also try running the container with recent versions of podman. Alternatively, try out your local cluster / HPC system - it should be available there.
+
+Some additional info on containers is available in the private [stat-xsede repo](https://github.com/JETSCAPE/STAT-XSEDE-2021/tree/main/containers). Ask STAT conveners for help if you don't have access.
+
+## Simulation output files
+
+For development of the analysis code, you're need some simulation outputs. In principle, you can generate them yourself using the container (see the notes on using the container "apps" below), but this takes additional setup. Easier is to use these examples output files:
+
+- [pp, 5.02 TeV](https://cernbox.cern.ch/s/WehcAM2kwuXmeTe) (400 MB)
+- [0-10% Pb-Pb, 5.02 TeV](https://cernbox.cern.ch/s/hIYbdxkQv4XvNRa) (1.5 GB)
+
+## Run the analysis
+
+This is not a full guide to containers, but only covers essential information. I strongly recommend searching or using an LLM to help you understand the options.
+
+### Using the container apps
+
+For "standard" development cases, you can let the container do much of the work of steering the analysis. To do so, there are two apps built into the apptainer container:
+
+1. `simulations`: runs jetscape simulations following the provided jetscape config. See above for some sample outputs.
+2. `post-processing`: runs jetscape-analysis post-processing, analyzing simulations and storing observables.
+
+You can check this info using apptainer:
+
+```bash
+$ apptainer run-help stat_local_gcc_v5.2.sif
+  Two apps are implemented:
+      - `simulations`, which runs jetscape simulations following the provided jetscape config.
+      - `post-processing`, which runs jetscape post-processing, analyzing simulations and storing observables.
+```
+
+For more information on the `simulations`, see the run-help, as well as the stat-xsede repo. If you're working on development, you'll need simulations output - see above.
+
+Of most interest is the `post-processing`, which will steer the jetscape-analysis code. It will run the analysis code over your input files, producing output observable skims and histograms (for more, see below). The run-help provides info on the arguments that need to be passed to the container:
+
+```bash
+$ apptainer run-help --app post-processing stat_local_gcc_v5.2.sif
+    Run post processing of jetscape simulations.
+
+    Container v5.2
+
+    Args:
+        <analysisConfig> <sqrtS> <observableOutputDir> <histogramOutputDir> <finalStateHadrons01.parquet> [<finalStateHadrons02.parquet> ...]
+
+    The app will create observables and histograms from the given simulation outputs.
+```
+
+Example: here the inputs are stored in `/storage/analysis_output/`, outputs are stored in `/storage/outputs`, and I use my local development version of jetscape-analysis
+
+```bash
+$ apptainer run --cleanenv --no-home -B /storage -B /my_local_dir/jetscape-analysis:/jetscapeOpt/jetscape-analysis --app post-processing containers/local/stat_local_gcc_v5.2.sif /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml 5020 /storage/analysis_output/observables /storage/analysis_output/histograms /storage/input/jetscape_pp_5020_0000_final_state_hadrons_02.parquet
+```
+
+Some common mistakes are:
+
+- Missing input/output directories (some are created by default, but it depends on the circumstances)
+- Wrong paths: note that some are container paths, and some are you system paths.
+
+### Manually running the analysis code
+
+Rarely, the steering script above doesn't work, or you need manual control. In that case, I list the commands that you would use to manually run the analysis.
+
+> [!TIP]
+> As a general statement, if you're manually running commands with python, it's best to run it with `python3 -m path.to.file`.
+
+First, setup is needed. Create a shell in the container, mounting your development repository directory:
+
+```bash
+apptainer shell --no-home --cleanenv -B /my/local/path/to/jetscape-analysis/:/jetscapeOpt/jetscape-analysis /path/to/containers/local/stat_local_gcc_v5.2.sif
+# And then setup the environment
+. /usr/local/init/profile.sh
+module use ${JS_OPT}/heppy/modules
+module load heppy/1.0
+```
+
+```bash
+# From the root directory of the repository. In the container, this is `/jetscapeOpt/jetscape-analysis`
+# Run the analysis-code, outputting the observables skim
+python3 -m jetscape_analysis.analysis.analyze_events_STAT -c /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml -i /storage/input/HYBRID_PbPb_5020_0000_final_state_hadrons_00.parquet -o /storage/analysis_output/observables
+# Convert the observable skim to histograms
+python3 -m plot.histogram_results_STAT -c  /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml -i /storage/analysis_output/observables/jetscape_PbPb_5020_0000_observables_00.parquet -o /storage/analysis_output/histograms/
+```
+
+And then you can go onto [plotting](#histogramming-plotting-and-normalization) (don't forget to hadd histograms from different files first). An example of running the plotting is below:
+
+```bash
+# Merge histograms
+$ hadd /storage/analysis_output/histograms_pp_5020.root /storage/analysis_output/histograms/*.root
+# Plot histograms
+python3 -m plot.plot_results_STAT -c /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml -i /storage/analysis_output/histograms_pp_5020.root -o /storage/analysis_output/plot/5020_pp
+# And then for the PbPb, assuming the histograms were stored in `/storage/analysis_output/0-10/histograms_PbPb_5020.root`
+# Note that it's important that the reference final is the **final** processed pp, NOT `/storage/analysis_output/histograms_pp_5020.root`
+python3 -m plot.plot_results_STAT -c /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml -i /storage/analysis_output/0-10/histograms_PbPb_5020.root -o /storage/analysis_output/plot/5020_PbPb -r /storage/analysis_output/plot/5020_pp/final_results.root
+```
+
+> [!NOTE]
+> Outputs per system are usually put in different directories, so the file organization in the example is overly simplified. Use the above as guidance, but it's up to you to handle file management.
+
 # Analysis code
 
 Analysis code structure: The main functionality is defined in two classes:
@@ -32,7 +141,7 @@ This is basic functionality related to defining the analysis structure. It handl
   - `fill_fastjet_constituents`: selecting particles and converting to PseudoJets. Converting to PseudoJets was found to be the slowest part on the python side, which is why the ultimate conversion is handled in c++ through pyjetty. This makes part of this function one of the most performance sensitive.
   - `fill_X_candidates` (e.g. `fill_photon_candidates`): Select X candidates from an event based on the criteria. These are many based on PID selections. There is one for photons, z bosons, etc...
 - High performance functions:
-  - In the case of performance sensitive code, we either go to c++ (as in the case of creating PseudoJets), or we use numba to just-in-time compile python functions. A few of those functions are defined at the bottom of this file. We haven't done extensive profiling, so there probably are other hotspots to optimize, but we generally use our intuition for when hot loops make a difference (or it's easy to implement in numba)
+  - In the case of performance sensitive code, we either go to c++ (as in the case of creating PseudoJets), or we use numba to just-in-time compile python functions. A few of those functions are defined at the bottom of this file. We haven't done extensive profiling, so there probably are other hot spots to optimize, but we generally use our intuition for when hot loops make a difference (or it's easy to implement in numba)
 
 The data is read in chunks of events via pandas, and then iterated over event-by-event in `analyze_event_chunks`.
 
@@ -399,7 +508,7 @@ def fill_full_jet_ungroomed_observables(
 
 The general information that you need is described in [histogramming, plotting, and normalization](#histogramming-plotting-and-normalization.
 
-For this particular observable, I'll focus on the areas that are relevant to the CMS inclusive jet RAA. First, we'll start with the histograming. The entry point is `histogram_results`, and it will only produce output if there are values to plot (e.g. if the skim is empty, this will just skip everything). For this observable, the histogramming itself is steering through the function `histogram_jet_observables`, which constructs the identifier for the observable based on the parameters, loads the observable info (e.g. from the HEPdata), and then calls `histogram_observable` to do the conversion of the skim into the observable. For something simple like an RAA, this is all handled automatically - you don't need to do anything further.
+For this particular observable, I'll focus on the areas that are relevant to the CMS inclusive jet RAA. First, we'll start with the histogramming. The entry point is `histogram_results`, and it will only produce output if there are values to plot (e.g. if the skim is empty, this will just skip everything). For this observable, the histogramming itself is steering through the function `histogram_jet_observables`, which constructs the identifier for the observable based on the parameters, loads the observable info (e.g. from the HEPdata), and then calls `histogram_observable` to do the conversion of the skim into the observable. For something simple like an RAA, this is all handled automatically - you don't need to do anything further.
 
 In the histogramming stage, you can also construct additional histograms as needed - e.g. normalization histograms or n_trig counters.
 

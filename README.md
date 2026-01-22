@@ -7,7 +7,7 @@ The bulk of the repository covers physics analysis and aggregation of simulation
 It is written entirely in python -– leveraging c++ underneath where necessary -–, so no compilation necessary beyond setup!
 
 > [!IMPORTANT]
-> This repository is provided without user support! Code may break unexpectedly, and we cannot help with issues.
+> This repository is provided without user support! Code may break unexpectedly, and we cannot help with issues. For JETSCAPE folks, see some additional docs at [docs/getting_started.md](docs/getting_started.md)
 
 ## (1) Generating events
 
@@ -39,6 +39,7 @@ $ python jetscape_events.py -c /home/jetscape-user/JETSCAPE-analysis/config/exam
 ```
 
 where
+
 - `-c` specifies a configuration file that should be edited to specify the pt-hat bins and JETSCAPE XML configuration paths,
 - `-o` specifies a location where the JETSCAPE output files will be written.
 
@@ -108,6 +109,7 @@ $ module load heppy/1.0
 
 The class `jetscape_analysis/analysis/analyze_events_base.py` is a base class to analyze JETSCAPE events and produce an output ROOT file.
 To use this, you should write your own class which inherits from `analyze_events_base.py` and implements the following two functions:
+
 - `initialize_user_output_objects()` -- This defines the ROOT histograms or trees that you want to write (called once per JETSCAPE output file)
 - `analyze_event(event)` -- This is where you fill your output objects (called once per event). The `event` object and available functions for HepMC or Ascii format can be seen in `jetscape_analysis/analysis/event`.
 
@@ -120,17 +122,18 @@ $ python analyze_events_example.py -c ../../config/example.yaml -i /home/jetscap
 ```
 
 where
+
 - `-c` specifies a configuration file that should be edited to specify the pt-hat bins and analysis parameters,
-- `-i` specifies  is the directory containing the generated JETSCAPE events,
+- `-i` specifies is the directory containing the generated JETSCAPE events,
 - `-o` specifies a location where the analysis output will be written.
 
 See `config/example.yaml` for required analysis settings and further details, such as whether to scale and merge the pt-hat bins.
 
----------------------------------------------------------------------
+---
 
 As a reminder, we **do not provide user support for this repository**. However, if you encounter a problem, you can still try to post an [issue](https://github.com/JETSCAPE/JETSCAPE-analysis/issues), and we may be able to discuss.
 
----------------------------------------------------------------------
+---
 
 ### Setup package development
 
