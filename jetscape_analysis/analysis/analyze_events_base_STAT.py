@@ -66,10 +66,15 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         if model_name == "":
             # attempt auto-detection based on the filename
             name_to_check = str(self.input_file_hadrons).lower()
-            if "hybrid" in name_to_check:
-                self.model_name = "hybrid"
-            else:
-                self.model_name = "jetscape"
+            possible_models_in_filename = [m for m in _SUPPORTED_MODELS_FOR_ANALYSIS if m in name_to_check]
+            if len(possible_models_in_filename) == 0:
+                msg = f"Unable to autodetect model name in {name_to_check}"
+                raise ValueError(msg)
+            if len(possible_models_in_filename) > 1:
+                msg = f"Autodetected multiple model names. Please check. Found: {possible_models_in_filename}"
+                raise ValueError(msg)
+            # We only have one, so we can just assign it.
+            self.model_name = next(iter(possible_models_in_filename))
         else:
             self.model_name = model_name
         if self.model_name not in _SUPPORTED_MODELS_FOR_ANALYSIS:
@@ -212,6 +217,10 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                         # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
                         self.centrality = [0, 5]
                         # self.centrality = [5, 10]
+                        if i == 0:
+                            msg = f"TODO(HYBRID): Manually assigning centrality to {self.centrality}. This should be read from the it's available at the analysis level..."
+                            print(msg)
+                        # ENDTODO
                     else:
                         if i == 0 and "centrality" not in event:
                             msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"

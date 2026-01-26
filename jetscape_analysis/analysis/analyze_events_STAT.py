@@ -211,7 +211,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             suffix = '_holes'
 
         # Loop through hadrons
-        for j, particle in enumerate(fj_particles):
+        for particle in fj_particles:
 
             # Fill some basic hadron info
             pid = pid_hadrons[np.abs(particle.user_index())-1]
