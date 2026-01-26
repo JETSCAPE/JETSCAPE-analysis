@@ -28,14 +28,20 @@ from plot import plot_results_STAT_utils
 # Prevent ROOT from stealing focus when plotting
 ROOT.gROOT.SetBatch(True)
 
+_model_display_name = {
+    "jetscape": "JETSCAPE",
+    "hybrid": "Hybrid",
+}
+
+
 ################################################################
 class PlotResults(common_base.CommonBase):
 
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(self, config_file='', input_file='', output_dir='', pp_ref_file='', **kwargs):
-        super(PlotResults, self).__init__(**kwargs)
+    def __init__(self, config_file='', input_file='', output_dir='', pp_ref_file='', model_name='jetscape', **kwargs):
+        super().__init__(**kwargs)
 
         if output_dir:
             self.output_dir = output_dir
@@ -52,7 +58,10 @@ class PlotResults(common_base.CommonBase):
 
         self.data_color = ROOT.kGray+3
         self.data_marker = 21
-        self.jetscape_color = [ROOT.kViolet-8, ROOT.kViolet-8, ROOT.kRed-7, ROOT.kTeal-8, ROOT.kCyan-2, ROOT.kGreen-6, ROOT.kAzure-4, ROOT.kOrange+6, ROOT.kBlue-10]
+        self.jetscape_color = [ROOT.kGreen-6, ROOT.kViolet-8, ROOT.kRed-7, ROOT.kTeal-8, ROOT.kCyan-2, ROOT.kGreen-6, ROOT.kAzure-4, ROOT.kOrange+6, ROOT.kBlue-10]
+        # RJE edited the colors to enhance the clarity in the plots (e.g. ensure we can see when bands are overlapping).
+        # n.b. the new colors may be worse for colorblindness, so I kept the original colors below.
+        # self.jetscape_color = [ROOT.kViolet-8, ROOT.kViolet-8, ROOT.kRed-7, ROOT.kTeal-8, ROOT.kCyan-2, ROOT.kGreen-6, ROOT.kAzure-4, ROOT.kOrange+6, ROOT.kBlue-10]
         self.jetscape_fillstyle = [1001, 3144, 1001, 3144]
         self.jetscape_alpha = [0.7, 0.7, 0.7, 0.7]
         self.jetscape_marker = 20
@@ -71,6 +80,16 @@ class PlotResults(common_base.CommonBase):
         # If AA, load the pp reference results so that we can construct RAA
         if self.is_AA:
             self.pp_ref_file = ROOT.TFile(pp_ref_file, 'READ')
+
+        # Store the model name for customization
+        if model_name == "":
+            model_name = "jetscape"
+            msg = "No model name provided, so default to jetscape."
+            print(msg)
+        self.model_name = model_name
+        if self.model_name not in _model_display_name:
+            msg = f"Provided unexpected model name {self.model_name} that is not supported. Please check"
+            raise ValueError(msg)
 
         # Read config file
         with open(config_file, 'r') as stream:
@@ -98,11 +117,11 @@ class PlotResults(common_base.CommonBase):
     def plot_results(self):
 
         self.analysis = 'Analysis1'
-        
+
         if self.analysis == 'hadron_jet_RAA':
 
             self.plot_hadron_observables(observable_type='hadron')
-                        
+
             self.plot_jet_observables(observable_type='inclusive_chjet')
 
             if 'inclusive_jet' in self.config:
@@ -855,7 +874,7 @@ class PlotResults(common_base.CommonBase):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        force_write = True        
+        force_write = True
         filename = f'Data_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}.dat'
         outputfile = os.path.join(output_dir, filename)
         if force_write or not os.path.exists(outputfile):
@@ -870,9 +889,9 @@ class PlotResults(common_base.CommonBase):
                 xbins = np.array(h_prediction.GetXaxis().GetXbins())
                 x_min = xbins[:-1]
                 x_max = xbins[1:]
-                
+
                 g_data = self.observable_settings['data_distribution']
-                g_truncated = self.plot_utils.truncate_tgraph(g_data, h_prediction, is_AA = self.is_AA) 
+                g_truncated = self.plot_utils.truncate_tgraph(g_data, h_prediction, is_AA = self.is_AA)
                 if g_truncated:
                     y = np.array(g_truncated.GetY())
                     y_err = np.array([g_truncated.GetErrorY(i) for i in range(g_truncated.GetN())])
@@ -907,13 +926,14 @@ class PlotResults(common_base.CommonBase):
 
         # Assemble the list of hole subtraction variations
         keys_to_plot = [key for key in self.observable_settings.keys() if 'jetscape_distribution' in key and 'holes' not in key]
+        model_display_name = _model_display_name[self.model_name]
         self.jetscape_legend_label = {}
-        self.jetscape_legend_label['jetscape_distribution'] = 'JETSCAPE'
-        self.jetscape_legend_label['jetscape_distribution_unsubtracted'] = 'JETSCAPE (unsubtracted)'
-        self.jetscape_legend_label['jetscape_distribution_shower_recoil'] = 'JETSCAPE (shower+recoil)'
-        self.jetscape_legend_label['jetscape_distribution_shower_recoil_unsubtracted'] = 'JETSCAPE (shower+recoil, unsubtracted)'
-        self.jetscape_legend_label['jetscape_distribution_negative_recombiner'] = 'JETSCAPE (negative recombiner)'
-        self.jetscape_legend_label['jetscape_distribution_constituent_subtraction'] = 'JETSCAPE (CS)'
+        self.jetscape_legend_label['jetscape_distribution'] = model_display_name
+        self.jetscape_legend_label['jetscape_distribution_unsubtracted'] = f'{model_display_name} (unsubtracted)'
+        self.jetscape_legend_label['jetscape_distribution_shower_recoil'] = f'{model_display_name} (shower+recoil)'
+        self.jetscape_legend_label['jetscape_distribution_shower_recoil_unsubtracted'] = f'{model_display_name} (shower+recoil, unsubtracted)'
+        self.jetscape_legend_label['jetscape_distribution_negative_recombiner'] = f'{model_display_name} (negative recombiner)'
+        self.jetscape_legend_label['jetscape_distribution_constituent_subtraction'] = f'{model_display_name} (CS)'
 
         if not self.observable_settings[keys_to_plot[0]]:
             print(f'WARNING: skipping {label} since data is missing')
@@ -1019,6 +1039,8 @@ class PlotResults(common_base.CommonBase):
     # Plot distributions in upper panel, and ratio in lower panel
     #-------------------------------------------------------------------------------------------
     def plot_distribution_and_ratio(self, observable_type, observable, centrality, label, pt_suffix='', logy = False):
+        # Setup
+        model_display_name = _model_display_name[self.model_name]
 
         c = ROOT.TCanvas('c', 'c', 600, 650)
         c.Draw()
@@ -1115,7 +1137,7 @@ class PlotResults(common_base.CommonBase):
             self.observable_settings[f'jetscape_distribution'].SetLineWidth(self.line_width)
             self.observable_settings[f'jetscape_distribution'].SetLineColor(self.jetscape_color[0])
             self.observable_settings[f'jetscape_distribution'].DrawCopy('PE same')
-        legend.AddEntry(self.observable_settings[f'jetscape_distribution'], 'JETSCAPE', 'f')
+        legend.AddEntry(self.observable_settings[f'jetscape_distribution'], model_display_name, 'f')
 
         legend.Draw()
 
@@ -1146,7 +1168,7 @@ class PlotResults(common_base.CommonBase):
                 self.observable_settings['ratio'].Draw('PE same')
 
         if self.observable_settings['ratio']:
-            legend_ratio.AddEntry(self.observable_settings['ratio'], 'JETSCAPE/Data', 'f')
+            legend_ratio.AddEntry(self.observable_settings['ratio'], f'{model_display_name}/Data', 'f')
         if self.observable_settings['data_distribution']:
             legend_ratio.AddEntry(data_ratio, 'Data uncertainties', 'PE')
         legend_ratio.Draw()
@@ -1505,6 +1527,18 @@ if __name__ == '__main__':
         default='final_results.root',
         help='pp reference file'
     )
+    parser.add_argument(
+        "-m",
+        "--model-name",
+        action="store",
+        type=str,
+        required=False,
+        metavar="model_name",
+        default="",
+        # NOTE(RJE): Autodetection is not straightforward in this case since we've lost the model name from the filename.
+        #            So we just opt for backwards compatibility.
+        help="Name of the model which we are analyzing. Default: '', which indicates that we are using jetscape.",
+    )
 
     # Parse the arguments
     args = parser.parse_args()
@@ -1519,5 +1553,5 @@ if __name__ == '__main__':
         print('File "{0}" does not exist! Exiting!'.format(args.inputFile))
         sys.exit(0)
 
-    analysis = PlotResults(config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir, pp_ref_file=args.refFile)
+    analysis = PlotResults(config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir, pp_ref_file=args.refFile, model_name=args.model_name)
     analysis.plot_results()

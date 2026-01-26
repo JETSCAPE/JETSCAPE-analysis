@@ -35,13 +35,15 @@ import fjext
 
 from jetscape_analysis.base import common_base
 
+_SUPPORTED_MODELS_FOR_ANALYSIS = ["jetscape", "hybrid"]
+
 ################################################################
 class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(self, config_file="", input_file="", output_dir="", **kwargs):
+    def __init__(self, config_file="", input_file="", output_dir="", model_name="jetscape", **kwargs):
         super(AnalyzeJetscapeEvents_BaseSTAT, self).__init__(**kwargs)
 
         self.config_file = config_file
@@ -60,11 +62,39 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
             self.thermal_rejection_fraction = config.get('thermal_rejection_fraction', 0.)
 
+        # Keep track of the model name, allowing for the customization of analysis by model when necessary.
+        if model_name == "":
+            # attempt auto-detection based on the filename
+            name_to_check = str(self.input_file_hadrons).lower()
+            possible_models_in_filename = [m for m in _SUPPORTED_MODELS_FOR_ANALYSIS if m in name_to_check]
+            if len(possible_models_in_filename) == 0:
+                msg = f"Unable to autodetect model name in {name_to_check}"
+                raise ValueError(msg)
+            if len(possible_models_in_filename) > 1:
+                msg = f"Autodetected multiple model names. Please check. Found: {possible_models_in_filename}"
+                raise ValueError(msg)
+            # We only have one, so we can just assign it.
+            self.model_name = next(iter(possible_models_in_filename))
+        else:
+            self.model_name = model_name
+        if self.model_name not in _SUPPORTED_MODELS_FOR_ANALYSIS:
+            msg = f"Requested to analyze {model_name=}, but not in supported list of {_SUPPORTED_MODELS_FOR_ANALYSIS}. Please check arguments"
+            raise ValueError(msg)
+
         # Check whether pp or AA
         if 'PbPb' in self.input_file_hadrons or 'AuAu' in self.input_file_hadrons:
             self.is_AA = True
         else:
             self.is_AA = False
+
+        # Expected status codes.
+        # Default: For jetscape, we expect status codes of [0, -1]
+        # For hybrid, we expect:
+        # - pp: [0]
+        # - AA: [0, 1, 2]
+        self.expected_status_codes = [0, -1]
+        if self.model_name == "hybrid":
+            self.expected_status_codes = [0, 1, 2] if self.is_AA else [0]
 
         # Initialize centrality info
         # self.centrality: [cmin, cmax] for current event (written to observable_dict_event)
@@ -179,9 +209,25 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             # Store dictionary of all observables for the event
             self.observable_dict_event = {}
 
-            # Update self.centrality dynamically per event when it's not precomputed_hydro
-            if self.is_AA and self.use_event_based_centrality:
-                    self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
+            # Update self.centrality dynamically per event
+            if self.is_AA:
+                if self.use_event_based_centrality:
+                    # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
+                    if self.model_name == "hybrid":
+                        # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
+                        self.centrality = [0, 5]
+                        # self.centrality = [5, 10]
+                        if i == 0:
+                            msg = f"TODO(HYBRID): Manually assigning centrality to {self.centrality}. This should be read from the it's available at the analysis level..."
+                            print(msg)
+                        # ENDTODO
+                    else:
+                        if i == 0 and "centrality" not in event:
+                            msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
+                            raise ValueError(msg)
+                        self.centrality = [int(np.floor(event['centrality'])), int(np.ceil(event['centrality']))]  # Dynamically set centrality; values are passed from the parquet file
+                else:
+                    self.centrality = self.default_centrality  # Use fixed centrality; values are passed from the Run_info.yaml file
 
             # Call user-defined function to analyze event
             self.analyze_event(event)
@@ -333,14 +379,42 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # ---------------------------------------------------------------
     def fill_fastjet_constituents(self, event, select_status=None, select_charged=False):
 
-        # Construct indices according to particle status
-        if select_status == '-':
-            status_mask = (event['status'] < 0)
-        elif select_status == '+':
-            status_mask = (event['status'] > -1)
-        else:
-            # Picked a value to make an all true mask. We don't select anything
+        if self.model_name == "hybrid":
+            # In the case of the hybrid model, we need to select with a different paradigm:add some further selections:
+            # Start with an all true mask (picked a value to make an all true mask).
             status_mask = event['status'] > -1e6
+            # Shared:
+            # - -2 corresponds to the outgoing partons. We always want to exclude them for analysis
+            #   since we expect final state hadrons/partons
+            status_mask = status_mask & (event["status"] != -2)
+
+            # For pp:
+            # . 1 and 2 will show up due to precision and energy conservation, but can be ignored.
+            if not self.is_AA:
+                status_mask = status_mask & (event["status"] < 1)
+            # For AA:
+            # . 1 is the positive wake
+            # . 2 is the negative wake
+            # By convention,
+            # . "-" correspnods to holes/negative wake
+            # . "+" corrresponds to shower+recoil, positive wake
+
+            # NOTE: For pp, we've already removed everything but status code 0.
+            #       So this will also work as expected in this case.
+            if select_status == '-':
+                status_mask = status_mask & np.isin(event['status'], [2])
+            elif select_status == '+':
+                status_mask = status_mask & np.isin(event['status'], [0, 1])
+        else:
+            # Construct indices according to particle status
+            if select_status == '-':
+                status_mask = (event['status'] < 0)
+            elif select_status == '+':
+                status_mask = (event['status'] > -1)
+            else:
+                # Picked a value to make an all true mask. We don't select anything
+                status_mask = event['status'] > -1e6
+
 
         # Construct indices according to charge
         charged_mask = get_charged_mask(event['particle_ID'], select_charged)
@@ -355,13 +429,21 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         # Define status_factor -- either +1 (positive status) or -1 (negative status)
         status_selected = event['status'][full_mask] # Either 0 (positive) or -1 (negative)
-        status_factor = 2*status_selected + 1 # Change to +1 (positive) or -1 (negative)
+        if self.model_name == "hybrid":
+            # Need a different paradigm than jetscape. Here, we'll use:
+            # - Positive status: Regular shower particles (0) and positive wake (1)
+            # - Negative status: Negative wake (2)
+            # NOTE: In the case of pp, this should work equally well (it will just be selecting less)
+            status_factor = np.where(np.isin(status_selected, [0, 1]), 1, -1)
+        else:
+            # Change (0, -1) -> +1 (positive) or -1 (negative)
+            status_factor = np.where(status_selected == 0, 1, -1)
         # NOTE: Need to explicitly convert to np.int8 -> np.int32 so that the status factor can be
         #       set properly below. Otherwise, it will overflow when setting the user index if there
         #       are too many particles.
         status_factor = status_factor.astype(np.int32)
         for status in np.unique(status_selected): # Check that we only encounter expected statuses
-            if status not in [0,-1]:
+            if status not in self.expected_status_codes:
                 sys.exit(f'ERROR: fill_fastjet_constituents -- unexpected particle status -- {status}')
 
         # Create a vector of fastjet::PseudoJets from arrays of px,py,pz,e

@@ -136,6 +136,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                                                      select_charged=True)
         fj_hadrons_negative_charged, pid_hadrons_negative_charged = self.fill_fastjet_constituents(event, select_status='-',
                                                                      select_charged=True)
+        #print(f"{len(fj_hadrons_positive)=}, {len(pid_hadrons_positive)=}, {len(fj_hadrons_negative)=}, {len(pid_hadrons_negative)=}")
+        #print(f"{len(fj_hadrons_positive_charged)=}, {len(pid_hadrons_positive_charged)=}, {len(fj_hadrons_negative_charged)=}, {len(pid_hadrons_negative_charged)=}")
+
         # call event selection function, run jet finder R=0.4, take highest pt jet, require ptjet <= 3 * pthat, otherwise return false
         pt_hat = event['pt_hat']
         if self.do_event_outlier_rejection:
@@ -1429,6 +1432,16 @@ if __name__ == "__main__":
         default="/home/jetscape-user/JETSCAPE-analysis/TestOutput",
         help="Output directory for output to be written to",
     )
+    parser.add_argument(
+        "-m",
+        "--model-name",
+        action="store",
+        type=str,
+        required=False,
+        metavar="model_name",
+        default="",
+        help="Name of the model which we are analyzing. Default: '', which uses autodetection, using jetscape if it can't be identified.",
+    )
 
     # Parse the arguments
     args = parser.parse_args()
@@ -1443,5 +1456,5 @@ if __name__ == "__main__":
         print('File "{0}" does not exist! Exiting!'.format(args.inputFile))
         sys.exit(0)
 
-    analysis = AnalyzeJetscapeEvents_STAT(config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir)
+    analysis = AnalyzeJetscapeEvents_STAT(config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir, model_name=args.model_name)
     analysis.analyze_jetscape_events()
