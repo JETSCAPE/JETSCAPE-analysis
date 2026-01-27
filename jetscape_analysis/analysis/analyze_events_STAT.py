@@ -946,23 +946,35 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="pt_alice"):
             pt_min = self.inclusive_chjet_observables["pt_alice"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["pt_alice"]["pt"][1]
+            # NOTE: For the eta acceptance, this needs a bit of care.
+            #       For 2.76 TeV, eta is fixed, while for 5.02 TeV, the selection is eta - R, so we handle the
+            #       two separately behind a sqrt_s check.
             if (
                 jetR in self.inclusive_chjet_observables["pt_alice"]["jet_R"]
                 and pt_min < jet_pt < pt_max
-                # TODO(RJE): I think this is broken. Double check what the right thing is.
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["eta_cut_R"])
+                and (
+                    (self.sqrts == 2760 and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["eta_cut"]))
+                    or (
+                        self.sqrts == 5020
+                        and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["eta_cut_R"] - jetR)
+                    )
+                )
             ):
-                # Check leading track requirement
+                # Additional jet acceptance selections
+                # Check leading track requirement for the 2.76 TeV analysis
                 accept_jet = False
-                for constituent in jet.constituents():
-                    # TODO(RJE): This is not implemented in the config. May be for the ML vs not?
-                    if (
-                        constituent.pt() > self.inclusive_chjet_observables["pt_alice"]["leading_track_min_pt"]
-                        # (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-                        and abs(pid_hadrons_positive[np.abs(constituent.user_index()) - 1])
-                        in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-                    ):
-                        accept_jet = True
+                if self.sqrts == 2760:
+                    for constituent in jet.constituents():
+                        if (
+                            constituent.pt() > self.inclusive_chjet_observables["pt_alice"]["leading_track_min_pt"]
+                            # (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
+                            and abs(pid_hadrons_positive[np.abs(constituent.user_index()) - 1])
+                            in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+                        ):
+                            accept_jet = True
+                elif self.sqrts == 5020:
+                    # No leading track requirement for the 5.02 TeV analysis
+                    accept_jet = True
                 if accept_jet:
                     self.observable_dict_event[f"inclusive_chjet_pt_alice_R{jetR}{jet_collection_label}"].append(jet_pt)
                     if jet_collection_label in ["_shower_recoil"]:

@@ -421,7 +421,7 @@ hadron_correlation:
 # Inclusive jet observables -- charged jets
 #------------------------------------------------------------------
 inclusive_chjet:
-  # ALICE charged jet RAA, ML background subtraction
+  # ALICE charged jet RAA (ML background subtraction)
   pt_alice:
     enabled: true
     urls:
