@@ -41,7 +41,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(
+    def __init__(  # noqa: C901
         self,
         config_file: str | Path = "",
         input_file: str | Path = "",
@@ -201,7 +201,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         logger.info("Done!")
 
-    def analyze_event_chunk(self, df_event_chunk: pd.DataFrame) -> None:
+    def analyze_event_chunk(self, df_event_chunk: pd.DataFrame) -> None:  # noqa: C901
         """Analyze event chunk
 
         This steers the main analysis, iterating event-by-event.
@@ -220,7 +220,8 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
         if self.use_event_based_centrality and "centrality" not in df_event_chunk.columns:
-            raise ValueError("Centrality column missing in input Parquet file for real_time_hydro mode.")
+            msg = "Centrality column missing in input Parquet file for real_time_hydro mode."
+            raise ValueError(msg)
 
         for i, event in df_event_chunk.iterrows():
             if i % 1000 == 0:
@@ -241,7 +242,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                     # self.centrality = [5, 10]
                     if i == 0:
                         msg = f"TODO(HYBRID): Manually assigning centrality to {self.centrality}. This should be read from the it's available at the analysis level..."
-                        print(msg)
+                        logger.warning(msg)
                     # ENDTODO
                 else:
                     # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
