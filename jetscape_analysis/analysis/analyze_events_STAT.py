@@ -3670,7 +3670,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             #       They're measured together in the same analysis, so the parameters
             #       are the same, and thus this is just fine.
             #
-            #   TODO(RJE): Confirm these treatments, which are from the hadron_trigger_chjet case
+            #   TODO: Confirm these treatments, which are from the hadron_trigger_chjet case
             #   Hole treatment:
             #    - For shower_recoil case, correct the pt only (and also store unsubtracted pt)
             #    - For negative_recombiner case, no subtraction is needed
@@ -3678,8 +3678,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # -----------------------------------------------------------
             z_pt_min, _ = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["pt"]
             z_eta_cut = self.z_trigger_jet_observables["xj_z_cms"]["z_trigger"]["eta_cut"]
-            recoil_jet_pt_min, _ = self.z_trigger_jet_observables["xj_z_cms"]["recoil_jet"]["pt"]
-            recoil_jet_eta_cut = self.z_trigger_jet_observables["xj_z_cms"]["recoil_jet"]["eta_cut"]
+            recoil_jet_pt_min, _ = self.z_trigger_jet_observables["xj_z_cms"]["_jet"]["pt"]
+            recoil_jet_eta_cut = self.z_trigger_jet_observables["xj_z_cms"]["jet"]["eta_cut"]
             d_phi = self.z_trigger_jet_observables["xj_z_cms"]["dPhi"]
 
             # get all Z bosons that fulfill analysis cuts
