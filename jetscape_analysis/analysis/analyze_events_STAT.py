@@ -868,7 +868,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 deltaR = jet_wta.delta_R(jet)
                 # self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}{jet_collection_label}'].append([jet_pt, deltaR])
                 self.observable_dict_event[
-                    f"inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_{jet_collection_label}"
+                    f"inclusive_chjet_axis_alice_R{jetR}_WTA_Standard{jet_collection_label}"
                 ].append([jet_pt, deltaR])
 
         # ALICE ungroomed angularity
@@ -1205,12 +1205,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 ## WTA-Standard
                 # deltaR = jet_wta.delta_R(jet)
-                # self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_{jet_collection_label}'].append([jet_pt, deltaR])
+                # self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_jet_collection_label}'].append([jet_pt, deltaR])
 
                 # WTA-SD
                 deltaR = jet_wta.delta_R(jet_groomed_lund.pair())
                 self.observable_dict_event[
-                    f"inclusive_chjet_axis_alice_R{jetR}_WTA_SD_zcut{zcut}_beta{beta}_{jet_collection_label}"
+                    f"inclusive_chjet_axis_alice_R{jetR}_WTA_SD_zcut{zcut}_beta{beta}{jet_collection_label}"
                 ].append([jet_pt, deltaR])
 
         # ALICE groomed angularity
@@ -1527,7 +1527,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 deltaR = jet_wta.delta_R(jet)
                 self.observable_dict_event[
-                    f"inclusive_jet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}"
+                    f"inclusive_jet_axis_cms_R{jetR}_WTA_Standard{jet_collection_label}"
                 ].append([jet_pt, deltaR])
 
         # ATLAS, d_12
@@ -3375,7 +3375,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                         deltaR = jet_wta.delta_R(jet)
                         self.observable_dict_event[
-                            f"gamma_triggered_jet_axis_cms_R{jetR}_WTA_Standard_{jet_collection_label}"
+                            f"gamma_triggered_jet_axis_cms_R{jetR}_WTA_Standard{jet_collection_label}"
                         ].append([jet_pt, deltaR])
 
     def fill_gamma_trigger_full_jet_groomed_observables(  # noqa: C901
