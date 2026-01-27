@@ -162,6 +162,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         fj_hadrons_negative_charged, pid_hadrons_negative_charged = self.fill_fastjet_constituents(
             event, select_status="-", select_charged=True
         )
+        # print(f"{len(fj_hadrons_positive)=}, {len(pid_hadrons_positive)=}, {len(fj_hadrons_negative)=}, {len(pid_hadrons_negative)=}")
+        # print(f"{len(fj_hadrons_positive_charged)=}, {len(pid_hadrons_positive_charged)=}, {len(fj_hadrons_negative_charged)=}, {len(pid_hadrons_negative_charged)=}")
 
         # call event selection function, run jet finder R=0.4, take highest pt_jet, require pt_jet <= 3 * pthat, otherwise return false
         if self.do_event_outlier_rejection and self.is_event_outlier(
@@ -3790,6 +3792,16 @@ def main_entry_point() -> None:
         metavar="logLevel",
         default="INFO",
         help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
+    parser.add_argument(
+        "-m",
+        "--model-name",
+        action="store",
+        type=str,
+        required=False,
+        metavar="model_name",
+        default="",
+        help="Name of the model which we are analyzing. Default: '', which uses autodetection, using jetscape if it can't be identified.",
     )
 
     # Parse the arguments

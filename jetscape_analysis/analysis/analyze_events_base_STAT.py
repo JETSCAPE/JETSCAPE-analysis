@@ -33,6 +33,8 @@ from jetscape_analysis.base import common_base
 
 logger = logging.getLogger(__name__)
 
+_SUPPORTED_MODELS_FOR_ANALYSIS = ["jetscape", "hybrid"]
+
 
 ################################################################
 class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
@@ -40,7 +42,12 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
     # Constructor
     # ---------------------------------------------------------------
     def __init__(
-        self, config_file: str | Path = "", input_file: str | Path = "", output_dir: str | Path = "", **kwargs
+        self,
+        config_file: str | Path = "",
+        input_file: str | Path = "",
+        output_dir: str | Path = "",
+        model_name: str = "jetscape",
+        **kwargs,
     ):
         super().__init__(**kwargs)
 
@@ -55,31 +62,89 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Allow an early stop to the analysis (if desired).
         self.n_event_max = config.get("n_event_max", -1)
 
+        # Keep track of the model name, allowing for the customization of analysis by model when necessary.
+        if model_name == "":
+            # attempt auto-detection based on the filename
+            name_to_check = str(self.input_file_hadrons).lower()
+            possible_models_in_filename = [m for m in _SUPPORTED_MODELS_FOR_ANALYSIS if m in name_to_check]
+            if len(possible_models_in_filename) == 0:
+                msg = f"Unable to autodetect model name in {name_to_check}"
+                raise ValueError(msg)
+            if len(possible_models_in_filename) > 1:
+                msg = f"Autodetected multiple model names. Please check. Found: {possible_models_in_filename}"
+                raise ValueError(msg)
+            # We only have one, so we can just assign it.
+            self.model_name = next(iter(possible_models_in_filename))
+        else:
+            self.model_name = model_name
+        if self.model_name not in _SUPPORTED_MODELS_FOR_ANALYSIS:
+            msg = f"Requested to analyze {model_name=}, but not in supported list of {_SUPPORTED_MODELS_FOR_ANALYSIS}. Please check arguments"
+            raise ValueError(msg)
+
         # Check whether pp or AA
         self.is_AA = False
         if "PbPb" in str(self.input_file_hadrons) or "AuAu" in str(self.input_file_hadrons):
             self.is_AA = True
 
-        # If AA, get centrality bin
+        # Expected status codes.
+        # Default: For jetscape, we expect status codes of [0, -1]
+        # For hybrid, we expect:
+        # - pp: [0]
+        # - AA: [0, 1, 2]
+        self.expected_status_codes = [0, -1]
+        if self.model_name == "hybrid":
+            self.expected_status_codes = [0, 1, 2] if self.is_AA else [0]
+
+        # Initialize centrality info
+        # self.centrality: [cmin, cmax] for current event (written to observable_dict_event)
+        # self.centrality_range: [min, max] range across all events (written to cross_section_dict)
+        # self.use_event_based_centrality:
+        # - True, real-time hydro or run info missing (centrality varies event-by-event)
+        # - False, precomputed hydro (fixed centrality for all events)
         self.use_event_based_centrality = False
+        self.centrality = [0, 0]
+        self.centrality_range = [100, 0]  # Will be updated dynamically
+        self.centrality_range_from_runinfo = False
+
         if self.is_AA:
             _final_state_hadrons_path = self.input_file_hadrons
             # For an example filename of "jetscape_PbPb_Run0005_5020_0001_final_state_hadrons_00.parquet",
             # - the run number is index 2
             _job_identifier = _final_state_hadrons_path.stem.split("_")[2]
+            # It appears that we have a Runinfo file - let's try to parse it.
             if "Run" in _job_identifier:
                 # We're using a standard production with a run number - look for the run info file.
                 _run_number = _job_identifier
                 # - the file index is at index 4 (in the example, it extracts `1` as an int)
                 _file_index = int(_final_state_hadrons_path.name.split("_")[4])
                 run_info_path = _final_state_hadrons_path.parent / f"{_run_number}_info.yaml"
-                with run_info_path.open() as f:
-                    _run_info = yaml.safe_load(f)
-                    centrality_string = _run_info["index_to_hydro_event"][_file_index].split("/")[0].split("_")
-                    # index of 1 and 2 based on an example entry of "cent_00_01"
-                    self.centrality = [int(centrality_string[1]), int(centrality_string[2])]
+                # Provide just a bit more protection. RJE is not sure if it's possible to find a standard
+                # looking production and not have a run info, but let's handle it just in case.
+                if run_info_path.exists():
+                    with run_info_path.open() as f:
+                        _run_info = yaml.safe_load(f)
+
+                        self.centrality_range = _run_info["centrality"]
+                        self.centrality_range_from_runinfo = True
+                        # Default to 'precomputed_hydro' if not specified to ensure backward compatibility
+                        self.soft_sector_execution_type = _run_info.get(
+                            "soft_sector_execution_type", "precomputed_hydro"
+                        )
+
+                        if self.soft_sector_execution_type == "precomputed_hydro":
+                            centrality_string = _run_info["index_to_hydro_event"][_file_index].split("/")[0].split("_")
+                            # index of 1 and 2 based on an example entry of "cent_00_01"
+                            self.centrality = [int(centrality_string[1]), int(centrality_string[2])]
+
+                        elif self.soft_sector_execution_type == "real_time_hydro":
+                            self.use_event_based_centrality = True  # Centrality varies per event
+                else:
+                    # No run info file available despite looking like we had one - need to retrieve the centrality event-by-event
+                    msg = f"Run info file not found at {run_info_path}. Falling back to dynamic centrality tracking."
+                    logger.warning(msg)
+                    self.use_event_based_centrality = True
             else:
-                # No run info available - need to retrieve the centrality event-by-event
+                # Regular fall back to event-based centrality - e.g. if generated outside of the usual steering
                 self.use_event_based_centrality = True
 
         # If AA, initialize constituent subtractor
@@ -136,8 +201,14 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # Loop through events
         start = time.time()
         weight_sum = 0.0
-        # Track the overall centrality range
+
+        # Dynamically compute overall centrality range [min, max] across all accepted events.
         centrality_range_min, centrality_range_max = 100, 0
+
+        # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
+        if self.use_event_based_centrality and "centrality" not in df_event_chunk.columns:
+            raise ValueError("Centrality column missing in input Parquet file for real_time_hydro mode.")
+
         for i, event in df_event_chunk.iterrows():
             if i % 1000 == 0:
                 logger.info(f"event: {i}    (time elapsed: {time.time() - start} s)")
@@ -151,14 +222,23 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             # Update self.centrality dynamically per event
             # NOTE: There's nothing to be done for pre-computed case - it's already stored in self.centrality
             if self.is_AA and self.use_event_based_centrality:
-                # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
-                if i == 0 and "centrality" not in event:
-                    msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
-                    raise ValueError(msg)
-                self.centrality = [
-                    int(np.floor(event["centrality"])),
-                    int(np.ceil(event["centrality"])),
-                ]  # Dynamically set centrality; values are passed from the parquet file
+                if self.model_name == "hybrid":
+                    # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
+                    self.centrality = [0, 5]
+                    # self.centrality = [5, 10]
+                    if i == 0:
+                        msg = f"TODO(HYBRID): Manually assigning centrality to {self.centrality}. This should be read from the it's available at the analysis level..."
+                        print(msg)
+                    # ENDTODO
+                else:
+                    # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
+                    if i == 0 and "centrality" not in event:
+                        msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
+                        raise ValueError(msg)
+                    self.centrality = [
+                        int(np.floor(event["centrality"])),
+                        int(np.ceil(event["centrality"])),
+                    ]  # Dynamically set centrality; values are passed from the parquet file
 
             # Call user-defined function to analyze event
             self.analyze_event(event)
@@ -171,25 +251,50 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 self.observable_dict_event["event_weight"] = event_weight
                 self.observable_dict_event["pt_hat"] = event["pt_hat"]
 
-                # Add event-wise centrality (same for all events in pre-computed hydro; varies event-by-event for real_time_hydro)
+                # Add event-wise centrality (same for all events in precomputed_hydro; varies event-by-event for real_time_hydro)
                 if self.is_AA:
                     self.observable_dict_event["centrality_min"] = self.centrality[0]
                     self.observable_dict_event["centrality_max"] = self.centrality[1]
+
+                    # Update dynamic centrality range
                     # This is trivially the same for each event for the pre-computed hydro,
                     # but it varies for the on-the-fly case.
                     centrality_range_min = min(self.centrality[0], centrality_range_min)
                     centrality_range_max = max(self.centrality[1], centrality_range_max)
 
+                # Record per-event “all events” fields for non-empty events
+                self.observable_dict_event["event_weight_all"] = event_weight
+                self.observable_dict_event["centrality_min_all"] = self.centrality[0] if self.is_AA else None
+                self.observable_dict_event["centrality_max_all"] = self.centrality[1] if self.is_AA else None
+
                 self.output_event_list.append(self.observable_dict_event)
+
+            # Append a minimal stub row for empty events so their weight/centrality are preserved
+            else:
+                stub = {
+                    "event_weight_all": event_weight,
+                    "pt_hat": event["pt_hat"],
+                    "centrality_min_all": self.centrality[0] if self.is_AA else None,
+                    "centrality_max_all": self.centrality[1] if self.is_AA else None,
+                }
+                self.output_event_list.append(stub)
 
         # Get total cross-section (same for all events at this point), weight sum, and centrality
         self.cross_section_dict["cross_section"] = event["cross_section"]
         self.cross_section_dict["cross_section_error"] = event["cross_section_error"]
         self.cross_section_dict["n_events"] = self.n_event_max
         self.cross_section_dict["weight_sum"] = weight_sum
+
+        # Track the overall centrality range
         if self.is_AA:
-            self.cross_section_dict["centrality_range_min"] = int(np.floor(centrality_range_min))
-            self.cross_section_dict["centrality_range_max"] = int(np.ceil(centrality_range_max))
+            if self.centrality_range_from_runinfo:
+                # Use range from run_info.yaml
+                self.cross_section_dict["centrality_range_min"] = self.centrality_range[0]
+                self.cross_section_dict["centrality_range_max"] = self.centrality_range[1]
+            else:
+                # Use dynamically calculated range
+                self.cross_section_dict["centrality_range_min"] = int(np.floor(centrality_range_min))
+                self.cross_section_dict["centrality_range_max"] = int(np.ceil(centrality_range_max))
 
     def initialize_output_objects(self) -> None:
         """Initialize output objects"""
@@ -278,6 +383,13 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         # self.output_dataframe = ak.Array(self.output_event_list)
         table = pa.Table.from_pandas(self.output_dataframe)
 
+        # Add metadata for use_event_based_centrality
+        metadata_dict = {"use_event_based_centrality": str(self.use_event_based_centrality)}
+        # Merge with existing metadata if any
+        existing_metadata = table.schema.metadata or {}
+        merged_metadata = {**existing_metadata, **{k.encode(): v.encode() for k, v in metadata_dict.items()}}
+        table = table.replace_schema_metadata(merged_metadata)
+
         # Write to parquet
         # Determine the types for improved compression when writing
         # See writing to parquet in the final state hadrons parser for more info.
@@ -323,7 +435,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         Returns:
             PseudoJet array of select_particles, array of Particle ID values
         """
-        status_mask = mask_from_select_status(event, select_status)
+        status_mask = mask_from_select_status(event, select_status, is_AA=self.is_AA, model_name=self.model_name)
 
         # Construct indices according to charge
         charged_mask = get_charged_mask(event["particle_ID"], select_charged)
@@ -338,13 +450,21 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         # Define status_factor -- either +1 (positive status) or -1 (negative status)
         status_selected = event["status"][full_mask]  # Either 0 (positive) or -1 (negative)
-        status_factor = 2 * status_selected + 1  # Change to +1 (positive) or -1 (negative)
+        if self.model_name == "hybrid":
+            # Need a different paradigm than jetscape. Here, we'll use:
+            # - Positive status: Regular shower particles (0) and positive wake (1)
+            # - Negative status: Negative wake (2)
+            # NOTE: In the case of pp, this should work equally well (it will just be selecting less)
+            status_factor = np.where(np.isin(status_selected, [0, 1]), 1, -1)
+        else:
+            # Change (0, -1) -> +1 (positive) or -1 (negative)
+            status_factor = np.where(status_selected == 0, 1, -1)
         # NOTE: Need to explicitly convert to np.int8 -> np.int32 so that the status factor can be
         #       set properly below. Otherwise, it will overflow when setting the user index if there
         #       are too many particles.
         status_factor = status_factor.astype(np.int32)
         for status in np.unique(status_selected):  # Check that we only encounter expected statuses
-            if status not in [0, -1]:
+            if status not in self.expected_status_codes:
                 msg = f"unexpected particle status -- {status}"
                 logger.error(msg)
                 raise RuntimeError(msg)
@@ -480,7 +600,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             Pi-zero candidates.
         """
         # Setup
-        status_mask = mask_from_select_status(event, select_status=select_status)
+        status_mask = mask_from_select_status(
+            event, select_status=select_status, is_AA=self.is_AA, model_name=self.model_name
+        )
 
         # Select neutral pions (PID = 111)
         z_boson_mask = (event["particle_ID"] == 111) & status_mask
@@ -513,7 +635,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             Photon candidates.
         """
         # Setup
-        status_mask = mask_from_select_status(event, select_status=select_status)
+        status_mask = mask_from_select_status(
+            event, select_status=select_status, is_AA=self.is_AA, model_name=self.model_name
+        )
 
         # Select photons (PID = 22)
         photon_mask = (event["particle_ID"] == 22) & status_mask
@@ -546,7 +670,9 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             Z boson candidates.
         """
         # Setup
-        status_mask = mask_from_select_status(event, select_status=select_status)
+        status_mask = mask_from_select_status(
+            event, select_status=select_status, is_AA=self.is_AA, model_name=self.model_name
+        )
 
         # Select Z bosons (PID = 23)
         z_boson_mask = (event["particle_ID"] == 23) & status_mask
@@ -659,7 +785,7 @@ def dphi_in_range(dphi: float, min_phi: float = -np.pi / 2, max_phi: float = 3 *
     return dphi
 
 
-def mask_from_select_status(event, select_status: str) -> npt.NDArray[np.bool_]:
+def mask_from_select_status(event, select_status: str, is_AA: bool, model_name: str) -> npt.NDArray[np.bool_]:
     """Construct mask according to particle status.
 
     If select_status='+', select only positive status particles.
@@ -670,17 +796,46 @@ def mask_from_select_status(event, select_status: str) -> npt.NDArray[np.bool_]:
         event: Event record
         select_status: Particle status to select. Options: ["+", "-", anything else].
             If it's anything other than "+" or "-", it will select all particles.
+        is_AA: True if AA.
+        model_name: Name of the model that we're selecting the status of.
 
     Returns:
         Mask to select particles of the requested status
     """
-    # Select the indices based on the requested status
-    if select_status == "-":
-        status_mask = event["status"] < 0
-    elif select_status == "+":
-        status_mask = event["status"] > -1
-    else:
-        # Picked a value to make an all true mask. We don't select anything
+    if model_name == "hybrid":
+        # In the case of the hybrid model, we need to select with a different paradigm:add some further selections:
+        # Start with an all true mask (picked a value to make an all true mask).
         status_mask = event["status"] > -1e6
+        # Shared:
+        # - -2 corresponds to the outgoing partons. We always want to exclude them for analysis
+        #   since we expect final state hadrons/partons
+        status_mask = status_mask & (event["status"] != -2)
+
+        # For pp:
+        # . 1 and 2 will show up due to precision and energy conservation, but can be ignored.
+        if not is_AA:
+            status_mask = status_mask & (event["status"] < 1)
+        # For AA:
+        # . 1 is the positive wake
+        # . 2 is the negative wake
+        # By convention,
+        # . "-" corresponds to holes/negative wake
+        # . "+" corresponds to shower+recoil, positive wake
+
+        # NOTE: For pp, we've already removed everything but status code 0.
+        #       So this will also work as expected in this case.
+        if select_status == "-":
+            status_mask = status_mask & np.isin(event["status"], [2])
+        elif select_status == "+":
+            status_mask = status_mask & np.isin(event["status"], [0, 1])
+    else:  # noqa: PLR5501
+        # Select the indices based on the requested status
+        if select_status == "-":
+            status_mask = event["status"] < 0
+        elif select_status == "+":
+            status_mask = event["status"] > -1
+        else:
+            # Picked a value to make an all true mask. We don't select anything
+            status_mask = event["status"] > -1e6
 
     return status_mask

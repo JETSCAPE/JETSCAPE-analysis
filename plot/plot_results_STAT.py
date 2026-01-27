@@ -28,6 +28,11 @@ ROOT.gROOT.SetBatch(True)
 
 logger = logging.getLogger(__name__)
 
+_model_display_name = {
+    "jetscape": "JETSCAPE",
+    "hybrid": "Hybrid",
+}
+
 
 ################################################################
 class PlotResults(common_base.CommonBase):
@@ -40,6 +45,7 @@ class PlotResults(common_base.CommonBase):
         input_file: str | Path = "",
         output_dir: str | Path | None = "",
         pp_ref_file: str | Path = "",
+        model_name: str = "jetscape",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -64,7 +70,10 @@ class PlotResults(common_base.CommonBase):
         self.data_color = ROOT.kGray + 3
         self.data_marker = 21
         self.jetscape_color = [
-            ROOT.kViolet - 8,
+            # RJE changed kViolet to kGreen to enhance the clarity in the plots (e.g. ensure we can see when bands are overlapping).
+            # n.b. the new colors may be worse for colorblindness, so I kept the original colors below.
+            # ROOT.kViolet - 8,
+            ROOT.kGreen - 6,
             ROOT.kViolet - 8,
             ROOT.kRed - 7,
             ROOT.kTeal - 8,
@@ -92,6 +101,16 @@ class PlotResults(common_base.CommonBase):
         # If AA, load the pp reference results so that we can construct RAA
         if self.is_AA:
             self.pp_ref_file = ROOT.TFile(str(pp_ref_file), "READ")
+
+        # Store the model name for customization
+        if model_name == "":
+            model_name = "jetscape"
+            msg = "No model name provided, so default to jetscape."
+            logger.warning(msg)
+        self.model_name = model_name
+        if self.model_name not in _model_display_name:
+            msg = f"Provided unexpected model name {self.model_name} that is not supported. Please check"
+            raise ValueError(msg)
 
         # Read config file
         with config_file.open() as stream:
@@ -1027,20 +1046,23 @@ class PlotResults(common_base.CommonBase):
     #       for jet_collection_label in self.jet_collection_labels:
     #           self.observable_settings[f'jetscape_distribution{jet_collection_label}']
     # -------------------------------------------------------------------------------------------
-    def plot_RAA(self, observable_type, observable, centrality, label, pt_suffix=""):
+    def plot_RAA(self, observable_type, observable, centrality, label, pt_suffix=""):  # noqa: C901
         # Assemble the list of hole subtraction variations
         keys_to_plot = [
             key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key
         ]
+        model_display_name = _model_display_name[self.model_name]
         self.jetscape_legend_label = {}
-        self.jetscape_legend_label["jetscape_distribution"] = "JETSCAPE"
-        self.jetscape_legend_label["jetscape_distribution_unsubtracted"] = "JETSCAPE (unsubtracted)"
-        self.jetscape_legend_label["jetscape_distribution_shower_recoil"] = "JETSCAPE (shower+recoil)"
+        self.jetscape_legend_label["jetscape_distribution"] = model_display_name
+        self.jetscape_legend_label["jetscape_distribution_unsubtracted"] = f"{model_display_name} (unsubtracted)"
+        self.jetscape_legend_label["jetscape_distribution_shower_recoil"] = f"{model_display_name} (shower+recoil)"
         self.jetscape_legend_label["jetscape_distribution_shower_recoil_unsubtracted"] = (
-            "JETSCAPE (shower+recoil, unsubtracted)"
+            f"{model_display_name} (shower+recoil, unsubtracted)"
         )
-        self.jetscape_legend_label["jetscape_distribution_negative_recombiner"] = "JETSCAPE (negative recombiner)"
-        self.jetscape_legend_label["jetscape_distribution_constituent_subtraction"] = "JETSCAPE (CS)"
+        self.jetscape_legend_label["jetscape_distribution_negative_recombiner"] = (
+            f"{model_display_name} (negative recombiner)"
+        )
+        self.jetscape_legend_label["jetscape_distribution_constituent_subtraction"] = f"{model_display_name} (CS)"
 
         if not self.observable_settings[keys_to_plot[0]]:
             logger.warning(f"Skipping {label} since data is missing")
@@ -1048,7 +1070,8 @@ class PlotResults(common_base.CommonBase):
 
         # Get the pp reference histogram and form the RAA ratios
         if not self.skip_AA_ratio:
-            h_pp = self.pp_ref_file.Get(f"jetscape_distribution_{label}")
+            h_pp_name = f"jetscape_distribution_{label}"
+            h_pp = self.pp_ref_file.Get(h_pp_name)
             for key in keys_to_plot:
                 if self.observable_settings[key] and h_pp:
                     self.observable_settings[key].Divide(h_pp)
@@ -1064,6 +1087,9 @@ class PlotResults(common_base.CommonBase):
         self.plot_utils.setup_legend(legend, 0.045, sep=-0.1)
 
         if not self.skip_AA_ratio:
+            if not h_pp:
+                logger.warning(f"Histogram {h_pp_name} not found or not valid. Skipping.")
+                return
             self.bins = np.array(h_pp.GetXaxis().GetXbins())
         else:
             self.bins = np.array(self.observable_settings[keys_to_plot[0]].GetXaxis().GetXbins())
@@ -1144,6 +1170,9 @@ class PlotResults(common_base.CommonBase):
     def plot_distribution_and_ratio(  # noqa: C901
         self, observable_type, observable: str, centrality, label, pt_suffix: str = ""
     ):
+        # Setup
+        model_display_name = _model_display_name[self.model_name]
+
         c = ROOT.TCanvas("c", "c", 600, 650)
         c.Draw()
         c.cd()
@@ -1241,7 +1270,7 @@ class PlotResults(common_base.CommonBase):
             self.observable_settings["jetscape_distribution"].SetLineWidth(self.line_width)
             self.observable_settings["jetscape_distribution"].SetLineColor(self.jetscape_color[0])
             self.observable_settings["jetscape_distribution"].DrawCopy("PE same")
-        legend.AddEntry(self.observable_settings["jetscape_distribution"], "JETSCAPE", "f")
+        legend.AddEntry(self.observable_settings["jetscape_distribution"], model_display_name, "f")
 
         legend.Draw()
 
@@ -1273,7 +1302,7 @@ class PlotResults(common_base.CommonBase):
                 self.observable_settings["ratio"].Draw("PE same")
 
         if self.observable_settings["ratio"]:
-            legend_ratio.AddEntry(self.observable_settings["ratio"], "JETSCAPE/Data", "f")
+            legend_ratio.AddEntry(self.observable_settings["ratio"], f"{model_display_name}/Data", "f")
         if self.observable_settings["data_distribution"]:
             legend_ratio.AddEntry(data_ratio, "Data uncertainties", "PE")
         legend_ratio.Draw()
@@ -1314,9 +1343,10 @@ class PlotResults(common_base.CommonBase):
         if self.is_AA:
             for centrality in self.observable_centrality_list:
                 # Only plot those centralities that exist
-                if np.isclose(
-                    self.input_file.Get("h_centrality_generated").Integral(centrality[0] + 1, centrality[1]), 0
-                ):
+                # Retrieve the h_weight_sum histogram for the current centrality bin
+                h_weight_sum = self.input_file.Get(f"h_weight_sum_{centrality}")
+                # Check if the histogram exists and if its content is non-zero
+                if not h_weight_sum or h_weight_sum.GetBinContent(1) == 0:
                     continue
                 logger.info(centrality)
 
@@ -1646,6 +1676,18 @@ def main_entry_point() -> None:
         metavar="logLevel",
         default="INFO",
         help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
+    parser.add_argument(
+        "-m",
+        "--model-name",
+        action="store",
+        type=str,
+        required=False,
+        metavar="model_name",
+        default="",
+        # NOTE(RJE): Autodetection is not straightforward in this case since we've lost the model name from the filename.
+        #            So we just opt for backwards compatibility.
+        help="Name of the model which we are analyzing. Default: '', which indicates that we are using jetscape.",
     )
 
     # Parse the arguments
