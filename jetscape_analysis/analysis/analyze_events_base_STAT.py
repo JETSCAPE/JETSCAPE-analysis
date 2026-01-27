@@ -108,34 +108,58 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         self.centrality_range_from_runinfo = False
 
         if self.is_AA:
-            _final_state_hadrons_path = Path(self.input_file_hadrons)
-            # For an example filename of "jetscape_PbPb_Run0005_5020_0001_final_state_hadrons_00.parquet",
-            # - the run number is index 2
-            _run_number = _final_state_hadrons_path.stem.split("_")[2]
-            # - the file index is at index 4 (in the example, it extracts `1` as an int)
-            _file_index = int(_final_state_hadrons_path.name.split('_')[4])
-            run_info_path = _final_state_hadrons_path.parent / f"{_run_number}_info.yaml"
-            if os.path.exists(run_info_path):
-                with open(run_info_path, 'r') as f:
-                    _run_info = yaml.safe_load(f)
+            # There are many paths in AA that fall back to using event-based centrality, so we assume it's the
+            # case unless we hit the right conditions to use the pre-computed centrality.
+            self.use_event_based_centrality = True
 
-                    self.centrality_range = _run_info["centrality"]
-                    self.centrality_range_from_runinfo = True
-                    # Default to 'precomputed_hydro' if not specified to ensure backward compatibility
-                    self.soft_sector_execution_type = _run_info.get("soft_sector_execution_type", "precomputed_hydro")
+            try:
+                # For an example filename of "jetscape_PbPb_Run0005_5020_0001_final_state_hadrons_00.parquet",
+                # - the run number is index 2
+                _job_identifier = self.input_file_hadrons.stem.split("_")[2]
+                # It appears that we have a Runinfo file - let's try to parse it.
+                if "Run" in _job_identifier:
+                    # We're using a standard production with a run number - look for the run info file.
+                    _run_number = _job_identifier
+                    # - the file index is at index 4 (in the example, it extracts `1` as an int)
+                    _file_index = int(self.input_file_hadrons.name.split("_")[4])
+                    run_info_path = self.input_file_hadrons.parent / f"{_run_number}_info.yaml"
+                    # Provide just a bit more protection. RJE is not sure if it's possible to find a standard
+                    # looking production and not have a run info, but let's handle it just in case.
+                    with run_info_path.open() as f:
+                        _run_info = yaml.safe_load(f)
 
-                    if self.soft_sector_execution_type == "precomputed_hydro":
-                        centrality_string = _run_info["index_to_hydro_event"][_file_index].split('/')[0].split('_')
-                        # index of 1 and 2 based on an example entry of "cent_00_01"
-                        self.centrality = [int(centrality_string[1]), int(centrality_string[2])]
+                        self.centrality_range = _run_info["centrality"]
+                        self.centrality_range_from_runinfo = True
+                        # Default to 'precomputed_hydro' if not specified to ensure backward compatibility
+                        self.soft_sector_execution_type = _run_info.get(
+                            "soft_sector_execution_type", "precomputed_hydro"
+                        )
 
-                    elif self.soft_sector_execution_type == "real_time_hydro":
-                        self.use_event_based_centrality = True  # Centrality varies per event
-            else:
-                print(f"Warning: Run info file not found at {run_info_path}. Falling back to dynamic centrality tracking.")
-                # No run info available - need to retrieve the centrality event-by-event
-                self.use_event_based_centrality = True
-                self.centrality_range = [100, 0]  # Updated dynamically later
+                        if self.soft_sector_execution_type == "precomputed_hydro":
+                            # We've successfully parse everything the run info for the pre-computed case, so we don't
+                            # want to use event-based centrality determination - we'll take the precomputed value.
+                            self.use_event_based_centrality = False
+
+                            centrality_string = _run_info["index_to_hydro_event"][_file_index].split("/")[0].split("_")
+                            # index of 1 and 2 based on an example entry of "cent_00_01"
+                            self.centrality = [int(centrality_string[1]), int(centrality_string[2])]
+
+                        elif self.soft_sector_execution_type == "real_time_hydro":
+                            # Centrality varies per event
+                            pass
+                else:
+                    # Based on the filename, it doesn't appear to be a standard production.
+                    # We'll continue with event-based centrality - e.g. if generated outside of the usual steering
+                    pass
+            except FileNotFoundError:
+                # No run info file available despite looking like we had one - need to retrieve the centrality event-by-event
+                msg = f"Run info file not found in the {self.input_file_hadrons.parent} directory. Falling back to dynamic centrality tracking."
+                print(msg)
+            except (IndexError, ValueError):
+                # Catches errors from .split(), accessing an index, or int() conversion.
+                # This suggests a non-standard filename format.
+                # We'll continue with event-based centrality - e.g. if generated outside of the usual steering
+                pass
 
         # If AA, initialize constituent subtractor
         self.constituent_subtractor = None
