@@ -633,20 +633,20 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 jetR_list_photon = []
                 if self.sqrts == 5020:
                     # Gamma-tagged observables
-                    jetR_list_photon = self.gamma_trigger_jet_observables["Dz_atlas"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["xi_cms"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["pt_atlas"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["axis_cms"]["jet_R"]
+                    jetR_list_photon = self.gamma_trigger_jet_observables["Dz_atlas"]["jet"]["jet_R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["xi_cms"]["jet"]["jet_R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["pt_atlas"]["jet"]["jet_R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet"]["jet_R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet"]["jet_R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["axis_cms"]["jet"]["jet_R"]
                     # Groomed observables
-                    jetR_list_groomed_photon = self.gamma_trigger_jet_observables["rg_cms"]["jet_R"]
-                    jetR_list_groomed_photon += self.gamma_trigger_jet_observables["g_cms"]["jet_R"]
+                    jetR_list_groomed_photon = self.gamma_trigger_jet_observables["rg_cms"]["jet"]["jet_R"]
+                    jetR_list_groomed_photon += self.gamma_trigger_jet_observables["g_cms"]["jet"]["jet_R"]
                     # run analysis for all jet R
                 if self.sqrts == 200:
-                    jetR_list_photon.extend(self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet_R"])
+                    jetR_list_photon = self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet"]["jet_R"]
                 if jetR in set(jetR_list_photon):
-                    # TODO discuss with Raymond what to watch out for with holes
+                    # TODO(FJ): discuss with Raymond what to watch out for with holes
                     self.fill_gamma_trigger_chjet_ungroomed_observables(
                         fj_photon_candidates,
                         jets_selected,
