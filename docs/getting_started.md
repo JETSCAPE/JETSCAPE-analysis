@@ -21,10 +21,20 @@ Some additional info on containers is available in the private [stat-xsede repo]
 
 ## Simulation output files
 
-For development of the analysis code, you're need some simulation outputs. In principle, you can generate them yourself using the container (see the notes on using the container "apps" below), but this takes additional setup. Easier is to use these examples output files:
+For development of the analysis code, you'll need some simulation outputs. In principle, you can generate them yourself using the container (see the notes on using the container "apps" below), but this takes additional setup. Easier is to use these examples output files:
 
-- [pp, 5.02 TeV](https://cernbox.cern.ch/s/WehcAM2kwuXmeTe) (400 MB)
-- [0-10% Pb-Pb, 5.02 TeV](https://cernbox.cern.ch/s/hIYbdxkQv4XvNRa) (1.5 GB)
+- Small samples:
+  - [pp, 5.02 TeV, 150k events](https://cernbox.cern.ch/s/WehcAM2kwuXmeTe) (400 MB)
+  - [0-10% Pb-Pb, 5.02 TeV, 150k events](https://cernbox.cern.ch/s/hIYbdxkQv4XvNRa) (1.5 GB)
+- Medium samples:
+  - [pp, 5.02 TeV, 2M events](https://cernbox.cern.ch/s/emZRq0BzkPxcY8p) (3.6 GB)
+  - [0-10% Pb-Pb, 5.02 TeV, 500k events](https://cernbox.cern.ch/s/PLVGxHsTYc7JZVA) (2.5 GB)
+
+These samples correspond to a test production, known as the "NoRotationFix"[^0], but corresponds to approximately the same conditions as the first production. It is design point index 12 in the exponential design. (n.b. this has a very high Q0, so it may not agree with data so well). In practice, these details are included for documentation, but shouldn't make a difference for observable development.
+
+Please extract these to their own folders - be sure to avoid name conflicts.
+
+[^0]: It was intended to test an issue with the coordinate rotation of the soft sector. We found that it made little different. And in any case, the NoRotationFix configuration corresponds to exactly what we ran for the 2021-2022 production.
 
 ## Run the analysis
 
