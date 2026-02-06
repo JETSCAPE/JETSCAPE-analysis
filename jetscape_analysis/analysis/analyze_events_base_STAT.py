@@ -219,7 +219,12 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         centrality_range_min, centrality_range_max = 100, 0
 
         # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
-        if self.use_event_based_centrality and "centrality" not in df_event_chunk.columns:
+        # TODO(HYBRID): Hardcode to test code. Remove the model dependence when the centrality is available.
+        if (
+            self.use_event_based_centrality
+            and "centrality" not in df_event_chunk.columns
+            and self.model_name != "hybrid"
+        ):
             msg = "Centrality column missing in input Parquet file for real_time_hydro mode."
             raise ValueError(msg)
 
@@ -237,7 +242,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             # NOTE: There's nothing to be done for pre-computed case - it's already stored in self.centrality
             if self.is_AA and self.use_event_based_centrality:
                 if self.model_name == "hybrid":
-                    # TODO(HYBRID): Hardcode to test code. We need to ensure it's in the output file, which means we probably need to inject it!
+                    # TODO(HYBRID): Hardcode to test code. Remove the model dependence when the centrality is available.
                     self.centrality = [0, 5]
                     # self.centrality = [5, 10]
                     if i == 0:
