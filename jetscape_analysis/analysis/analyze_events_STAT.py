@@ -77,8 +77,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         self.output_file = f'observables'
         # Update the output_file to contain the labeling in the final_state_hadrons file.
         # We use this naming convention as the flag for whether we should attempt to rename it.
-        if "final_state_hadrons" in self.input_file_hadrons:
-            _input_filename = Path(self.input_file_hadrons).name
+        if "final_state_hadrons" in str(self.input_file_hadrons):
+            _input_filename = self.input_file_hadrons.name
             # The filename will be something like "observables_0000_00.parquet", assuming
             # that the original name was "observables"
             self.output_file = _input_filename.replace("final_state_hadrons", self.output_file)

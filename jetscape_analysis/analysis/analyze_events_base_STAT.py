@@ -47,7 +47,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         super(AnalyzeJetscapeEvents_BaseSTAT, self).__init__(**kwargs)
 
         self.config_file = config_file
-        self.input_file_hadrons = input_file
+        self.input_file_hadrons = Path(input_file)
         self.output_dir = Path(output_dir)
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
@@ -82,7 +82,7 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             raise ValueError(msg)
 
         # Check whether pp or AA
-        if 'PbPb' in self.input_file_hadrons or 'AuAu' in self.input_file_hadrons:
+        if 'PbPb' in str(self.input_file_hadrons) or 'AuAu' in str(self.input_file_hadrons):
             self.is_AA = True
         else:
             self.is_AA = False
