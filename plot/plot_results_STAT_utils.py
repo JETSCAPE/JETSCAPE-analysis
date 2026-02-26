@@ -67,7 +67,7 @@ class PlotUtils(common_base.CommonBase):
         # Open the HEPData file
         hepdata_dir = Path(f"data/STAT/{sqrts}/{observable_type}/{observable}")
         hepdata_filename = hepdata_dir / block["hepdata"]
-        f = ROOT.TFile(hepdata_filename, "READ")
+        f = ROOT.TFile(str(hepdata_filename), "READ")
 
         # Find the relevant directory:
         # - We require that the centrality index is specified -- but
@@ -102,13 +102,18 @@ class PlotUtils(common_base.CommonBase):
             dir_name = block[dir_key][centrality_index]
             h_name = block[h_key]
 
-        else:
+        elif type(block[h_key]) is list:
             # If fewer entries than the observable's centrality, skip
             if centrality_index > len(block[h_key]) - 1:
                 return np.array([])
 
             dir_name = block[dir_key]
             h_name = block[h_key][centrality_index]
+
+        else:
+            # Both are plain strings
+            dir_name = block[dir_key]
+            h_name = block[h_key]
 
         # Get the histogram, and return the bins
         dir = f.Get(dir_name)

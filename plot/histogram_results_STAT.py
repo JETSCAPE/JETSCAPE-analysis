@@ -113,8 +113,8 @@ class HistogramResults(common_base.CommonBase):
         #       original line, and is very clever, but isn't so obvious. RJE replaced it with the
         #       simpler version in July 2025, but left the previous version here in case I've
         #       underestimated the complexity and we need to go back to the previous version.
-        # cross_section_file = "cross_section".join(str(self.input_file).rsplit("observables", 1))
-        cross_section_file = str(self.input_file).replace("observables", "cross_section")
+        cross_section_file = "cross_section".join(str(self.input_file).rsplit("observables", 1))
+        #cross_section_file = str(self.input_file).replace("observables", "cross_section")
         cross_section_df = pd.read_parquet(cross_section_file)
         self.cross_section = cross_section_df["cross_section"][0]
         self.cross_section_error = cross_section_df["cross_section_error"][0]
@@ -148,8 +148,12 @@ class HistogramResults(common_base.CommonBase):
             # Hadron histograms
             self.histogram_hadron_observables(observable_type="hadron")
 
-            self.histogram_hadron_correlation_observables(observable_type="hadron_correlation")
-            self.histogram_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
+            #self.histogram_hadron_correlation_observables(observable_type="hadron_correlation")
+            #self.histogram_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
+            if "hadron_correlation" in self.config:
+                self.histogram_hadron_correlation_observables(observable_type="hadron_correlation")
+            if "hadron_trigger_hadron" in self.config:
+                self.histogram_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
 
             # Jet histograms: loop through different hole subtraction treatments
             for jet_collection_label in self.jet_collection_labels:
@@ -325,6 +329,8 @@ class HistogramResults(common_base.CommonBase):
         logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
             for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
@@ -505,10 +511,12 @@ class HistogramResults(common_base.CommonBase):
     # Histogram hadron correlation observables
     # -------------------------------------------------------------------------------------------
     def histogram_hadron_correlation_observables(self, observable_type: str) -> None:
-        logger.info()
+        logger.info("")
         logger.info(f"Histogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
             for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
@@ -534,10 +542,12 @@ class HistogramResults(common_base.CommonBase):
     # Histogram hadron correlation observables
     # -------------------------------------------------------------------------------------------
     def histogram_hadron_trigger_hadron_observables(self, observable_type: str = "") -> None:
-        logger.info()
+        logger.info("")
         logger.info(f"Histogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue    
             for _, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
@@ -592,6 +602,8 @@ class HistogramResults(common_base.CommonBase):
         logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
             for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
@@ -704,6 +716,24 @@ class HistogramResults(common_base.CommonBase):
         logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
+            # Flatten nested jet config to top level — hadron_trigger observables
+            # store jet_R, pt, eta_cut under a "jet:" subkey
+            if "jet" in block and isinstance(block["jet"], dict):
+                for key, value in block["jet"].items():
+                    if key not in block:
+                        block[key] = value
+
+            if "trigger" in block and isinstance(block["trigger"], dict):
+                trigger = block["trigger"]
+                if "low_range" in trigger:
+                    block.setdefault("low_trigger_range", trigger["low_range"])
+                if "high_range" in trigger:
+                    block.setdefault("high_trigger_range", trigger["high_range"])
+                if "eta_cut" in trigger:
+                    block.setdefault("trigger_eta_cut", trigger["eta_cut"])
+
             for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
@@ -860,12 +890,10 @@ class HistogramResults(common_base.CommonBase):
         # Decide centrality checking strategy
         skip_eventwise_check = False
         if self.is_AA and not self.use_event_based_centrality:
-            # In precomputed hydro mode, all events share the same centrality, so check once using the first event
-            event_cmin = self.event_centrality_min[0]
-            event_cmax = self.event_centrality_max[0]
-            if not (event_cmin >= centrality[0] and event_cmax <= centrality[1]):
-                return  # skip entire histogram
-            skip_eventwise_check = True
+            # If file centrality range fits entirely within this observable bin, skip per-event checks
+            if self.centrality_range[0] >= centrality[0] and self.centrality_range[1] <= centrality[1]:
+                skip_eventwise_check = True
+            # Otherwise, fall through to per-event checking (never silently return)
 
         # Find dimension of observable
         dim_observable = 0
@@ -1024,7 +1052,7 @@ class HistogramResults(common_base.CommonBase):
     # ---------------------------------------------------------------
     def centrality_accepted(self, observable_centrality, event_index=None):
         # AA
-        logger.debug(f"Comparing to full centrality range {self.full_centrality_range}")
+        logger.debug(f"Comparing to full centrality range {observable_centrality}")
         if self.is_AA:
             if event_index is None:
                 raise ValueError("event_index must be provided for event-based centrality analysis.")
@@ -1045,7 +1073,7 @@ class HistogramResults(common_base.CommonBase):
         # Save output objects
         output_file = Path(str(self.input_file).replace("observables", "histograms").replace("parquet", "root"))
         output_path = self.output_dir / output_file
-        f_out = ROOT.TFile(Path(output_path), "recreate")
+        f_out = ROOT.TFile(str(output_path), "recreate")
         f_out.cd()
         for obj in self.output_list:
             logger.info(f"Writing {obj.GetName()} to {output_path}")
