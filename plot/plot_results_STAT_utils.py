@@ -28,7 +28,8 @@ def available_hepdata_files_in_block(block: dict[str, Any]) -> list[str]:
     Return:
         List of hepdata files available in the block.
     """
-    available_hepdata_files = [v in block for v in ["hepdata", "hepdata_pp", "hepdata_AA"]]
+
+    available_hepdata_files = [v for v in ["hepdata", "hepdata_pp", "hepdata_AA"] if v in block]
     # Expect to have either hepdata or if in separate files, it could be hepdata_pp and hepdata_AA
     # Validate this:
     if available_hepdata_files and "hepdata_pp" in available_hepdata_files:
@@ -197,7 +198,17 @@ class PlotUtils(common_base.CommonBase):
 
         # Get the tgraph, and return the bins
         dir = f.Get(dir_name)
+        try:
+            g = dir.Get(g_name)
+        except TypeError:
+            logger.warning(f"HEPData directory '{dir_name}' not found in {hepdata_filename}")
+            f.Close()
+            return None
         g = dir.Get(g_name)
+        if not g:
+            logger.warning(f"TGraph '{g_name}' not found in directory '{dir_name}' in {hepdata_filename}")
+            f.Close()
+            return None
         f.Close()
 
         return g

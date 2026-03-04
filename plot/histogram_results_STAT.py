@@ -215,9 +215,15 @@ class HistogramResults(common_base.CommonBase):
 
             for centrality in self.observable_centrality_list:
                 if not self.use_event_based_centrality:
-                    # PRECOMPUTED: all events share the same (file-level) centrality.
+                    # Find first event with valid centrality
+                    valid_idx = np.where(~np.isnan(centrality_min_all))[0]
+                    if len(valid_idx) == 0:
+                        continue
+                    first_valid = valid_idx[0]
                     # Check once using the first row (safe because all rows match).
-                    if not self.centrality_accepted(centrality, event_index=0):
+                    #if not self.centrality_accepted(centrality, event_index=first_valid):
+                    if not (centrality_min_all[first_valid] >= centrality[0] 
+                            and centrality_max_all[first_valid] <= centrality[1]):
                         continue
 
                     # The sum of weights is simply the total sum of all weights.
