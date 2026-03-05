@@ -95,7 +95,7 @@ class PlotResults(common_base.CommonBase):
         self.is_AA = False
         # NOTE: We only use this in AA, but it's better for it to always be defined
         self.observable_centrality_list = []
-        if "PbPb" in input_file or "AuAu" in input_file:
+        if "PbPb" in str(input_file) or "AuAu" in str(input_file):
             self.is_AA = True
 
         # If AA, load the pp reference results so that we can construct RAA
@@ -236,6 +236,8 @@ class PlotResults(common_base.CommonBase):
         logger.info(f"\nPlot {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
             for centrality_index, centrality in enumerate(block["centrality"]):
                 # Custom skip to only process inclusive hadron and jet RAA.
                 # Used historically - not really needed in July 2025, but we leave it as is.
@@ -423,7 +425,7 @@ class PlotResults(common_base.CommonBase):
     # Initialize from settings from config file into class members
     # -------------------------------------------------------------------------------------------
     def init_common_settings(self, observable: str, block: dict[str, Any]) -> None:  # noqa: C901
-        self.xtitle = block["xtitle"]
+        self.xtitle = block.get("xtitle", "")
         if "eta_cut" in block:
             self.eta_cut = block["eta_cut"]
         if "y_cut" in block:
@@ -694,7 +696,11 @@ class PlotResults(common_base.CommonBase):
         # (1) Scale all histograms by the min-pt-hat cross-section and weight-sum
         if self.is_AA:
             h_xsec = self.input_file.Get(f"h_xsec_{centrality}")
-            weight_sum = self.input_file.Get(f"h_weight_sum_{centrality}").GetBinContent(1)
+            h_weight_sum = self.input_file.Get(f"h_weight_sum_{centrality}")
+            if not h_xsec or not h_weight_sum:
+                logger.warning(f"Skipping {centrality} — missing h_xsec or h_weight_sum")
+                return
+            weight_sum = h_weight_sum.GetBinContent(1)
         else:
             h_xsec = self.input_file.Get("h_xsec")
             weight_sum = self.input_file.Get("h_weight_sum").GetBinContent(1)
@@ -1003,8 +1009,8 @@ class PlotResults(common_base.CommonBase):
         if force_write or not output_file.exists():
             # Get histogram binning
             key = next(
-                [key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key]
-            )
+                (key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key)
+            )   
             h_prediction = self.observable_settings[key]
 
             # Truncate data tgraph to prediction histogram binning
@@ -1014,6 +1020,8 @@ class PlotResults(common_base.CommonBase):
                 x_max = xbins[1:]
 
                 g_data = self.observable_settings["data_distribution"]
+                if not g_data:
+                    return
                 g_truncated = self.plot_utils.truncate_tgraph(g_data, h_prediction, is_AA=self.is_AA)
                 if g_truncated:
                     y = np.array(g_truncated.GetY())
@@ -1340,6 +1348,16 @@ class PlotResults(common_base.CommonBase):
     # Plot event QA
     # -------------------------------------------------------------------------------------------
     def plot_event_qa(self):
+        h_pt_hat = self.input_file.Get("h_pt_hat")
+        h_pt_hat_weighted = self.input_file.Get("h_pt_hat_weighted")
+        if not h_pt_hat or not h_pt_hat_weighted:
+            logger.warning("h_pt_hat not found, skipping event QA")
+            return
+        normalization_uncertainty = 0
+        sum_weights_integral = 1  # avoid division by zero
+        sum_weights = 0
+        xsec = 1  # avoid division by zero
+        xsec_error = 0
         if self.is_AA:
             for centrality in self.observable_centrality_list:
                 # Only plot those centralities that exist

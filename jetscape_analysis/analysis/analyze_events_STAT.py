@@ -1127,7 +1127,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 and abs(jet.eta()) < (self.inclusive_chjet_observables["ktg_alice"]["eta_cut_R"] - jetR)
             ):
                 # Fill DyG
-                for a in self.inclusive_chjet_observables["ktg_alice"]["dynamical_grooming_a"]:
+                for dg in self.inclusive_chjet_observables["ktg_alice"]["dynamical_grooming"]:
+                    a = dg["a"]
                     jet_dyg_lund = gshop.dynamical(a)
                     # If a single particle jet, there's no substructure, so skip it.
                     if not jet_dyg_lund:
@@ -1185,7 +1186,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="axis_alice")
-            and grooming_setting in self.inclusive_chjet_observables["axis_alice"]["axis"]["SD"]["grooming_settings"]
+            and grooming_setting in [
+                entry["grooming_settings"]
+                for entry in self.inclusive_chjet_observables["axis_alice"]["axis"]
+                if "grooming_settings" in entry
+            ]
         ):
             pt_min = self.inclusive_chjet_observables["axis_alice"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["axis_alice"]["pt"][-1]
