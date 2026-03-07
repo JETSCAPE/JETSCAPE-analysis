@@ -412,7 +412,7 @@ def _parse_with_numpy(chunk_generator: Iterator[str], column_names: list[str]) -
     return np.loadtxt(chunk_generator)
 
 
-def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") -> Generator[ak.Array, int | None, None]:  # noqa: C901
+def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas", centrality_value_to_inject: float | None = None) -> Generator[ak.Array, int | None, None]:  # noqa: C901
     """Read a FinalState{Hadrons,Partons} ASCII output file in chunks.
 
     This is the primary user function. We read in chunks to keep the memory usage manageable.
@@ -425,11 +425,17 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
         events_per_chunk: Number of events to provide in each chunk.
         parser: Name of the parser to use. Default: `pandas`, which uses `pandas.read_csv`. It uses
             compiled c, and seems to be the fastest available option. Other options: ["python", "numpy"].
+        centrality_value_to_inject: If a value is provided and a centrality branch is not provided in the output file,
+            then the value will be used as the centrality for each event. Default: None.
     Returns:
         Generator of an array of events_per_chunk events.
     """
     # Validation
     filename = Path(filename)
+
+    # Further validation
+    if centrality_value_to_inject:
+        logger.warning(f"Provided centrality value to inject ({centrality_value_to_inject}). Use with care!")
 
     # Setup
     parsing_function_map = {
@@ -515,10 +521,29 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
                 header_level_info["event_weight"] = np.array(
                     [header.event_weight for header in chunk_generator.headers], np.float32
                 )
+            # Centrality (if provided in the file)
             if chunk_generator.headers[0].centrality > -1:
                 header_level_info["centrality"] = np.array(
                     [header.centrality for header in chunk_generator.headers], np.float32
                 )
+            # Alternatively, centrality can be injected if requested
+            if centrality_value_to_inject:
+                # This option is an escape value for when the centrality should have been written to the ASCII file,
+                # but was left out. So we want to check this carefully!
+                # NOTE: We only do the checks just for the first loop. It won't change, so no need to do them every time
+                if i == 0:
+                    # Ensure that we don't have the centrality in the file. There's no valid use case to inject
+                    # over the values in the output file.
+                    if chunk_generator.headers[0].centrality > -1:
+                        msg = f"Provided centrality value to inject ({centrality_value_to_inject}), but there are centrality values provided in the file. These are mutually incompatible. Please check settings!"
+                        raise RuntimeError(msg)
+                    # We want to allow the narrowest conditions possible. Since this is an issue related to the hybrid model outputs,
+                    # we will only allow it for that case.
+                    if chunk_generator.model_parameters.model_name != "hybrid":
+                        msg = "Centrality injection only supported for the hybrid model."
+                        raise RuntimeError(msg)
+                header_level_info["centrality"] = np.full(len(chunk_generator.headers), centrality_value_to_inject, dtype=np.float32)
+
             if chunk_generator.headers[0].pt_hat > -1:
                 header_level_info["pt_hat"] = np.array(
                     [header.pt_hat for header in chunk_generator.headers], np.float32
@@ -609,6 +634,7 @@ def parse_to_parquet(
     max_chunks: int = -1,
     compression: str = "zstd",
     compression_level: int | None = None,
+    centrality_value_to_inject: float | None = None,
 ) -> None:
     """Parse the ASCII final state {hadrons,partons} output file and convert it to parquet.
 
@@ -621,6 +647,8 @@ def parse_to_parquet(
         compression: Compression algorithm for parquet. Default: "zstd". Options include: ["snappy", "gzip", "ztsd"].
             "gzip" is slightly better for storage, but slower. See the compression tests and parquet docs for more.
         compression_level: Compression level for parquet. Default: `None`, which lets parquet choose the best value.
+        centrality_value_to_inject: If a value is provided and a centrality branch is not provided in the output file,
+            then the value will be used as the centrality for each event. Default: None.
     Returns:
         None. The parsed events are stored in parquet files.
     """
@@ -629,7 +657,7 @@ def parse_to_parquet(
     # Setup the base output directory
     base_output_filename.parent.mkdir(parents=True, exist_ok=True)
 
-    for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
+    for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser, centrality_value_to_inject=centrality_value_to_inject)):
         # If converting in chunks, add an index to the output file so the chunks don't overwrite each other.
         if events_per_chunk > 0:
             suffix = base_output_filename.suffix

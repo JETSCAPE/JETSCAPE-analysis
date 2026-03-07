@@ -8,43 +8,44 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from pathlib import Path
 
 from jetscape_analysis.analysis.reader import parse_ascii
 from jetscape_analysis.base import common_base, helpers
 
+logger = logging.getLogger(__name__)
 
-################################################################
+
 class SkimAscii(common_base.CommonBase):
-    # ---------------------------------------------------------------
-    # Constructor
-    # ---------------------------------------------------------------
-    def __init__(self, input_file: Path, output_dir: Path, events_per_chunk: int = 50000, **kwargs):
+    """Steering classic for skimming an ASCII file to parquet."""
+    def __init__(self, input_file: Path, output_dir: Path, events_per_chunk: int = 50000, centrality_value_to_inject: float | None = None, **kwargs):
         super().__init__(**kwargs)
         self.input_file = input_file
         self.output_dir = output_dir
 
         self.event_id: int = 0
         self.events_per_chunk = events_per_chunk
+        self.centrality_value_to_inject = centrality_value_to_inject
 
-    # ---------------------------------------------------------------
-    # Main processing function for a single pt-hat bin
-    # ---------------------------------------------------------------
     def skim(self) -> None:
-        # The parser writes out a parquet file containing the ascii events,
+        """Main processing function for a single ASCII file."""
+        # The parser writes out a parquet file containing the ASCII events,
         # reformatted and compressed.
         parse_ascii.parse_to_parquet(
-            base_output_filename=self.output_dir, input_filename=self.input_file, events_per_chunk=self.events_per_chunk
+            base_output_filename=self.output_dir,
+            input_filename=self.input_file,
+            events_per_chunk=self.events_per_chunk,
+            centrality_value_to_inject=self.centrality_value_to_inject,
         )
 
 
-##################################################################
 if __name__ == "__main__":
     # Setup
     helpers.setup_logging(level=logging.INFO)
 
     # Define arguments
-    parser = argparse.ArgumentParser(description="Convert (skim) ascii output files to parquet")
+    parser = argparse.ArgumentParser(description="Convert (skim) ASCII output files to parquet")
     parser.add_argument(
         "-i",
         "--inputFile",
@@ -72,6 +73,14 @@ if __name__ == "__main__":
         default=50000,
         help="Number of events to store in each parquet file",
     )
+    parser.add_argument(
+        "--inject-centrality",
+        action="store",
+        type=float,
+        metavar="centrality",
+        default=None,
+        help="Set a fixed centrality value for each event. This should be used rarely, and is only allowed for use with the hybrid model.",
+    )
 
     # Parse the arguments
     args = parser.parse_args()
@@ -81,5 +90,14 @@ if __name__ == "__main__":
         _msg = f'File "{args.inputFile}" does not exist! Exiting!'
         raise RuntimeError(_msg)
 
-    analysis = SkimAscii(input_file=args.inputFile, output_dir=args.outputDir, events_per_chunk=args.nEventsPerFile)
-    analysis.skim()
+    analysis = SkimAscii(
+        input_file=args.inputFile,
+        output_dir=args.outputDir,
+        events_per_chunk=args.nEventsPerFile,
+        centrality_value_to_inject=args.inject_centrality,
+    )
+    try:
+        analysis.skim()
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)
