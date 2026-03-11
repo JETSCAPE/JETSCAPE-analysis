@@ -219,9 +219,10 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
         centrality_range_max = 0
 
         # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
-        # TODO(HYBRID): Hardcode to test code. Remove the model dependence when the centrality is available.
-        if self.use_event_based_centrality and "centrality" not in df_event_chunk.columns and self.model_name != "hybrid":
-            raise ValueError("Centrality column missing in input Parquet file for real_time_hydro mode.")
+        # NOTE: use_event_based_centrality can only be enabled if in AA, so no need to double check `is_AA`.
+        if self.use_event_based_centrality and "centrality" not in df_event_chunk.columns:
+            msg = "Centrality column missing in input Parquet file for real_time_hydro mode."
+            raise ValueError(msg)
 
         for i, event in df_event_chunk.iterrows():
 
@@ -237,23 +238,11 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
             # Update self.centrality dynamically per event
             # NOTE: There's nothing to be done for pre-computed case - it's already stored in self.centrality
             if self.is_AA and self.use_event_based_centrality:
-                if self.model_name == "hybrid":
-                    # TODO(HYBRID): Hardcode to test code. Remove the model dependence when the centrality is available.
-                    self.centrality = [0, 5]
-                    # self.centrality = [5, 10]
-                    if i == 0:
-                        msg = f"TODO(HYBRID): Manually assigning centrality to {self.centrality}. This should be read from the it's available at the analysis level..."
-                        print(msg)
-                    # ENDTODO
-                else:
-                    # Double check that the centrality is available in the event dictionary. If not, need to raise the issue early.
-                    if i == 0 and "centrality" not in event:
-                        msg = "Running AA, there is no run info file, and event-by-event centrality is not available, so we are unable to proceed. Please check configuration"
-                        raise ValueError(msg)
-                    self.centrality = [
-                        int(np.floor(event["centrality"])),
-                        int(np.ceil(event["centrality"])),
-                    ]  # Dynamically set centrality; values are passed from the parquet file
+                # Dynamically set centrality; values are passed from the parquet file
+                self.centrality = [
+                    int(np.floor(event["centrality"])),
+                    int(np.ceil(event["centrality"])),
+                ]
 
             # Call user-defined function to analyze event
             self.analyze_event(event)
