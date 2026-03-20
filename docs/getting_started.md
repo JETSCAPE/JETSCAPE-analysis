@@ -12,7 +12,7 @@ Before getting to code structure, a quick primer on running the code:
 
 JETSCAPE-analysis relies on a number of packages that are not so trivial to install, so it's easiest to run in a container. There are two potential options:
 
-1. Use the STAT singularity/apptainer container. This is guaranteed to work. As of 2026 Jan, the most recent container for development (e.g. mostly unoptimized, denoted as "local") is v5.2, and it can be [found here](https://cernbox.cern.ch/s/RKBPlvHr5wxe16C).
+1. Use the STAT singularity/apptainer container. This is guaranteed to work. As of 2026 March, the most recent container for development (e.g. optimized as much as possible for a generic system, denoted as "local") is v6.3. [It's available here under the name `stat_local_gcc_v6.3.sif`](https://cernbox.cern.ch/remote.php/dav/public-files/ff4ya2fvwY8RM6X/containers/local/stat_local_gcc_v6.3.sif?signature=2d235ffa2d461c9abaa01f5f94eff3c5765bd1429f122175aba786d2bd875b22&expiration=2026-03-20T02%3A01%3A09%2B01%3A00). If you need access to other containers, [they're available in the `containers/local` directory here](https://cern.ch/jetscape-stat). (Ask Raymond or Luna or the current STAT conveners for the password).
 2. Use the main JETSCAPE docker container. This has not been tested by RJE. You can try, but no promises. (It worked at some point, but changes in the architecture broke it at some point - especially for folks on ARM chips, such as Macs. See some discussion [here](https://jetscapeworkspace.slack.com/archives/C0128SDRUG4/p1750462354926279)).
 
 The following instructions are assuming that you're using option #1. Note that if you don't have apptainer or singularity available, you can also try running the container with recent versions of podman. Alternatively, try out your local cluster / HPC system - it should be available there.
@@ -24,15 +24,18 @@ Some additional info on containers is available in the private [stat-xsede repo]
 For development of the analysis code, you'll need some simulation outputs. In principle, you can generate them yourself using the container (see the notes on using the container "apps" below), but this takes additional setup. Easier is to use these examples output files:
 
 - Small samples:
-  - [pp, 5.02 TeV, 150k events](https://cernbox.cern.ch/s/WehcAM2kwuXmeTe) (400 MB)
-  - [0-10% Pb-Pb, 5.02 TeV, 150k events](https://cernbox.cern.ch/s/hIYbdxkQv4XvNRa) (1.5 GB)
+  - [pp, 5.02 TeV, 150k events](https://cernbox.cern.ch/remote.php/dav/public-files/ff4ya2fvwY8RM6X/observable_development_sample/Run30000_pp_small_sample.tar.gz?signature=d51acf0306204a58519e69229f94eb4ed4d29e9ea3bb2b63546bb6a2c2cfe51d&expiration=2026-03-20T01%3A56%3A22%2B01%3A00) (400 MB)
+  - [0-10% Pb-Pb, 5.02 TeV, 150k events](https://cernbox.cern.ch/remote.php/dav/public-files/ff4ya2fvwY8RM6X/observable_development_sample/Run30000_NoRotationFix_small_sample.tar.gz?signature=d51acf0306204a58519e69229f94eb4ed4d29e9ea3bb2b63546bb6a2c2cfe51d&expiration=2026-03-20T01%3A56%3A22%2B01%3A00) (1.5 GB)
 - Medium samples:
-  - [pp, 5.02 TeV, 2M events](https://cernbox.cern.ch/s/emZRq0BzkPxcY8p) (3.6 GB)
-  - [0-10% Pb-Pb, 5.02 TeV, 500k events](https://cernbox.cern.ch/s/PLVGxHsTYc7JZVA) (2.5 GB)
+  - [pp, 5.02 TeV, 2M events](https://cernbox.cern.ch/remote.php/dav/public-files/ff4ya2fvwY8RM6X/observable_development_sample/Run30000_pp_medium_sample.tar.gz?signature=d51acf0306204a58519e69229f94eb4ed4d29e9ea3bb2b63546bb6a2c2cfe51d&expiration=2026-03-20T01%3A56%3A22%2B01%3A00) (3.6 GB)
+  - [0-10% Pb-Pb, 5.02 TeV, 500k events](https://cernbox.cern.ch/remote.php/dav/public-files/ff4ya2fvwY8RM6X/observable_development_sample/Run30000_NoRotationFix_medium_sample.tar.gz?signature=d51acf0306204a58519e69229f94eb4ed4d29e9ea3bb2b63546bb6a2c2cfe51d&expiration=2026-03-20T01%3A56%3A22%2B01%3A00) (2.5 GB)
 
 These samples correspond to a test production, known as the "NoRotationFix"[^0], but corresponds to approximately the same conditions as the first production. It is design point index 12 in the exponential design. (n.b. this has a very high Q0, so it may not agree with data so well). In practice, these details are included for documentation, but shouldn't make a difference for observable development.
 
 Please extract these to their own folders - be sure to avoid name conflicts.
+
+> [!NOTE]
+> These files are stored in the [jetscape cernbox](https://cern.ch/jetscape-stat) in the `observable_development_sample` directory.
 
 [^0]: It was intended to test an issue with the coordinate rotation of the soft sector. We found that it made little different. And in any case, the NoRotationFix configuration corresponds to exactly what we ran for the 2021-2022 production.
 
