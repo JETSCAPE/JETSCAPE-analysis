@@ -85,25 +85,29 @@ simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 # Note: all observables that are plotted are saved to hdf5, and are then written to tables
 # Note: plotting script may have warnings about missing histograms, this is usually due to some missing centrality bins for certain design points
 analysis_name = 'Analysis1'
-download_runinfo = False # if true, download all run_info.yaml files specified in DataManagement (runs.yaml)
+model_name = "jetscape"
+# analysis_name = 'hybrid_production_0'
+# model_name = "hybrid"
+download_runinfo = True # if true, download all run_info.yaml files specified in DataManagement (runs.yaml)
 download_histograms = False # if true, download all histogram files from OSN
 list_paths_for_selected_design_points = False
 merge_histograms = False # if true, merge all histograms for each run into a single file
 aggregate_histograms = False # if true, aggregate all histograms for each design point into a single file
 plot_and_save_histograms = False # if true, plot and save all histograms
 write_tables = False # if true, write tables for input to Bayesian analysis
-plot_global_QA = True # if true, plot global QA
+plot_global_QA = False # if true, plot global QA
 
 # re-analysis parameters
 #-----------------------------------------------------------------
-download_final_state_hadrons = False # if False, final_state_hadrons.parquet files for local analysis
-analysis_final_state_hadrons = False  # if true, analyze final_state_hadrons.parquet files locally
-local_analysis_facility = "test_hiccup" # facililty to run local re-analysis as defined in cluster config of STAT-XSEDE-2021
+download_final_state_hadrons = False  # if False, final_state_hadrons.parquet files for local analysis
+analysis_final_state_hadrons = False  # if True, analyze final_state_hadrons.parquet files locally
+local_analysis_facility = "test_587cluster" # facility to run local re-analysis as defined in cluster config of STAT-XSEDE-2021
 
 # version number used to identify the version of the analysis. Histograms and observables are stored on OSN in facility/RunX/histograms/versionY
-# if version -1 is specified, histogram files for download will be downloaded from faclity/RunX/histograms without version specifier
+# if version -1 is specified, histogram files for download will be downloaded from facility/RunX/histograms without version specifier
 # if version -1 is specified, no upload of the results from reanalysis is possible
-analysis_version = -1 
+analysis_version = -1
+# force_reanalysis = True # force to analyse and download again, even if histogram files are present
 force_reanalysis = False # force to analyse and download again, even if histogram files are present
 delete_local_final_state_hadrons_after_analysis = True # delete final state hadron files after analysis is done
 randomize_run_order = True  # if true, runs will be shuffled into random order. This should be on by default, especially for benchmarking
@@ -121,13 +125,14 @@ skip_run_binomial = False
 # Location where histogram files and final state hadron files are stored on OSN
 #-----------------------------------------------------------------
 facilities = ['bridges2', 'expanse']
+# facilities = ["cambridge"]
 
 # Settings related to software and data locations
 #-----------------------------------------------------------------
-stat_xsede_2021_dir = '/software/users/fjonas/myJETSCAPE/STAT-XSEDE-2021'
-jetscape_analysis_dir = '/software/users/fjonas/myJETSCAPE/JETSCAPE-analysis'
-local_base_outputdir = '/rstorage/jetscape/STAT-Bayesian/Analysis1/20230116'
-analyis_container_path = '/rstorage/jetscape/containers/local/stat_local_gcc_v3.6.sif'
+stat_xsede_2021_dir = "/jetscapeOpt/stat-xsede-2021"
+jetscape_analysis_dir = "/jetscapeOpt/jetscape-analysis"
+local_base_outputdir = "/rstorage/rehlers/hybrid-bayesian/aggregation/production_0/2026-03-19"
+analysis_container_path = "/software/flo/myJETSCAPE/STAT-XSEDE-2021/containers/stat_local_gcc_v3.6.sif"
 
 # re-analysisdebug options
 #-----------------------------------------------------------------
@@ -138,7 +143,7 @@ do_debug_same_run = False # if true, only process the same run over and over, us
 # if nothing special should be selected, set to empty list. To select multiple options, separate by commas
 debug_design_points = []
 debug_parametrization_type = []
-debug_sqrts = [] 
+debug_sqrts = []
 debug_centrality = []
 debug_calculation_type = []
 debug_system = []
@@ -146,7 +151,7 @@ debug_system = []
 # Example
 # debug_design_points = [91]
 # debug_parametrization_type = ['exponential']
-# debug_sqrts = [5020] 
+# debug_sqrts = [5020]
 # debug_centrality = [[0,10]]
 # debug_calculation_type = ['jet_energy_loss']
 # debug_system = ['PbPb']
@@ -161,7 +166,7 @@ reananalysis_output_location_base = os.path.join(local_base_outputdir, 'histogra
 def download_server(facilities, runs, buffer_size=5):
     """Download server for retrieving final state hadron files from remote facilities.
 
-    Downloads files from specified facilities/runs into a local buffer directory. The program keeps 
+    Downloads files from specified facilities/runs into a local buffer directory. The program keeps
     downloading file until the buffer is full and waits 60s before rechecking.
     The main analysis thread will delete the files from the buffer once they are processed.
     A DONE file is created in the buffer directory once the download for a run is finished.
@@ -183,7 +188,7 @@ def download_server(facilities, runs, buffer_size=5):
             # If directory exists locally, check number of histograms already downloaded and number on OSN
             final_state_hadron_dir = os.path.join(final_state_hadrons_download_location, f'{facility}/{run}')
             reananalysis_output_location = os.path.join(reananalysis_output_location_base, f'{facility}/{run}')
-  
+
             # before we download any analysis output, check if we already have analysis output that we want. If it is already there then skip this run
             if analysis_final_state_hadrons and not force_reanalysis and not do_debug_same_run:
                 histpath = os.path.join(reananalysis_output_location, 'histograms')
@@ -194,7 +199,7 @@ def download_server(facilities, runs, buffer_size=5):
                     n_parquet_local = len([h for h in os.listdir(final_state_hadron_dir) if '.parquet' in h])
 
                     if n_histoutput == n_parquet_local:
-                        print(f'[Downloader] Analysis already done for run {run_number}, I found {n_histoutput} histograms, will not download ...') 
+                        print(f'[Downloader] Analysis already done for run {run_number}, I found {n_histoutput} histograms, will not download ...')
                         continue
 
             if os.path.exists(final_state_hadron_dir):
@@ -220,7 +225,7 @@ def download_server(facilities, runs, buffer_size=5):
                 # check in final_state_hadrons_download_location recursively for all files called DONE
                 # if there are more than buffer_size files, wait until there are less than buffer_size files
                 # then download the next file
-                
+
                 while True:
                     # check if there are too many files in the buffer
                     bufferedRuns = 0
@@ -243,10 +248,8 @@ def download_server(facilities, runs, buffer_size=5):
                 # create a file DONE in the directory to signal that the download is finished
                 Path(os.path.join(final_state_hadron_dir, 'DONE')).touch()
                 print()
-            
-def main():
 
-    #-----------------------------------------------------------------
+def main():
 
     #-----------------------------------------------------------------
     # (1) Download info for all runs from OSN, and create a dictionary with all info needed to download and aggregate histograms
@@ -257,10 +260,11 @@ def main():
         runs = {}
         run_dictionary = {}
         missing_runinfo = defaultdict(list)
-        skipped_runs = defaultdict(list) 
+        skipped_runs = defaultdict(list)
 
         # (i) Load the runs.yaml for each facility from STAT-XSEDE-2021
         for facility in facilities.copy():
+            # TODO(RJE): Set relative to `base_bookkeeping_path`
             runs_filename = os.path.join(stat_xsede_2021_dir, f'docs/DataManagement/{analysis_name}/{facility}/runs.yaml')
             print('Searching for runs.yaml in:', runs_filename)
             if os.path.exists(runs_filename):
@@ -275,7 +279,9 @@ def main():
             from js_stat_xsede_steer import file_management
         except ImportError:
             msg = "Error: stat-xsede needs to be importable"
-            raise RuntimeError(msg)
+            # TEMP: DISABLED
+            #raise RuntimeError(msg)
+            # ENDTEMP
         for facility in facilities:
 
             # if requested, shuffle runs into random order
@@ -315,14 +321,15 @@ def main():
                         # runinfo_pairs.append as FilePair
                         runinfo_pairs.append(file_management.FilePair(source, destination))
 
-            failed = file_management.download_from_OSN_pairs(runinfo_pairs, download_threads)
-            
+            failed = []
+            if runinfo_pairs:
+                failed = file_management.download_from_OSN_pairs(runinfo_pairs, download_threads)
+
             if failed:
                 print(f'Warning: failed to download run_info.yaml for the following runs: {failed}')
-            
 
-            # need to loop over the runs again after processing is finished    
-            print('Finished downloading run_info.yaml for all runs, building dictionaries ...')     
+            # need to loop over the runs again after processing is finished
+            print('Finished downloading run_info.yaml for all runs, building dictionaries ...')
             for i,run in enumerate(runs[facility].copy()):
 
                 # should exist now after previous download
@@ -393,7 +400,7 @@ def main():
                 else:
                     print(f'Warning: {run}_info.yaml not found!')
                     runs[facility].remove(run)
-                    missing_runinfo[facility].append(run)                
+                    missing_runinfo[facility].append(run)
 
         # Print what we found
         for facility in facilities:
@@ -465,7 +472,7 @@ def main():
         print()
 
 
-    
+
     if analysis_final_state_hadrons:
         print('Downloading all final state hadrons...')
         print()
@@ -485,9 +492,9 @@ def main():
             shutil.copy(config_file, reananalysis_output_location_base)
         git_log_file = os.path.join(str(reananalysis_output_location_base), 'git_log_jetscape-analysis.txt')
         subprocess.run(['git', 'log', '--oneline', '-n', '100'], cwd=jetscape_analysis_dir, stdout=open(git_log_file, 'w'))
-        
 
-        
+
+
         # things for visualization
         total_runs = sum([len(runs[facility]) for facility in facilities])
         run_counter = 0
@@ -503,7 +510,7 @@ def main():
                 # If directory exists locally, check number of histograms already downloaded and number on OSN
                 final_state_hadron_dir = os.path.join(final_state_hadrons_download_location, f'{facility}/{run}')
                 reananalysis_output_location = os.path.join(reananalysis_output_location_base, f'{facility}/{run}')
-               
+
                 # before we download any analysis output, check if we already have analysis output that we want. If it is already there then skip this run
                 if analysis_final_state_hadrons and not force_reanalysis and not do_debug_same_run:
                     histpath = os.path.join(reananalysis_output_location, 'histograms')
@@ -514,7 +521,7 @@ def main():
                         n_parquet_local = len([h for h in os.listdir(final_state_hadron_dir) if '.parquet' in h])
 
                         if n_histoutput == n_parquet_local:
-                            print(f'Analysis already done for run {run_number}, I found {n_histoutput} histograms, will not re-analyze ...') 
+                            print(f'Analysis already done for run {run_number}, I found {n_histoutput} histograms, will not re-analyze ...')
                             continue
                 # check if file final_state_hadron_dir/DONE exist and the downloader finished buffering this run, if it does not exist, then wait until it exists
                 while 1:
@@ -524,21 +531,21 @@ def main():
                     time.sleep(60)
 
                 from js_stat_xsede_steer import submit
-                
+
 
                 # only submit if the final_state_hadron_dir actually contains any files. For some weird reason sometimes files are not available for a run
                 if len(os.listdir(final_state_hadron_dir)) > 1: #bigger than 1 because of DONE file that might be there
                     arg_list = [f'python3',f'{stat_xsede_2021_dir}/scripts/js_stat_xsede_steer/submit.py',
-                                f'analysis',
-                                f'--run_number={run_number}', 
-                                f'--run_info_dir={run_info_download_location}', 
-                            f'--final_state_hadrons_dir={final_state_hadrons_download_location}', 
-                            f'--output_dir={reananalysis_output_location}', 
-                            f'--analysis_facility_name={local_analysis_facility}', 
+                            f'analysis',
+                            f'--run_number={run_number}',
+                            f'--run_info_dir={run_info_download_location}',
+                            f'--final_state_hadrons_dir={final_state_hadrons_download_location}',
+                            f'--output_dir={reananalysis_output_location}',
+                            f'--analysis_facility_name={local_analysis_facility}',
                             f'--download_facility_name={facility}',
-                            f'--container_path={analyis_container_path}', 
-                            f'--n_tasks={ntasks}', 
-                            f'--max_n_slurm_jobs={max_n_slurm_jobs}', 
+                            f'--container_path={analysis_container_path}',
+                            f'--n_tasks={ntasks}',
+                            f'--max_n_slurm_jobs={max_n_slurm_jobs}',
                             f'--jetscape_analysis_dir={jetscape_analysis_dir}']
                     subprocess.run(arg_list, check=True, shell=False)
                 else:
@@ -548,7 +555,7 @@ def main():
                     with open(skipped_runs_file, 'a') as f:
                         f.write(f'{run_number}\n')
                 if delete_local_final_state_hadrons_after_analysis:
-                    # safely delete final_state_hadron_dir, make sure the path contains final_state_hadrons_per_run so we don't by accident delete "/" or "/home" .... 
+                    # safely delete final_state_hadron_dir, make sure the path contains final_state_hadrons_per_run so we don't by accident delete "/" or "/home" ....
 
                     if os.path.exists(final_state_hadron_dir) and "final_state_hadrons_per_run" in final_state_hadron_dir:
                         # remove all files in the directory that contain final_state_hadrons and parquet in name
@@ -564,11 +571,11 @@ def main():
                         os.rmdir(final_state_hadron_dir)
 
                 # TODO upload analysis results / histos to OSN in the future
-                
+
 
 
         print('Done!')
-    
+
 
     #-----------------------------------------------------------------
     # Merge for each run into a single histogram per run
@@ -579,7 +586,7 @@ def main():
             run_counter = 0
             for run in runs[facility]:
                 run_counter += 1
-                print(f'Processing run {run_counter} out of {len(runs[facility])} at facility {facility}...')     
+                print(f'Processing run {run_counter} out of {len(runs[facility])} at facility {facility}...')
                 outputdir = os.path.join(local_base_outputdir, f'histograms_per_run/{facility}/{run}')
                 inputdir = os.path.join(outputdir, 'histograms')
 
@@ -738,6 +745,63 @@ def main():
         outfile = os.path.join(outputdir_base, 'design_point_info.pkl')
         with open(outfile, 'wb') as f:
             pickle.dump(design_point_dictionary, f)
+    elif not os.path.exists(os.path.join(local_base_outputdir, "histograms_aggregated", 'design_point_info.pkl')):
+        # If we don't have the design_point_info, we need to try to reproduce it as best as we can
+        # We'll base it on the run_info file (assumes that we have histograms for each run, so this is less than ideal)
+        # TODO(RJE): It would be best if this could be consolidated. However, this was useful for testing in 2026 March.
+        print("Attempting to create the design_point_info manually. This will not work if there's missing data!")
+
+        # Create a dict that stores list of local paths for each aggregated histogram:
+        #   design_point_dictionary[(sqrts, system, parametrization_type, design_point_index)] = ['path/to/run1', 'path/to/run2', ...]
+        design_point_dictionary = {}
+        for facility in facilities:
+            for run in runs[facility]:
+
+                # NOTE: This path may or may not exist (depending on whether we've done histograms_per_run aggregation),
+                #       but it's the path that would be expected, so we include it anyway for consistency
+                filepath_base = os.path.join(local_base_outputdir, f'histograms_per_run/{facility}/{run}')
+
+                sqrts = run_dictionary[facility][run]['sqrt_s']
+                system = run_dictionary[facility][run]['system']
+                if run_dictionary[facility][run]['calculation_type'] == 'jet_energy_loss':
+                    parametrization = run_dictionary[facility][run]['parametrization']
+                    parametrization_type = parametrization['type']
+                    design_point_index = parametrization['design_point_index']
+                else:
+                    parametrization = None
+                    parametrization_type = None
+                    design_point_index = None
+
+                design_point_tuple = (sqrts, system, parametrization_type, design_point_index)
+                if design_point_tuple not in design_point_dictionary.keys():
+                    design_point_dictionary[design_point_tuple] = defaultdict(list)
+
+                filepath = os.path.join(filepath_base, f'histograms_{system}_{run}_{sqrts}.root')
+                design_point_dictionary[design_point_tuple]['files'].append(filepath)
+                design_point_dictionary[design_point_tuple]['parametrization'] = parametrization
+
+        # Determine the name of the aggregated histogram
+        outputdir_base = os.path.join(local_base_outputdir, 'histograms_aggregated')
+        for design_point_tuple in design_point_dictionary.keys():
+            print(design_point_tuple)
+            print()
+            sqrts, system, parametrization_type, design_point_index = design_point_tuple
+
+            if parametrization_type:
+                fname = f'histograms_design_point_{design_point_index}.root'
+                outputdir = os.path.join(outputdir_base, f'{sqrts}_{system}_{parametrization_type}')
+            else:
+                fname = f'histograms.root'
+                outputdir = os.path.join(outputdir_base, f'{sqrts}_{system}')
+
+            design_point_dictionary[design_point_tuple]['histogram_aggregated'] = os.path.join(outputdir, fname)
+
+        # Write design_point_dictionary to file
+        outfile = os.path.join(outputdir_base, 'design_point_info.pkl')
+        with open(outfile, 'wb') as f:
+            pickle.dump(design_point_dictionary, f)
+
+        print(f"Wrote design_point_info.pkl to {outfile}")
 
     #-----------------------------------------------------------------
     # Plot histograms and save to ROOT files
@@ -754,12 +818,13 @@ def main():
         for design_point_tuple in design_point_dictionary.keys():
             sqrts, system, parametrization_type, design_point_index = design_point_tuple
             if system == 'pp':
-                outputdir = os.path.join(local_base_outputdir, f'plot/{sqrts}_{system}')  
-                inputfile = os.path.join(outputdir_base, f'{sqrts}_{system}/histograms.root')       
+                outputdir = os.path.join(local_base_outputdir, f'plot/{sqrts}_{system}')
+                inputfile = os.path.join(outputdir_base, f'{sqrts}_{system}/histograms.root')
                 cmd = f'python3 {jetscape_analysis_dir}/plot/plot_results_STAT.py'
                 cmd += f' -c {jetscape_analysis_dir}/config/STAT_{sqrts}.yaml'
                 cmd += f' -i {inputfile}'
                 cmd += f' -o {outputdir}'
+                cmd += f" -m {model_name}"
                 subprocess.run(cmd, check=True, shell=True)
 
         # Then plot AA, using appropriate pp reference, and construct AA/pp ratios
@@ -768,6 +833,7 @@ def main():
             sqrts, system, parametrization_type, design_point_index = design_point_tuple
             if system in ['AuAu', 'PbPb']:
                 outputdir = os.path.join(local_base_outputdir, f'plot/{sqrts}_{system}_{parametrization_type}/{design_point_index}')
+                # TODO(RJE): Should reconcile the leading 0 convention...
                 inputfile = os.path.join(outputdir_base, f'{sqrts}_{system}_{parametrization_type}/histograms_design_point_{design_point_index}.root')
                 pp_reference_filename = os.path.join(local_base_outputdir, f'plot/{sqrts}_pp/final_results.root')
                 if os.path.exists(pp_reference_filename):
@@ -776,10 +842,12 @@ def main():
                     cmd += f' -i {inputfile}'
                     cmd += f' -r {pp_reference_filename}'
                     cmd += f' -o {outputdir}'
+                    cmd += f" -m {model_name}"
 
                     # Execute in parallel
                     # Simple & quick implementation: once max_processes have been launched, wait for them to finish before continuing
-                    process = subprocess.run(cmd, shell=True)
+                    # NOTE: Needs to be Popen so it's not blocking
+                    process = subprocess.Popen(cmd, shell=True)
                     process_list.append(process)
                     if len(process_list) > n_cores-1:
                         for subproc in process_list:
@@ -915,7 +983,7 @@ def main():
                                 observable = f'{key_items[6]}_{key_items[7]}'
                                 subobservable = f'{key_items[8]}_{key_items[9]}'
                                 centrality = [''.join(filter(str.isdigit, s)) for s in key_items[10].split(',')]
-                            elif 'dijet' in key:
+                            elif 'dijet_trigger_jet' in key:
                                 observable_category = key_items[4]
                                 observable = f'{key_items[5]}_{key_items[6]}'
                                 subobservable = f'{key_items[7]}_{key_items[9]}'
@@ -1001,17 +1069,24 @@ def main():
             df = design_df[parameterization].sort_index()
 
             # Rename columns
-            df.rename(columns={'t_start': 'Tau0', 'alpha_s': 'AlphaS', 'q_switch': 'Q0', 'A': 'C1',  'B': 'C2'}, inplace=True)
-            if parameterization == 'binomial':
-                df.rename(columns={'C': 'A', 'D': 'B'}, inplace=True)
-            elif parameterization == 'exponential':
-                df.rename(columns={'C': 'C3'}, inplace=True)
+            if model_name == "hybrid":
+                # No need to rename as of 2026 March
 
-            # Reorder columns to match previous convention
-            if parameterization == 'binomial':
-                ordered_columns = ['AlphaS', 'Q0', 'C1', 'C2', 'Tau0', 'A', 'B']
-            elif parameterization == 'exponential':
-                ordered_columns = ['AlphaS', 'Q0', 'C1', 'C2', 'Tau0', 'C3']
+                # Reorder columns to match previous convention
+                ordered_columns = ["L_res", "kappa_sc"]
+            else:
+                df.rename(columns={'t_start': 'Tau0', 'alpha_s': 'AlphaS', 'q_switch': 'Q0', 'A': 'C1',  'B': 'C2'}, inplace=True)
+                if parameterization == 'binomial':
+                    df.rename(columns={'C': 'A', 'D': 'B'}, inplace=True)
+                elif parameterization == 'exponential':
+                    df.rename(columns={'C': 'C3'}, inplace=True)
+
+                # Reorder columns to match previous convention
+                if parameterization == 'binomial':
+                    ordered_columns = ['AlphaS', 'Q0', 'C1', 'C2', 'Tau0', 'A', 'B']
+                elif parameterization == 'exponential':
+                    ordered_columns = ['AlphaS', 'Q0', 'C1', 'C2', 'Tau0', 'C3']
+
             df = df[ordered_columns]
 
             # Write
@@ -1050,12 +1125,20 @@ def main():
         #----------------------
         # Plot n_events
         # Make a 2d plot from a 2d numpy array: n_generated/n_target for (sqrts_paramterization_centrality, design_point_index)
-        n_design_points = 230
-        n_design_point_max = {'exponential': 230, 'binomial': 180}
-        n_systems = 12
-        shape = (n_systems, n_design_points)
-        n_events = np.zeros(shape)
-        n_target = {'200': 500000, '2760': 442000, '5020': 1700000}
+        if model_name == "hybrid":
+            n_design_points = 40
+            n_design_point_max = {'Lres-E-loss': 40}
+            n_systems = 2
+            shape = (n_systems, n_design_points)
+            n_events = np.zeros(shape)
+            n_target = {'5020': 2000000}
+        else:
+            n_design_points = 230
+            n_design_point_max = {'exponential': 230, 'binomial': 180}
+            n_systems = 12
+            shape = (n_systems, n_design_points)
+            n_events = np.zeros(shape)
+            n_target = {'200': 500000, '2760': 442000, '5020': 1700000}
 
         # Keep track of which design points need to be re-run
         rerun_threshold = 0.75
@@ -1075,6 +1158,7 @@ def main():
                     if design_point_index >= n_design_point_max[parameterization]:
                         continue
 
+                    # TODO(RJE): These aren't really the right ranges for the hybrid model production
                     if not os.path.exists(os.path.join(qa_plot_dir, str(design_point_index))):
                         missing_dict[f'{sqrts_parameterization_label}_0-10'].append(int(design_point_index))
                         missing_dict[f'{sqrts_parameterization_label}_10-50'].append(int(design_point_index))
@@ -1082,7 +1166,8 @@ def main():
 
                     fname = f'{sqrts_parameterization_label}/histograms_design_point_{design_point_index}.root'
                     f = ROOT.TFile(os.path.join(histograms_aggregated_dir, fname), 'read')
-                    h = f.Get('h_centrality_generated')
+                    # TODO(RJE): I'm not sure this value is set correctly in the analysis...
+                    h = f.Get('h_centrality_range_generated')
                     ratio_0_10 = h.Integral(h.GetXaxis().FindBin(0+0.5), h.GetXaxis().FindBin(10-0.5)) / n_target[sqrts]
                     ratio_10_50 = h.Integral(h.GetXaxis().FindBin(10+0.5), h.GetXaxis().FindBin(50-0.5)) / n_target[sqrts]
 
@@ -1103,9 +1188,14 @@ def main():
                 system_index += 2
 
         # Order the systems
-        ordered_indices = [3, 2, 11, 10, 9, 8, 5, 4, 7, 6, 1, 0]
-        n_events[:] = n_events[ordered_indices,:]
-        system_labels = [system_labels[i] for i in ordered_indices]
+        if model_name == "hybrid":
+            ordered_indices = [0, 1]
+            n_events[:] = n_events[ordered_indices,:]
+            system_labels = [system_labels[i] for i in ordered_indices]
+        else:
+            ordered_indices = [3, 2, 11, 10, 9, 8, 5, 4, 7, 6, 1, 0]
+            n_events[:] = n_events[ordered_indices,:]
+            system_labels = [system_labels[i] for i in ordered_indices]
 
         # Plot
         fig, ax = plt.subplots()
@@ -1137,7 +1227,10 @@ def main():
         prediction_dir = os.path.join(table_dir, 'Prediction')
         data_dir = os.path.join(table_dir, 'Data')
 
-        parameterizations = ['exponential', 'binomial']
+        if model_name == "hybrid":
+            parameterizations = ['Lres-E-loss']
+        else:
+            parameterizations = ['exponential', 'binomial']
         n_bins = 31
 
         # Construct 3d arrray: relative statistical uncertainty for (design_point_index, observable, bin)
