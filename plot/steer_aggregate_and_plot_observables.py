@@ -294,13 +294,14 @@ def main():
                 facilities.remove(facility)
 
         # (ii) Using these runs.yaml, download run_info.yaml for all runs and populate dictionary with relevant info for aggregation
+        stat_xsede_available = False
         try:
             from js_stat_xsede_steer import file_management
+            stat_xsede_available = True
         except ImportError:
-            msg = "Error: stat-xsede needs to be importable"
-            # TEMP: DISABLED
-            # raise RuntimeError(msg)
-            # ENDTEMP
+            msg = "stat-xsede is not available, so some functionality is not available."
+            logger.warning(msg)
+
         for facility in facilities:
             # if requested, shuffle runs into random order
             if randomize_run_order:
@@ -846,6 +847,8 @@ def main():
             if system in ["AuAu", "PbPb"]:
                 outputdir = local_base_output_dir / f"plot/{sqrts}_{system}_{parametrization_type}/{design_point_index}"
                 # TODO(RJE): Should reconcile the leading 0 convention...
+                #            I tried to include a leading 0 for single digit run numbers in the aggregation, but
+                #            we generally don't do that. I can change it here, but it needs to be propagated elsewhere.
                 inputfile = (
                     outputdir_base
                     / f"{sqrts}_{system}_{parametrization_type}/histograms_design_point_{design_point_index}.root"
