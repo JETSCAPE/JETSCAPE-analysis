@@ -70,8 +70,8 @@ import numpy as np
 import pandas as pd
 import yaml
 
-try:
-    import ROOT
+try:  # noqa: SIM105
+    import ROOT  # pyright: ignore [reportMissingImports]
 except ImportError:
     pass
 
@@ -174,7 +174,7 @@ final_state_hadrons_download_location = local_base_output_dir / "final_state_had
 reananalysis_output_location_base = local_base_output_dir / "histograms_per_run"
 
 
-def download_server(facilities, runs, buffer_size=5):
+def download_server(facilities: list[str], runs: dict, buffer_size: int = 5) -> None:  # noqa: C901
     """Download server for retrieving final state hadron files from remote facilities.
 
     Downloads files from specified facilities/runs into a local buffer directory. The program keeps
@@ -202,11 +202,11 @@ def download_server(facilities, runs, buffer_size=5):
 
             # before we download any analysis output, check if we already have analysis output that we want. If it is already there then skip this run
             if analysis_final_state_hadrons and not force_reanalysis and not do_debug_same_run:
-                histpath = reananalysis_output_location / "histograms"
+                hist_path = reananalysis_output_location / "histograms"
                 # before starting analysis check if output directory already exists
-                if histpath.exists():
+                if hist_path.exists():
                     # check number of output files
-                    n_histoutput = len([h for h in histpath.iterdir() if h.suffix == ".root"])
+                    n_histoutput = len([h for h in hist_path.iterdir() if h.suffix == ".root"])
                     n_parquet_local = len([h for h in final_state_hadron_dir.iterdir() if h.suffix == ".parquet"])
 
                     if n_histoutput == n_parquet_local:
@@ -265,7 +265,7 @@ def download_server(facilities, runs, buffer_size=5):
                 print()  # noqa: T201
 
 
-def main():
+def main():  # noqa: C901
     # -----------------------------------------------------------------
     # (1) Download info for all runs from OSN, and create a dictionary with all info needed to download and aggregate histograms
     # -----------------------------------------------------------------
@@ -296,7 +296,8 @@ def main():
         # (ii) Using these runs.yaml, download run_info.yaml for all runs and populate dictionary with relevant info for aggregation
         stat_xsede_available = False
         try:
-            from js_stat_xsede_steer import file_management
+            from js_stat_xsede_steer import file_management  # noqa: PLC0415 # pyright: ignore [reportMissingImports]
+
             stat_xsede_available = True
         except ImportError:
             msg = "stat-xsede is not available, so some functionality is not available."
@@ -313,7 +314,7 @@ def main():
             # make a list of tuples that contain source and target
             runinfo_pairs = []
 
-            for i, run in enumerate(runs[facility].copy()):
+            for run in runs[facility].copy():
                 run_info_download_location = local_base_output_dir / "run_info"
                 run_info_file = run_info_download_location / f"{facility}/{run}/{run}_info.yaml"
                 logger.info(f"{run_info_file=}")
@@ -326,6 +327,10 @@ def main():
                             logger.info("Force download enabled -- re-download all runinfo files...")
                         download_script = stat_xsede_2021_dir / "scripts/js_stat_xsede_steer/download_from_OSN.py"
                         cmd = f"python3 {download_script!s} -s {facility}/{run}/ -d {run_info_download_location} -f {run}_info.yaml"
+
+                        if not stat_xsede_available:
+                            msg = "Trying to run with imported stat-xsede, but it's not available for import!"
+                            raise RuntimeError(msg)
 
                         # source = f'{facility}/{run}/{run}_info.yaml'
                         source = pathlib.Path(facility) / run / f"{run}_info.yaml"
@@ -346,7 +351,7 @@ def main():
 
             # need to loop over the runs again after processing is finished
             logger.info("Finished downloading run_info.yaml for all runs, building dictionaries ...")
-            for i, run in enumerate(runs[facility].copy()):
+            for run in runs[facility].copy():
                 # should exist now after previous download
                 run_info_file = run_info_download_location / f"{facility}/{run}/{run}_info.yaml"
                 # Add the run_info block to the run_dictionary
@@ -364,57 +369,71 @@ def main():
                             run_dictionary[facility][run]["parametrization"] = run_info["parametrization"]
 
                             # Several options to skip runs we do not care about
-                            if skip_run_binomial:
-                                if run_info["parametrization"]["type"] == "binomial":
-                                    # print(f'Skipping run {run} with binomial parametrization...')
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
-                            if len(debug_parametrization_type) > 0:
-                                if run_info["parametrization"]["type"] not in debug_parametrization_type:
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
-                            if len(debug_sqrts) > 0:
-                                if run_info["sqrt_s"] not in debug_sqrts:
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
-                            if len(debug_centrality) > 0:
-                                if run_dictionary[facility][run]["centrality"] not in debug_centrality:
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
-                            if len(debug_design_points) > 0:
-                                if (
-                                    run_dictionary[facility][run]["parametrization"]["design_point_index"]
+                            if (
+                                (skip_run_binomial and run_info["parametrization"]["type"] == "binomial")
+                                or (
+                                    debug_parametrization_type
+                                    and run_info["parametrization"]["type"] not in debug_parametrization_type
+                                )
+                                or (debug_sqrts and run_info["sqrt_s"] not in debug_sqrts)
+                                or (
+                                    debug_centrality
+                                    and run_dictionary[facility][run]["centrality"] not in debug_centrality
+                                )
+                                or (
+                                    debug_design_points
+                                    and run_dictionary[facility][run]["parametrization"]["design_point_index"]
                                     not in debug_design_points
-                                ):
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
-                            if len(debug_calculation_type) > 0:
-                                if run_dictionary[facility][run]["calculation_type"] not in debug_calculation_type:
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
-                            if len(debug_system) > 0:
-                                if run_dictionary[facility][run]["system"] not in debug_system:
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
+                                )
+                                or (
+                                    debug_calculation_type
+                                    and run_dictionary[facility][run]["calculation_type"] not in debug_calculation_type
+                                )
+                                or (debug_system and run_dictionary[facility][run]["system"] not in debug_system)
+                            ):
+                                skipped_runs[facility].append(run)
+                                runs[facility].remove(run)
+                                continue
+                            # if len(debug_parametrization_type) > 0:
+                            #    if run_info["parametrization"]["type"] not in debug_parametrization_type:
+                            #        skipped_runs[facility].append(run)
+                            #        runs[facility].remove(run)
+                            #        continue
+                            # if len(debug_sqrts) > 0 and run_info["sqrt_s"] not in debug_sqrts:
+                            #     skipped_runs[facility].append(run)
+                            #     runs[facility].remove(run)
+                            #     continue
+                            # if len(debug_centrality) > 0:
+                            #     if run_dictionary[facility][run]["centrality"] not in debug_centrality:
+                            #         skipped_runs[facility].append(run)
+                            #         runs[facility].remove(run)
+                            #         continue
+                            # if len(debug_design_points) > 0:
+                            #     if (
+                            #         run_dictionary[facility][run]["parametrization"]["design_point_index"]
+                            #         not in debug_design_points
+                            #     ):
+                            #         skipped_runs[facility].append(run)
+                            #         runs[facility].remove(run)
+                            #         continue
+                            # if len(debug_calculation_type) > 0:
+                            #     if run_dictionary[facility][run]["calculation_type"] not in debug_calculation_type:
+                            #         skipped_runs[facility].append(run)
+                            #         runs[facility].remove(run)
+                            #         continue
+                            # if len(debug_system) > 0:
+                            #     if run_dictionary[facility][run]["system"] not in debug_system:
+                            #         skipped_runs[facility].append(run)
+                            #         runs[facility].remove(run)
+                            #         continue
                         else:
                             run_dictionary[facility][run]["system"] = "pp"
-                            if len(debug_system) > 0:
-                                if run_dictionary[facility][run]["system"] not in debug_system:
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
-                            if len(debug_sqrts) > 0:
-                                if run_dictionary[facility][run]["sqrt_s"] not in debug_sqrts:
-                                    skipped_runs[facility].append(run)
-                                    runs[facility].remove(run)
-                                    continue
+                            if (debug_sqrts and run_info["sqrt_s"] not in debug_sqrts) or (
+                                debug_system and run_dictionary[facility][run]["system"] not in debug_system
+                            ):
+                                skipped_runs[facility].append(run)
+                                runs[facility].remove(run)
+                                continue
                 else:
                     logger.warning(f"{run}_info.yaml not found!")
                     runs[facility].remove(run)
@@ -487,7 +506,7 @@ def main():
         logger.info("Done!")
     if download_final_state_hadrons:
         # run the download server in the background as a subprocess
-        from multiprocessing import Process
+        from multiprocessing import Process  # noqa: PLC0415
 
         download_server_process = Process(target=download_server, args=(facilities, runs))
         download_server_process.start()
@@ -497,7 +516,7 @@ def main():
         logger.info("Downloading all final state hadrons...\n")
 
         # Some things for book keeping
-        import shutil
+        import shutil  # noqa: PLC0415
 
         logger.info("Creating files for versioning book keeping...")
         config_path = jetscape_analysis_dir / "config"
@@ -523,7 +542,7 @@ def main():
             for run in runs[facility]:
                 # use for debugging only. Continue to take the same run for testing
                 if do_debug_same_run:
-                    run = runs[facility][0]
+                    run = runs[facility][0]  # noqa: PLW2901
                 run_counter += 1
                 run_number = int(run[3:])
 
@@ -534,11 +553,11 @@ def main():
 
                 # before we download any analysis output, check if we already have analysis output that we want. If it is already there then skip this run
                 if analysis_final_state_hadrons and not force_reanalysis and not do_debug_same_run:
-                    histpath = reananalysis_output_location / "histograms"
+                    hist_path = reananalysis_output_location / "histograms"
                     # before starting analysis check if output directory already exists
-                    if histpath.exist():
+                    if hist_path.exist():
                         # check number of output files
-                        n_histoutput = len([h for h in histpath.iterdir() if h.suffix == ".root"])
+                        n_histoutput = len([h for h in hist_path.iterdir() if h.suffix == ".root"])
                         n_parquet_local = len([h for h in final_state_hadron_dir.iterdir() if h.suffix == ".parquet"])
 
                         if n_histoutput == n_parquet_local:
@@ -579,7 +598,7 @@ def main():
                     skipped_runs_file = final_state_hadrons_download_location / "skipped_runs.log"
                     with skipped_runs_file.open("a") as f:
                         f.write(f"{run_number}\n")
-                if delete_local_final_state_hadrons_after_analysis:
+                if delete_local_final_state_hadrons_after_analysis:  # noqa: SIM102
                     # safely delete final_state_hadron_dir, make sure the path contains final_state_hadrons_per_run so we don't by accident delete "/" or "/home" ....
 
                     if final_state_hadron_dir.exists() and "final_state_hadrons_per_run" in str(final_state_hadron_dir):
@@ -609,10 +628,14 @@ def main():
                 run_counter += 1
                 logger.info(f"Processing run {run_counter} out of {len(runs[facility])} at facility {facility}...")
                 outputdir = local_base_output_dir / f"histograms_per_run/{facility}/{run}"
-                inputdir = outputdir / "histograms"
 
                 if outputdir.exists():
-                    ROOT_filenames = (reananalysis_output_location_base / f"{facility}/{run}/histograms").iterdir()
+                    input_dir = (
+                        (reananalysis_output_location_base / f"{facility}/{run}/histograms")
+                        if analysis_final_state_hadrons
+                        else outputdir / "histograms"
+                    )
+                    ROOT_filenames = input_dir.iterdir()
                     file_list = outputdir / "files_to_merge.txt"
                     with file_list.open("w") as f:
                         for filename in ROOT_filenames:
@@ -739,7 +762,7 @@ def main():
 
         # Merge each list of histograms together, and write into a new directory structure
         outputdir_base = local_base_output_dir / "histograms_aggregated"
-        for design_point_tuple in design_point_dictionary:
+        for design_point_tuple in design_point_dictionary:  # noqa: PLC0206
             logger.info(f"{design_point_tuple=}\n")
             sqrts, system, parametrization_type, design_point_index = design_point_tuple
 
@@ -788,7 +811,7 @@ def main():
                     design_point_index = None
 
                 design_point_tuple = (sqrts, system, parametrization_type, design_point_index)
-                if design_point_tuple not in design_point_dictionary.keys():
+                if design_point_tuple not in design_point_dictionary:
                     design_point_dictionary[design_point_tuple] = defaultdict(list)
 
                 filepath = filepath_base / f"histograms_{system}_{run}_{sqrts}.root"
@@ -797,7 +820,7 @@ def main():
 
         # Determine the name of the aggregated histogram
         outputdir_base = local_base_output_dir / "histograms_aggregated"
-        for design_point_tuple in design_point_dictionary.keys():
+        for design_point_tuple in design_point_dictionary:
             logger.info("{design_point_tuple=}\n")
             sqrts, system, parametrization_type, design_point_index = design_point_tuple
 
@@ -828,7 +851,7 @@ def main():
             design_point_dictionary = pickle.load(f)
 
         # First plot pp
-        for design_point_tuple in design_point_dictionary.keys():
+        for design_point_tuple in design_point_dictionary:
             sqrts, system, parametrization_type, design_point_index = design_point_tuple
             if system == "pp":
                 outputdir = local_base_output_dir / f"plot/{sqrts}_{system}"
@@ -842,7 +865,7 @@ def main():
 
         # Then plot AA, using appropriate pp reference, and construct AA/pp ratios
         process_list = []
-        for design_point_tuple in design_point_dictionary.keys():
+        for design_point_tuple in design_point_dictionary:
             sqrts, system, parametrization_type, design_point_index = design_point_tuple
             if system in ["AuAu", "PbPb"]:
                 outputdir = local_base_output_dir / f"plot/{sqrts}_{system}_{parametrization_type}/{design_point_index}"
@@ -868,8 +891,8 @@ def main():
                     process = subprocess.Popen(cmd, shell=True)
                     process_list.append(process)
                     if len(process_list) > n_cores - 1:
-                        for subproc in process_list:
-                            subproc.wait()
+                        for sub_proc in process_list:
+                            sub_proc.wait()
                         process_list = []
 
     # -----------------------------------------------------------------
@@ -969,11 +992,11 @@ def main():
 
                 # Write Prediction and Data dataframes to txt
                 logger.info(f"Writing prediction tables for {label}...")
-                for type in output_dict.keys():
+                for type in output_dict:
                     if type in ["observable_label", "bin_edges"]:
                         continue
 
-                    for key, df in output_dict[type].items():
+                    for key in output_dict[type]:
                         key_items = key.split("_")
                         # if 'values' in key:
                         #    print()
@@ -1096,9 +1119,9 @@ def main():
 
         # Write out the Design.dat files
         logger.info("Writing design point tables...")
-        for parameterization in design_df:
+        for parameterization, _df_temp in design_df.items():
             # Sort according to index
-            df = design_df[parameterization].sort_index()
+            df = _df_temp.sort_index()
 
             # Rename columns
             if model_name == "hybrid":
@@ -1265,10 +1288,9 @@ The following design points had fewer than {rerun_threshold}x the target statist
         prediction_dir = table_dir / "Prediction"
         data_dir = table_dir / "Data"
 
+        parameterizations = ["exponential", "binomial"]
         if model_name == "hybrid":
             parameterizations = ["Lres-E-loss"]
-        else:
-            parameterizations = ["exponential", "binomial"]
         n_bins = 31
 
         # Construct 3d array: relative statistical uncertainty for (design_point_index, observable, bin)
