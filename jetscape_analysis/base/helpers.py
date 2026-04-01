@@ -88,5 +88,7 @@ def setup_logging(
     # Possibility to quiet down some additional loggers
     # From IPython
     logging.getLogger("parso").setLevel(logging.INFO)
+    # Turn off "Using selector" messages from IPython
+    logging.getLogger("asyncio").setLevel(logging.INFO)
 
     return True
