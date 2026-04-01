@@ -456,7 +456,7 @@ gamma_trigger_hadron:
       pt: [5., 7.]
       eta_cut: 0.35
 
-    hepdata: "HEPData-ins1512115-v1-root.root"
+    hepdata: "HEPData-ins1798493-v1-root.root"
 
     xtitle: "#zeta"
     logy: true

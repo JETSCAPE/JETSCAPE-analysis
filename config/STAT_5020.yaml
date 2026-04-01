@@ -2211,8 +2211,8 @@ gamma_trigger_jet:
   g_cms:
     enabled: false
     urls:
-      inspire_hep: https://inspirehep.net/literature/1648162
-      hepdata: https://www.hepdata.net/record/ins1648162
+      inspire_hep: https://inspirehep.net/literature/2783507
+      hepdata: https://www.hepdata.net/record/ins2783507
 
     centrality: [[0, 30]]
 
@@ -2233,7 +2233,7 @@ gamma_trigger_jet:
       eta_cut: 2.0
     dPhi: 7./8. # dPhi > 7/8*pi
 
-    hepdata: "HEPData-ins1648162-v1-root.root"
+    hepdata: "HEPData-ins2783507-v1-root.root"
 
   # CMS, gamma-tagged Rg
   rg_cms:
@@ -2261,7 +2261,7 @@ gamma_trigger_jet:
       eta_cut: 2.0
     dPhi: 7./8. # dPhi > 7/8*pi
 
-    hepdata: "HEPData-ins1648162-v1-root.root"
+    hepdata: "HEPData-ins2783507-v1-root.root"
 
     # ...
 
