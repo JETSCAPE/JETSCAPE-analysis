@@ -135,7 +135,7 @@ class PlotUtils(common_base.CommonBase):
     # ---------------------------------------------------------------
     # Get tgraph from hepdata file specified in config block
     # ---------------------------------------------------------------
-    def tgraph_from_hepdata(
+    def tgraph_from_hepdata(  # noqa: C901
         self, block, is_AA, sqrts, observable_type, observable, centrality_index, suffix="", pt_suffix=""
     ):
         # Open the HEPData file
