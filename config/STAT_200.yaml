@@ -526,9 +526,7 @@ gamma_trigger_chjet:
     enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/2919952
-      # July 2025 - paper on arXiv, but HEPdata not yet available.
-      hepdata: N/A
-      custom: TODO
+      hepdata: https://www.hepdata.net/record/ins2919952
 
     centrality: [[0, 15]]
 
