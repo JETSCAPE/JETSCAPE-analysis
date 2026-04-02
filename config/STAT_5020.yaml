@@ -578,10 +578,8 @@ inclusive_chjet:
     enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/2648610
-      hepdata: N/A
-      # PbPb hepdata: in private repo
+      hepdata: https://www.hepdata.net/record/ins2648610
       # pp hepdata: https://www.hepdata.net/record/ins2182727?version=1
-      custom: TODO
 
     centrality: [[0, 10]]
     jet_R: [0.2, 0.4]
