@@ -337,7 +337,7 @@ data:
     hepdata:
       # If it's HEPData, you must specify the record and version.
       record:
-        inspire_id: 184844
+        inspire_hep_id: 184844
         version: 1
       # Required key in pp: spectra
       # NOTE: This binning may be different than in AA. Since it has to match for the ratio, the information here is primarily used for plotting and QA
@@ -376,7 +376,7 @@ data:
   AA:
     hepdata:
       record:
-        inspire_id: 184844
+        inspire_hep_id: 184844
         version: 1
       # Required key in AA: spectra
       spectra:

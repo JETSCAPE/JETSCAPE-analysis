@@ -96,17 +96,24 @@ class HEPDataIdentifier:
     inspire_hep_id: int
     version: int
 
+    def encode(self) -> dict[str, Any]:
+        return attrs.asdict(self)
+
+    @classmethod
+    def decode(cls, values: dict[str, Any]) -> HEPDataInfo:
+        return cls(
+            inspire_hep_id=values["inspire_hep_id"],
+            version=values["version"],
+        )
+
     @classmethod
     def from_hepdata_config(cls, config: dict[str, Any]) -> HEPDataIdentifier:
-        return cls(
-            inspire_hep_id=config["record"]["inspire_id"],
-            version=config["record"]["version"],
-        )
+        return cls.decode(config["record"])
 
 
 @attrs.define(frozen=True)
 class HEPDataInfo:
-    """HEPData information
+    """Store information about a HEPData record
 
     Attributes:
         directory: Directory where the HEPData record is stored
@@ -131,10 +138,7 @@ class HEPDataInfo:
     def decode(cls, values: dict[str, Any]) -> HEPDataInfo:
         return cls(
             directory=values["directory"],
-            identifier=HEPDataIdentifier(
-                inspire_hep_id=values["inspire_hep_id"],
-                version=values["version"],
-            ),
+            identifier=HEPDataIdentifier.decode(values),
             tables_to_filenames={k: Path(v) for k, v in values["tables_to_filenames"].items()},
         )
 

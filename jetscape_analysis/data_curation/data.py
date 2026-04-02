@@ -487,11 +487,11 @@ def build_hepdata_repository(observables: dict[str, observable.Observable]) -> N
                 # First, try to grab the existing HEPData filenames.
                 hepdata_root_filename = obs.config.get(f"hepdata_{collision_system}", obs.config.get("hepdata"))
                 if hepdata_root_filename is not None:
-                    _, inspire_id, version, *_ = hepdata_root_filename.split("-")
-                    inspire_id = int(inspire_id.replace("ins", ""))
+                    _, inspire_hep_id, version, *_ = hepdata_root_filename.split("-")
+                    inspire_hep_id = int(inspire_hep_id.replace("ins", ""))
                     version = int(version.replace("v", ""))
                     identifier_from_filename = hepdata_utils.HEPDataIdentifier(
-                        inspire_hep_id=inspire_id,
+                        inspire_hep_id=inspire_hep_id,
                         version=version,
                     )
                     logger.debug(f"{collision_system=}, {identifier_from_filename=}")

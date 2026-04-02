@@ -838,7 +838,7 @@ inclusive_chjet:
       pp:
         hepdata:
           record:
-            inspire_id: 2831271
+            inspire_hep_id: 2831271
             version: 1
             # Optional...
             additional_params: {}
@@ -887,7 +887,7 @@ inclusive_chjet:
       AA:
         hepdata:
           record:
-            inspire_id: 2831271
+            inspire_hep_id: 2831271
             version: 1
             # Optional...
             additional_params: {}
@@ -1199,7 +1199,7 @@ inclusive_jet:
       pp:
         hepdata:
           record:
-            inspire_id: 1848440
+            inspire_hep_id: 1848440
             version: 1
           spectra:
             quantity: "pt"
@@ -1236,7 +1236,7 @@ inclusive_jet:
       AA:
         hepdata:
           record:
-            inspire_id: 1848440
+            inspire_hep_id: 1848440
             version: 1
           spectra:
             quantity: "pt"

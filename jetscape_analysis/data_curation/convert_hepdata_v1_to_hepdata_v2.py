@@ -401,11 +401,11 @@ def main(jetscape_analysis_config_path: Path) -> None:
             if hepdata_root_filename is None:
                 logger.warning(f"Could not find hepdata filename. Check the observable: {obs}")
                 continue
-            _, inspire_id, version, *_ = hepdata_root_filename.split("-")
-            inspire_id = int(inspire_id.replace("ins", ""))
+            _, inspire_hep_id, version, *_ = hepdata_root_filename.split("-")
+            inspire_hep_id = int(inspire_hep_id.replace("ins", ""))
             version = int(version.replace("v", ""))
             identifier_from_config = hepdata_utils.HEPDataIdentifier(
-                inspire_hep_id=inspire_id,
+                inspire_hep_id=inspire_hep_id,
                 version=version,
             )
             # Store identifier for later
