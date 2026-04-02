@@ -500,7 +500,7 @@ inclusive_chjet:
 
     hepdata_AA_dir_R0.2_zcut0.2_beta0: ["Table 3", ""]
     hepdata_AA_dir_R0.4_zcut0.2_beta0: ["", "Table 6"]
-    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_gname: "Graph1D_y1"
     hepdata_AA_hname: "Hist1D_y1"
     ytitle_AA: "PbPb / pp"
     y_min_AA: 0.
@@ -540,7 +540,7 @@ inclusive_chjet:
 
     hepdata_AA_dir_R0.2_zcut0.2_beta0: ["Table 9", ""]
     hepdata_AA_dir_R0.4_zcut0.2_beta0: ["", "Table 12"]
-    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_gname: "Graph1D_y1"
     hepdata_AA_hname: "Hist1D_y1"
     ytitle_AA: "PbPb / pp"
     y_min_AA: 0.
@@ -1661,13 +1661,13 @@ inclusive_jet:
     y_max_pp: 15
     skip_pp: True
 
-    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt0: "Table 11"
+    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt0: ["Table 11"]
     hepdata_AA_dir_R0.4_zcut0.1_beta0_pt1: ["Table 10", "Table 9", "Table 8"]
-    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt2: "Table 13"
-    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt3: "Table 14"
-    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt4: "Table 15"
-    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt5: "Table 16"
-    hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt2: ["Table 13"]
+    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt3: ["Table 14"]
+    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt4: ["Table 15"]
+    hepdata_AA_dir_R0.4_zcut0.1_beta0_pt5: ["Table 16"]
+    hepdata_AA_gname: "Graph1D_y1"
     hepdata_AA_hname: "Hist1D_y1"
     ytitle_AA: "PbPb / smeared pp"
     y_min_AA: 0.
