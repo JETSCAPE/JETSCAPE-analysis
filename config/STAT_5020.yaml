@@ -2267,9 +2267,8 @@ gamma_trigger_jet:
   axis_cms:
     enabled: false
     urls:
-      inspire_hep: N/A
-      hepdata: N/A
-      custom: https://cms-results.web.cern.ch/cms-results/public-results/preliminary-results/HIN-21-019/index.html
+      inspire_hep: https://inspirehep.net/literature/3122090
+      hepdata: https://www.hepdata.net/record/ins3122090
 
     centrality: [[0, 10], [10, 30], [30, 50]]
 
@@ -2288,7 +2287,9 @@ gamma_trigger_jet:
     dPhi: 2./3. # dPhi > 2./3.*pi
 
     # Binning from Luna (thanks!)
-    bins: [0, 0.01, 0.016, 0.024, 0.032, 0.04, 0.05, 0.06, 0.08, 0.1, 0.15, 0.3]
+    # TODO(RJE): Remove this line and replace with the full HEPData. Just waiting to remove it until
+    #            we map the HEPData tables to avoid losing any information.
+    #bins: [0, 0.01, 0.016, 0.024, 0.032, 0.04, 0.05, 0.06, 0.08, 0.1, 0.15, 0.3]
 
 #------------------------------------------------------------------
 # Z boson triggered hadron observables
