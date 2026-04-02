@@ -238,7 +238,11 @@ class DynamicalGroomingSpec(ParameterSpec):
 @attrs.frozen
 class JetAxisDifferenceSpec(ParameterSpec):
     type: str
-    grooming_settings: SoftDropSpec | None = None
+    # The point with the convert here is that we'll be passed arguments that are a dict with SoftDrop parameters,
+    # so we need to ensure that it's actually of the expected type.
+    grooming_settings: SoftDropSpec | None = attrs.field(
+        default=None, converter=lambda x: SoftDropSpec(**x) if x is not None else None
+    )
 
     def __str__(self) -> str:
         output = f"Jet-axis difference, {self.type.replace('_', '-')}"

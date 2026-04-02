@@ -46,13 +46,17 @@ def generate_entry_name_from_parameters(
     if pt_index is not None and n_pt_bins > 2:
         pt_suffix = f"_pt{pt_index}"
     # soft drop
+    # Generated: hepdata_pp_dir_R0.2_zcut0.2_beta0_WTA_SD
+    # In config: hepdata_pp_dir_R0.2_zcut0.2_beta0_WTA_SD_pt0
     if soft_drop is not None:
-        suffix += f"_zcut{soft_drop.z_cut}_beta{soft_drop.beta}"
+        suffix += f"_zcut{soft_drop.z_cut:g}_beta{soft_drop.beta:g}"
     # kappa
     if kappa is not None:
         suffix += f"_k{kappa.kappa}"
     # Jet-axis difference
     if axis:
+        if axis.grooming_settings:
+            suffix += f"_zcut{axis.grooming_settings.z_cut:g}_beta{axis.grooming_settings.beta:g}"
         suffix += f"_{axis.type}"
 
     return suffix, pt_suffix
@@ -371,7 +375,7 @@ def main(jetscape_analysis_config_path: Path) -> None:
 
     for obs in observables.values():
         # TEMP: for testing
-        if obs.identifier != (5020, "inclusive_jet", "axis_cms"):
+        if obs.identifier != (5020, "inclusive_chjet", "axis_alice"):
             continue
         # ENDTEMP
         logger.info(f"Processing {obs.identifier}")
@@ -441,7 +445,7 @@ def main(jetscape_analysis_config_path: Path) -> None:
         # Now, we need to retrieve the HEPData information based on the parameters
         parameters = obs.parameters()
         # NOTE: We need the pt binning info solely to generate the older entry name from the parameters
-        pt_specs = observable.find_parameter_by_spec_type(parameters, desired_type=observable.CentralitySpecs)
+        pt_specs = observable.find_parameter_by_spec_type(parameters, desired_type=observable.PtSpecs)
         n_pt_bins = len(pt_specs.values)
 
         observable_blocks = {
