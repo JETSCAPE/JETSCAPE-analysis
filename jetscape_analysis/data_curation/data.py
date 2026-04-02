@@ -31,16 +31,34 @@ class Axis:
     """
 
     label: str
-    range: tuple[float | None, float | None] = attrs.field(factory=lambda: (None, None))
+    range: tuple[float | None, float | None] = attrs.field(
+        factory=lambda: (None, None), converter=lambda x: tuple(x) if x is not None else None
+    )
     log: bool = attrs.field(default=False)
+
+    def encode(self) -> dict[str, Any]:
+        return {
+            "label": self.label,
+            "range": self.range,
+            "log": self.log,
+        }
+
+    @classmethod
+    def decode(cls, values: dict[str, Any]) -> Axis:
+        return cls(
+            label=values["label"],
+            range=values.get("range", (None, None)),
+            log=values.get("log", False),
+        )
 
     @classmethod
     def from_config(cls, config: Config) -> Axis:
-        return cls(
-            label=config["label"],
-            range=config.get("range", (None, None)),
-            log=config.get("log", False),
-        )
+        """Construct object from YAML config.
+
+        This is trivially the same as decode, but not all are.
+        We keep this for the consistent interface.
+        """
+        return cls.decode(config)
 
 
 @attrs.frozen
@@ -49,13 +67,29 @@ class HistogramProperties:
     x_axis: Axis
     y_axis: Axis
 
+    def encode(self) -> dict[str, Any]:
+        return {
+            "quantity": self.quantity,
+            "x_axis": self.x_axis.encode(),
+            "y_axis": self.y_axis.encode(),
+        }
+
+    @classmethod
+    def decode(cls, values: dict[str, Any]) -> Axis:
+        return cls(
+            quantity=values["quantity"],
+            x_axis=Axis.decode(values["x_axis"]),
+            y_axis=Axis.decode(values["y_axis"]),
+        )
+
     @classmethod
     def from_config(cls, config: Config) -> HistogramProperties:
-        return cls(
-            quantity=config["quantity"],
-            x_axis=config["x_axis"],
-            y_axis=config["y_axis"],
-        )
+        """Construct object from YAML config.
+
+        This is trivially the same as decode, but not all are.
+        We keep this for the consistent interface.
+        """
+        return cls.decode(config)
 
 
 @attrs.define
