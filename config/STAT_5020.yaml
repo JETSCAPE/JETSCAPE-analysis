@@ -176,7 +176,10 @@ hadron:
     y_max_pp: 1e4
 
     hepdata_AA_dir: ["Table 8", "Table 9", "Table 10", "Table 11"]
-    hepdata_AA_gname: ["Graph1D_y1"]
+    # TODO(RJE): I made this a single entry, but is that actually correct?
+    #            n.b. It was a single entry in the original production, so it seems plausible that it still is.
+    #hepdata_AA_gname: ["Graph1D_y1"]
+    hepdata_AA_gname: "Graph1D_y1"
     hepdata_AA_hname: "Hist1D_y1"
     ytitle_AA: "#it{R}_{AA}"
     y_min_AA: 0
@@ -1050,7 +1053,9 @@ inclusive_jet:
     skip_pp_ratio: True
 
     hepdata_AA_dir_R0.4: ["Table 19", "Table 20", "Table 21", "Table 22", "Table 23"]
-    hepdata_AA_gname: ["Graph1D_y1"]
+    # TODO(RJE): I made this a single entry, but is that actually correct?
+    #            n.b. It was a single entry in the original production, so it seems plausible that it still is.
+    hepdata_AA_gname: "Graph1D_y1"
     hepdata_AA_hname: "Hist1D_y1"
     ytitle_AA: "#it{R}_{AA}"
     y_min_AA: 0.
