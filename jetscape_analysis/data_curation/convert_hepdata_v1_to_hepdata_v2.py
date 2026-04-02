@@ -195,7 +195,6 @@ def main(jetscape_analysis_config_path: Path) -> None:
             if hepdata_root_filename is None:
                 logger.warning(f"Could not find hepdata filename. Check the observable: {obs}")
                 continue
-            # logger.info(f"{hepdata_root_filename=}, {obs=}")
             _, inspire_id, version, *_ = hepdata_root_filename.split("-")
             inspire_id = int(inspire_id.replace("ins", ""))
             version = int(version.replace("v", ""))
@@ -209,11 +208,16 @@ def main(jetscape_analysis_config_path: Path) -> None:
             # And then double check with the data curation database, if the observable is there...
             matched_identifiers = [
                 v.identifier
-                for v in data_curation_database[str(Path(str(obs.sqrt_s)) / obs.observable_class / obs.name)]
+                for v in data_curation_database[str(obs.observable_str_as_path)]
                 if v.identifier == identifier_from_config
             ]
             if not any(matched_identifiers):
-                msg = f"Could not find HEPData identifier for {obs}. Double check the database, and possibly add it!"
+                curated_observable = data_curation_database[
+                    str(Path(str(obs.sqrt_s)) / obs.observable_class / obs.name)
+                ]
+                msg = f"Could not find HEPData identifier for {collision_system=}, {obs}. Double check the database, and possibly add it!"
+                msg += "\n" + f"{identifier_from_config=}, {[v.identifier for v in curated_observable]=}"
+                msg += "\n" + f"{curated_observable=}"
                 logger.warning(msg)
             # else:
             #    logger.warning(f"Found for {obs.name}")
