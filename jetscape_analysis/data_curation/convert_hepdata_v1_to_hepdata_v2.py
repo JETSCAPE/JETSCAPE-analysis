@@ -62,11 +62,11 @@ def find_hepdata_v1_key_in_block(
     if f"hepdata_{collision_system}_dir{suffix}" in block:
         dir_key = f"hepdata_{collision_system}_dir{suffix}"
     elif f"hepdata_{collision_system}_dir{suffix}{pt_suffix}" in block:
-        dir_key = f"hepdata_collision_{collision_system}_dir{suffix}{pt_suffix}"
+        dir_key = f"hepdata_{collision_system}_dir{suffix}{pt_suffix}"
     elif f"hepdata_{collision_system}_dir" in block:
         dir_key = f"hepdata_{collision_system}_dir"
     else:
-        logger.info(f"hepdata_{collision_system}_dir{suffix} not found!")
+        logger.info(f"hepdata_{collision_system}_dir{suffix}, {pt_suffix=} not found!")
         return ("", "")
 
     # Check for hist names in config
@@ -104,7 +104,7 @@ def find_hepdata_v1_key_in_block(
 
     # finally, we're not actually interested in the "Graph1D_y", so we remove it on return
 
-    return dir_name, g_name.replace("Graph1D_y")
+    return dir_name, g_name.replace("Graph1D_y", "")
 
 
 def construct_hepdata_v2_histogram_properties_from_hepdata_v1(
