@@ -1695,33 +1695,33 @@ inclusive_jet:
 
     skip_pp: True
 
-    hepdata_AA_dir_R0.4_WTA_standard_pt0: "Table 1"
-    hepdata_AA_gname_R0.4_WTA_standard_pt0: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    hepdata_AA_hname_R0.4_WTA_standard_pt0: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
-    hepdata_AA_dir_R0.4_WTA_standard_pt1: "Table 2"
-    hepdata_AA_gname_R0.4_WTA_standard_pt1: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    hepdata_AA_hname_R0.4_WTA_standard_pt1: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
-    hepdata_AA_dir_R0.4_WTA_standard_pt2: "Table 3"
-    hepdata_AA_gname_R0.4_WTA_standard_pt2: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    hepdata_AA_hname_R0.4_WTA_standard_pt2: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
-    hepdata_AA_dir_R0.4_WTA_standard_pt3: "Table 4"
-    hepdata_AA_gname_R0.4_WTA_standard_pt3: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    hepdata_AA_hname_R0.4_WTA_standard_pt3: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_dir_R0.4_WTA_Standard_pt0: "Table 1"
+    hepdata_AA_hname_R0.4_WTA_Standard_pt0: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_gname_R0.4_WTA_Standard_pt0: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_dir_R0.4_WTA_Standard_pt1: "Table 2"
+    hepdata_AA_hname_R0.4_WTA_Standard_pt1: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_gname_R0.4_WTA_Standard_pt1: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_dir_R0.4_WTA_Standard_pt2: "Table 3"
+    hepdata_AA_hname_R0.4_WTA_Standard_pt2: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_gname_R0.4_WTA_Standard_pt2: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_dir_R0.4_WTA_Standard_pt3: "Table 4"
+    hepdata_AA_hname_R0.4_WTA_Standard_pt3: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_gname_R0.4_WTA_Standard_pt3: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
     ytitle_AA: '$\frac{1}{N} \frac{dN}{d\Delta j}$'
 
     ## same as above as this paper doesn't measure pp
-    hepdata_AA_distribution_dir_R0.4_WTA_standard_pt0: "Table 1"
-    hepdata_AA_distribution_gname_R0.4_WTA_standard_pt0: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    hepdata_AA_distribution_hname_R0.4_WTA_standard_pt0: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
-    hepdata_AA_distribution_dir_R0.4_WTA_standard_pt1: "Table 2"
-    hepdata_AA_distribution_gname_R0.4_WTA_standard_pt1: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    hepdata_AA_distribution_hname_R0.4_WTA_standard_pt1: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
-    hepdata_AA_distribution_dir_R0.4_WTA_standard_pt2: "Table 3"
-    hepdata_AA_distribution_gname_R0.4_WTA_standard_pt2: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    hepdata_AA_distribution_hname_R0.4_WTA_standard_pt2: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
-    hepdata_AA_distribution_dir_R0.4_WTA_standard_pt3: "Table 4"
-    hepdata_AA_distribution_gname_R0.4_WTA_standard_pt3: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    hepdata_AA_distribution_hname_R0.4_WTA_standard_pt3: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_distribution_dir_R0.4_WTA_Standard_pt0: "Table 1"
+    hepdata_AA_distribution_hname_R0.4_WTA_Standard_pt0: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_distribution_gname_R0.4_WTA_Standard_pt0: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_distribution_dir_R0.4_WTA_Standard_pt1: "Table 2"
+    hepdata_AA_distribution_hname_R0.4_WTA_Standard_pt1: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_distribution_gname_R0.4_WTA_Standard_pt1: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_distribution_dir_R0.4_WTA_Standard_pt2: "Table 3"
+    hepdata_AA_distribution_hname_R0.4_WTA_Standard_pt2: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_distribution_gname_R0.4_WTA_Standard_pt2: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    hepdata_AA_distribution_dir_R0.4_WTA_Standard_pt3: "Table 4"
+    hepdata_AA_distribution_hname_R0.4_WTA_Standard_pt3: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    hepdata_AA_distribution_gname_R0.4_WTA_Standard_pt3: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
     ytitle_AA_distribution: '$\frac{1}{N} \frac{dN}{d\Delta j}$'
 
   # CMS energy-energy correlators
