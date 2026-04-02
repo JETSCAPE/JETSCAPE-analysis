@@ -988,7 +988,7 @@ inclusive_jet:
     pt: [40., 140.]
     eta_cut_R: 0.7
 
-    hepdata: "HEPData-ins1755387-v1-root.root"
+    hepdata: "HEPData-ins1755387-v2-root.root"
 
     xtitle: "#it{p}_{T,jet} (GeV/#it{c})"
     logy: True
