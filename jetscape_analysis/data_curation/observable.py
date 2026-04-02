@@ -602,6 +602,42 @@ def pretty_print_name(name: str) -> str:
     return working_str.replace("_", " ")
 
 
+_T_Spec = TypeVar("_T_Spec", bound=ParameterSpec)
+_T_Specs = TypeVar("_T_Specs", bound=ParameterSpecs)
+
+
+def find_parameter_by_spec_type(
+    parameters: AllParameters,
+    desired_type: type[_T_Spec] | type[_T_Specs],
+) -> _T_Specs:
+    """Find the ParameterSpecs in a list of all observable parameters.
+
+    It's preferred to iterate over values, but sometimes it's useful to be able to pick them out individually.
+
+    Note:
+        If you provide a ParameterSpec, we will still provide the full ParameterSpecs with all values.
+        It will then be up to you to filter what you're interested in.
+
+    Args:
+        parameters: List of all observable parameters.
+        desired_type: Type of the desired ParameterSpec of ParameterSpecs
+
+    Returns:
+        The desired ParameterSpecs, or raises a ValueError if the type cannot be found
+    """
+    for p in parameters:
+        if issubclass(desired_type, ParameterSpec):
+            # Parameter Spec
+            for v in p.values:
+                if isinstance(v, desired_type):
+                    return p
+        elif isinstance(p, desired_type):
+            # ParameterSpecs
+            return p
+    msg = f"Could not find desired type: {desired_type} in {parameters=}"
+    raise ValueError(msg)
+
+
 @attrs.define
 class Observable:
     sqrt_s: int = attrs.field()
@@ -617,7 +653,12 @@ class Observable:
     @property
     def observable_str(self) -> str:
         """Observable identifier as a string."""
-        return map(str, *self._identifier)
+        return "_".join(map(str, self.identifier))
+
+    @property
+    def observable_str_as_path(self) -> Path:
+        """Observable identifier as a path"""
+        return Path(str(self.sqrt_s)) / self.observable_class / self.name
 
     @property
     def internal_name_without_experiment(self) -> str:
@@ -753,7 +794,10 @@ class Observable:
             can be zipped together to provide the appropriate indices.
         """
         # Need the names for labeling later
-        parameter_specs_names = [p.encode_name() for p in parameters]
+        # TODO(RJE): Confirm whether there are cases where we need the encoded name instead.
+        #            If we use the encoded name, it's a bit annoying to associate with the parameters.
+        # parameter_specs_names = [p.encode_name() for p in parameters]
+        parameter_specs_names = [p.name for p in parameters]
         # And then determine all of the values, as well as the indices
         values_of_parameters = [p.values for p in parameters]
         indices = [list(range(len(p))) for p in values_of_parameters]
