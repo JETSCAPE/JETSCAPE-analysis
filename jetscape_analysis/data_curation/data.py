@@ -466,8 +466,8 @@ def example_construct_observables(observables: dict[str, observable.Observable])
     IPython.embed()
 
 
-def build_hepdata_repository(observables: dict[str, observable.Observable]) -> None:
-    """Retrieve all available data from HEPData and store it in our repository."""
+def build_hepdata_repository(observables: dict[str, observable.Observable]) -> None:  # noqa: C901
+    """Retrieve all available data from HEPData v1 URLs and store it in our repository."""
     import time  # noqa: PLC0415
 
     from jetscape_analysis.base import helpers  # noqa: PLC0415
@@ -479,28 +479,98 @@ def build_hepdata_repository(observables: dict[str, observable.Observable]) -> N
 
         # Attempt to use the new data block, but then fall back to the URLs if not provided
         # (the URLs are less preferred because there could be multiple HEPdata for one observable).
-        data_block = {}
+        hepdata_identifiers: list[hepdata_utils.HEPDataIdentifier] = []
         try:
             data_block = parse_data_block(observable_str=observable_str, config=obs.config)
+            # And then flatten down to just the unique identifiers...
+            hepdata_identifiers = list(set(block.identifier for block in data_block.values()))  # noqa: C401
         except MissingDataBlock:
             logger.info("Missing data block - falling back to urls")
-        if not data_block:
-            urls = obs.config.get("urls", {})
-            hepdata_url = urls.get("hepdata")
-            if not hepdata_url or hepdata_url == "N/A":
-                logger.info(f"Skipping {observable_str} due to missing HEPData url")
-                continue
 
-        inspire_hep_id, version, query_params = hepdata_utils.extract_info_from_hepdata_url(
-            obs.config["urls"]["hepdata"]
-        )
+        if not hepdata_identifiers:
+            # This case is much more complicated, unfortunately.
+            hepdata_identifiers = []
+            for collision_system in ["pp", "AA"]:
+                # First, try to grab the existing HEPData filenames.
+                hepdata_root_filename = obs.config.get(f"hepdata_{collision_system}", obs.config.get("hepdata"))
+                if hepdata_root_filename is not None:
+                    _, inspire_id, version, *_ = hepdata_root_filename.split("-")
+                    inspire_id = int(inspire_id.replace("ins", ""))
+                    version = int(version.replace("v", ""))
+                    identifier_from_filename = hepdata_utils.HEPDataIdentifier(
+                        inspire_hep_id=inspire_id,
+                        version=version,
+                    )
+                    logger.debug(f"{collision_system=}, {identifier_from_filename=}")
+                    hepdata_identifiers.append(identifier_from_filename)
 
-        observable_str_as_path = Path(str(obs.sqrt_s)) / obs.observable_class / obs.name
-        _info = hepdata_utils.retrieve_observable_hepdata(
-            observable_str_as_path=observable_str_as_path, inspire_hep_id=inspire_hep_id, version=version
-        )
+                # And then also grab from the URLs
+                # (they should generally match, except in the case where we have separate HEPData for pp and AA.
+                #  Since we take the set, we can just take both if available.)
+                urls = obs.config.get("urls", {})
+                hepdata_url = urls.get("hepdata")
+                if not hepdata_url or hepdata_url == "N/A":
+                    logger.debug(
+                        f"Skipping extracting hepdata_url for '{observable_str}', '{collision_system}' due to missing HEPData url"
+                    )
+                else:
+                    inspire_hep_id, version, _ = hepdata_utils.extract_info_from_hepdata_url(
+                        obs.config["urls"]["hepdata"]
+                    )
+                    identifier_from_urls = hepdata_utils.HEPDataIdentifier(
+                        inspire_hep_id=inspire_hep_id, version=version
+                    )
+                    logger.debug(f"{collision_system=}, {identifier_from_urls=}")
+                    hepdata_identifiers.append(identifier_from_urls)
 
-        logger.info(f"Completed '{observable_str}'")
+            hepdata_identifiers = list(set(identifier for identifier in hepdata_identifiers))  # noqa: C401
+
+        # Now, we need to deal with HEPData versions:
+        # - We don't want to request the same id twice.
+        # - If one is -1, that's okay. But then we don't want to query for both that and the specified version. We'll take the most -1 version.
+        # - If both are > 0 and don't match, that's a problem that needs to be resolved manually.
+        filtered_identifiers: list[hepdata_utils.HEPDataIdentifier] = []
+        for outer in hepdata_identifiers:
+            # Preferentially keep the newest version, which will be retrieved using version -1
+            if outer.version == -1:
+                logger.debug(f"Storing {outer} in filtered_identifiers")
+                filtered_identifiers.append(outer)
+        # Ensure that we don't repeat ids
+        for outer in hepdata_identifiers:
+            logger.debug(f"Considering {outer}")
+            skip = True
+            if outer not in filtered_identifiers:
+                logger.debug(f"Found new value {outer} not in filtered_identifiers")
+                for inner in filtered_identifiers:
+                    if outer.inspire_hep_id == inner.inspire_hep_id:
+                        # Finally, check for version mismatches.
+                        if outer != inner and outer.version != -1 and inner.version != -1:
+                            msg = "Two identifiers have the same id, but non-zero version. You need to go check and fix the config manually."
+                            msg += "\n" + f"id1: {outer}, id2: {inner}"
+                            raise ValueError(msg)
+                        logger.debug(f"Found duplicate id for {outer}. Skipping...")
+                        break
+                else:
+                    # If we've checked all of the existing values and have no overlap,
+                    # then we should keep the value.
+                    skip = False
+
+            # We've found new values with versions != -1. Keep them!
+            if not skip:
+                logger.info(f"Including {outer} in the filtered identifiers.")
+                filtered_identifiers.append(outer)
+
+        logger.debug(f"Found {filtered_identifiers=} from {hepdata_identifiers=}")
+        for identifier in filtered_identifiers:
+            _info = hepdata_utils.retrieve_observable_hepdata(
+                observable_str_as_path=obs.observable_str_as_path,
+                inspire_hep_id=identifier.inspire_hep_id,
+                version=identifier.version,
+            )
+            logger.info(f"Found: {_info.identifier}")
+
+        # Extra "\n" is to block it off visually
+        logger.info(f"Completed '{observable_str}'\n")
 
         # We don't want to hit HEPData too often, so we slow it down a bit
         time.sleep(0.5)
