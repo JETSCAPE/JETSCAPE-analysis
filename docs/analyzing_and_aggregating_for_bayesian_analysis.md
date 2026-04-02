@@ -311,7 +311,7 @@ Although this is fine, it's best to run in a container, so below is an example h
 apptainer exec --cleanenv --no-home -B /rds/project/rds-hCZCEbPdvZ8 ${container_path} bash -c "cd /jetscapeOpt/jetscape-analysis/; COLUMNS=120 python3 -m jetscape_analysis.analysis.reader.skim_ascii -i /rds/project/rds-hCZCEbPdvZ8/peibols/bayesian/runs/0-5/point_2/job-2/HYBRID_Hadrons.out -o /rds/project/rds-hCZCEbPdvZ8/rehlers/hybrid-bayesian/production_0/Run0102/HYBRID_PbPb_0002_final_state_hadrons.parquet -n 6000 --inject-centrality 2.5"
 ```
 
-> [!info]
+> [!note]
 > The conversion exceptional needs to be run via this `bash -c` approach. We usually aim for a better user interface via apptainer apps, but we needed to add some command line options, so it hasn't happened yet. In the case of JETSCAPE simulations, the conversion is performed automatically, so this approach is used just for the hybrid model.
 
 Running this will produce a single file: `HYBRID_PbPb_0002_final_state_hadrons_00.parquet`, where the latter 00 index is to account for if files are split apart.
@@ -400,9 +400,10 @@ This will result in two files:
 
 - `submit_convert_to_parquet_prod_0_run_102.slurm`
 - `submit_analysis_prod_0_run_102.slurm`
-  These files can be submitted with `sbatch`.
 
-> [!info]
+These files can be submitted with `sbatch`.
+
+> [!note]
 > These choices specify the conversion from Dani's production to our Run number scheme described above.
 
 You can try `...generate_job_scripts.py --help` for more information on options. Be certain to customize these options as needed for your work.
