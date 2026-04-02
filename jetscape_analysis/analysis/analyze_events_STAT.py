@@ -1098,7 +1098,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         gshop = fjcontrib.GroomerShop(jet, jet_def)
 
         # Soft drop grooming
-        zcut = grooming_setting["zcut"]
+        zcut = grooming_setting["z_cut"]
         beta = grooming_setting["beta"]
         jet_groomed_lund = gshop.soft_drop(beta, zcut, jetR)
 
@@ -1184,14 +1184,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For shower_recoil case, correct the pt only
         #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
         #    - For constituent_subtraction, no subtraction is needed
-        if (
-            self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="axis_alice")
-            and grooming_setting in [
-                entry["grooming_settings"]
-                for entry in self.inclusive_chjet_observables["axis_alice"]["axis"]
-                if "grooming_settings" in entry
-            ]
-        ):
+        if self.measure_observable_for_current_event(
+            self.inclusive_chjet_observables, observable_name="axis_alice"
+        ) and grooming_setting in [
+            entry["grooming_settings"]
+            for entry in self.inclusive_chjet_observables["axis_alice"]["axis"]
+            if "grooming_settings" in entry
+        ]:
             pt_min = self.inclusive_chjet_observables["axis_alice"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["axis_alice"]["pt"][-1]
             if (
@@ -1531,9 +1530,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 jet_wta = reclusterer_wta.result(jet)
 
                 deltaR = jet_wta.delta_R(jet)
-                self.observable_dict_event[
-                    f"inclusive_jet_axis_cms_R{jetR}_WTA_Standard{jet_collection_label}"
-                ].append([jet_pt, deltaR])
+                self.observable_dict_event[f"inclusive_jet_axis_cms_R{jetR}_WTA_Standard{jet_collection_label}"].append(
+                    [jet_pt, deltaR]
+                )
 
         # ATLAS, d_12
         #   Hole treatment:
@@ -1582,7 +1581,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             jet_def.set_recombiner(recombiner)
         gshop = fjcontrib.GroomerShop(jet, jet_def)
 
-        zcut = grooming_setting["zcut"]
+        zcut = grooming_setting["z_cut"]
         beta = grooming_setting["beta"]
         jet_groomed_lund = gshop.soft_drop(beta, zcut, jetR)
 
@@ -1836,7 +1835,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 # Search for recoil jets
                 for jet in jets_selected:
-                    if abs(jet.eta()) < (self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["eta_cut_R"] - jetR):
+                    if abs(jet.eta()) < (
+                        self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["eta_cut_R"] - jetR
+                    ):
                         if jet_collection_label in ["_shower_recoil"]:
                             # Get the corrected jet pt: shower+recoil-holes
                             jet_pt_unsubtracted = jet.pt()
@@ -1973,7 +1974,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 # Search for recoil jets
                 for jet in jets_selected:
-                    if abs(jet.eta()) < (self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["eta_cut_R"] - jetR):
+                    if abs(jet.eta()) < (
+                        self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["eta_cut_R"] - jetR
+                    ):
                         if jet_collection_label in ["_shower_recoil"]:
                             # Get the corrected jet pt: shower+recoil-holes
                             jet_pt_unsubtracted = jet.pt()
@@ -2047,7 +2050,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                 # Search for recoil jets
                 for jet in jets_selected:
-                    if abs(jet.eta()) < (self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["eta_cut_R"] - jetR):
+                    if abs(jet.eta()) < (
+                        self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["eta_cut_R"] - jetR
+                    ):
                         if jet_collection_label in ["_shower_recoil"]:
                             # Get the corrected jet pt: shower+recoil-holes
                             jet_pt_unsubtracted = jet.pt()
@@ -3489,7 +3494,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         jet_def.set_recombiner(recombiner)
                     gshop = fjcontrib.GroomerShop(jet, jet_def)
 
-                    zcut = grooming_setting["zcut"]
+                    zcut = grooming_setting["z_cut"]
                     beta = grooming_setting["beta"]
                     jet_groomed_lund = gshop.soft_drop(beta, zcut, jetR)
                     if not jet_groomed_lund:

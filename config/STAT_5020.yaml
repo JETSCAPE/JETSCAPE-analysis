@@ -62,10 +62,10 @@ max_jet_y: 3.
 
 # General grooming parameters
 SoftDrop:
-  - { "zcut": 0.1, "beta": 0 }
-  - { "zcut": 0.2, "beta": 0 }
-  - { "zcut": 0.4, "beta": 0 }
-  - { "zcut": 0.5, "beta": 1.5 }
+  - { "z_cut": 0.1, "beta": 0 }
+  - { "z_cut": 0.2, "beta": 0 }
+  - { "z_cut": 0.4, "beta": 0 }
+  - { "z_cut": 0.5, "beta": 1.5 }
 
 # If AA, set different options for hole subtraction treatment
 # If pp, defaults will override this: ['']
@@ -482,7 +482,7 @@ inclusive_chjet:
     pt: [60., 80.]
     eta_cut_R: 0.9
     SoftDrop:
-      - { "zcut": 0.2, "beta": 0 }
+      - { "z_cut": 0.2, "beta": 0 }
 
     hepdata: "HEPData-ins1893479-v1-root.root"
 
@@ -522,7 +522,7 @@ inclusive_chjet:
     pt: [60., 80.]
     eta_cut_R: 0.9
     SoftDrop:
-      - { "zcut": 0.2, "beta": 0 }
+      - { "z_cut": 0.2, "beta": 0 }
 
     hepdata: "HEPData-ins1893479-v1-root.root"
 
@@ -587,8 +587,8 @@ inclusive_chjet:
     eta_cut_R: 0.9
     axis:
       - { "type": "WTA_Standard" }
-      - { "type": "WTA_SD", "grooming_settings": { "zcut": 0.2, "beta": 0 } }
-      - { "type": "WTA_SD", "grooming_settings": { "zcut": 0.1, "beta": 0 } }
+      - { "type": "WTA_SD", "grooming_settings": { "z_cut": 0.2, "beta": 0 } }
+      - { "type": "WTA_SD", "grooming_settings": { "z_cut": 0.1, "beta": 0 } }
 
     xtitle: "#Delta R_{axis}"
 
@@ -651,8 +651,8 @@ inclusive_chjet:
     eta_cut_R: 0.9
     alpha: [1, 1.5, 2, 3]
     SoftDrop:
-      - { "zcut": 0., "beta": 0 } # Ungroomed
-      - { "zcut": 0.2, "beta": 0 } # Groomed
+      - { "z_cut": 0., "beta": 0 } # Ungroomed
+      - { "z_cut": 0.2, "beta": 0 } # Groomed
 
     # Angularities for pp were already in the previous paper.
     hepdata_pp: "HEPData-ins1891385-v1-root.root"
@@ -745,8 +745,8 @@ inclusive_chjet:
     pt: [40., 60., 80., 100., 150.]
     eta_cut_R: 0.9
     SoftDrop:
-      - { "zcut": 0., "beta": 0 } # Ungroomed
-      - { "zcut": 0.2, "beta": 0 } # Groomed
+      - { "z_cut": 0., "beta": 0 } # Ungroomed
+      - { "z_cut": 0.2, "beta": 0 } # Groomed
 
     hepdata: "HEPData-ins2845788-v1-root.root"
 
@@ -794,7 +794,7 @@ inclusive_chjet:
     pt: [60., 80.]
     eta_cut_R: 0.9
     SoftDrop:
-      - { "zcut": 0.2, "beta": 0 }
+      - { "z_cut": 0.2, "beta": 0 }
     dynamical_grooming:
       - { "a": 1.0 }
 
@@ -1542,8 +1542,8 @@ inclusive_jet:
     eta_cut: 1.3
     dR: 0.1
     SoftDrop:
-      - { "zcut": 0.1, "beta": 0 }
-      - { "zcut": 0.5, "beta": 1.5 }
+      - { "z_cut": 0.1, "beta": 0 }
+      - { "z_cut": 0.5, "beta": 1.5 }
 
     hepdata: "HEPData-ins1672962-v1-root.root"
 
@@ -1643,7 +1643,7 @@ inclusive_jet:
     eta_cut: 1.3
     dR: 0.1
     SoftDrop:
-      - { "zcut": 0.1, "beta": 0 }
+      - { "z_cut": 0.1, "beta": 0 }
 
     hepdata: "HEPData-ins1620905-v1-root.root"
 
@@ -1752,7 +1752,7 @@ inclusive_jet:
     pt: [100., 150., 200.]
     eta_cut: 2.0
     SoftDrop:
-      - { "zcut": 0.2, "beta": 0 }
+      - { "z_cut": 0.2, "beta": 0 }
 
     # Rg bins
     bins: [0.0, 1.0]

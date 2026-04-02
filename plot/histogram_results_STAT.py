@@ -222,7 +222,7 @@ class HistogramResults(common_base.CommonBase):
                     first_valid = valid_idx[0]
                     # Check once using the first row (safe because all rows match).
                     #if not self.centrality_accepted(centrality, event_index=first_valid):
-                    if not (centrality_min_all[first_valid] >= centrality[0] 
+                    if not (centrality_min_all[first_valid] >= centrality[0]
                             and centrality_max_all[first_valid] <= centrality[1]):
                         continue
 
@@ -553,7 +553,7 @@ class HistogramResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             if not block.get("enabled", True):
-                continue    
+                continue
             for _, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
@@ -644,7 +644,7 @@ class HistogramResults(common_base.CommonBase):
                         for subobservable_label in subobservable_label_list:
                             if "SoftDrop" in block:
                                 for grooming_setting in block["SoftDrop"]:
-                                    zcut = grooming_setting["zcut"]
+                                    zcut = grooming_setting["z_cut"]
                                     beta = grooming_setting["beta"]
 
                                     # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix

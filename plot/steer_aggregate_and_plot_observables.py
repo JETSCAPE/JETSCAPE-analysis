@@ -1019,11 +1019,14 @@ def main():  # noqa: C901
                         # Jet observables -- with negative_recombiner
                         # There are several different subobservable patterns that we need to parse
                         elif "negative_recombiner" in key:
-                            if "zcut" in key:
+                            if "z_cut" in key:
                                 observable_category = f"{key_items[4]}_{key_items[5]}"
                                 observable = f"{key_items[6]}_{key_items[7]}"
-                                subobservable = f"{key_items[8]}_{key_items[9]}_{key_items[10]}"
-                                centrality = ["".join(filter(str.isdigit, s)) for s in key_items[11].split(",")]
+                                # TODO(RJE): This may have broken with the rename of "zcut" -> "z_cut", but needs to be checked.
+                                # subobservable = f"{key_items[8]}_{key_items[9]}_{key_items[10]}"
+                                # I shift the indices back one to account for the additional "_"
+                                subobservable = f"{key_items[9]}_{key_items[10]}_{key_items[11]}"
+                                centrality = ["".join(filter(str.isdigit, s)) for s in key_items[12].split(",")]
                             elif "charge" in key:
                                 observable_category = f"{key_items[4]}_{key_items[5]}"
                                 observable = f"{key_items[6]}_{key_items[7]}"

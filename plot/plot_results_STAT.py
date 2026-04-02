@@ -273,7 +273,7 @@ class PlotResults(common_base.CommonBase):
                                             continue
 
                                     logger.info(f"      grooming_setting = {grooming_setting}")
-                                    zcut = grooming_setting["zcut"]
+                                    zcut = grooming_setting["z_cut"]
                                     beta = grooming_setting["beta"]
 
                                     # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
@@ -1010,7 +1010,7 @@ class PlotResults(common_base.CommonBase):
             # Get histogram binning
             key = next(
                 (key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key)
-            )   
+            )
             h_prediction = self.observable_settings[key]
 
             # Truncate data tgraph to prediction histogram binning
