@@ -221,8 +221,9 @@ def write_info_to_database(
         new_info_entries = [_v for _v in existing_info_entries if _v["inspire_hep_id"] not in new_record_ids]
         # And the new info entries
         new_info_entries.extend(v)
-        # Ensure they're sorted for consistency.
-        new_info_entries = sorted(new_info_entries)
+        # Ensure they're sorted by inspire_hep_id for consistency.
+        new_info_entries = sorted(new_info_entries, key=lambda x: x["inspire_hep_id"])
+
         # And finally, store
         database[k] = new_info_entries
 
@@ -495,7 +496,7 @@ def retrieve_observable_hepdata(
 
         # If nothing is found, there's nothing else to be done - we'll just continue with the regular process,
         # which defaults to downloading and extracting files as needed.
-        logger.debug("Could not find entry in database. Proceeding to download.")
+        logger.info("Could not find entry in database. Proceeding to download.")
 
     # At this point, we need to figure out what operations are required.
     # First, let's check on whether we have .tar.gz archive.
