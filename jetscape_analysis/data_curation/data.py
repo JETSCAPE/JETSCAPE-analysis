@@ -278,8 +278,6 @@ class HEPDataBlock:
 
     histogram_properties: HistogramProperties
     histograms: list[HEPDataEntry]
-    # systematics_names: dict[str, str] = attrs.field(factory=dict)
-    # additional_systematics_values: dict[str, float] = attrs.field(factory=dict)
 
     @classmethod
     def from_config(cls, config: Config) -> HEPDataBlock:
@@ -391,10 +389,14 @@ def parse_data_block(observable_str: str, config: dict[str, Any]) -> ...:
     return data_blocks
 
 
-def parse_custom_data_block(observable_str: str, config: Config) -> CustomData: ...
+def parse_custom_data_block(observable_str: str, config: Config) -> CustomData:
+    msg = "To be implemented"
+    raise NotImplementedError(msg)
 
 
-def parse_binning_block(observable_str: str, config: Config) -> Binning: ...
+def parse_binning_block(observable_str: str, config: Config) -> Binning:
+    msg = "To be implemented"
+    raise NotImplementedError(msg)
 
 
 def _check_for_required_observable_blocks(collision_system: str, config: Config) -> bool:
@@ -409,15 +411,6 @@ def _check_for_required_observable_blocks(collision_system: str, config: Config)
         raise ValueError(msg)
 
     return True
-
-
-def load_first_production_hepdata_info(observable: observable.Observable) -> HEPDataBlock:
-    """Load HEPData info from the first production.
-
-    Our first production had everything flattened out.
-
-    See the other functionality in define_dat_sources(?) where I've already done this...
-    """
 
 
 def example_search_for_table(obs: observable.Observable) -> None:
