@@ -8,8 +8,13 @@ But it should make it less work for us to switch to the new format.
 
 from __future__ import annotations
 
+import io
 import logging
+from pathlib import Path
 from typing import Any
+
+import ruamel.yaml
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from jetscape_analysis.data_curation import data, hepdata_utils, observable
 
@@ -165,6 +170,191 @@ def is_observable_hepdata_v1(config: dict[str, Any]) -> bool:
     return "hepdata" in config or "hepdata_pp" in config or "hepdata_AA" in config
 
 
+def _encode_param_value(v: Any) -> str:
+    """Encode a single parameter value (possibly a ParameterSpec) to a string."""
+    if hasattr(v, "encode"):
+        return v.encode()
+    return str(v)
+
+
+def _group_entries_by_table_and_systematics(
+    histograms: list[data.HEPDataEntry],
+) -> list[tuple[str, dict[str, str], dict[str, float], list[data.HEPDataEntry]]]:
+    """Group HEPDataEntry objects by table + systematics, preserving insertion order.
+
+    Returns:
+        List of (table, systematics_names, additional_systematics_values, entries) tuples.
+    """
+    # Use a list of (key, metadata, entries) to preserve insertion order
+    group_keys: list[tuple] = []
+    group_metadata: dict[tuple, tuple[str, dict, dict]] = {}
+    group_entries: dict[tuple, list[data.HEPDataEntry]] = {}
+
+    for entry in histograms:
+        sys_key = tuple(sorted(entry.systematics_names.items()))
+        add_sys_key = tuple(sorted(entry.additional_systematics_values.items()))
+        key = (entry.table, sys_key, add_sys_key)
+
+        if key not in group_entries:
+            group_keys.append(key)
+            group_metadata[key] = (entry.table, entry.systematics_names, entry.additional_systematics_values)
+            group_entries[key] = []
+
+        group_entries[key].append(entry)
+
+    return [
+        (table, sys_names, add_sys, group_entries[k])
+        for k, (table, sys_names, add_sys) in zip(group_keys, [group_metadata[k] for k in group_keys], strict=True)
+    ]
+
+
+def _split_common_and_varying_params(
+    entries: list[data.HEPDataEntry],
+) -> tuple[dict[str, str], list[str]]:
+    """Partition parameter keys into those shared (same encoded value) vs. varying across entries.
+
+    Returns:
+        (common_params, varying_keys) where common_params maps key → encoded value
+        and varying_keys is the list of keys that differ between entries.
+    """
+    if not entries:
+        return {}, []
+
+    all_keys = list(entries[0].parameters.keys())
+    common_params: dict[str, str] = {}
+    varying_keys: list[str] = []
+
+    for key in all_keys:
+        encoded_values = [_encode_param_value(e.parameters[key]) for e in entries]
+        if len(set(encoded_values)) == 1:
+            common_params[key] = encoded_values[0]
+        else:
+            varying_keys.append(key)
+
+    return common_params, varying_keys
+
+
+def _build_axis_dict(axis: data.Axis) -> CommentedMap:
+    d: CommentedMap = CommentedMap()
+    d["label"] = axis.label
+    if axis.range != (None, None):
+        seq: CommentedSeq = CommentedSeq(list(axis.range))
+        seq.fa.set_flow_style()
+        d["range"] = seq
+    if axis.log:
+        d["log"] = axis.log
+    return d
+
+
+def _build_block_dict(block: data.HEPDataBlock) -> CommentedMap:
+    d: CommentedMap = CommentedMap()
+    hp = block.histogram_properties
+    d["quantity"] = hp.quantity
+    d["x_axis"] = _build_axis_dict(hp.x_axis)
+    d["y_axis"] = _build_axis_dict(hp.y_axis)
+
+    tables_seq: CommentedSeq = CommentedSeq()
+
+    for table, sys_names, add_sys, entries in _group_entries_by_table_and_systematics(block.histograms):
+        table_entry: CommentedMap = CommentedMap()
+        common_params, varying_keys = _split_common_and_varying_params(entries)
+
+        if common_params:
+            outer_params: CommentedMap = CommentedMap(common_params)
+            outer_params.fa.set_flow_style()
+            table_entry["parameters"] = outer_params
+
+        sys_map: CommentedMap = CommentedMap(sys_names)
+        sys_map.fa.set_flow_style()
+        table_entry["systematics_names"] = sys_map
+
+        add_sys_map: CommentedMap = CommentedMap(add_sys)
+        add_sys_map.fa.set_flow_style()
+        table_entry["additional_systematics"] = add_sys_map
+
+        table_entry["table"] = table
+
+        if len(entries) == 1 and not varying_keys:
+            # Single entry with no variation → no combinations block needed
+            table_entry["index"] = entries[0].table_index
+        else:
+            combinations: CommentedSeq = CommentedSeq()
+            for entry in entries:
+                comb: CommentedMap = CommentedMap()
+                if varying_keys:
+                    varying_map: CommentedMap = CommentedMap(
+                        {k: _encode_param_value(entry.parameters[k]) for k in varying_keys}
+                    )
+                    varying_map.fa.set_flow_style()
+                    comb["parameters"] = varying_map
+                comb["index"] = entry.table_index
+                combinations.append(comb)
+            table_entry["combinations"] = combinations
+
+        tables_seq.append(table_entry)
+
+    d["tables"] = tables_seq
+    return d
+
+
+def write_observable_blocks_to_yaml(
+    observable_blocks: dict[str, dict[str, data.HEPDataBlock]],
+    hepdata_identifiers: dict[str, hepdata_utils.HEPDataIdentifier],
+    output_path: Path | None = None,
+) -> str:
+    """Serialize observable blocks to YAML in the HEPData v2 format.
+
+    Groups HEPDataEntry objects sharing the same table and systematics into a single
+    ``tables`` element with a ``combinations`` sub-list.  Parameters that are identical
+    across all entries in a group appear once in the outer ``parameters`` dict; the rest
+    appear per-combination.
+
+    Args:
+        observable_blocks: Mapping of collision system (``"pp"``, ``"AA"``) to a dict of
+            block name (``"spectra"``, ``"ratio"``) to :class:`~data.HEPDataBlock`.
+        hepdata_identifiers: Mapping of collision system to :class:`~hepdata_utils.HEPDataIdentifier`.
+        output_path: If provided, also write the YAML to this file.
+
+    Returns:
+        YAML string suitable for pasting into an observable config under the ``data:`` key.
+    """
+    y = ruamel.yaml.YAML()
+    y.default_flow_style = False
+    y.indent(mapping=2, sequence=4, offset=2)
+    y.width = 120
+
+    root: CommentedMap = CommentedMap()
+    data_map: CommentedMap = CommentedMap()
+    root["data"] = data_map
+
+    for cs, blocks in observable_blocks.items():
+        cs_map: CommentedMap = CommentedMap()
+        data_map[cs] = cs_map
+
+        hepdata_map: CommentedMap = CommentedMap()
+        cs_map["hepdata"] = hepdata_map
+
+        identifier = hepdata_identifiers.get(cs)
+        if identifier:
+            rec: CommentedMap = CommentedMap()
+            rec["inspire_id"] = identifier.inspire_hep_id
+            rec["version"] = identifier.version
+            hepdata_map["record"] = rec
+
+        for block_name, block in blocks.items():
+            hepdata_map[block_name] = _build_block_dict(block)
+
+    stream = io.StringIO()
+    y.dump(root, stream)
+    result = stream.getvalue()
+
+    if output_path is not None:
+        output_path.write_text(result)
+        logger.info(f"Wrote YAML to {output_path}")
+
+    return result
+
+
 def main(jetscape_analysis_config_path: Path) -> None:
     # We want to update all observables, so let's grab them all
     observables = observable.read_observables_from_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
@@ -180,6 +370,11 @@ def main(jetscape_analysis_config_path: Path) -> None:
     }
 
     for obs in observables.values():
+        # TEMP: for testing
+        if obs.identifier != (5020, "inclusive_jet", "axis_cms"):
+            continue
+        # ENDTEMP
+        logger.info(f"Processing {obs.identifier}")
         is_v1 = is_observable_hepdata_v1(obs.config)
 
         if not is_v1:
@@ -209,10 +404,10 @@ def main(jetscape_analysis_config_path: Path) -> None:
                 inspire_hep_id=inspire_id,
                 version=version,
             )
-            # Store for later...
+            # Store identifier for later
             hepdata_identifiers[collision_system] = identifier_from_config
 
-            # And then double check with the data curation database, if the observable is there...
+            # And then double check with the data curation database, if the observable is there and that the HEPData matches
             matched_identifiers = [
                 v.identifier
                 for v in data_curation_database[str(obs.observable_str_as_path)]
@@ -229,10 +424,7 @@ def main(jetscape_analysis_config_path: Path) -> None:
             # else:
             #    logger.warning(f"Found for {obs.name}")
 
-            continue
-
-    if False:
-        # Extract histogram properties per observable
+        # Next, extract histogram properties per observable
         histogram_properties_per_observable_block = {
             "pp": {},
             "AA": {},
@@ -248,11 +440,9 @@ def main(jetscape_analysis_config_path: Path) -> None:
 
         # Now, we need to retrieve the HEPData information based on the parameters
         parameters = obs.parameters()
-        centrality_specs = observable.find_parameter_by_spec_type(parameters, desired_type=observable.CentralitySpecs)
-        n_centrality_bins = len(centrality_specs.values)
+        # NOTE: We need the pt binning info solely to generate the older entry name from the parameters
         pt_specs = observable.find_parameter_by_spec_type(parameters, desired_type=observable.CentralitySpecs)
         n_pt_bins = len(pt_specs.values)
-        # TODO(RJE): I think I don't even need this - I can get the enumerate values from the parameter generator, no?
 
         observable_blocks = {
             "pp": {},
@@ -260,7 +450,7 @@ def main(jetscape_analysis_config_path: Path) -> None:
         }
         for label, (collision_system, observable_block_name) in label_to_observable_block.items():
             histograms = []
-            for i, (params, param_indices) in enumerate(obs.generate_parameter_combinations(parameters=parameters)):
+            for params, param_indices in obs.generate_parameter_combinations(parameters=parameters):
                 labeled_indices = {f"{k}_index": v for k, v in param_indices.items()}
                 suffix, pt_suffix = generate_entry_name_from_parameters(
                     **{**params, **labeled_indices},
@@ -274,14 +464,13 @@ def main(jetscape_analysis_config_path: Path) -> None:
                     suffix=suffix,
                     pt_suffix=pt_suffix,
                 )
-                # params_index_to_tables[i] = (params, *hepdata_table_and_index)
-                # hepdata_entries[collision_system][observable_block] = data.HEPDataEntry(
                 histograms.append(
                     data.HEPDataEntry(
                         parameters=params,
                         table=hepdata_table,
                         table_index=hepdata_table_index,
-                        # These are not stored here, so there's nothing to add...
+                        # These values are not stored here, so there's nothing to add...
+                        # We'll have to fill them in by hand later.
                         systematics_names={},
                         additional_systematics_values={},
                     )
@@ -292,17 +481,16 @@ def main(jetscape_analysis_config_path: Path) -> None:
                 histograms=histograms,
             )
 
-        # for collision_system, observable_blocks in hepdata_entries.items():
-        #    for observable_block, entry in observable_blocks.items():
-        #        observable_blocks[collision_system][observable_block] = data.HEPDataBlock(
-        #            histogram_properties=histogram_properties_per_observable_block[collision_system]
-        #        )
+        # Write the observable blocks to YAML in the HEPData v2 format.
+        yaml_str = write_observable_blocks_to_yaml(
+            observable_blocks=observable_blocks,
+            hepdata_identifiers=hepdata_identifiers,
+        )
+        logger.info(f"\n# --- {obs.observable_str} ---\n{yaml_str}")
 
-        import IPython
+        import IPython  # noqa: PLC0415
 
         IPython.embed()
-
-        raise RuntimeError("")
 
 
 if __name__ == "__main__":
