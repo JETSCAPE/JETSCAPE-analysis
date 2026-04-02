@@ -642,8 +642,8 @@ class HistogramResults(common_base.CommonBase):
                         if "r" in block:
                             subobservable_label_list = [f"_r{r}" for r in block["r"]]
                         for subobservable_label in subobservable_label_list:
-                            if "SoftDrop" in block:
-                                for grooming_setting in block["SoftDrop"]:
+                            if "soft_drop" in block:
+                                for grooming_setting in block["soft_drop"]:
                                     zcut = grooming_setting["z_cut"]
                                     beta = grooming_setting["beta"]
 

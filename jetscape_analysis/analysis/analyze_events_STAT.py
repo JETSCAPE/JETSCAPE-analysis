@@ -135,8 +135,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # General grooming parameters'
         self.grooming_settings = {}
-        if "SoftDrop" in config:
-            self.grooming_settings = config["SoftDrop"]
+        if "soft_drop" in config:
+            self.grooming_settings = config["soft_drop"]
 
         # If AA, set different options for hole subtraction treatment
         if self.is_AA:
@@ -1117,7 +1117,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # (since DyG isn't included in the global set of grooming settings). It just relies
             # on the SD being called at once, which it they must because the ktg measurement
             # also relies on them.
-            and grooming_setting in self.inclusive_chjet_observables["ktg_alice"]["SoftDrop"]
+            and grooming_setting in self.inclusive_chjet_observables["ktg_alice"]["soft_drop"]
         ):
             pt_min = self.inclusive_chjet_observables["ktg_alice"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["ktg_alice"]["pt"][-1]
@@ -1160,7 +1160,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="zg_alice")
-            and grooming_setting in self.inclusive_chjet_observables["zg_alice"]["SoftDrop"]
+            and grooming_setting in self.inclusive_chjet_observables["zg_alice"]["soft_drop"]
         ):
             pt_min = self.inclusive_chjet_observables["zg_alice"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["zg_alice"]["pt"][1]
@@ -1226,7 +1226,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             self.measure_observable_for_current_event(
                 self.inclusive_chjet_observables, observable_name="angularity_alice"
             )
-            and grooming_setting in self.inclusive_chjet_observables["angularity_alice"]["SoftDrop"]
+            and grooming_setting in self.inclusive_chjet_observables["angularity_alice"]["soft_drop"]
         ):
             pt_min = self.inclusive_chjet_observables["angularity_alice"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["angularity_alice"]["pt"][-1]
@@ -1249,7 +1249,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="mass_alice")
-            and grooming_setting in self.inclusive_chjet_observables["mass_alice"]["SoftDrop"]
+            and grooming_setting in self.inclusive_chjet_observables["mass_alice"]["soft_drop"]
         ):
             pt_min = self.inclusive_chjet_observables["mass_alice"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["mass_alice"]["pt"][-1]
@@ -1596,7 +1596,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="mg_cms")
-            and grooming_setting in self.inclusive_jet_observables["mg_cms"]["SoftDrop"]
+            and grooming_setting in self.inclusive_jet_observables["mg_cms"]["soft_drop"]
         ):
             pt_min = self.inclusive_jet_observables["mg_cms"]["pt"][0]
             pt_max = self.inclusive_jet_observables["mg_cms"]["pt"][-1]
@@ -1618,7 +1618,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="zg_cms")
-            and grooming_setting in self.inclusive_jet_observables["zg_cms"]["SoftDrop"]
+            and grooming_setting in self.inclusive_jet_observables["zg_cms"]["soft_drop"]
         ):
             pt_min = self.inclusive_jet_observables["zg_cms"]["pt"][0]
             pt_max = self.inclusive_jet_observables["zg_cms"]["pt"][-1]
@@ -1640,7 +1640,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="rg_atlas")
-            and grooming_setting in self.inclusive_jet_observables["rg_atlas"]["SoftDrop"]
+            and grooming_setting in self.inclusive_jet_observables["rg_atlas"]["soft_drop"]
         ):
             pt_min = self.inclusive_jet_observables["rg_atlas"]["pt"][0]
             pt_max = self.inclusive_jet_observables["rg_atlas"]["pt"][1]
@@ -3506,7 +3506,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     #    - For negative_recombiner case, no subtraction is needed
                     #    - For constituent_subtraction, no subtraction is needed
                     if (
-                        grooming_setting in self.gamma_trigger_jet_observables["rg_cms"]["SoftDrop"]
+                        grooming_setting in self.gamma_trigger_jet_observables["rg_cms"]["soft_drop"]
                         and jetR in self.gamma_trigger_jet_observables["rg_cms"]["jet_R"]
                         and jet_pt > jet_pt_min
                         and abs(jet.eta()) < (self.gamma_trigger_jet_observables["rg_cms"]["eta_cut_jet"])

@@ -263,8 +263,8 @@ class PlotResults(common_base.CommonBase):
                                 if x in observable:
                                     self_normalize = True
 
-                            if "SoftDrop" in block:
-                                for grooming_setting in block["SoftDrop"]:
+                            if "soft_drop" in block:
+                                for grooming_setting in block["soft_drop"]:
                                     # Custom skip
                                     if observable in ["zg_alice", "tg_alice"]:
                                         if np.isclose(self.jet_R, 0.4) and centrality_index == 0:
