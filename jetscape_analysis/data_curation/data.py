@@ -325,7 +325,7 @@ class HEPData:
     @classmethod
     def from_config(cls, collision_system: str, config: Config) -> HEPData:
         # Validation
-        _check_for_required_histogram_blocks(collision_system=collision_system, config=config)
+        _check_for_required_observable_blocks(collision_system=collision_system, config=config)
 
         # Retrieve identifier
         identifier = hepdata_utils.HEPDataIdentifier.from_hepdata_config(config)
@@ -397,15 +397,15 @@ def parse_custom_data_block(observable_str: str, config: Config) -> CustomData: 
 def parse_binning_block(observable_str: str, config: Config) -> Binning: ...
 
 
-def _check_for_required_histogram_blocks(collision_system: str, config: Config) -> bool:
-    required_hists = {
+def _check_for_required_observable_blocks(collision_system: str, config: Config) -> bool:
+    required_observable_blocks = {
         "pp": ["spectra"],
         "AA": ["spectra", "ratio"],
     }
     available_keys = list(config.keys())
-    required_hists_available = all(h in available_keys for h in required_hists[collision_system])
+    required_hists_available = all(h in available_keys for h in required_observable_blocks[collision_system])
     if not required_hists_available:
-        msg = f"Missing required keys for {collision_system}. Needed: {required_hists[collision_system]}, available: {available_keys}"
+        msg = f"Missing required keys for {collision_system}. Needed: {required_observable_blocks[collision_system]}, available: {available_keys}"
         raise ValueError(msg)
 
     return True
