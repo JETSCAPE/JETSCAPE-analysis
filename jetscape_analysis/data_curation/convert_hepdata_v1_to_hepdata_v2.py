@@ -17,15 +17,19 @@ logger = logging.getLogger(__name__)
 
 
 def generate_entry_name_from_parameters(
-    jet_R: observable.JetRSpec | None = None,
+    n_pt_bins: int = 1,
     pt_index: int | None = None,
+    jet_R: observable.JetRSpec | None = None,
     kappa: observable.AngularitySpec | None = None,
     soft_drop: observable.SoftDropSpec | None = None,
-    n_pt_bins: int = 1,
-    **kwargs: Any,
+    axis: observable.JetAxisDifferenceSpec | None = None,
+    # kwargs just absorbs the rest of the arguments, so they can be passed blindly
+    **kwargs: Any,  # noqa: ARG001
 ) -> str:
-    """Generate HEPData v1 entry name from HEPData v2 parameter specifications."""
+    """Generate HEPData v1 entry name from HEPData v2 parameters.
 
+    We basically dump all of the parameters here and just let it sort it out.
+    """
     suffix = ""
     # jet_R
     if jet_R is not None:
@@ -42,6 +46,9 @@ def generate_entry_name_from_parameters(
     # kappa
     if kappa is not None:
         suffix += f"_k{kappa.kappa}"
+    # Jet-axis difference
+    if axis:
+        suffix += f"_{axis.type}"
 
     return suffix, pt_suffix
 
