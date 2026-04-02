@@ -96,7 +96,8 @@ class HEPDataIdentifier:
     inspire_hep_id: int
     version: int
 
-    def encode(self) -> dict[str, Any]:
+    def encode(self, use_yaml_flow_style: bool = False) -> dict[str, Any]:  # noqa: ARG002
+        # NOTE: use_yaml_flow_style is needed to match the interface, but we don't need it here.
         return attrs.asdict(self)
 
     @classmethod

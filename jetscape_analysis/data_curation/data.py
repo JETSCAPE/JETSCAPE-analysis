@@ -36,12 +36,24 @@ class Axis:
     )
     log: bool = attrs.field(default=False)
 
-    def encode(self) -> dict[str, Any]:
-        return {
+    def encode(self, use_yaml_flow_style: bool = False) -> dict[str, Any]:
+        output_dict = {
             "label": self.label,
-            "range": self.range,
-            "log": self.log,
         }
+        # NOTE: In principle, I could just use attrs.asdict here, but for the sake of the config
+        #       length, I only want to write what I absolutely need. This is accounted for the
+        #       decode method below, which sets the same default values as the values that I skip writing.
+        if self.range != (None, None):
+            r = self.range
+            if use_yaml_flow_style:
+                from ruamel.yaml.comments import CommentedSeq  # noqa: PLC0415
+
+                r = CommentedSeq(list(r))
+                r.fa.set_flow_style()
+            output_dict["range"] = r
+        if self.log:
+            output_dict["log"] = self.log
+        return output_dict
 
     @classmethod
     def decode(cls, values: dict[str, Any]) -> Axis:
@@ -67,11 +79,11 @@ class HistogramProperties:
     x_axis: Axis
     y_axis: Axis
 
-    def encode(self) -> dict[str, Any]:
+    def encode(self, use_yaml_flow_style: bool = False) -> dict[str, Any]:
         return {
             "quantity": self.quantity,
-            "x_axis": self.x_axis.encode(),
-            "y_axis": self.y_axis.encode(),
+            "x_axis": self.x_axis.encode(use_yaml_flow_style=use_yaml_flow_style),
+            "y_axis": self.y_axis.encode(use_yaml_flow_style=use_yaml_flow_style),
         }
 
     @classmethod
