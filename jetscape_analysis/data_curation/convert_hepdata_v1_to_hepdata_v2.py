@@ -9,6 +9,7 @@ But it should make it less work for us to switch to the new format.
 from __future__ import annotations
 
 import io
+import itertools
 import logging
 from pathlib import Path
 from typing import Any
@@ -105,14 +106,16 @@ def find_hepdata_v1_key_in_block(
             return ("", "")
 
         dir_name = block[dir_key]
+        logger.warning(f"{block[g_key]=}")
         g_name = block[g_key][centrality_index]
-
     else:
         dir_name = block[dir_key]
         g_name = block[g_key]
 
     # finally, we're not actually interested in the "Graph1D_y", so we remove it on return
 
+    if isinstance(g_name, list):
+        logger.warning(f"{g_name=}")
     return dir_name, g_name.replace("Graph1D_y", "")
 
 
@@ -227,67 +230,139 @@ def _split_common_and_varying_params(
     all_keys = list(entries[0].parameters.keys())
     common_params: dict[str, str] = {}
     varying_keys: list[str] = []
+    logger.info(f"{all_keys=}")
 
     for key in all_keys:
         encoded_values = [_encode_param_value(e.parameters[key]) for e in entries]
+        logger.info(f"{encoded_values=}")
         if len(set(encoded_values)) == 1:
             common_params[key] = encoded_values[0]
         else:
             varying_keys.append(key)
+        logger.info(f"{common_params=}, {varying_keys=}")
 
     return common_params, varying_keys
 
 
-def _build_axis_dict(axis: data.Axis) -> CommentedMap:
-    d: CommentedMap = CommentedMap()
-    d["label"] = axis.label
-    if axis.range != (None, None):
-        seq: CommentedSeq = CommentedSeq(list(axis.range))
-        seq.fa.set_flow_style()
-        d["range"] = seq
-    if axis.log:
-        d["log"] = axis.log
-    return d
+def _partition_independent_cartesian_factors(
+    entries: list[data.HEPDataEntry],
+    varying_keys: list[str],
+    enable_factorization: bool = True,
+) -> tuple[list[str], list[str]]:
+    """Partition varying keys into independent and dependent factors.
+
+    An "independent" factor is a set of parameters that form a complete Cartesian
+    product regardless of how index/table assignments vary across entries.
+    Dependent factors are all remaining varying parameters.
+
+    Uses greedy maximization to find the largest independent subset first.
+
+    Args:
+        entries: List of HEPDataEntry objects.
+        varying_keys: Parameter keys that vary across entries.
+        enable_factorization: If False, skip factorization and treat all varying keys as dependent.
+
+    Returns:
+        (independent_keys, dependent_keys) where independent_keys are those
+        that form a complete Cartesian product, and dependent_keys are all others.
+        If enable_factorization is False, returns ([], varying_keys).
+    """
+    if not enable_factorization or not varying_keys:
+        return [], varying_keys
+
+    # Try all non-empty subsets, starting with largest (greedy maximization)
+    for r in range(len(varying_keys), 0, -1):
+        for subset in itertools.combinations(varying_keys, r):
+            subset_keys = list(subset)
+
+            # Collect unique values for each key in subset
+            param_values = {}
+            for key in subset_keys:
+                values = {_encode_param_value(e.parameters[key]) for e in entries}
+                param_values[key] = sorted(values)
+
+            # Compute expected Cartesian product size for this subset
+            expected_product_size = 1
+            for values in param_values.values():
+                expected_product_size *= len(values)
+
+            # If product size equals entry count, this subset might be independent
+            if expected_product_size == len(entries):
+                # Verify all combinations actually exist in the entries
+                expected_combos = set(itertools.product(*[param_values[k] for k in subset_keys]))
+                actual_combos = set(
+                    tuple(_encode_param_value(e.parameters[k]) for k in subset_keys)
+                    for e in entries
+                )
+
+                if expected_combos == actual_combos:
+                    # Found a complete factorization!
+                    dependent = [k for k in varying_keys if k not in subset_keys]
+                    return subset_keys, dependent
+
+    # No independent factors found; all keys are dependent
+    return [], varying_keys
 
 
-def _build_block_dict(block: data.HEPDataBlock) -> CommentedMap:
-    d: CommentedMap = CommentedMap()
-    hp = block.histogram_properties
-    d["quantity"] = hp.quantity
-    d["x_axis"] = _build_axis_dict(hp.x_axis)
-    d["y_axis"] = _build_axis_dict(hp.y_axis)
+def _build_block_dict(block: data.HEPDataBlock, enable_factorization: bool = True) -> CommentedMap:
+    d = CommentedMap()
+    # We want the range to show up on a single flow, so we enable the flow style here
+    d.update(block.histogram_properties.encode(use_yaml_flow_style=True))
 
-    tables_seq: CommentedSeq = CommentedSeq()
+    tables_seq = CommentedSeq()
 
     for table, sys_names, add_sys, entries in _group_entries_by_table_and_systematics(block.histograms):
-        table_entry: CommentedMap = CommentedMap()
+        table_entry = CommentedMap()
         common_params, varying_keys = _split_common_and_varying_params(entries)
 
-        if common_params:
-            outer_params: CommentedMap = CommentedMap(common_params)
+        # NEW: Partition varying keys into independent vs dependent
+        independent_keys, dependent_keys = _partition_independent_cartesian_factors(
+            entries, varying_keys, enable_factorization=enable_factorization
+        )
+
+        # Build outer parameters dict
+        outer_params_dict = {**common_params}
+
+        # Add independent factors as lists (or scalars if only one value)
+        if independent_keys:
+            for key in independent_keys:
+                unique_values = sorted(set(_encode_param_value(e.parameters[key]) for e in entries))
+                if len(unique_values) > 1:
+                    seq = CommentedSeq(unique_values)
+                    seq.fa.set_flow_style()
+                    outer_params_dict[key] = seq
+                else:
+                    outer_params_dict[key] = unique_values[0]
+
+        # Set outer parameters if we have any
+        if outer_params_dict:
+            outer_params = CommentedMap(outer_params_dict)
             outer_params.fa.set_flow_style()
             table_entry["parameters"] = outer_params
 
-        sys_map: CommentedMap = CommentedMap(sys_names)
+        # Systematics (same as before)
+        sys_map = CommentedMap(sys_names)
         sys_map.fa.set_flow_style()
         table_entry["systematics_names"] = sys_map
 
-        add_sys_map: CommentedMap = CommentedMap(add_sys)
+        add_sys_map = CommentedMap(add_sys)
         add_sys_map.fa.set_flow_style()
         table_entry["additional_systematics"] = add_sys_map
 
         table_entry["table"] = table
 
-        if len(entries) == 1 and not varying_keys:
-            # Single entry with no variation → no combinations block needed
+        # Handle dependent params + index/table
+        if not dependent_keys and all(e.table_index == entries[0].table_index for e in entries):
+            # No variation in dependent params or index → simple case
             table_entry["index"] = entries[0].table_index
         else:
-            combinations: CommentedSeq = CommentedSeq()
+            # Variation in dependent params and/or index/table → combinations block
+            combinations = CommentedSeq()
             for entry in entries:
-                comb: CommentedMap = CommentedMap()
-                if varying_keys:
-                    varying_map: CommentedMap = CommentedMap(
-                        {k: _encode_param_value(entry.parameters[k]) for k in varying_keys}
+                comb = CommentedMap()
+                if dependent_keys:
+                    varying_map = CommentedMap(
+                        {k: _encode_param_value(entry.parameters[k]) for k in dependent_keys}
                     )
                     varying_map.fa.set_flow_style()
                     comb["parameters"] = varying_map
@@ -302,9 +377,9 @@ def _build_block_dict(block: data.HEPDataBlock) -> CommentedMap:
 
 
 def write_observable_blocks_to_yaml(
-    observable_blocks: dict[str, dict[str, data.HEPDataBlock]],
-    hepdata_identifiers: dict[str, hepdata_utils.HEPDataIdentifier],
+    observable_hep_data: dict[str, data.HEPData],
     output_path: Path | None = None,
+    enable_factorization: bool = True,
 ) -> str:
     """Serialize observable blocks to YAML in the HEPData v2 format.
 
@@ -314,10 +389,11 @@ def write_observable_blocks_to_yaml(
     appear per-combination.
 
     Args:
-        observable_blocks: Mapping of collision system (``"pp"``, ``"AA"``) to a dict of
-            block name (``"spectra"``, ``"ratio"``) to :class:`~data.HEPDataBlock`.
-        hepdata_identifiers: Mapping of collision system to :class:`~hepdata_utils.HEPDataIdentifier`.
+        observable_hep_data: Mapping of collision system -> HEPData containing an identifier and observable blocks.
         output_path: If provided, also write the YAML to this file.
+        enable_factorization: If True (default), apply greedy factorization to collapse independent
+            Cartesian products into compact list form. If False, keep all varying parameters expanded
+            in the combinations block.
 
     Returns:
         YAML string suitable for pasting into an observable config under the ``data:`` key.
@@ -327,26 +403,27 @@ def write_observable_blocks_to_yaml(
     y.indent(mapping=2, sequence=4, offset=2)
     y.width = 120
 
-    root: CommentedMap = CommentedMap()
-    data_map: CommentedMap = CommentedMap()
-    root["data"] = data_map
+    # Setup
+    # NOTE: The heuristic here is that we only use the custom ruamel.yaml types
+    #       if we need to control the appearance of the output. Otherwise, there's
+    #       no purpose to using the types. (Plus, they can cause additional issues
+    #       since they aren't exactly dicts, so not worth it unless needed).
+    root = {"data": {}}
 
-    for cs, blocks in observable_blocks.items():
-        cs_map: CommentedMap = CommentedMap()
-        data_map[cs] = cs_map
+    for collision_system, hep_data in observable_hep_data.items():
+        # Build up the "hepdata" map:
+        hepdata_map = {
+            "record": hep_data.identifier.encode()
+        }
 
-        hepdata_map: CommentedMap = CommentedMap()
-        cs_map["hepdata"] = hepdata_map
+        for block_name, block in hep_data.observable_blocks.items():
+            hepdata_map[block_name] = _build_block_dict(block, enable_factorization=enable_factorization)
 
-        identifier = hepdata_identifiers.get(cs)
-        if identifier:
-            rec: CommentedMap = CommentedMap()
-            rec["inspire_id"] = identifier.inspire_hep_id
-            rec["version"] = identifier.version
-            hepdata_map["record"] = rec
-
-        for block_name, block in blocks.items():
-            hepdata_map[block_name] = _build_block_dict(block)
+        # Build up the storage structure:
+        # "data" -> {collision_system} -> "hepdata"
+        root["data"][collision_system] = {
+            "hepdata": hepdata_map
+        }
 
     stream = io.StringIO()
     y.dump(root, stream)
@@ -359,7 +436,7 @@ def write_observable_blocks_to_yaml(
     return result
 
 
-def main(jetscape_analysis_config_path: Path) -> None:
+def main(jetscape_analysis_config_path: Path, enable_factorization: bool = True) -> None:
     # We want to update all observables, so let's grab them all
     observables = observable.read_observables_from_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
     # And the data curation database, for convenience
@@ -375,9 +452,13 @@ def main(jetscape_analysis_config_path: Path) -> None:
 
     for obs in observables.values():
         # TEMP: for testing
-        if obs.identifier != (5020, "inclusive_chjet", "axis_alice"):
+        #if (obs.sqrt_s, obs.observable_class) != (200, "hadron"):
+        #if obs.sqrt_s != 5020 or obs.name != "zg_cms":
+        #if obs.sqrt_s != 5020:
+        if obs.identifier != (5020, "inclusive_jet", "zg_cms"):
             continue
         # ENDTEMP
+
         logger.info(f"Processing {obs.identifier}")
         is_v1 = is_observable_hepdata_v1(obs.config)
 
@@ -485,16 +566,23 @@ def main(jetscape_analysis_config_path: Path) -> None:
                 histograms=histograms,
             )
 
+        observable_hep_data = {
+            "pp": data.HEPData(
+                identifier=hepdata_identifiers["pp"],
+                observable_blocks=observable_blocks["pp"],
+            ),
+            "AA": data.HEPData(
+                identifier=hepdata_identifiers["AA"],
+                observable_blocks=observable_blocks["AA"],
+            ),
+        }
+
         # Write the observable blocks to YAML in the HEPData v2 format.
         yaml_str = write_observable_blocks_to_yaml(
-            observable_blocks=observable_blocks,
-            hepdata_identifiers=hepdata_identifiers,
+            observable_hep_data=observable_hep_data,
+            enable_factorization=enable_factorization,
         )
         logger.info(f"\n# --- {obs.observable_str} ---\n{yaml_str}")
-
-        import IPython  # noqa: PLC0415
-
-        IPython.embed()
 
 
 if __name__ == "__main__":
@@ -515,6 +603,15 @@ if __name__ == "__main__":
         help="Path to the jetscape-analysis config directory. e.g. `config/`",
         required=True,
     )
+    parser.add_argument(
+        "--no-factorization",
+        action="store_true",
+        help="Disable greedy factorization of independent Cartesian parameters. "
+             "When set, all varying parameters are kept expanded in the combinations block.",
+    )
     args = parser.parse_args()
 
-    main(jetscape_analysis_config_path=args.jetscape_analysis_config)
+    main(
+        jetscape_analysis_config_path=args.jetscape_analysis_config,
+        enable_factorization=not args.no_factorization,
+    )
