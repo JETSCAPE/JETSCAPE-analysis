@@ -366,27 +366,53 @@ class HEPData:
     # These are the required blocks
     observable_blocks: dict[str, HEPDataBlock] = attrs.Factory(dict)
 
+    def encode(self, use_yaml_flow_style: bool = False) -> dict[str, Any]:
+        output_dict = {
+            "record": self.identifier.encode(use_yaml_flow_style=use_yaml_flow_style),
+        }
+
+        # NOTE: Here, we want this to be recorded in the "record" dict, so that it aligns
+        #       what is expected from the YAML config.
+        if self.additional_params:
+            additional_params = self.additional_params
+            if use_yaml_flow_style:
+                from ruamel.yaml.comments import CommentedMap  # noqa: PLC0415
+
+                additional_params = CommentedMap(additional_params)
+            output_dict["record"]["additional_params"] = additional_params
+
+        # Finally, encode the observable_blocks
+
+        return output_dict
+
     @classmethod
-    def from_config(cls, collision_system: str, config: Config) -> HEPData:
-        # Validation
-        _check_for_required_observable_blocks(collision_system=collision_system, config=config)
-
+    def decode(cls, values: dict[str, Any]) -> HEPData:
         # Retrieve identifier
-        identifier = hepdata_utils.HEPDataIdentifier.from_hepdata_config(config)
+        identifier = hepdata_utils.HEPDataIdentifier.decode(values["record"])
+        # Additional parameters
+        additional_params = values["record"].get("additional_params", {})
 
-        keys = list(config.keys())
+        # And then the observable blocks
+        keys = list(values.keys())
         # Skip the record since it's the only entry that isn't a histogram block.
         keys.pop(keys.index("record"))
 
         observable_blocks = {}
         for k in keys:
-            observable_blocks[k] = HEPDataBlock.from_config(config[k])
+            observable_blocks[k] = HEPDataBlock.from_config(values[k])
 
         return cls(
             identifier=identifier,
-            additional_params=config["record"].get("additional_params", {}),
+            additional_params=additional_params,
             observable_blocks=observable_blocks,
         )
+
+    @classmethod
+    def from_config(cls, collision_system: str, config: Config) -> HEPData:
+        # Validation
+        _check_for_required_observable_blocks(collision_system=collision_system, config=config)
+
+        return cls.decode(config)
 
 
 class MissingDataBlock(ValueError):

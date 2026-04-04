@@ -76,7 +76,7 @@ def find_hepdata_v1_key_in_block(
     elif f"hepdata_{collision_system}_dir" in block:
         dir_key = f"hepdata_{collision_system}_dir"
     else:
-        logger.info(f"hepdata_{collision_system}_dir{suffix}, {pt_suffix=} not found!")
+        logger.info(f"hepdata_{collision_system}_dir{suffix}{pt_suffix} not found!")
         return ("", "")
 
     # Check for hist names in config
@@ -106,7 +106,6 @@ def find_hepdata_v1_key_in_block(
             return ("", "")
 
         dir_name = block[dir_key]
-        logger.warning(f"{block[g_key]=}")
         g_name = block[g_key][centrality_index]
     else:
         dir_name = block[dir_key]
@@ -114,8 +113,6 @@ def find_hepdata_v1_key_in_block(
 
     # finally, we're not actually interested in the "Graph1D_y", so we remove it on return
 
-    if isinstance(g_name, list):
-        logger.warning(f"{g_name=}")
     return dir_name, g_name.replace("Graph1D_y", "")
 
 
@@ -184,34 +181,37 @@ def _encode_param_value(v: Any) -> str:
     return str(v)
 
 
-def _group_entries_by_table_and_systematics(
+def _group_entries_by_systematics(
     histograms: list[data.HEPDataEntry],
-) -> list[tuple[str, dict[str, str], dict[str, float], list[data.HEPDataEntry]]]:
-    """Group HEPDataEntry objects by table + systematics, preserving insertion order.
+) -> list[tuple[dict[str, str], dict[str, float], list[data.HEPDataEntry]]]:
+    """Group HEPDataEntry objects by systematics only, preserving insertion order.
+
+    Note: table and index are allowed to vary within each group and will be handled
+    as part of the combinations.
 
     Returns:
-        List of (table, systematics_names, additional_systematics_values, entries) tuples.
+        List of (systematics_names, additional_systematics_values, entries) tuples.
     """
-    # Use a list of (key, metadata, entries) to preserve insertion order
+    # Use a list of keys to preserve insertion order
     group_keys: list[tuple] = []
-    group_metadata: dict[tuple, tuple[str, dict, dict]] = {}
+    group_metadata: dict[tuple, tuple[dict, dict]] = {}
     group_entries: dict[tuple, list[data.HEPDataEntry]] = {}
 
     for entry in histograms:
         sys_key = tuple(sorted(entry.systematics_names.items()))
         add_sys_key = tuple(sorted(entry.additional_systematics_values.items()))
-        key = (entry.table, sys_key, add_sys_key)
+        key = (sys_key, add_sys_key)
 
         if key not in group_entries:
             group_keys.append(key)
-            group_metadata[key] = (entry.table, entry.systematics_names, entry.additional_systematics_values)
+            group_metadata[key] = (entry.systematics_names, entry.additional_systematics_values)
             group_entries[key] = []
 
         group_entries[key].append(entry)
 
     return [
-        (table, sys_names, add_sys, group_entries[k])
-        for k, (table, sys_names, add_sys) in zip(group_keys, [group_metadata[k] for k in group_keys], strict=True)
+        (sys_names, add_sys, group_entries[k])
+        for k, (sys_names, add_sys) in zip(group_keys, [group_metadata[k] for k in group_keys], strict=True)
     ]
 
 
@@ -230,16 +230,13 @@ def _split_common_and_varying_params(
     all_keys = list(entries[0].parameters.keys())
     common_params: dict[str, str] = {}
     varying_keys: list[str] = []
-    logger.info(f"{all_keys=}")
 
     for key in all_keys:
         encoded_values = [_encode_param_value(e.parameters[key]) for e in entries]
-        logger.info(f"{encoded_values=}")
         if len(set(encoded_values)) == 1:
             common_params[key] = encoded_values[0]
         else:
             varying_keys.append(key)
-        logger.info(f"{common_params=}, {varying_keys=}")
 
     return common_params, varying_keys
 
@@ -251,9 +248,12 @@ def _partition_independent_cartesian_factors(
 ) -> tuple[list[str], list[str]]:
     """Partition varying keys into independent and dependent factors.
 
-    An "independent" factor is a set of parameters that form a complete Cartesian
-    product regardless of how index/table assignments vary across entries.
-    Dependent factors are all remaining varying parameters.
+    Independent factors: Parameters that form a complete Cartesian product
+    across ALL unique (table, index) pairs. When expanded, independent params
+    x each combination entry's params must map 1-to-1 to entries.
+
+    Dependent factors: All other varying parameters (those co-varying with
+    table/index or not appearing in all (table, index) groups).
 
     Uses greedy maximization to find the largest independent subset first.
 
@@ -264,41 +264,65 @@ def _partition_independent_cartesian_factors(
 
     Returns:
         (independent_keys, dependent_keys) where independent_keys are those
-        that form a complete Cartesian product, and dependent_keys are all others.
-        If enable_factorization is False, returns ([], varying_keys).
+        that form a complete Cartesian product across all (table, index) pairs,
+        and dependent_keys are all others.
     """
     if not enable_factorization or not varying_keys:
         return [], varying_keys
 
-    # Try all non-empty subsets, starting with largest (greedy maximization)
+    # Step 1: Group entries by unique (table, index) pair
+    table_index_groups: dict[tuple[str, str], list[data.HEPDataEntry]] = {}
+    for entry in entries:
+        key = (entry.table, entry.table_index)
+        if key not in table_index_groups:
+            table_index_groups[key] = []
+        table_index_groups[key].append(entry)
+
+    table_index_pairs = list(table_index_groups.keys())
+
+    # Step 2: Try subsets of varying_keys, largest first (greedy maximization)
     for r in range(len(varying_keys), 0, -1):
         for subset in itertools.combinations(varying_keys, r):
             subset_keys = list(subset)
+            is_independent = True
 
-            # Collect unique values for each key in subset
-            param_values = {}
-            for key in subset_keys:
-                values = {_encode_param_value(e.parameters[key]) for e in entries}
-                param_values[key] = sorted(values)
+            # Check if this subset forms a complete product across ALL (table, index) pairs
+            for ti_pair in table_index_pairs:
+                pair_entries = table_index_groups[ti_pair]
 
-            # Compute expected Cartesian product size for this subset
-            expected_product_size = 1
-            for values in param_values.values():
-                expected_product_size *= len(values)
+                # Collect unique values for each key in this subset, within this (table, index) group
+                param_values_in_pair: dict[str, list[str]] = {}
+                for key in subset_keys:
+                    values = {_encode_param_value(e.parameters[key]) for e in pair_entries}
+                    param_values_in_pair[key] = sorted(values)
 
-            # If product size equals entry count, this subset might be independent
-            if expected_product_size == len(entries):
-                # Verify all combinations actually exist in the entries
-                expected_combos = set(itertools.product(*[param_values[k] for k in subset_keys]))
+                # Compute expected Cartesian product size for this subset
+                expected_size = 1
+                for values in param_values_in_pair.values():
+                    expected_size *= len(values)
+
+                # For independence: product must equal number of entries in this group
+                if expected_size != len(pair_entries):
+                    is_independent = False
+                    break
+
+                # Verify all combinations actually exist in this group
+                expected_combos = set(
+                    itertools.product(*[param_values_in_pair[k] for k in subset_keys])
+                )
                 actual_combos = set(
                     tuple(_encode_param_value(e.parameters[k]) for k in subset_keys)
-                    for e in entries
+                    for e in pair_entries
                 )
 
-                if expected_combos == actual_combos:
-                    # Found a complete factorization!
-                    dependent = [k for k in varying_keys if k not in subset_keys]
-                    return subset_keys, dependent
+                if expected_combos != actual_combos:
+                    is_independent = False
+                    break
+
+            # If we found a complete factorization across all groups, return it
+            if is_independent:
+                dependent = [k for k in varying_keys if k not in subset_keys]
+                return subset_keys, dependent
 
     # No independent factors found; all keys are dependent
     return [], varying_keys
@@ -311,7 +335,7 @@ def _build_block_dict(block: data.HEPDataBlock, enable_factorization: bool = Tru
 
     tables_seq = CommentedSeq()
 
-    for table, sys_names, add_sys, entries in _group_entries_by_table_and_systematics(block.histograms):
+    for sys_names, add_sys, entries in _group_entries_by_systematics(block.histograms):
         table_entry = CommentedMap()
         common_params, varying_keys = _split_common_and_varying_params(entries)
 
@@ -319,6 +343,15 @@ def _build_block_dict(block: data.HEPDataBlock, enable_factorization: bool = Tru
         independent_keys, dependent_keys = _partition_independent_cartesian_factors(
             entries, varying_keys, enable_factorization=enable_factorization
         )
+
+        # IMPORTANT: If dependent_keys is empty but table/index vary, we have a problem:
+        # We'd need to create combinations with only table/index and no parameters, which is invalid.
+        # In this case, treat all varying keys as dependent (fallback to no factorization).
+        all_tables = {e.table for e in entries}
+        all_indices = {e.table_index for e in entries}
+        if not dependent_keys and (len(all_tables) > 1 or len(all_indices) > 1):
+            dependent_keys = independent_keys
+            independent_keys = []
 
         # Build outer parameters dict
         outer_params_dict = {**common_params}
@@ -349,25 +382,36 @@ def _build_block_dict(block: data.HEPDataBlock, enable_factorization: bool = Tru
         add_sys_map.fa.set_flow_style()
         table_entry["additional_systematics"] = add_sys_map
 
-        table_entry["table"] = table
-
-        # Handle dependent params + index/table
-        if not dependent_keys and all(e.table_index == entries[0].table_index for e in entries):
-            # No variation in dependent params or index → simple case
+        # Put table/index in outer level if they don't vary
+        if len(all_tables) == 1:
+            table_entry["table"] = entries[0].table
+        if len(all_indices) == 1:
             table_entry["index"] = entries[0].table_index
-        else:
-            # Variation in dependent params and/or index/table → combinations block
+
+        # Build combinations ONLY if there are dependent parameters
+        # (We require at least one parameter per combination entry)
+        if dependent_keys:
             combinations = CommentedSeq()
             for entry in entries:
                 comb = CommentedMap()
-                if dependent_keys:
-                    varying_map = CommentedMap(
-                        {k: _encode_param_value(entry.parameters[k]) for k in dependent_keys}
-                    )
-                    varying_map.fa.set_flow_style()
-                    comb["parameters"] = varying_map
-                comb["index"] = entry.table_index
+
+                # Add dependent parameters
+                varying_map = CommentedMap(
+                    {k: _encode_param_value(entry.parameters[k]) for k in dependent_keys}
+                )
+                varying_map.fa.set_flow_style()
+                comb["parameters"] = varying_map
+
+                # Add table if it varies
+                if len(all_tables) > 1:
+                    comb["table"] = entry.table
+
+                # Add index if it varies
+                if len(all_indices) > 1:
+                    comb["index"] = entry.table_index
+
                 combinations.append(comb)
+
             table_entry["combinations"] = combinations
 
         tables_seq.append(table_entry)
