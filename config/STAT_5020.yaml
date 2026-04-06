@@ -1213,25 +1213,20 @@ inclusive_jet:
               - parameters: { "centrality": ["0_10", "10_30", "30_50"] }
                 systematics_names: { "TAA": "TAA", "lumi": "lumi" }
                 additional_systematics: {}
+                index: 4
                 combinations:
                   - parameters: { "jet_R": [0.2] }
                     table: "Figure 5-1"
-                    index: 4
                   - parameters: { "jet_R": [0.3] }
                     table: "Figure 5-2"
-                    index: 4
                   - parameters: { "jet_R": [0.4] }
                     table: "Figure 5-3"
-                    index: 4
                   - parameters: { "jet_R": [0.6] }
                     table: "Figure 5-4"
-                    index: 4
                   - parameters: { "jet_R": [0.8] }
                     table: "Figure 5-5"
-                    index: 4
                   - parameters: { "jet_R": [1.0] }
                     table: "Figure 5-6"
-                    index: 4
 
       AA:
         hepdata:
