@@ -205,6 +205,7 @@ def write_info_to_database(
 
     # Need to read the database first so we can update it.
     y = ruamel.yaml.YAML()
+    y.width = 120
     with database_filename.open() as f:
         database: dict[str, Any] = y.load(f)
 
