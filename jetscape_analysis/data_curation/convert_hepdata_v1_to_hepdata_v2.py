@@ -107,7 +107,7 @@ def find_hepdata_v1_key_in_block(
             return ("", "")
 
         dir_name = block[dir_key]
-        logger.warning(f"{block[g_key]=}")
+        # logger.warning(f"{block[g_key]=}")
         g_name = block[g_key][centrality_index]
     else:
         dir_name = block[dir_key]
@@ -178,14 +178,9 @@ def is_observable_hepdata_v1(config: dict[str, Any]) -> bool:
     return "hepdata" in config or "hepdata_pp" in config or "hepdata_AA" in config
 
 
-def _encode_param_value(v: Any) -> str:
-    """Encode a single parameter value (possibly a ParameterSpec) to a string."""
-    if hasattr(v, "encode"):
-        return v.encode()
-    # TODO(RJE): These should always be encodable. Cleanup here, since it's better to have it fail...
-    msg = f"Not encodable: {v}"
-    raise RuntimeError(msg)
-    return str(v)
+def _encode_param_value(v: observable.Encodable) -> str:
+    """Encode a single parameter value (a ParameterSpec) to a string."""
+    return v.encode()
 
 
 def _group_entries_by_systematics_only(
@@ -408,6 +403,7 @@ def write_observable_blocks_to_yaml(
     observable_hep_data: dict[str, data.HEPData],
     output_path: Path | None = None,
     enable_factorization: bool = True,
+    leading_yaml_keys: list[str] | None = None,
 ) -> str:
     """Serialize observable blocks to YAML in the HEPData v2 format.
 
@@ -422,11 +418,19 @@ def write_observable_blocks_to_yaml(
         enable_factorization: If True (default), apply greedy factorization to collapse independent
             Cartesian products into compact list form. If False, keep all varying parameters expanded
             in the combinations block.
+        leading_yaml_keys: Keys to include in front of the data fields. Can be useful for e.g.
+            making the indentation match with the real YAML file. Default: None, which does not include it.
 
     Returns:
         YAML string suitable for pasting into an observable config under the ``data:`` key.
     """
+    # Validation
+    if leading_yaml_keys is None:
+        leading_yaml_keys = []
+
     y = ruamel.yaml.YAML()
+    # Use double quotes rather than single quotes
+    # y.default_style = '"'
     y.default_flow_style = False
     y.indent(mapping=2, sequence=4, offset=2)
     y.width = 120
@@ -449,6 +453,10 @@ def write_observable_blocks_to_yaml(
         # "data" -> {collision_system} -> "hepdata"
         root["data"][collision_system] = {"hepdata": hepdata_map}
 
+    # Add the leading yaml keys, with the first one corresponding to the outermost level
+    for k in reversed(leading_yaml_keys):
+        root = {k: root}
+
     stream = io.StringIO()
     y.dump(root, stream)
     result = stream.getvalue()
@@ -460,7 +468,10 @@ def write_observable_blocks_to_yaml(
     return result
 
 
-def main(jetscape_analysis_config_path: Path, enable_factorization: bool = True) -> None:
+def main(  # noqa: C901
+    jetscape_analysis_config_path: Path, write_conversion_to_yaml: bool, enable_factorization: bool = True
+) -> None:
+    """Convert HEPData v1 entries to HEPData v2"""
     # We want to update all observables, so let's grab them all
     observables = observable.read_observables_from_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
     # And the data curation database, for convenience
@@ -475,13 +486,13 @@ def main(jetscape_analysis_config_path: Path, enable_factorization: bool = True)
     }
 
     for obs in observables.values():
-        # TEMP: for testing
+        # Option to select particular observables or classes of observables.
+        # Super useful for debugging, so I leave them comment out here for when needed
         # if (obs.sqrt_s, obs.observable_class) != (200, "hadron"):
         # if obs.sqrt_s != 5020 or obs.name != "zg_cms":
         # if obs.sqrt_s != 5020:
         # if obs.identifier != (5020, "inclusive_jet", "mg_cms"):
         #    continue
-        # ENDTEMP
 
         logger.info(f"Processing {obs.identifier}")
         is_v1 = is_observable_hepdata_v1(obs.config)
@@ -602,11 +613,18 @@ def main(jetscape_analysis_config_path: Path, enable_factorization: bool = True)
         }
 
         # Write the observable blocks to YAML in the HEPData v2 format.
+        output_path = None
+        if write_conversion_to_yaml:
+            output_path = Path("config") / "conversion" / f"{obs.observable_str}.yaml"
+            output_path.parent.mkdir(parents=True, exist_ok=True)
         yaml_str = write_observable_blocks_to_yaml(
             observable_hep_data=observable_hep_data,
+            output_path=output_path,
             enable_factorization=enable_factorization,
+            leading_yaml_keys=[obs.observable_class, obs.name],
         )
-        logger.info(f"\n# --- {obs.observable_str} ---\n{yaml_str}")
+        if not write_conversion_to_yaml:
+            logger.info(f"\n# --- {obs.observable_str} ---\n{yaml_str}")
 
 
 if __name__ == "__main__":
@@ -633,9 +651,16 @@ if __name__ == "__main__":
         help="Disable greedy factorization of independent Cartesian parameters. "
         "When set, all varying parameters are kept expanded in the combinations block.",
     )
+    parser.add_argument(
+        "--write-conversion-to-yaml",
+        action="store_true",
+        help="Write conversion to dedicated yaml files rather than to stdout."
+        "n.b. there is no way to write directly to the config since round tripping becomes problematic",
+    )
     args = parser.parse_args()
 
     main(
         jetscape_analysis_config_path=args.jetscape_analysis_config,
+        write_conversion_to_yaml=args.write_conversion_to_yaml,
         enable_factorization=not args.no_factorization,
     )
