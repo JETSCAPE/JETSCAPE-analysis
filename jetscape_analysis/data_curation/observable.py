@@ -12,7 +12,6 @@ names (internal + display), and serialization information (more on this below).
 A set of parameter values are stored in a `ParameterSpecs` class (note the plural
 name!).
 
-
 ## Serialization
 
 Each `ParameterSpec` and `ParameterSpecs` class are defined to be serialized
@@ -80,6 +79,13 @@ class DecoderRegistry:
             msg = f"Unknown decoder type: {name}"
             raise ValueError(msg)
         return self._registry[name]
+
+    def get_name(self, instance: Encodable) -> str:
+        for k, v in self._registry.items():
+            if v is type(instance):
+                return k
+        msg = f"Unable to find name corresponding to type {type(instance)}"
+        raise ValueError(msg)
 
     def decode(self, name: str, value: str) -> Encodable:
         decoder_type = self.get_type(name)
@@ -156,6 +162,29 @@ class PtSpec(ParameterSpec):
 
 
 @attrs.frozen
+class EtSpec(ParameterSpec):
+    low: float
+    high: float | None
+
+    def __str__(self) -> str:
+        if self.high is None:
+            return f"Et >= {self.low}"
+        return f"{self.low} <= Et < {self.high}"
+
+    def encode(self) -> str:
+        high = -1 if self.high is None else self.high
+        return f"{self.low!s}_{high!s}"
+
+    @classmethod
+    def decode(cls, value: str) -> EtSpec:
+        # `value` is of the form: "{self.low}_{self.high}"
+        # indices:                 0           1
+        logger.warning(f"{value=}")
+        low, high = value.split("_")
+        return cls(low=float(low), high=float(high) if not np.isclose(float(high), -1.0) else None)
+
+
+@attrs.frozen
 class EtaSpec(ParameterSpec):
     value: float
 
@@ -170,6 +199,46 @@ class EtaSpec(ParameterSpec):
         # `value` is of the form: "{self.value}"
         return cls(
             value=float(value),
+        )
+
+
+@attrs.frozen
+class RapiditySpec(ParameterSpec):
+    value: float
+
+    def __str__(self) -> str:
+        return f"|y|<={self.value}"
+
+    def encode(self) -> str:
+        return f"{self.value!s}"
+
+    @classmethod
+    def decode(cls, value: str) -> RapiditySpec:
+        # `value` is of the form: "{self.value}"
+        return cls(
+            value=float(value),
+        )
+
+
+@attrs.frozen
+class MassSpec(ParameterSpec):
+    low: float
+    high: float
+
+    def __str__(self) -> str:
+        return f"{self.low} <= mass < {self.high}"
+
+    def encode(self) -> str:
+        return f"{self.low!s}_{self.high!s}"
+
+    @classmethod
+    def decode(cls, value: str) -> MassSpec:
+        # `value` is of the form: "{self.low}_{self.high}"
+        # indices:                  0          1
+        split = value.split("_")
+        return cls(
+            low=float(split[0]),
+            high=float(split[1]),
         )
 
 
@@ -235,13 +304,29 @@ class DynamicalGroomingSpec(ParameterSpec):
         )
 
 
+def _convert_grooming_settings(
+    value: SoftDropSpec | DynamicalGroomingSpec | dict[str, float] | None,
+) -> SoftDropSpec | DynamicalGroomingSpec | None:
+    # If it's already a grooming spec or None, nothing else to be done
+    if isinstance(value, SoftDropSpec | DynamicalGroomingSpec | None):
+        return value
+    # Now, check for kwargs for different grooming methods
+    if "z_cut" in value:
+        return SoftDropSpec(**value)
+    if list(value.keys()) == ["a"]:
+        return DynamicalGroomingSpec(**value)
+
+    msg = f"Could not convert grooming_methods argument to JetAxisDifference. Provided: {value=}"
+    raise ValueError(msg)
+
+
 @attrs.frozen
 class JetAxisDifferenceSpec(ParameterSpec):
     type: str
     # The point with the convert here is that we'll be passed arguments that are a dict with SoftDrop parameters,
     # so we need to ensure that it's actually of the expected type.
-    grooming_settings: SoftDropSpec | None = attrs.field(
-        default=None, converter=lambda x: SoftDropSpec(**x) if x is not None else None
+    grooming_settings: SoftDropSpec | DynamicalGroomingSpec | None = attrs.field(
+        default=None, converter=_convert_grooming_settings
     )
 
     def __str__(self) -> str:
@@ -265,34 +350,39 @@ class JetAxisDifferenceSpec(ParameterSpec):
         grooming_settings = None
         if len(split) > 2:
             # We have grooming settings, so we need to parse those
-            # In practice, it's always using SoftDrop as of August 2025, so we'll live with a hard code here
-            grooming_settings = SoftDropSpec.decode("_".join(split[2:]))
+            # Use "z_cut" as the sentinel for whether we have SoftDrop or DynamicalGrooming
+            if "z_cut" in value:
+                grooming_settings = SoftDropSpec.decode("_".join(split[1:]))
+            else:
+                grooming_settings = DynamicalGroomingSpec.decode("_".join(split[1:]))
 
-        return cls(type="_".join(split[:2]), grooming_settings=grooming_settings)
+        return cls(type="_".join(split[:1]), grooming_settings=grooming_settings)
 
 
 @attrs.frozen
 class AngularitySpec(ParameterSpec):
-    kappa: float
+    alpha: float
+    kappa: float = attrs.field(default=1.0)
 
     def __str__(self) -> str:
-        return f"Generalized Angularities(kappa={self.kappa})"
+        return f"Generalized Angularities(alpha={self.alpha}, kappa={self.kappa})"
 
     def encode(self) -> str:
-        return f"kappa_{self.kappa}"
+        return f"alpha_{self.alpha}_kappa_{self.kappa}"
 
     @classmethod
     def decode(cls, value: str) -> AngularitySpec:
-        # `value` is of the form: "kappa_{self.kappa}"
-        # indices:                 0      1
+        # `value` is of the form: "alpha_{self.alpha}_kappa_{self.kappa}"
+        # indices:                 0      1           2      3
         split = value.split("_")
         return cls(
-            kappa=float(split[1]),
+            alpha=float(split[1]),
+            kappa=float(split[3]),
         )
 
 
 @attrs.frozen
-class SubjetZSpec(ParameterSpec):
+class SubjetRSpec(ParameterSpec):
     r: float
 
     def __str__(self) -> str:
@@ -302,7 +392,7 @@ class SubjetZSpec(ParameterSpec):
         return f"r_{self.r}"
 
     @classmethod
-    def decode(cls, value: str) -> SubjetZSpec:
+    def decode(cls, value: str) -> SubjetRSpec:
         # `value` is of the form: "r_{self.r}"
         # indices:                 0  1
         split = value.split("_")
@@ -311,13 +401,102 @@ class SubjetZSpec(ParameterSpec):
         )
 
 
+def _decode_smearing_spec(value: str) -> PtSpec | EtSpec:
+    """Helper to decode a smearing spec.
+
+    Note:
+        The types are indistinguishable just based on types along, so we need to encode the variable too.
+
+    Args:
+        value: Encoded string, exceptionally including the variable name
+    """
+    variable_name, *_ = value.split("_")
+    spec_type = SpecDecoderRegistry.get_type(variable_name)
+    # NOTE: +1 accounts for the trailing "_" separating the variable name from the values.
+    return spec_type.decode(value[len(variable_name) + 1 :])
+
+
+@attrs.frozen
+class SmearingSpec(ParameterSpec):
+    particle_level: PtSpec | EtSpec
+    detector_level: PtSpec | EtSpec
+
+    def __str__(self) -> str:
+        return f"Smearing, part: {self.particle_level!s}, det: {self.detector_level!s}"
+
+    def encode(self) -> str:
+        # NOTE: Need to determine the type of each (PtSpec vs EtSpec) and encode that
+        #       explicitly, since the encoding for a spec doesn't provide the name by default.
+        return f"part_{SpecDecoderRegistry.get_name(self.particle_level)}_{self.particle_level.encode()}_det_{SpecDecoderRegistry.get_name(self.detector_level)}_{self.detector_level.encode()}"
+
+    @classmethod
+    def decode(cls, value: str) -> EtSpec:
+        # `value` is of the form: "part_{type}_{encoded_particle_level}_det_{type}_{encoded_detector_level}"
+        # This is trickier to decode than for other specs, so we need to handle it more explicitly.
+        # First, let's split at "_det", and then we can handle the two separately.
+        index_det = value.find("_det")
+        # Removes "part_" to "_det"
+        part_level = value[len("part_") : index_det]
+        part_level_spec = _decode_smearing_spec(part_level)
+        det_level = value[index_det + len("_det_") :]
+        det_level_spec = _decode_smearing_spec(det_level)
+
+        return cls(
+            particle_level=part_level_spec,
+            detector_level=det_level_spec,
+        )
+
+
+@attrs.frozen
+class IsolationSpec(ParameterSpec):
+    """Photon isolation specification.
+
+    Attributes:
+        isolation_type: Type of isolation, e.g. "neutral"
+        R: Cone size of isolation (which we store in jet R for convenience, even if a jet finding isn't always used)
+        Et_max: Maximum Et allowed inside of the isolation cone. If a single value is provided, it's assumed to
+            be the max value.
+    """
+
+    isolation_type: str
+    R: JetRSpec = attrs.field(converter=lambda x: JetRSpec(x) if isinstance(x, float) else x)
+    Et_max: EtSpec = attrs.field(converter=lambda x: EtSpec(0, x) if isinstance(x, float) else x)
+
+    def __str__(self) -> str:
+        return f"Photon Isolation (type={self.isolation_type}, R={self.R!s}, Et_max={self.Et_max!s})"
+
+    def encode(self) -> str:
+        return f"type_{self.isolation_type}_R_{self.R.encode()}_Et_max_{self.Et_max.encode()}"
+
+    @classmethod
+    def decode(cls, value: str) -> SubjetRSpec:
+        # `value` is of the form: "type_{self.isolation_type}_R_{self.R.encode()}_Et_max_{self.Et_max.encode()}"
+        # indices:                 0     1                    2  3                4  5    6
+        split = value.split("_")
+        return cls(
+            isolation_type=str(split[1]),
+            R=JetRSpec.decode(value[value.find("_R_") + len("_R_") : value.find("_Et_max")]),
+            Et_max=EtSpec.decode(value[value.find("_Et_max_") + len("_Et_max_") :]),
+        )
+
+
 T = TypeVar("T", bound=ParameterSpec)
 
 
 @attrs.define
 class ParameterSpecs(Generic[T]):
+    """A set of parameter specifications.
+
+    Attributes:
+        values: Values of parameter spec
+        name: Name of the parameter specs. Must match the name of the parameter spec, as well as
+            the name in the config.
+        spec_type: The ParameterSpec itself.
+        label: An additional label to append to the
+    """
+
     values: list[T]
-    # NOTE: The name of the Variable must match the
+    # NOTE: The name of the Variable must match the name of the ParameterSpec
     name: ClassVar[str] = "ParameterSpecs"
     spec_type: ClassVar[type[ParameterSpec]] = ParameterSpec
     label: str = attrs.field(default="")
@@ -344,13 +523,14 @@ class ParameterSpecs(Generic[T]):
         SpecDecoderRegistry.register(cls.name, cls.spec_type)
         SpecsDecoderRegistry.register(cls.name, cls)
 
+    @property
     def encode_name(self) -> str:
         if self.label:
             return f"{self.label}_{self.name}"
         return self.name
 
     def encode(self) -> str:
-        encoded = self.name
+        encoded = self.encode_name
         for v in self.values:
             v_encoded = v.encode() if isinstance(v, ParameterSpec) else str(v)  # type: ignore[redundant-expr]
             encoded += f"__{v_encoded}"
@@ -358,18 +538,28 @@ class ParameterSpecs(Generic[T]):
 
     @classmethod
     def decode(cls, value: str) -> ParameterSpecs[T]:
-        cleaned_value = cls._decode_validity_check(value)
+        # NOTE: The possible_label may be empty, but that's okay - it's the same as the default value
+        possible_label, cleaned_value = cls._validate_and_extract_for_decode(value)
+
         values: list[T] = []
         for s in cleaned_value.split("__"):
+            # Skip the case where we have the leading "__", which will resolve as an empty string.
+            if s == "":
+                continue
+
+            # Decode into a Spec
             spec = SpecDecoderRegistry.decode(cls.name, s)
             # We know this is the correct type, so we're just helping out mypy
             values.append(cast(T, spec))
 
-        return cls(values=values)
+        return cls(
+            values=values,
+            label=possible_label,
+        )
 
     @classmethod
-    def _decode_validity_check(cls, value: str) -> str:
-        """Check that the variable is valid to decode the value.
+    def _validate_and_extract_for_decode(cls, value: str) -> None:
+        """Validate that the variable can decode this string, and extract possible relevant values.
 
         Args:
             value: Value to decode.
@@ -382,9 +572,31 @@ class ParameterSpecs(Generic[T]):
         if cls.name not in value:
             msg = f"Asked to decode with {cls.name}, but missing '{cls.name}' label. Provided: {value}"
             raise ValueError(msg)
-        return value[value.find(cls.name) + len(cls.name) :]
+        # Expected format is:
+        # - Without label: name__{value1}__{value2}__...
+        # - With label: label_name__{value1}__{value2}__...
+        # We can extract these based on the position of the name of the variable
+        index_start_of_name = value.find(cls.name)
+        index_end_of_name = index_start_of_name + len(cls.name)
+
+        # Extract the values
+        # It's up to the user to check whether the label is empty or not.
+        # NOTE: the -1 offset is to account for the "_" between the label and the name.
+        #       However, if there is no label, then we need to pass 0 (where the index_start_of_name points),
+        #       or we'll incorrectly index far into the string.
+        possible_label = value[: index_start_of_name - 1 if index_start_of_name > 0 else index_start_of_name]
+        # We don't actually need the name itself, so just pass on the values
+        cleaned_values = value[index_end_of_name:]
+        return possible_label, cleaned_values
 
     def from_config(cls, config: dict[str, Any], label: str = "") -> ParameterSpecs[T]:
+        """Initialize the parameter spec from the provided configuration.
+
+        Args:
+            config: Configuration to use to initialize the parameter specs
+            label: Additional label for the spec, such as being a "trigger". This will be encoded
+                with the parameter. Default: Empty string, which won't add any label.
+        """
         raise NotImplementedError
 
 
@@ -399,7 +611,7 @@ class CentralitySpecs(ParameterSpecs[CentralitySpec]):
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> CentralitySpecs:
         return cls(
-            values=[CentralitySpec(*v) for v in config["centrality"]],
+            values=[CentralitySpec(*v) for v in config[cls.name]],
             label=label,
         )
 
@@ -411,7 +623,19 @@ class PtSpecs(ParameterSpecs[PtSpec]):
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> PtSpecs:
         return cls(
-            values=[PtSpec(*v) for v in itertools.pairwise(config["pt"])],
+            values=[PtSpec(*v) for v in itertools.pairwise(config[cls.name])],
+            label=label,
+        )
+
+
+@attrs.define
+class EtSpecs(ParameterSpecs[EtSpec]):
+    name: ClassVar[str] = "Et"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> EtSpecs:
+        return cls(
+            values=[EtSpec(*v) for v in itertools.pairwise(config[cls.name])],
             label=label,
         )
 
@@ -423,19 +647,55 @@ class EtaSpecs(ParameterSpecs[EtaSpec]):
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> EtaSpecs:
         return cls(
-            values=[EtaSpec(config["eta_cut"])],
+            values=[EtaSpec(config[cls.name])],
+            label=label,
+        )
+
+
+@attrs.define
+class EtaRSpecs(ParameterSpecs[EtaSpec]):
+    name: ClassVar[str] = "eta_R"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> EtaRSpecs:
+        return cls(
+            values=[EtaSpec(config[cls.name])],
+            label=label,
+        )
+
+
+@attrs.define
+class RapiditySpecs(ParameterSpecs[RapiditySpec]):
+    name: ClassVar[str] = "rapidity"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> RapiditySpecs:
+        return cls(
+            values=[RapiditySpec(config[cls.name])],
+            label=label,
+        )
+
+
+@attrs.define
+class MassSpecs(ParameterSpecs[MassSpec]):
+    name: ClassVar[str] = "mass"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> MassSpec:
+        return cls(
+            values=[MassSpec(*config[cls.name])],
             label=label,
         )
 
 
 @attrs.define
 class JetRSpecs(ParameterSpecs[JetRSpec]):
-    name: ClassVar[str] = "jet_R"
+    name: ClassVar[str] = "R"
 
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> JetRSpecs:
         return cls(
-            values=[JetRSpec(v) for v in config["jet_R"]],
+            values=[JetRSpec(v) for v in config[cls.name]],
             label=label,
         )
 
@@ -447,7 +707,7 @@ class SoftDropSpecs(ParameterSpecs[SoftDropSpec]):
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> SoftDropSpecs:
         return cls(
-            values=[SoftDropSpec(**v) for v in config["soft_drop"]],
+            values=[SoftDropSpec(**v) for v in config[cls.name]],
             label=label,
         )
 
@@ -459,7 +719,7 @@ class DynamicalGroomingSpecs(ParameterSpecs[DynamicalGroomingSpec]):
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> DynamicalGroomingSpecs:
         return cls(
-            values=[DynamicalGroomingSpec(**v) for v in config["dynamical_grooming"]],
+            values=[DynamicalGroomingSpec(**v) for v in config[cls.name]],
             label=label,
         )
 
@@ -471,31 +731,77 @@ class JetAxisDifferenceSpecs(ParameterSpecs[JetAxisDifferenceSpec]):
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> JetAxisDifferenceSpecs:
         return cls(
-            values=[JetAxisDifferenceSpec(**v) for v in config["axis"]],
+            values=[JetAxisDifferenceSpec(**v) for v in config[cls.name]],
             label=label,
         )
 
 
 @attrs.define
 class AngularitySpecs(ParameterSpecs[AngularitySpec]):
-    name: ClassVar[str] = "kappa"
+    name: ClassVar[str] = "angularity"
 
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> AngularitySpecs:
         return cls(
-            values=[AngularitySpec(v) for v in config["kappa"]],
+            values=[AngularitySpec(**v) for v in config[cls.name]],
             label=label,
         )
 
 
 @attrs.define
-class SubjetZSpecs(ParameterSpecs[SubjetZSpec]):
-    name: ClassVar[str] = "subjet_z"
+class SubjetRSpecs(ParameterSpecs[SubjetRSpec]):
+    name: ClassVar[str] = "subjet_R"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any], label: str = "") -> SubjetZSpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> SubjetRSpecs:
         return cls(
-            values=[SubjetZSpec(v) for v in config["r"]],
+            values=[SubjetRSpec(v) for v in config[cls.name]],
+            label=label,
+        )
+
+
+@attrs.define
+class SmearingSpecs(ParameterSpecs[SmearingSpec]):
+    """Detector-level smearing specifications
+
+    NOTE:
+        This case is a bit exceptional since it would need to align with the measured trigger range.
+    """
+
+    name: ClassVar[str] = "smearing"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> AngularitySpecs:
+        values = []
+
+        smearing_values = config[cls.name]
+        for smearing_values in config[cls.name]:
+            kwargs = {
+                "particle_level": None,
+                "detector_level": None,
+            }
+            for k in smearing_values:
+                *_, variable_name = k.split("level_")
+                spec_type = SpecDecoderRegistry.get_type(variable_name)
+                for name in ["particle_level", "detector_level"]:
+                    if name in k:
+                        kwargs[k] = spec_type(*smearing_values)
+            values.append(SmearingSpec(**kwargs))
+
+        return cls(
+            values=values,
+            label=label,
+        )
+
+
+@attrs.define
+class IsolationSpecs(ParameterSpecs[IsolationSpec]):
+    name: ClassVar[str] = "isolation"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> IsolationSpecs:
+        return cls(
+            values=[IsolationSpec(config[cls.name])],
             label=label,
         )
 
@@ -505,52 +811,190 @@ class ExtractParameters(Protocol):
 
 
 def extract_hadron_parameters(config: dict[str, Any], label: str) -> AllParameters:
+    """Extract hadron parameters from the provided configuration.
+
+    Args:
+        config: (Possibly) hadron parameters configuration.
+        label: Additional label to add to the parameters, such as it being a trigger.
+
+    Returns:
+        Parameters that were found in the configuration.
+    """
     # There's no clear hadron proxy, so we'll assume that the user was responsible
     # and checked whether hadron fields are relevant.
     parameters = []
-    _field_to_specs_type: dict[str, type[ParameterSpecs[Any]]] = {
-        "pt": PtSpecs,
-        "eta_cut": EtaSpecs,
-    }
-    for field_name, specs_type in _field_to_specs_type.items():
-        if field_name in config:
+    _relevant_spec_types: list[type[ParameterSpecs[Any]]] = [
+        PtSpecs,
+        EtaSpecs,
+        RapiditySpecs,
+    ]
+    for specs_type in _relevant_spec_types:
+        if specs_type.name in config:
             parameters.append(specs_type.from_config(config, label=label))
 
     return parameters
 
 
-def extract_hadron_correlations_parameters(config: dict[str, Any]) -> AllParameters:
+def extract_hadron_correlations_parameters(config: dict[str, Any], label: str) -> AllParameters:
+    """Extract hadron parameters from the provided configuration.
+
+    Args:
+        config: (Possibly) hadron parameters configuration.
+        label: Additional label to add to the parameters, such as it being a trigger.
+
+    Returns:
+        Parameters that were found in the configuration.
+    """
     # There's no clear hadron proxy, so we'll assume that the user was responsible
     # and checked whether hadron fields are relevant.
+    # NOTE: This should be **just** customization that's distinct from hadron correlations.
     parameters: AllParameters = []
-    _field_to_specs_type: dict[str, type[ParameterSpecs[Any]]] = {
-        "pt": PtSpecs,
-    }
-    for field_name, specs_type in _field_to_specs_type.items():
-        if field_name in config:
-            parameters.append(specs_type.from_config(config))
+    _relevant_spec_types: list[type[ParameterSpecs[Any]]] = [
+        PtSpecs,
+    ]
+    for specs_type in _relevant_spec_types:
+        if specs_type.name in config:
+            parameters.append(specs_type.from_config(config, label=label))
 
     return parameters
 
 
 def extract_jet_parameters(config: dict[str, Any], label: str = "") -> AllParameters:
-    # We'll use jet_R as a proxy for a jet config being available since it's required
-    if "jet_R" not in config:
+    """Extract jet parameters from the provided configuration.
+
+    Args:
+        config: (Possibly) jet parameters configuration.
+        label: Additional label to add to the parameters, such as it being a trigger.
+
+    Returns:
+        Parameters that were found in the configuration.
+    """
+    # We'll use R as a proxy for a jet config being available since it's required.
+    if "R" not in config:
         return []
 
     parameters = []
-    _field_to_specs_type: dict[str, type[ParameterSpecs[Any]]] = {
-        "jet_R": JetRSpecs,
-        "pt": PtSpecs,
-        "soft_drop": SoftDropSpecs,
-        "dynamical_grooming": DynamicalGroomingSpecs,
-        "axis": JetAxisDifferenceSpecs,
-        "kappa": AngularitySpecs,
-        "r": SubjetZSpecs,
-    }
-    for field_name, specs_type in _field_to_specs_type.items():
-        if field_name in config:
+    _relevant_spec_types: list[type[ParameterSpecs[Any]]] = [
+        # Kinematics
+        PtSpecs,
+        EtaSpecs,
+        EtaRSpecs,
+        RapiditySpecs,
+        # Jet finding parameters
+        JetRSpecs,
+        # Jet observable parameters
+        SoftDropSpecs,
+        DynamicalGroomingSpecs,
+        JetAxisDifferenceSpecs,
+        AngularitySpecs,
+        SubjetRSpecs,
+    ]
+
+    # Some types can be obviously related to the category - e.g. soft drop.
+    # In that case, we can suppress the additional label.
+    # This is mostly an aesthetic and conciseness choice, so as of 2026 April 16, we don't add any labels.
+    # NOTE: If you modify this list, you should carefully follow through the consequences, and ensure that things still work.
+    _suppress_label_for_these_types = []
+    for specs_type in _relevant_spec_types:
+        if specs_type.name in config:
+            parameters.append(
+                specs_type.from_config(config, label=label if specs_type not in _suppress_label_for_these_types else "")
+            )
+
+    return parameters
+
+
+def extract_pion_parameters(config: dict[str, Any], label: str) -> AllParameters:
+    """Extract pion parameters from the provided configuration.
+
+    Args:
+        config: (Possibly) pion parameters configuration.
+        label: Additional label to add to the parameters, such as it being a trigger.
+
+    Returns:
+        Parameters that were found in the configuration.
+    """
+    # There's no clear pion proxy, so we'll assume that the user was responsible
+    # and checked whether the fields are relevant.
+    parameters = []
+    _relevant_spec_types: list[type[ParameterSpecs[Any]]] = [
+        # Kinematics
+        PtSpecs,
+        EtSpecs,
+        EtaSpecs,
+        RapiditySpecs,
+        # Smearing
+        SmearingSpecs,
+    ]
+    for specs_type in _relevant_spec_types:
+        if specs_type.name in config:
             parameters.append(specs_type.from_config(config, label=label))
+
+    return parameters
+
+
+def extract_gamma_parameters(config: dict[str, Any], label: str) -> AllParameters:
+    """Extract gamma parameters from the provided configuration.
+
+    Args:
+        config: (Possibly) photon parameters configuration.
+        label: Additional label to add to the parameters, such as it being a trigger.
+
+    Returns:
+        Parameters that were found in the configuration.
+    """
+    # There's no clear photon proxy, so we'll assume that the user was responsible
+    # and checked whether the fields are relevant.
+    parameters = []
+    _relevant_spec_types: list[type[ParameterSpecs[Any]]] = [
+        # Kinematics
+        PtSpecs,
+        EtSpecs,
+        EtaSpecs,
+        RapiditySpecs,
+        # Smearing
+        SmearingSpecs,
+        # Isolation
+        IsolationSpecs,
+    ]
+    for specs_type in _relevant_spec_types:
+        if specs_type.name in config:
+            parameters.append(specs_type.from_config(config, label=label))
+
+    return parameters
+
+
+def extract_z_parameters(config: dict[str, Any], label: str) -> AllParameters:
+    """Extract Z boson parameters from the provided configuration.
+
+    Args:
+        config: (Possibly) Z boson parameters configuration.
+        label: Additional label to add to the parameters, such as it being a trigger.
+
+    Returns:
+        Parameters that were found in the configuration.
+    """
+    # There's no clear Z-boson proxy, so we'll assume that the user was responsible
+    # and checked whether the fields are relevant.
+    parameters = []
+    _relevant_spec_types: list[type[ParameterSpecs[Any]]] = [
+        # Kinematics
+        PtSpecs,
+        EtSpecs,
+        EtaSpecs,
+        RapiditySpecs,
+        MassSpecs,
+    ]
+    for specs_type in _relevant_spec_types:
+        if specs_type.name in config:
+            parameters.append(specs_type.from_config(config, label=label))
+
+    # For additional parameters on electron and muon selections, we need to take another
+    # step into the configuration
+    additional_parameters = ["electron", "muon"]
+    for k in additional_parameters:
+        temp_label = f"{label}_{k}" if label else k
+        parameters.extend(extract_hadron_parameters(config.get(k, {}), label=temp_label))
 
     return parameters
 
@@ -684,35 +1128,6 @@ class Observable:
         # -1 removes the experiment name
         return pretty_print_name(self.internal_name_without_experiment)
 
-    def inspire_hep_identifier(self) -> tuple[str, int]:
-        """Extract InspireHEP identifier from the config if possible."""
-        # TODO(RJE): Deprecate this approach. Convert all of the old blocks to new blocks
-        #           (even without the tables), and then this can just be a list of URLs, with
-        #           comments noting which HEPdata corresponds to what (if it's not just one).
-        # Attempt to extract from the HEPdata URL.
-        urls = self.config["urls"]
-
-        # Validation
-        # We mostly don't care about the pp HEPdata - it's mostly about the AA
-        if not ("hepdata" in urls or "hepdata_AA" in urls):
-            msg = f"Cannot find HEPdata key for observable {self.identifier}"
-            raise ValueError(msg)
-
-        hepdata_key = "hepdata"
-        if hepdata_key not in urls:
-            hepdata_key = "hepdata_AA"
-
-        # Example: "https://www.hepdata.net/record/ins2845788"
-        hepdata = self.config[hepdata_key]
-        value = hepdata.split("/")[-1]
-        # Remove "ins"
-        hepdata_id = value.replace("ins", "")
-        # Extract just the numerical version number
-        # NOTE: Unable to do this as of Sept 2025, since we don't record the version number here. Better to take it from our database
-        # hepdata_version = hepdata_version.replace("v", "")
-
-        return hepdata_id, -1
-
     def parameters(self) -> AllParameters:
         """The parameter specifications that are relevant to the observable.
 
@@ -733,34 +1148,28 @@ class Observable:
         if self.observable_class.startswith("inclusive") or self.observable_class == "hadron":
             # Jet parameters
             if "jet" in self.observable_class:
-                _parameters.extend(extract_jet_parameters(config=self.config, label=""))
+                _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label="jet"))
 
             # Hadron parameters
             if "hadron" in self.observable_class:
-                _parameters.extend(extract_hadron_parameters(config=self.config, label=""))
+                _parameters.extend(extract_hadron_parameters(config=self.config.get("hadron", {}), label="hadron"))
 
         # Hadron correlations
         if self.observable_class == "hadron_correlation":
-            _parameters.extend(extract_hadron_correlations_parameters(config=self.config))
+            _parameters.extend(extract_hadron_correlations_parameters(config=self.config, label=""))
 
         ####################
         # Trigger parameters
         ####################
         # For the trigger / associated case, parameters are labeled by the quantities
         # i.e. hadron_pt, jet_pt, z_pt, ...
-        # TODO(RJE): Consider adding an explicit inclusive case prefix too(?) Maybe it's not needed...?
         if "trigger" in self.observable_class:
             trigger_to_parameter_specs: dict[str, ExtractParameters] = {
                 "hadron": extract_hadron_parameters,
                 "dijet": extract_jet_parameters,
-                # TEMP: Use hadron just for testing so I can run the code
-                # "pion": extract_pion_parameters,
-                # "gamma": extract_gamma_parameters,
-                # "z": extract_z_parameters,
-                "pion": extract_hadron_parameters,
-                "gamma": extract_hadron_parameters,
-                "z": extract_hadron_parameters,
-                # ENDTEMP
+                "pion": extract_pion_parameters,
+                "gamma": extract_gamma_parameters,
+                "z": extract_z_parameters,
             }
             for trigger_name, func in trigger_to_parameter_specs.items():
                 if f"{trigger_name}_trigger" in self.observable_class:
@@ -770,15 +1179,18 @@ class Observable:
                     _parameters.extend(res)
 
             # And then:
+            # TODO(RJE): Fill the rest of this out!!
             # Recoil/associated properties
             # NOTE: The observable_class are of the form "X_trigger_Y", where X is the trigger and Y is the recoil/associated.
             #       Since we only want to target the recoil here, we look for "_trigger_Y" for Y
             # Jet properties
             # NOTE: Need to explicitly check for chjet and jet since we're including more of the observable class
+            # TODO(RJE): Double check in the morning - think these are redundant now with everything moved into consistent configs...
             if "_trigger_chjet" in self.observable_class or "_trigger_jet" in self.observable_class:
+                # TODO(RJE): Is this really the right distinction? The above is explicitly labeled as trigger, so that seems like enough?
                 # Either ch_jet or jet
-                jet_label = self.observable_class.split("_")[-1]
-                _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label=jet_label))
+                # jet_label = self.observable_class.split("_")[-1]
+                _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label="jet"))
 
             # Hadron properties
             if "_trigger_hadron" in self.observable_class:
@@ -800,8 +1212,8 @@ class Observable:
         # Need the names for labeling later
         # TODO(RJE): Confirm whether there are cases where we need the encoded name instead.
         #            If we use the encoded name, it's a bit annoying to associate with the parameters.
-        # parameter_specs_names = [p.encode_name() for p in parameters]
-        parameter_specs_names = [p.name for p in parameters]
+        parameter_specs_names = [p.encode_name() for p in parameters]
+        # parameter_specs_names = [p.name for p in parameters]
         # And then determine all of the values, as well as the indices
         values_of_parameters = [p.values for p in parameters]
         indices = [list(range(len(p))) for p in values_of_parameters]
