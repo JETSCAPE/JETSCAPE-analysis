@@ -9,15 +9,12 @@ import logging
 import re
 import tarfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final
+from typing import Any, Final
 from urllib.parse import parse_qs, urlparse
 
 import attrs
 import requests
 import ruamel.yaml
-
-if TYPE_CHECKING:
-    from jetscape_analysis.data_curation import observable
 
 logger = logging.getLogger(__name__)
 
@@ -576,21 +573,6 @@ def retrieve_observable_hepdata(
 
     # And then it can be provided.
     return hepdata_info
-
-
-def retrieve_hepdata(obs: observable.Observable) -> HEPDataInfo:
-    """Retrieve the HEPdata based on the provided observable.
-
-    This is just a convenience function.
-    """
-    # TODO(RJE): Deprecate this function?
-    record_id, version = obs.inspire_hep_identifier()
-
-    observable_str_as_path = Path(str(obs.sqrt_s)) / obs.observable_class / obs.name
-
-    return retrieve_observable_hepdata(
-        observable_str_as_path=observable_str_as_path, inspire_hep_id=record_id, version=version
-    )
 
 
 def main() -> None:
