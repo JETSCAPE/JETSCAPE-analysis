@@ -186,19 +186,39 @@ class EtSpec(ParameterSpec):
 
 @attrs.frozen
 class EtaSpec(ParameterSpec):
-    value: float
+    """Eta Specification.
+
+    NOTE:
+        This is handled differently than other specs that allow ranges since we usually specify only
+        a max value for eta. It would be a pain to have to use kwargs
+    """
+
+    max: float
+    min: float | None = attrs.field(default=None, kw_only=True)
 
     def __str__(self) -> str:
-        return f"|eta|<={self.value}"
+        if self.min is None:
+            return f"|eta|<={self.max}"
+        return f"{self.min} <= |eta| <{self.max}"
 
     def encode(self) -> str:
-        return f"{self.value!s}"
+        if self.min is None:
+            return f"{self.max!s}"
+        return f"{self.min!s}_{self.max!s}"
 
     @classmethod
     def decode(cls, value: str) -> EtaSpec:
-        # `value` is of the form: "{self.value}"
+        # `value` is of the form...
+        # Max only: "{self.max}"
+        # Min+max : "{self.min}_{self.max}"
+        split = value.split("_")
+        if len(split) == 1:
+            return cls(
+                max=float(value),
+            )
         return cls(
-            value=float(value),
+            min=float(split[0]),
+            max=float(split[1]),
         )
 
 
@@ -666,8 +686,13 @@ class EtaSpecs(ParameterSpecs[EtaSpec]):
 
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> EtaSpecs:
+        value = config[cls.name]
+        # Handle one or multiple arguments
+        # In the case of multiple arguments, we generally put the min as the first value, so we want to assign that explicitly.
+        # NOTE: We can't just do a `reversed()` since `min` is a keyword-only argument
+        v = EtaSpec(value) if isinstance(value, float) else EtaSpec(**zip(["min", "max"], value, strict=True))
         return cls(
-            values=[EtaSpec(config[cls.name])],
+            values=[v],
             label=label,
         )
 
