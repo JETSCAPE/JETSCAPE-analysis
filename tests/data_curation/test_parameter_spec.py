@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
         observable.JetAxisDifferenceSpec("WTA-SD", observable.SoftDropSpec(0.2, 0.1)),
         observable.JetAxisDifferenceSpec("WTA-SD", grooming_settings={"z_cut": 0.2, "beta": 0.5}),
         observable.AngularitySpec(2.0),
+        observable.AngularitySpec(2.0, 1.0),
+        observable.JetChargeSpec(0.3),
         observable.SubjetRSpec(0.1),
         observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
         observable.SmearingSpec(observable.EtSpec(9.0, 22.0), observable.EtSpec(10.0, 15.0)),
@@ -110,6 +112,10 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
         observable.AngularitySpecs(
             values=[observable.AngularitySpec(1.0, 1.1), observable.AngularitySpec(2.0, 1.1)], label="jet"
         ),
+        # Jet charge
+        observable.JetChargeSpecs(values=[observable.JetChargeSpec(1.0)]),
+        observable.JetChargeSpecs(values=[observable.JetChargeSpec(1.0), observable.JetChargeSpec(2.0)]),
+        observable.JetChargeSpecs(values=[observable.JetChargeSpec(1.0), observable.JetChargeSpec(2.0)], label="jet"),
         # Subjet R
         observable.SubjetRSpecs(values=[observable.SubjetRSpec(1.0)]),
         observable.SubjetRSpecs(values=[observable.SubjetRSpec(1.0), observable.SubjetRSpec(2.0)]),

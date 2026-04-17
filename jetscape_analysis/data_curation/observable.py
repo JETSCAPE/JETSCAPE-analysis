@@ -382,6 +382,26 @@ class AngularitySpec(ParameterSpec):
 
 
 @attrs.frozen
+class JetChargeSpec(ParameterSpec):
+    kappa: float
+
+    def __str__(self) -> str:
+        return f"Jet charged (kappa={self.kappa})"
+
+    def encode(self) -> str:
+        return f"kappa_{self.kappa}"
+
+    @classmethod
+    def decode(cls, value: str) -> JetChargeSpec:
+        # `value` is of the form: "kappa_{self.kappa}"
+        # indices:                 0      1
+        split = value.split("_")
+        return cls(
+            kappa=float(split[1]),
+        )
+
+
+@attrs.frozen
 class SubjetRSpec(ParameterSpec):
     r: float
 
@@ -744,6 +764,18 @@ class AngularitySpecs(ParameterSpecs[AngularitySpec]):
     def from_config(cls, config: dict[str, Any], label: str = "") -> AngularitySpecs:
         return cls(
             values=[AngularitySpec(**v) for v in config[cls.name]],
+            label=label,
+        )
+
+
+@attrs.define
+class JetChargeSpecs(ParameterSpecs[JetChargeSpec]):
+    name: ClassVar[str] = "jet_charge"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> JetChargeSpecs:
+        return cls(
+            values=[JetChargeSpec(v) for v in config[cls.name]],
             label=label,
         )
 
