@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
         observable.JetAxisDifferenceSpec("WTA-SD", grooming_settings={"z_cut": 0.2, "beta": 0.5}),
         observable.AngularitySpec(2.0),
         observable.SubjetRSpec(0.1),
+        observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
+        observable.SmearingSpec(observable.EtSpec(9.0, 22.0), observable.EtSpec(10.0, 15.0)),
     ],
     ids=lambda x: f"{x!r}",
 )
@@ -95,12 +97,36 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
         observable.AngularitySpecs(values=[observable.AngularitySpec(1.0)]),
         observable.AngularitySpecs(values=[observable.AngularitySpec(1.0), observable.AngularitySpec(2.0)]),
         observable.AngularitySpecs(
-            values=[observable.AngularitySpec(1.0), observable.AngularitySpec(2.0)], label="jet"
+            values=[observable.AngularitySpec(1.0, 1.1), observable.AngularitySpec(2.0, 1.1)], label="jet"
         ),
         # Subjet R
         observable.SubjetRSpecs(values=[observable.SubjetRSpec(1.0)]),
         observable.SubjetRSpecs(values=[observable.SubjetRSpec(1.0), observable.SubjetRSpec(2.0)]),
         observable.SubjetRSpecs(values=[observable.SubjetRSpec(1.0), observable.SubjetRSpec(2.0)], label="jet"),
+        # Smearing
+        observable.SmearingSpecs(
+            values=[observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0))]
+        ),
+        observable.SmearingSpecs(
+            values=[
+                observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
+                observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
+            ]
+        ),
+        observable.SmearingSpecs(
+            values=[
+                observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
+                observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
+            ],
+            label="trigger_pion",
+        ),
+        observable.SmearingSpecs(
+            values=[
+                observable.SmearingSpec(observable.EtSpec(9.0, 22.0), observable.EtSpec(10.0, 15.0)),
+                observable.SmearingSpec(observable.EtSpec(9.0, 22.0), observable.EtSpec(10.0, 15.0)),
+            ],
+            label="trigger_pion",
+        ),
     ],
     ids=lambda x: f"{x!r}",
 )
