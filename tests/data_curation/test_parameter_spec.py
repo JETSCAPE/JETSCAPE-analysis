@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
         observable.CentralitySpec(0.0, 10.0),
         observable.PtSpec(10.0, 20.0),
         observable.EtaSpec(1.0),
+        observable.RapiditySpec(1.0),
         observable.MassSpec(70.0, 120.0),
         observable.JetRSpec(0.4),
         observable.SoftDropSpec(0.2, 0.1),
@@ -60,6 +61,10 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
         observable.EtaRSpecs(values=[observable.EtaSpec(1.0)]),
         observable.EtaRSpecs(values=[observable.EtaSpec(1.0), observable.EtaSpec(1.2)]),
         observable.EtaRSpecs(values=[observable.EtaSpec(1.0), observable.EtaSpec(1.2)], label="jet"),
+        # Rapidity
+        observable.RapiditySpecs(values=[observable.RapiditySpec(1.0)]),
+        observable.RapiditySpecs(values=[observable.RapiditySpec(1.0), observable.RapiditySpec(1.2)]),
+        observable.RapiditySpecs(values=[observable.RapiditySpec(1.0), observable.RapiditySpec(1.2)], label="jet"),
         # Mass
         observable.MassSpecs(values=[observable.MassSpec(70.0, 120.0)]),
         observable.MassSpecs(values=[observable.MassSpec(70.0, 120.0), observable.MassSpec(90.0, 110.0)]),
