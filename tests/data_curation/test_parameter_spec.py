@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> None:
     caplog.set_level(logging.INFO)
     logger.info(f"{spec.encode()=}")
-    assert spec.decode(spec.encode())
+    assert spec.decode(spec.encode()) == spec
 
 
 @pytest.mark.parametrize(
@@ -107,4 +107,4 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
 def test_param_specs_round_trip(specs: observable.ParameterSpecs, caplog: Any) -> None:
     caplog.set_level(logging.INFO)
     logger.info(f"{specs.encode()=}")
-    assert specs.decode(specs.encode())
+    assert specs.decode(specs.encode()) == specs
