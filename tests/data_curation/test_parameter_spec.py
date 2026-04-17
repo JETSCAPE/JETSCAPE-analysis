@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 import pytest
+import ruamel.yaml
 from jetscape_analysis.data_curation import observable
 
 logger = logging.getLogger(__name__)
@@ -144,14 +145,14 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
                 observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
                 observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
             ],
-            label="trigger_pion",
+            label="pion_trigger",
         ),
         observable.SmearingSpecs(
             values=[
                 observable.SmearingSpec(observable.EtSpec(9.0, 22.0), observable.EtSpec(10.0, 15.0)),
                 observable.SmearingSpec(observable.EtSpec(9.0, 22.0), observable.EtSpec(10.0, 15.0)),
             ],
-            label="trigger_pion",
+            label="pion_trigger",
         ),
         # Isolation
         observable.IsolationSpecs(
@@ -177,3 +178,113 @@ def test_param_specs_round_trip(specs: observable.ParameterSpecs, caplog: Any) -
     caplog.set_level(logging.INFO)
     logger.info(f"{specs.encode()=}")
     assert specs.decode(specs.encode()) == specs
+
+
+@pytest.mark.parametrize("add_label", [False, True])
+@pytest.mark.parametrize(
+    "inputs",
+    [
+        # Centrality
+        # Since it's the only "base" property, it routes directly to the from_config rather than
+        # through an intermediate function.
+        (
+            observable.CentralitySpecs.from_config,
+            """
+centrality: [[0, 10], [20, 30], [40, 50]]
+""",
+            "",
+        ),
+        # Hadron parameters
+        (
+            observable.extract_hadron_parameters,
+            """
+pt: [20., 40.]
+eta: 0.9
+""",
+            "hadron",
+        ),
+        # Jet parameters
+        (
+            observable.extract_jet_parameters,
+            """
+R: [0.2]
+pt: [60., 80.]
+eta_R: 0.9
+soft_drop:
+  - { "z_cut": 0.2, "beta": 0 }
+dynamical_grooming:
+  - { "a": 1.0 }
+""",
+            "jet",
+        ),
+        # Pion parameters
+        (
+            observable.extract_pion_parameters,
+            """
+  eta: 1.0
+  Et: [9., 22.]
+  smearing:
+    - {detector_level_Et: [11., 15.], particle_level_Et: [9., 22.]}
+            """,
+            "pion_trigger",
+        ),
+        # Gamma parameters
+        (
+            observable.extract_gamma_parameters,
+            """
+  eta: 1.0
+  Et: [9., 22.]
+  isolation:
+    type: "neutral"
+    R: 0.4
+    Et_max: 0.1 # 10% of photon energy.
+            """,
+            "gamma_trigger",
+        ),
+        (
+            observable.extract_z_parameters,
+            """
+  electron:
+    pt: [20., null]
+    eta: 2.47
+  muon:
+    pt: [20., null]
+    eta: 2.5
+  # Z candidates
+  mass: [76., 106.]
+  pt: [15., null]
+            """,
+            "z_trigger",
+        ),
+    ],
+    ids=[
+        "base parameters",
+        "hadron parameters",
+        "jet parameters",
+        "pion parameters",
+        "gamma parameters",
+        "z boson parameters",
+    ],
+)
+def test_extract_parameters(
+    add_label: bool,
+    inputs: tuple[callable[[dict[str, Any], str], observable.AllParameters], dict[str, Any]],
+    caplog: Any,
+) -> None:
+    """Test extracting parameters from configurations.
+
+    This implicitly tests `ParameterSpecs.from_config(...)`.
+
+    These are supposed to be somewhat representative of real measurements, but they are not comprehensive.
+    """
+    f, config_str, label = inputs
+    caplog.set_level(logging.INFO)
+
+    y = ruamel.yaml.YAML()
+
+    config = y.load(config_str)
+
+    # Just run the function. Validation is a pain, so we just want to ensure it runs okay.
+    res = f(config, label if add_label else "")  # noqa: F841
+
+    # pytest.fail("Intentionally failing so that we can see the output")
