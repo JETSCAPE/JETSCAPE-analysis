@@ -8,9 +8,15 @@ For each parameter, we define a `ParameterSpec` (i.e. parameter specification)
 which represents a single value of that parameter. Each specification contains
 the information needed to define that parameter (could be a single value,
 such as jet R, or could be multiple values, such as in the centrality range),
-names (internal + display), and serialization information (more on this below).
+and serialization information (more on this below).
+
 A set of parameter values are stored in a `ParameterSpecs` class (note the plural
-name!).
+name!). This contains the ParameterSpec values of the same type (e.g. JetRSpecs
+contains a JetRSpec per value of jet R that is measured in the analysis). It also
+includes the names (internal + display), and allows serialization of the full set of
+values. The names are stored with the Specs rather than with an individual Spec because
+the Spec corresponds to a single value we can use, independent of where it's from!
+The Specs object then locates it - e.g. with a label.
 
 ## Serialization
 
@@ -199,7 +205,7 @@ class EtaSpec(ParameterSpec):
     def __str__(self) -> str:
         if self.min is None:
             return f"|eta|<={self.max}"
-        return f"{self.min} <= |eta| <{self.max}"
+        return f"{self.min} <= |eta| < {self.max}"
 
     def encode(self) -> str:
         if self.min is None:
@@ -492,29 +498,29 @@ class IsolationSpec(ParameterSpec):
     """Photon isolation specification.
 
     Attributes:
-        isolation_type: Type of isolation, e.g. "neutral"
+        type: Type of isolation, e.g. "neutral"
         R: Cone size of isolation (which we store in jet R for convenience, even if a jet finding isn't always used)
         Et_max: Maximum Et allowed inside of the isolation cone. If a single value is provided, it's assumed to
             be the max value.
     """
 
-    isolation_type: str
+    type: str
     R: JetRSpec = attrs.field(converter=lambda x: JetRSpec(x) if isinstance(x, float) else x)
     Et_max: EtSpec = attrs.field(converter=lambda x: EtSpec(0, x) if isinstance(x, float) else x)
 
     def __str__(self) -> str:
-        return f"Photon Isolation (type={self.isolation_type}, R={self.R!s}, Et_max={self.Et_max!s})"
+        return f"Photon Isolation (type={self.type}, R={self.R!s}, Et_max={self.Et_max!s})"
 
     def encode(self) -> str:
-        return f"type_{self.isolation_type}_R_{self.R.encode()}_Et_max_{self.Et_max.encode()}"
+        return f"type_{self.type}_R_{self.R.encode()}_Et_max_{self.Et_max.encode()}"
 
     @classmethod
     def decode(cls, value: str) -> SubjetRSpec:
-        # `value` is of the form: "type_{self.isolation_type}_R_{self.R.encode()}_Et_max_{self.Et_max.encode()}"
+        # `value` is of the form: "type_{self.type}_R_{self.R.encode()}_Et_max_{self.Et_max.encode()}"
         # indices:                 0     1                    2  3                4  5    6
         split = value.split("_")
         return cls(
-            isolation_type=str(split[1]),
+            type=str(split[1]),
             R=JetRSpec.decode(value[value.find("_R_") + len("_R_") : value.find("_Et_max")]),
             Et_max=EtSpec.decode(value[value.find("_Et_max_") + len("_Et_max_") :]),
         )
@@ -690,7 +696,7 @@ class EtaSpecs(ParameterSpecs[EtaSpec]):
         # Handle one or multiple arguments
         # In the case of multiple arguments, we generally put the min as the first value, so we want to assign that explicitly.
         # NOTE: We can't just do a `reversed()` since `min` is a keyword-only argument
-        v = EtaSpec(value) if isinstance(value, float) else EtaSpec(**zip(["min", "max"], value, strict=True))
+        v = EtaSpec(value) if isinstance(value, float) else EtaSpec(**dict(zip(["min", "max"], value, strict=True)))
         return cls(
             values=[v],
             label=label,
@@ -842,7 +848,7 @@ class SmearingSpecs(ParameterSpecs[SmearingSpec]):
                 spec_type = SpecDecoderRegistry.get_type(variable_name)
                 for name in ["particle_level", "detector_level"]:
                     if name in k:
-                        kwargs[k] = spec_type(*smearing_values)
+                        kwargs[name] = spec_type(*smearing_values)
             values.append(SmearingSpec(**kwargs))
 
         return cls(
@@ -858,7 +864,7 @@ class IsolationSpecs(ParameterSpecs[IsolationSpec]):
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> IsolationSpecs:
         return cls(
-            values=[IsolationSpec(config[cls.name])],
+            values=[IsolationSpec(**config[cls.name])],
             label=label,
         )
 
@@ -1196,7 +1202,11 @@ class Observable:
         Returns:
             Parameters.
         """
+        ######################
         # Base parameters
+        ######################
+        # These are parameters that are not directly associated with a physics object
+        # (e.g. not a hadron, jet, ...), such as centrality.
         _parameters: AllParameters = [CentralitySpecs.from_config(config=self.config)]
 
         ######################
