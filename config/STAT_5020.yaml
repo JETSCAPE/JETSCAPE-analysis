@@ -875,13 +875,12 @@ inclusive_chjet:
               - parameters: { "centrality": ["0_10", "30_50"], "jet_R": [0.2], "jet_pt": ["60_80"] }
                 systematics_names: {}
                 additional_systematics: {}
+                index: 0
                 combinations:
-                  - parameters: { "soft_drop": "z_cut_020_beta_0" }
+                  - parameters: { "jet_soft_drop": "z_cut_020_beta_0" }
                     table: "Table 4"
-                    index: 0
-                  - parameters: { "dynamical_grooming": "a_1.0" }
+                  - parameters: { "jet_dynamical_grooming": "a_1.0" }
                     table: "Table 1"
-                    index: 0
               # # Equivalent to:
               # - parameters: {"pt": ["60_80"], "centrality": ["0_10"], "soft_drop": "z_cut_020_beta_0"}
               #   table: "Table 4"
@@ -926,41 +925,37 @@ inclusive_chjet:
                 additional_systematics: {}
                 combinations:
                   - parameters: { "jet_soft_drop": "z_cut_020_beta_0" }
+                    index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 3"
-                        index: 0
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 2"
-                        index: 0
                   - parameters: { "jet_dynamical_grooming": "a_1.0" }
+                    index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 6"
-                        index: 0
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 5"
-                        index: 0
               - parameters: { "jet_R": [0.3], "jet_pt": ["60_80"] }
                 systematics_names: {}
                 additional_systematics: {}
                 combinations:
                   - parameters: { "jet_soft_drop": "z_cut_020_beta_0" }
+                    index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 3"
-                        index: 0
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 2"
-                        index: 0
                   - parameters: { "jet_dynamical_grooming": "a_1.0" }
+                    index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 6"
-                        index: 0
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 5"
-                        index: 0
           ratio:
             quantity: "ktg"
             x_axis:
@@ -974,21 +969,19 @@ inclusive_chjet:
                 additional_systematics: {}
                 combinations:
                   - parameters: { "jet_soft_drop": "z_cut_020_beta_0" }
+                    index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 10"
-                        index: 0
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 9"
-                        index: 0
                   - parameters: { "jet_dynamical_grooming": "a_1.0" }
+                    index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 8"
-                        index: 0
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 7"
-                        index: 0
 
 #------------------------------------------------------------------
 # Inclusive jet observables -- full jets
