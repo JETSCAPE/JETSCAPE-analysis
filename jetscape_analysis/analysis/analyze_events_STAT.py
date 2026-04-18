@@ -351,11 +351,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # ALICE
             # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_ch_alice"):
-                pt_min = self.hadron_observables["pt_ch_alice"]["pt"][0]
-                pt_max = self.hadron_observables["pt_ch_alice"]["pt"][1]
+                pt_min, pt_max = self.hadron_observables["pt_ch_alice"]["hadron"]["pt"]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_observables["pt_ch_alice"]["eta"]
+                    and abs(eta) < self.hadron_observables["pt_ch_alice"]["hadron"]["eta"]
                     and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                 ):
                     self.observable_dict_event[f"hadron_pt_ch_alice{suffix}"].append(pt)
@@ -363,11 +362,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # ALICE
             # Charged pion
             if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_pi_alice"):
-                pt_min = self.hadron_observables["pt_pi_alice"]["pt"][0]
-                pt_max = self.hadron_observables["pt_pi_alice"]["pt"][1]
+                pt_min, pt_max = self.hadron_observables["pt_pi_alice"]["hadron"]["pt"]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_observables["pt_pi_alice"]["eta"]
+                    and abs(eta) < self.hadron_observables["pt_pi_alice"]["hadron"]["eta"]
                     and abs(pid) == 211
                 ):
                     self.observable_dict_event[f"hadron_pt_pi_alice{suffix}"].append(pt)
@@ -375,11 +373,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # ALICE
             # Neutral pions
             if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_pi0_alice"):
-                pt_min = self.hadron_observables["pt_pi0_alice"]["pt"][0]
-                pt_max = self.hadron_observables["pt_pi0_alice"]["pt"][1]
+                pt_min, pt_max = self.hadron_observables["pt_pi0_alice"]["hadron"]["pt"]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_observables["pt_pi0_alice"]["eta"]
+                    and abs(eta) < self.hadron_observables["pt_pi0_alice"]["hadron"]["eta"]
                     and abs(pid) == 111
                 ):
                     self.observable_dict_event[f"hadron_pt_pi0_alice{suffix}"].append(pt)
@@ -387,11 +384,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # ATLAS
             # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_ch_atlas"):
-                pt_min = self.hadron_observables["pt_ch_atlas"]["pt"][0]
-                pt_max = self.hadron_observables["pt_ch_atlas"]["pt"][1]
+                pt_min, pt_max = self.hadron_observables["pt_ch_atlas"]["hadron"]["pt"]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_observables["pt_ch_atlas"]["eta"]
+                    and abs(eta) < self.hadron_observables["pt_ch_atlas"]["hadron"]["eta"]
                     and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                 ):
                     self.observable_dict_event[f"hadron_pt_ch_atlas{suffix}"].append(pt)
@@ -399,11 +395,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # CMS
             # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_ch_cms"):
-                pt_min = self.hadron_observables["pt_ch_cms"]["pt"][0]
-                pt_max = self.hadron_observables["pt_ch_cms"]["pt"][1]
+                pt_min, pt_max = self.hadron_observables["pt_ch_cms"]["hadron"]["pt"][0]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_observables["pt_ch_cms"]["eta"]
+                    and abs(eta) < self.hadron_observables["pt_ch_cms"]["hadron"]["eta"]
                     and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                 ):
                     self.observable_dict_event[f"hadron_pt_ch_cms{suffix}"].append(pt)
@@ -411,11 +406,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # PHENIX
             # Neutral pions
             if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_pi0_phenix"):
-                pt_min = self.hadron_observables["pt_pi0_phenix"]["pt"][0]
+                pt_min = self.hadron_observables["pt_pi0_phenix"]["hadron"]["pt"][0]
                 pt_max = 100.0  # Open upper bound
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_observables["pt_pi0_phenix"]["eta"]
+                    and abs(eta) < self.hadron_observables["pt_pi0_phenix"]["hadron"]["eta"]
                     and abs(pid) == 111
                 ):
                     self.observable_dict_event[f"hadron_pt_pi0_phenix{suffix}"].append(pt)
@@ -423,11 +418,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # STAR
             # Charged hadrons (pi+-, K+-, p, anti-p)
             if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_ch_star"):
-                pt_min = self.hadron_observables["pt_ch_star"]["pt"][0]
+                pt_min = self.hadron_observables["pt_ch_star"]["hadron"]["pt"][0]
                 pt_max = 100.0  # Open upper bound
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_observables["pt_ch_star"]["eta"]
+                    and abs(eta) < self.hadron_observables["pt_ch_star"]["hadron"]["eta"]
                     and abs(pid) in [211, 321, 2212]
                 ):
                     self.observable_dict_event[f"hadron_pt_ch_star{suffix}"].append(pt)
@@ -470,11 +465,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             if self.measure_observable_for_current_event(
                 self.hadron_correlation_observables, observable_name="v2_ep_atlas"
             ):
-                pt_min = self.hadron_correlation_observables["v2_ep_atlas"]["pt"][0]
-                pt_max = self.hadron_correlation_observables["v2_ep_atlas"]["pt"][1]
+                pt_min, pt_max = self.hadron_correlation_observables["v2_ep_atlas"]["hadron"]["pt"]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_correlation_observables["v2_ep_atlas"]["eta"]
+                    and abs(eta) < self.hadron_correlation_observables["v2_ep_atlas"]["hadron"]["eta"]
                     and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                 ):
                     self.observable_dict_event[f"hadron_correlation_v2_ep_atlas{suffix}"].append([pt, CosineDPhi])
@@ -484,11 +478,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             if self.measure_observable_for_current_event(
                 self.hadron_correlation_observables, observable_name="v2_ep_cms"
             ):
-                pt_min = self.hadron_correlation_observables["v2_ep_cms"]["pt"][0]
-                pt_max = self.hadron_correlation_observables["v2_ep_cms"]["pt"][1]
+                pt_min, pt_max = self.hadron_correlation_observables["v2_ep_cms"]["hadron"]["pt"]
                 if (
                     pt_min < pt < pt_max
-                    and abs(eta) < self.hadron_correlation_observables["v2_ep_cms"]["eta"]
+                    and abs(eta) < self.hadron_correlation_observables["v2_ep_cms"]["hadron"]["eta"]
                     and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                 ):
                     self.observable_dict_event[f"hadron_correlation_v2_ep_cms{suffix}"].append([pt, CosineDPhi])
@@ -633,18 +626,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 jetR_list_groomed_photon = []
                 if self.sqrts == 5020:
                     # Gamma-tagged observables
-                    jetR_list_photon += self.gamma_trigger_jet_observables["Dz_atlas"]["jet"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["xi_cms"]["jet"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["pt_atlas"]["jet"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet"]["jet_R"]
-                    jetR_list_photon += self.gamma_trigger_jet_observables["axis_cms"]["jet"]["jet_R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["Dz_atlas"]["jet"]["R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["xi_cms"]["jet"]["R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["pt_atlas"]["jet"]["R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet"]["R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet"]["R"]
+                    jetR_list_photon += self.gamma_trigger_jet_observables["axis_cms"]["jet"]["R"]
                     # Groomed observables
-                    jetR_list_groomed_photon += self.gamma_trigger_jet_observables["rg_cms"]["jet"]["jet_R"]
-                    jetR_list_groomed_photon += self.gamma_trigger_jet_observables["g_cms"]["jet"]["jet_R"]
+                    jetR_list_groomed_photon += self.gamma_trigger_jet_observables["rg_cms"]["jet"]["R"]
+                    jetR_list_groomed_photon += self.gamma_trigger_jet_observables["g_cms"]["jet"]["R"]
                     # run analysis for all jet R
                 if self.sqrts == 200:
-                    jetR_list_photon += self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet"]["jet_R"]
+                    jetR_list_photon += self.gamma_trigger_chjet_observables["IAA_pt_star"]["jet"]["R"]
                 if jetR in set(jetR_list_photon):
                     # TODO(FJ): discuss with Raymond what to watch out for with holes
                     self.fill_gamma_trigger_chjet_ungroomed_observables(
@@ -688,11 +681,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 jetR_list = []
                 if self.sqrts in [2760, 5020]:
                     # NOTE: Using IAA_pt_alice as a proxy for dphi_alice
-                    jetR_list += self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["jet_R"]
+                    jetR_list += self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["R"]
                 if self.sqrts == 2760:
-                    jetR_list += self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet"]["jet_R"]
+                    jetR_list += self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet"]["R"]
                 if self.sqrts == 200:
-                    jetR_list += self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["jet_R"]
+                    jetR_list += self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["R"]
 
                 if jetR in jetR_list:
                     self.fill_hadron_trigger_chjet_observables(
@@ -704,7 +697,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     )
             if self.pion_trigger_chjet_observables:
                 if self.sqrts == 200:
-                    jetR_list = self.pion_trigger_chjet_observables["IAA_pt_star"]["jet"]["jet_R"]
+                    jetR_list = self.pion_trigger_chjet_observables["IAA_pt_star"]["jet"]["R"]
                     # NOTE: No need to repeat to STAR dphi, since the values are the same
                 if jetR in jetR_list:
                     self.fill_pion_trigger_chjet_observables(
@@ -823,14 +816,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, subtract holes within r (for subjets) only
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="zr_alice"):
-            pt_min = self.inclusive_chjet_observables["zr_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["zr_alice"]["pt"][-1]
+            pt_min = self.inclusive_chjet_observables["zr_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["zr_alice"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_chjet_observables["zr_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["zr_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["zr_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["zr_alice"]["jet"]["eta_R"] - jetR)
             ):
-                for r in self.inclusive_chjet_observables["zr_alice"]["r"]:
+                for r in self.inclusive_chjet_observables["zr_alice"]["jet"]["subjet_R"]:
                     cs_subjet = fj.ClusterSequence(jet.constituents(), fj.JetDefinition(fj.antikt_algorithm, r))
                     subjets = fj.sorted_by_pt(cs_subjet.inclusive_jets())
                     _, leading_subjet_pt, _ = self.leading_jet(subjets, holes_in_jet, r)
@@ -850,12 +843,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="axis_alice"):
-            pt_min = self.inclusive_chjet_observables["axis_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["axis_alice"]["pt"][-1]
+            pt_min = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_chjet_observables["axis_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["axis_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["axis_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["axis_alice"]["jet"]["eta_R"] - jetR)
             ):
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
                 if jet_collection_label in ["_negative_recombiner"]:
@@ -879,12 +872,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.measure_observable_for_current_event(
             self.inclusive_chjet_observables, observable_name="angularity_alice"
         ):
-            pt_min = self.inclusive_chjet_observables["angularity_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["angularity_alice"]["pt"][-1]
+            pt_min = self.inclusive_chjet_observables["angularity_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["angularity_alice"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_chjet_observables["angularity_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["angularity_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["angularity_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["angularity_alice"]["jet"]["eta_R"] - jetR)
             ):
                 for ang_settings in self.inclusive_chjet_observables["angularity_alice"]["jet"]["angularity"]:
                     alpha = ang_settings["alpha"]
@@ -917,12 +910,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="mass_alice"):
-            pt_min = self.inclusive_chjet_observables["mass_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["mass_alice"]["pt"][-1]
+            pt_min = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_chjet_observables["mass_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["mass_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["mass_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["mass_alice"]["jet"]["eta_R"] - jetR)
             ):
                 jet_mass = jet.m()
                 if jet_collection_label in ["_shower_recoil"]:
@@ -945,19 +938,22 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For RAA, all jet collections can be filled from the corrected jet pt
         #    - In the shower_recoil case, we also fill the unsubtracted jet pt
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="pt_alice"):
-            pt_min = self.inclusive_chjet_observables["pt_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["pt_alice"]["pt"][1]
+            pt_min = self.inclusive_chjet_observables["pt_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["pt_alice"]["jet"]["pt"][1]
             # NOTE: For the eta acceptance, this needs a bit of care.
             #       For 2.76 TeV, eta is fixed, while for 5.02 TeV, the selection is eta - R, so we handle the
             #       two separately behind a sqrt_s check.
             if (
-                jetR in self.inclusive_chjet_observables["pt_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["pt_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
                 and (
-                    (self.sqrts == 2760 and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["eta"]))
+                    (
+                        self.sqrts == 2760
+                        and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["jet"]["eta"])
+                    )
                     or (
                         self.sqrts == 5020
-                        and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["eta_R"] - jetR)
+                        and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_alice"]["jet"]["eta_R"] - jetR)
                     )
                 )
             ):
@@ -967,7 +963,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 if self.sqrts == 2760:
                     for constituent in jet.constituents():
                         if (
-                            constituent.pt() > self.inclusive_chjet_observables["pt_alice"]["leading_track_min_pt"]
+                            constituent.pt()
+                            > self.inclusive_chjet_observables["pt_alice"]["jet"]["leading_track_min_pt"]
                             # (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
                             and abs(pid_hadrons_positive[np.abs(constituent.user_index()) - 1])
                             in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
@@ -989,12 +986,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, subtract the hole contribution within R to the angularity
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="g_alice"):
-            pt_min = self.inclusive_chjet_observables["g_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["g_alice"]["pt"][1]
+            pt_min = self.inclusive_chjet_observables["g_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["g_alice"]["jet"]["pt"][1]
             if (
-                jetR in self.inclusive_chjet_observables["g_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["g_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["g_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["g_alice"]["jet"]["eta_R"] - jetR)
             ):
                 g = 0
                 for constituent in jet.constituents():
@@ -1018,12 +1015,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, subtract the hole contribution within R to the angularity
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="ptd_alice"):
-            pt_min = self.inclusive_chjet_observables["ptd_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["ptd_alice"]["pt"][1]
+            pt_min = self.inclusive_chjet_observables["ptd_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["ptd_alice"]["jet"]["pt"][1]
             if (
-                jetR in self.inclusive_chjet_observables["ptd_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["ptd_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["ptd_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["ptd_alice"]["jet"]["eta_R"] - jetR)
             ):
                 sum_ptd = 0
                 for constituent in jet.constituents():
@@ -1045,11 +1042,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # STAR RAA
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="pt_star"):
-            pt_min = self.inclusive_chjet_observables["pt_star"]["pt"][0]
+            pt_min = self.inclusive_chjet_observables["pt_star"]["jet"]["pt"][0]
             pt_max = 100.0  # Open upper bound
             if (
-                jetR in self.inclusive_chjet_observables["pt_star"]["jet_R"]
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_star"]["eta_R"] - jetR)
+                jetR in self.inclusive_chjet_observables["pt_star"]["jet"]["R"]
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["pt_star"]["jet"]["eta_R"] - jetR)
                 and pt_min < jet_pt < pt_max
             ):
                 # Check leading track requirement
@@ -1118,17 +1115,17 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # (since DyG isn't included in the global set of grooming settings). It just relies
             # on the SD being called at once, which it they must because the ktg measurement
             # also relies on them.
-            and grooming_setting in self.inclusive_chjet_observables["ktg_alice"]["soft_drop"]
+            and grooming_setting in self.inclusive_chjet_observables["ktg_alice"]["jet"]["soft_drop"]
         ):
-            pt_min = self.inclusive_chjet_observables["ktg_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["ktg_alice"]["pt"][-1]
+            pt_min = self.inclusive_chjet_observables["ktg_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["ktg_alice"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_chjet_observables["ktg_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["ktg_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["ktg_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["ktg_alice"]["jet"]["eta_R"] - jetR)
             ):
                 # Fill DyG
-                for dg in self.inclusive_chjet_observables["ktg_alice"]["dynamical_grooming"]:
+                for dg in self.inclusive_chjet_observables["ktg_alice"]["jet"]["dynamical_grooming"]:
                     a = dg["a"]
                     jet_dyg_lund = gshop.dynamical(a)
                     # If a single particle jet, there's no substructure, so skip it.
@@ -1161,14 +1158,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="zg_alice")
-            and grooming_setting in self.inclusive_chjet_observables["zg_alice"]["soft_drop"]
+            and grooming_setting in self.inclusive_chjet_observables["zg_alice"]["jet"]["soft_drop"]
         ):
-            pt_min = self.inclusive_chjet_observables["zg_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["zg_alice"]["pt"][1]
+            pt_min = self.inclusive_chjet_observables["zg_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["zg_alice"]["jet"]["pt"][1]
             if (
-                jetR in self.inclusive_chjet_observables["zg_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["zg_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["zg_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["zg_alice"]["jet"]["eta_R"] - jetR)
             ):
                 theta_g = jet_groomed_lund.Delta() / jetR
                 zg = jet_groomed_lund.z()
@@ -1189,15 +1186,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             self.inclusive_chjet_observables, observable_name="axis_alice"
         ) and grooming_setting in [
             entry["grooming_settings"]
-            for entry in self.inclusive_chjet_observables["axis_alice"]["axis"]
+            for entry in self.inclusive_chjet_observables["axis_alice"]["jet"]["axis"]
             if "grooming_settings" in entry
         ]:
-            pt_min = self.inclusive_chjet_observables["axis_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["axis_alice"]["pt"][-1]
+            pt_min = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_chjet_observables["axis_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["axis_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["axis_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["axis_alice"]["jet"]["eta_R"] - jetR)
             ):
                 # Recluster with WTA (with larger jet R)
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
@@ -1229,12 +1226,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             )
             and grooming_setting in self.inclusive_chjet_observables["angularity_alice"]["soft_drop"]
         ):
-            pt_min = self.inclusive_chjet_observables["angularity_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["angularity_alice"]["pt"][-1]
+            pt_min = self.inclusive_chjet_observables["angularity_alice"]["pt"]["jet"][0]
+            pt_max = self.inclusive_chjet_observables["angularity_alice"]["pt"]["jet"][-1]
             if (
-                jetR in self.inclusive_chjet_observables["angularity_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["angularity_alice"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["angularity_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["angularity_alice"]["jet"]["eta_R"] - jetR)
             ):
                 for ang_settings in self.inclusive_chjet_observables["angularity_alice"]["jet"]["angularity"]:
                     alpha = ang_settings["alpha"]
@@ -1251,14 +1248,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="mass_alice")
-            and grooming_setting in self.inclusive_chjet_observables["mass_alice"]["soft_drop"]
+            and grooming_setting in self.inclusive_chjet_observables["mass_alice"]["jet"]["soft_drop"]
         ):
-            pt_min = self.inclusive_chjet_observables["mass_alice"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["mass_alice"]["pt"][-1]
+            pt_min = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"][0]
+            pt_max = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_chjet_observables["mass_alice"]["jet_R"]
+                jetR in self.inclusive_chjet_observables["mass_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["mass_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["mass_alice"]["jet"]["eta_R"] - jetR)
             ):
                 # Note: untagged jets will return negative value
                 mg = jet_groomed_lund.pair().m()
@@ -1298,11 +1295,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For RAA, all jet collections can be filled from the corrected jet pt
         #    - In the shower_recoil case, we also fill the unsubtracted jet pt
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="pt_alice"):
-            pt_min, pt_max = self.inclusive_jet_observables["pt_alice"]["pt"]
+            pt_min, pt_max = self.inclusive_jet_observables["pt_alice"]["jet"]["pt"]
             if (
-                jetR in self.inclusive_jet_observables["pt_alice"]["jet_R"]
+                jetR in self.inclusive_jet_observables["pt_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_jet_observables["pt_alice"]["eta_R"] - jetR)
+                and abs(jet.eta()) < (self.inclusive_jet_observables["pt_alice"]["jet"]["eta_R"] - jetR)
             ):
                 # Check leading track requirement
                 min_leading_track_pt = 7.0
@@ -1327,12 +1324,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # ATLAS RAA
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="pt_atlas"):
-            pt_min = self.inclusive_jet_observables["pt_atlas"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["pt_atlas"]["pt"][1]
+            pt_min = self.inclusive_jet_observables["pt_atlas"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["pt_atlas"]["jet"]["pt"][1]
             if (
-                jetR in self.inclusive_jet_observables["pt_atlas"]["jet_R"]
+                jetR in self.inclusive_jet_observables["pt_atlas"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.rap()) < self.inclusive_jet_observables["pt_atlas"]["y_cut"]
+                and abs(jet.rap()) < self.inclusive_jet_observables["pt_atlas"]["jet"]["rapidity"]
             ):
                 self.observable_dict_event[f"inclusive_jet_pt_atlas_R{jetR}{jet_collection_label}"].append(jet_pt)
                 if jet_collection_label in ["_shower_recoil"]:
@@ -1344,12 +1341,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.sqrts in [5020] and self.measure_observable_for_current_event(
             self.inclusive_jet_observables, observable_name="pt_y_atlas"
         ):
-            pt_min = self.inclusive_jet_observables["pt_y_atlas"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["pt_y_atlas"]["pt"][-1]
+            pt_min = self.inclusive_jet_observables["pt_y_atlas"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["pt_y_atlas"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_jet_observables["pt_y_atlas"]["jet_R"]
+                jetR in self.inclusive_jet_observables["pt_y_atlas"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.rap()) < self.inclusive_jet_observables["pt_y_atlas"]["y_cut"]
+                and abs(jet.rap()) < self.inclusive_jet_observables["pt_y_atlas"]["jet"]["rapidity"]
             ):
                 self.observable_dict_event[f"inclusive_jet_pt_y_atlas_R{jetR}{jet_collection_label}"].append(
                     [jet_pt, abs(jet.rap())]
@@ -1361,12 +1358,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # CMS RAA
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="pt_cms"):
-            pt_min = self.inclusive_jet_observables["pt_cms"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["pt_cms"]["pt"][1]
+            pt_min = self.inclusive_jet_observables["pt_cms"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["pt_cms"]["jet"]["pt"][1]
             if (
-                jetR in self.inclusive_jet_observables["pt_cms"]["jet_R"]
+                jetR in self.inclusive_jet_observables["pt_cms"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < self.inclusive_jet_observables["pt_cms"]["eta"]
+                and abs(jet.eta()) < self.inclusive_jet_observables["pt_cms"]["jet"]["eta"]
             ):
                 self.observable_dict_event[f"inclusive_jet_pt_cms_R{jetR}{jet_collection_label}"].append(jet_pt)
                 if jet_collection_label in ["_shower_recoil"]:
@@ -1382,12 +1379,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #   Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
         acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="Dz_atlas"):
-            pt_min = self.inclusive_jet_observables["Dz_atlas"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["Dz_atlas"]["pt"][-1]
+            pt_min = self.inclusive_jet_observables["Dz_atlas"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["Dz_atlas"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_jet_observables["Dz_atlas"]["jet_R"]
+                jetR in self.inclusive_jet_observables["Dz_atlas"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.rap()) < self.inclusive_jet_observables["Dz_atlas"]["y_cut"]
+                and abs(jet.rap()) < self.inclusive_jet_observables["Dz_atlas"]["jet"]["rapidity"]
             ):
                 self.observable_dict_event[f"inclusive_jet_Dz_atlas_R{jetR}{jet_collection_label}_Njets"].append(jet_pt)
                 for hadron in hadrons_for_jet_finding:
@@ -1426,12 +1423,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.sqrts == 2760 and self.measure_observable_for_current_event(
             self.inclusive_jet_observables, observable_name="Dz_cms"
         ):
-            pt_min = self.inclusive_jet_observables["Dz_cms"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["Dz_cms"]["pt"][-1]
-            eta_range = self.inclusive_jet_observables["Dz_cms"]["eta"]
-            track_pt_min = self.inclusive_jet_observables["Dz_cms"]["track_pt_min"]
+            pt_min = self.inclusive_jet_observables["Dz_cms"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["Dz_cms"]["jet"]["pt"][-1]
+            eta_range = self.inclusive_jet_observables["Dz_cms"]["jet"]["eta"]
+            track_pt_min = self.inclusive_jet_observables["Dz_cms"]["jet"]["track_pt_min"]
             if (
-                jetR in self.inclusive_jet_observables["Dz_cms"]["jet_R"]
+                jetR in self.inclusive_jet_observables["Dz_cms"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
                 and eta_range[0] < abs(jet.eta()) < eta_range[1]
             ):
@@ -1474,18 +1471,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Charged particles (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
         acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="charge_cms"):
-            pt_min = self.inclusive_jet_observables["charge_cms"]["pt"][0]
+            pt_min = self.inclusive_jet_observables["charge_cms"]["jet"]["pt"][0]
             if (
-                jetR in self.inclusive_jet_observables["charge_cms"]["jet_R"]
+                jetR in self.inclusive_jet_observables["charge_cms"]["jet"]["R"]
                 and jet_pt > pt_min
-                and abs(jet.eta()) < self.inclusive_jet_observables["charge_cms"]["eta"]
+                and abs(jet.eta()) < self.inclusive_jet_observables["charge_cms"]["jet"]["eta"]
             ):
                 for kappa in self.inclusive_jet_observables["charge_cms"]["jet"]["jet_charge"]:
                     sum_charge = 0
                     for hadron in hadrons_for_jet_finding:
                         if jet_collection_label in ["_negative_recombiner"] and hadron.user_index() < 0:
                             continue
-                        if hadron.pt() > self.inclusive_jet_observables["charge_cms"]["track_pt_min"]:
+                        if hadron.pt() > self.inclusive_jet_observables["charge_cms"]["jet"]["track_pt_min"]:
                             pid = pid_hadrons_positive[np.abs(hadron.user_index()) - 1]
                             if abs(pid) in acceptable_hadrons and jet.delta_R(hadron) < jetR:
                                 sum_charge += particle_charge(pid) * np.power(hadron.pt(), kappa)
@@ -1494,7 +1491,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         for hadron in holes_in_jet:
                             if jet_collection_label in ["_negative_recombiner"] and hadron.user_index() > 0:
                                 continue
-                            if hadron.pt() > self.inclusive_jet_observables["charge_cms"]["track_pt_min"]:
+                            if hadron.pt() > self.inclusive_jet_observables["charge_cms"]["jet"]["track_pt_min"]:
                                 pid = pid_hadrons_negative[np.abs(hadron.user_index()) - 1]
                                 if abs(pid) in acceptable_hadrons and jet.delta_R(hadron) < jetR:
                                     sum_holes += particle_charge(pid) * np.power(hadron.pt(), kappa)
@@ -1516,12 +1513,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="axis_cms"):
-            pt_min = self.inclusive_jet_observables["axis_cms"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["axis_cms"]["pt"][-1]
+            pt_min = self.inclusive_jet_observables["axis_cms"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["axis_cms"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_jet_observables["axis_cms"]["jet_R"]
+                jetR in self.inclusive_jet_observables["axis_cms"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_jet_observables["axis_cms"]["eta"])
+                and abs(jet.eta()) < (self.inclusive_jet_observables["axis_cms"]["jet"]["eta"])
             ):
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
                 if jet_collection_label in ["_negative_recombiner"]:
@@ -1542,8 +1539,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, ?
         #    - For constituent_subtraction, ?
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="d12_atlas"):
-            pt_min = self.inclusive_jet_observables["d12_atlas"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["d12_atlas"]["pt"][1]
+            pt_min = self.inclusive_jet_observables["d12_atlas"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["d12_atlas"]["jet"]["pt"][1]
             # TODO(Dhanush): Implement from here
 
         # ATLAS, dR_12
@@ -1552,8 +1549,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, ?
         #    - For constituent_subtraction, ?
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="dR12_atlas"):
-            pt_min = self.inclusive_jet_observables["dR12_atlas"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["dR12_atlas"]["pt"][1]
+            pt_min = self.inclusive_jet_observables["dR12_atlas"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["dR12_atlas"]["jet"]["pt"][1]
             # TODO(Dhanush): Implement from here
 
     def fill_full_jet_groomed_observables(
@@ -1598,15 +1595,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="mg_cms")
-            and grooming_setting in self.inclusive_jet_observables["mg_cms"]["soft_drop"]
+            and grooming_setting in self.inclusive_jet_observables["mg_cms"]["jet"]["soft_drop"]
         ):
-            pt_min = self.inclusive_jet_observables["mg_cms"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["mg_cms"]["pt"][-1]
+            pt_min = self.inclusive_jet_observables["mg_cms"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["mg_cms"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_jet_observables["mg_cms"]["jet_R"]
+                jetR in self.inclusive_jet_observables["mg_cms"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_jet_observables["mg_cms"]["eta"])
-                and jet_groomed_lund.Delta() > self.inclusive_jet_observables["mg_cms"]["dR"]
+                and abs(jet.eta()) < (self.inclusive_jet_observables["mg_cms"]["jet"]["eta"])
+                and jet_groomed_lund.Delta() > self.inclusive_jet_observables["mg_cms"]["jet"]["dR"]
             ):
                 mg = jet_groomed_lund.pair().m() / jet_pt  # Note: untagged jets will return negative value
                 self.observable_dict_event[
@@ -1620,15 +1617,15 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="zg_cms")
-            and grooming_setting in self.inclusive_jet_observables["zg_cms"]["soft_drop"]
+            and grooming_setting in self.inclusive_jet_observables["zg_cms"]["jet"]["soft_drop"]
         ):
-            pt_min = self.inclusive_jet_observables["zg_cms"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["zg_cms"]["pt"][-1]
+            pt_min = self.inclusive_jet_observables["zg_cms"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["zg_cms"]["jet"]["pt"][-1]
             if (
-                jetR in self.inclusive_jet_observables["zg_cms"]["jet_R"]
+                jetR in self.inclusive_jet_observables["zg_cms"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_jet_observables["zg_cms"]["eta"])
-                and jet_groomed_lund.Delta() > self.inclusive_jet_observables["zg_cms"]["dR"]
+                and abs(jet.eta()) < (self.inclusive_jet_observables["zg_cms"]["jet"]["eta"])
+                and jet_groomed_lund.Delta() > self.inclusive_jet_observables["zg_cms"]["jet"]["dR"]
             ):
                 zg = jet_groomed_lund.z()  # Note: untagged jets will return negative value
                 self.observable_dict_event[
@@ -1644,12 +1641,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="rg_atlas")
             and grooming_setting in self.inclusive_jet_observables["rg_atlas"]["soft_drop"]
         ):
-            pt_min = self.inclusive_jet_observables["rg_atlas"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["rg_atlas"]["pt"][1]
+            pt_min = self.inclusive_jet_observables["rg_atlas"]["jet"]["pt"][0]
+            pt_max = self.inclusive_jet_observables["rg_atlas"]["jet"]["pt"][1]
             if (
                 pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_jet_observables["rg_atlas"]["eta"] - jetR)
-                and jetR in self.inclusive_jet_observables["rg_atlas"]["jet_R"]
+                and abs(jet.eta()) < (self.inclusive_jet_observables["rg_atlas"]["jet"]["eta"] - jetR)
+                and jetR in self.inclusive_jet_observables["rg_atlas"]["jet"]["R"]
             ):
                 # Note: untagged jets will return negative value
                 rg = jet_groomed_lund.Delta()
@@ -1693,17 +1690,17 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             trigger_particles = defaultdict(list)
             # Keep track of the associated particles in pt ranges
             associated_particles = defaultdict(list)
-            pt_trigger_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["pt_trig"]
+            pt_trigger_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["trigger"]["pt"]
             pt_associated_ranges = itertools.pairwise(
-                self.hadron_trigger_hadron_observables["dihadron_star"]["pt_assoc"]
+                self.hadron_trigger_hadron_observables["dihadron_star"]["hadron"]["pt"]
             )
             for particle in fj_particles:
                 # Cuts:
                 # - eta
                 # - Charged hadrons (pi+, K+, p+)
-                if abs(particle.eta()) < self.hadron_trigger_hadron_observables["dihadron_star"]["eta"] and pid_hadrons[
-                    np.abs(particle.user_index()) - 1
-                ] in [211, 321, 2212]:
+                if abs(particle.eta()) < self.hadron_trigger_hadron_observables["dihadron_star"]["trigger"][
+                    "eta"
+                ] and pid_hadrons[np.abs(particle.user_index()) - 1] in [211, 321, 2212]:
                     pt = particle.pt()
                     for pt_trig_range in pt_trigger_ranges:
                         pt_trig_min, pt_trig_max = pt_trig_range
@@ -1830,7 +1827,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # NOTE: This will record the hadron trigger even if it's not used in the IAA. However,
                 #       this is fine because we account for the difference in low and high trigger ranges
                 #       when we construct the histograms.
-                if jetR == min(self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["jet_R"]):
+                if jetR == min(self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["R"]):
                     self.observable_dict_event[
                         f"hadron_trigger_chjet_IAA_pt_alice_trigger_pt{jet_collection_label}"
                     ].append(trigger.pt())
@@ -1858,7 +1855,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             #            can be much simpler.
                             if is_signal_event:
                                 if (
-                                    jetR in self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["jet_R"]
+                                    jetR in self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["R"]
                                     and pt_IAA[0] < jet_pt < pt_IAA[1]
                                     and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                                 ):
@@ -1871,7 +1868,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         ].append(jet_pt_unsubtracted)
 
                                 if (
-                                    jetR in self.hadron_trigger_chjet_observables["dphi_alice"]["jet"]["jet_R"]
+                                    jetR in self.hadron_trigger_chjet_observables["dphi_alice"]["jet"]["R"]
                                     and pt_dphi[0] < jet_pt < pt_dphi[-1]
                                 ):
                                     self.observable_dict_event[
@@ -1879,7 +1876,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     ].append([jet_pt, np.abs(trigger.delta_phi_to(jet))])
 
                                 # if (
-                                #     jetR in self.hadron_trigger_chjet_observables["dphi_ratio_alice"]["jet_R"]
+                                #     jetR in self.hadron_trigger_chjet_observables["dphi_ratio_alice"]["jet"]["R"]
                                 #     and pt_dphi_ratio[0] < jet_pt < pt_dphi_ratio[1]
                                 #     and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                                 # ):
@@ -1889,7 +1886,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                             else:
                                 if (
-                                    jetR in self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["jet_R"]
+                                    jetR in self.hadron_trigger_chjet_observables["IAA_pt_alice"]["jet"]["R"]
                                     and pt_IAA[0] < jet_pt < pt_IAA[1]
                                     and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                                 ):
@@ -1902,7 +1899,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                         ].append(jet_pt_unsubtracted)
 
                                 if (
-                                    jetR in self.hadron_trigger_chjet_observables["dphi_alice"]["jet"]["jet_R"]
+                                    jetR in self.hadron_trigger_chjet_observables["dphi_alice"]["jet"]["R"]
                                     and pt_dphi[0] < jet_pt < pt_dphi[-1]
                                 ):
                                     self.observable_dict_event[
@@ -1911,7 +1908,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                                 # The ratio should be constructed in post processing
                                 # if (
-                                #     jetR in self.hadron_trigger_chjet_observables["dphi_ratio_alice"]["jet"]["jet_R"]
+                                #     jetR in self.hadron_trigger_chjet_observables["dphi_ratio_alice"]["jet"]["R"]
                                 #     and pt_dphi_ratio[0] < jet_pt < pt_dphi_ratio[1]
                                 #     and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                                 # ):
@@ -1967,7 +1964,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # NOTE: This will record the hadron trigger even if it's not used in the IAA. However,
                 #       this is fine because we account for the difference in low and high trigger ranges
                 #       when we construct the histograms.
-                if jetR == min(self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet"]["jet_R"]):
+                if jetR == min(self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet"]["R"]):
                     self.observable_dict_event[
                         f"hadron_trigger_chjet_nsubjettiness_alice_trigger_pt{jet_collection_label}"
                     ].append(trigger.pt())
@@ -1991,7 +1988,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 self.hadron_trigger_chjet_observables,
                                 observable_name="nsubjettiness_alice",
                             )
-                            and jetR in self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet"]["jet_R"]
+                            and jetR in self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet"]["R"]
                         ):
                             if is_signal_event:
                                 if pt_nsubjettiness[0] < jet_pt < pt_nsubjettiness[1] and np.abs(
@@ -2041,7 +2038,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 trigger = trigger_array_hjet[random.randrange(len(trigger_array_hjet))]
 
                 # Record hadron pt for trigger normalization
-                if jetR == min(self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["jet_R"]):
+                if jetR == min(self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["R"]):
                     self.observable_dict_event[
                         f"hadron_trigger_chjet_hjet_star_trigger_pt{jet_collection_label}"
                     ].append(trigger.pt())
@@ -2065,7 +2062,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             self.hadron_trigger_chjet_observables, observable_name="IAA_pt_star"
                         ):
                             if (
-                                jetR in self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["jet_R"]
+                                jetR in self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["R"]
                                 and pt_IAA[0] < jet_pt < pt_IAA[1]
                                 and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                             ):
@@ -2078,7 +2075,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                     ].append(jet_pt_unsubtracted)
 
                             if (
-                                jetR in self.hadron_trigger_chjet_observables["dphi_star"]["jet"]["jet_R"]
+                                jetR in self.hadron_trigger_chjet_observables["dphi_star"]["jet"]["R"]
                                 and pt_dphi[0] < jet_pt < pt_dphi[1]
                             ):
                                 self.observable_dict_event[
@@ -2110,7 +2107,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="xj_atlas")
-            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["jet_R"]
+            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["R"]
         ):
             # First, find jets passing kinematic cuts
             jet_candidates = []
@@ -2148,7 +2145,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # CMS dijet v2
         if (
             self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="v2_cms")
-            and jetR in self.dijet_trigger_jet_observables["v2_cms"]["jet_R"]
+            and jetR in self.dijet_trigger_jet_observables["v2_cms"]["R"]
         ):
             ...
 
@@ -2158,21 +2155,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             self.measure_observable_for_current_event(
                 self.dijet_trigger_jet_observables, observable_name="pt_pair_atlas"
             )
-            and jetR in self.dijet_trigger_jet_observables["pt_pair_atlas"]["jet_R"]
+            and jetR in self.dijet_trigger_jet_observables["pt_pair_atlas"]["R"]
         ):
             ...
 
         # xj
         if (
             self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="xj_atlas")
-            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["jet_R"]
+            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["R"]
         ):
             ...
 
         # Dijet yield (JAA)
         if (
             self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="yield_atlas")
-            and jetR in self.dijet_trigger_jet_observables["yield_atlas"]["jet_R"]
+            and jetR in self.dijet_trigger_jet_observables["yield_atlas"]["R"]
         ):
             ...
 
@@ -2285,7 +2282,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 trigger = trigger_array_pi0[random.randrange(len(trigger_array_pi0))]
 
                 # Record trigger pt for normalization
-                if jetR == min(self.pion_trigger_chjet_observables["IAA_pt_STAR"]["jet_R"]):
+                if jetR == min(self.pion_trigger_chjet_observables["IAA_pt_STAR"]["R"]):
                     self.observable_dict_event[
                         f"pion_trigger_chjet_IAA_pt_star_trigger_pt{jet_collection_label}"
                     ].append(trigger.pt())
@@ -2308,7 +2305,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         ):
                             # IAA
                             if (
-                                jetR in self.pion_trigger_chjet_observables["IAA_pt_star"]["jet_R"]
+                                jetR in self.pion_trigger_chjet_observables["IAA_pt_star"]["R"]
                                 and pt_IAA[0] < jet_pt < pt_IAA[1]
                                 and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                             ):
@@ -2322,7 +2319,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                             # dphi
                             if (
-                                jetR in self.pion_trigger_chjet_observables["dphi_star"]["jet_R"]
+                                jetR in self.pion_trigger_chjet_observables["dphi_star"]["R"]
                                 and pt_dphi[0] < jet_pt < pt_dphi[-1]
                             ):
                                 self.observable_dict_event[
@@ -2656,7 +2653,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             isolation_type = self.gamma_trigger_jet_observables["Dz_atlas"]["isolation_type"]
             isolation_R = self.gamma_trigger_jet_observables["Dz_atlas"]["isolation_R"]
             isolation_Et_max = self.gamma_trigger_jet_observables["Dz_atlas"]["isolation_Et_max_AA"]
-            jet_R = self.gamma_trigger_jet_observables["Dz_atlas"]["jet_R"]
+            jet_R = self.gamma_trigger_jet_observables["Dz_atlas"]["R"]
             jet_eta = self.gamma_trigger_jet_observables["Dz_atlas"]["jet_eta"]
             jet_pt_min, jet_pt_max = self.gamma_trigger_jet_observables["Dz_atlas"]["jet_pt"]
             dPhi = self.gamma_trigger_jet_observables["Dz_atlas"]["dPhi"]
@@ -2776,7 +2773,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             isolation_R = self.gamma_trigger_jet_observables["xi_cms"]["isolation_R"]
             isolation_Et_max = self.gamma_trigger_jet_observables["xi_cms"]["isolation_Et_max"]
             # jet selection
-            jet_R = self.gamma_trigger_jet_observables["xi_cms"]["jet_R"]
+            jet_R = self.gamma_trigger_jet_observables["xi_cms"]["R"]
             jet_eta = self.gamma_trigger_jet_observables["xi_cms"]["jet_eta"]
             jet_pt_min = self.gamma_trigger_jet_observables["xi_cms"]["jet_pt_min"]
 
@@ -2940,7 +2937,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             if not self.is_AA:
                 isolation_Et_max = self.gamma_trigger_jet_observables["pt_atlas"]["isolation_Et_max_pp"]
 
-            jet_R = self.gamma_trigger_jet_observables["pt_atlas"]["jet_R"]
+            jet_R = self.gamma_trigger_jet_observables["pt_atlas"]["R"]
             jet_eta_min, jet_eta_max = self.gamma_trigger_jet_observables["pt_atlas"]["jet_eta"]
             jet_pt_min, jet_pt_max = self.gamma_trigger_jet_observables["pt_atlas"]["jet_pT"]
 
@@ -3019,7 +3016,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             isolation_type = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_type"]
             if not self.is_AA:
                 isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_Et_max_pp"]
-            jet_R = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_R"]
+            jet_R = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["R"]
             jet_eta_min, jet_eta_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_eta"]
             jet_pt_min, jet_pt_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_pT"]
             photon_jet_dPhi = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_deltaphi"]
@@ -3103,7 +3100,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             if not self.is_AA:
                 isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_Et_max_pp"]
             isolation_type = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_type"]
-            jet_R = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_R"]
+            jet_R = self.gamma_trigger_jet_observables["xj_gamma_cms"]["R"]
             jet_eta_min, jet_eta_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_eta"]
             jet_pt_min, jet_pt_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_pT"]
             photon_jet_dPhi = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_deltaphi"]
@@ -3262,7 +3259,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     #    - For constituent_subtraction, no subtraction is needed
                     # TODO(RJE): delta_phi needs an abs! (it ranges from -pi to pi)
                     if (
-                        jetR in self.gamma_trigger_jet_observables["g_cms"]["jet_R"]
+                        jetR in self.gamma_trigger_jet_observables["g_cms"]["R"]
                         and jet_pt_min < jet_pt < jet_pt_max
                         and abs(jet.eta()) < (self.gamma_trigger_jet_observables["g_cms"]["eta_cut_jet"])
                     ):
@@ -3366,7 +3363,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         self.measure_observable_for_current_event(
                             self.gamma_triggered_jet_observables, observable_name="axis_cms"
                         )
-                        and jetR in self.gamma_triggered_jet_observables["axis_cms"]["jet_R"]
+                        and jetR in self.gamma_triggered_jet_observables["axis_cms"]["R"]
                         and jet_pt_min < jet_pt < jet_pt_max
                         # TODO(RJE): CMS usually doesn't do a eta - R cut - check this.
                         and abs(jet.eta()) < (self.gamma_triggered_jet_observables["axis_cms"]["eta_R"] - jetR)
@@ -3503,7 +3500,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     #    - For constituent_subtraction, no subtraction is needed
                     if (
                         grooming_setting in self.gamma_trigger_jet_observables["rg_cms"]["soft_drop"]
-                        and jetR in self.gamma_trigger_jet_observables["rg_cms"]["jet_R"]
+                        and jetR in self.gamma_trigger_jet_observables["rg_cms"]["R"]
                         and jet_pt > jet_pt_min
                         and abs(jet.eta()) < (self.gamma_trigger_jet_observables["rg_cms"]["eta_cut_jet"])
                     ):

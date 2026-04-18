@@ -88,8 +88,9 @@ hadron:
       hepdata: https://www.hepdata.net/record/ins1127262
 
     centrality: [[0, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
-    pt: [5., 20.]
-    eta_cut: 0.35
+    hadron:
+      pt: [5., 20.]
+      eta: 0.35
 
     hepdata: "HEPData-ins1127262-v2-root.root"
 
@@ -198,8 +199,9 @@ hadron:
       hepdata: https://www.hepdata.net/record/ins619063
 
     centrality: [[0, 5], [10, 20], [20, 30], [30, 40]]
-    pt: [5., 12.]
-    eta_cut: 0.5
+    hadron:
+      pt: [5., 12.]
+      eta: 0.5
 
     hepdata: "HEPData-ins619063-v1-root.root"
 
@@ -314,12 +316,12 @@ hadron_trigger_hadron:
     # Trigger hadron
     trigger:
       pt: [8., 15.]
-      eta_cut: 1.0
+      eta: 1.0
     # Associated hadron
     hadron:
       # NOTE: Each bin is constructed from these bin edges. -1 is interpreted as without upper limit
       pt: [4., 6., -1.]
-      eta_cut: 1.0
+      eta: 1.0
 
     # Yield range are defined relative to 0 and pi
     # NOTE: The paper says 0.63, but I (RE) strongly suspect they're rounding from 0.628.
@@ -454,9 +456,10 @@ inclusive_chjet:
       hepdata: https://www.hepdata.net/record/ins1798665
 
     centrality: [[0, 10]]
-    jet_R: [0.2, 0.3, 0.4]
-    pt: [5., 30.]
-    eta_cut_R: 1.0
+    jet:
+      R: [0.2, 0.3, 0.4]
+      pt: [5., 30.]
+      eta_R: 1.0
 
     hepdata: "HEPData-ins1798665-v1-root.root"
 
@@ -574,11 +577,11 @@ hadron_trigger_chjet:
     centrality: [[0, 10]]
     trigger:
       pt: [9., 30.]
-      eta_cut: 0.9
+      eta: 0.9
     jet:
-      jet_R: [0.2, 0.5]
+      R: [0.2, 0.5]
       pt: [5., 30.]
-      eta_cut_R: 1.
+      eta_R: 1.
 
     hepdata: "HEPData-ins1512115-v1-root.root"
 
@@ -660,11 +663,11 @@ hadron_trigger_chjet:
     centrality: [[0, 10]]
     trigger:
       pt: [9., 30.]
-      eta_cut: 0.9
+      eta: 0.9
     jet:
-      jet_R: [0.3]
+      R: [0.3]
       pt: [9., 13.]
-      eta_cut_R: 1.
+      eta_R: 1.
 
     hepdata: "HEPData-ins1512115-v1-root.root"
 
@@ -764,7 +767,7 @@ pion_trigger_chjet:
     centrality: [[0, 15]]
     # pion trigger
     trigger:
-      eta_cut: 1.0
+      eta: 1.0
       # Matching the particle level range for the input to the smearing calculation
       Et: [9., 22.]
       #Et: [11., 15.]
@@ -774,12 +777,11 @@ pion_trigger_chjet:
       #            as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
       #            it with the experimentally specified weighting
       smearing:
-        detector_level_Et: [11., 15.]
-        particle_level_Et: [9., 22.]
+        - { detector_level_Et: [11., 15.], particle_level_Et: [9., 22.] }
     jet:
-      jet_R: [0.2, 0.5]
+      R: [0.2, 0.5]
       pt: [5., 30.]
-      eta_cut_R: 1.0 # eta_cut_R denotes considering R in fiducial acceptance
+      eta_R: 1.0 # eta_R denotes considering R in fiducial acceptance
     dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
 
     hepdata: "HEPData-ins2693040-v1-root.root"
@@ -860,19 +862,18 @@ pion_trigger_chjet:
     centrality: [[0, 15]]
     # pion trigger
     trigger:
-      eta_cut: 1.0
+      eta: 1.0
       # Matching the particle level range for the input to the smearing calculation
       Et: [9., 22.]
       #Et: [11., 15.]
 
       # See note above for pion_trigger_chjet_IAA_pt_star
       smearing:
-        detector_level_Et: [11., 15.]
-        particle_level_Et: [9., 22.]
+        - { detector_level_Et: [11., 15.], particle_level_Et: [9., 22.] }
     jet:
-      jet_R: [0.2, 0.5]
+      R: [0.2, 0.5]
       pt: [10., 15., 20.]
-      eta_cut_R: 1.0
+      eta_R: 1.0
 
     hepdata: "HEPData-ins2919952-v1-root.root"
 
@@ -957,7 +958,7 @@ gamma_trigger_hadron:
     # Gamma trigger
     trigger:
       pt: [5., 9.]
-      eta_cut: 10000.
+      eta: 10000.
       isolation:
         # NOTE(RJE) 2025/08: These are best guess based on the paper, but needs review by an expert
         type: "neutral"
@@ -965,7 +966,7 @@ gamma_trigger_hadron:
         Et_max: 0.1 # 10% of photon energy.
     hadron:
       pt: [5., 7.]
-      eta_cut: 0.35
+      eta: 0.35
 
     hepdata: "HEPData-ins1798493-v1-root.root"
 
@@ -1053,18 +1054,17 @@ gamma_trigger_chjet:
     centrality: [[0, 15]]
     # Gamma trigger
     trigger:
-      eta_cut: 1.0
+      eta: 1.0
       # Matching the particle level range for the input to the smearing calculation
       Et: [12., 23.]
       #Et: [15., 20.]
 
       smearing:
-        detector_level_Et: [15., 20.]
-        particle_level_Et: [12., 23.]
+        - { detector_level_Et: [15., 20.], particle_level_Et: [12., 23.] }
     jet:
-      jet_R: [0.2, 0.5]
+      R: [0.2, 0.5]
       pt: [5., 20.]
-      eta_cut_R: 1.0 # value gives eta that one still has to subtract R from
+      eta_R: 1.0 # value gives eta that one still has to subtract R from
     dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
 
     hepdata: "HEPData-ins2693040-v1-root.root"
@@ -1145,7 +1145,7 @@ gamma_trigger_chjet:
     centrality: [[0, 15]]
 
     trigger:
-      eta_cut: 1.0
+      eta: 1.0
       # Matching the particle level range for the input to the smearing calculation
       Et: [9., 22.]
       #Et: [11., 15.]
@@ -1155,12 +1155,11 @@ gamma_trigger_chjet:
       #            as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
       #            it with the experimentally specified weighting
       smearing:
-        detector_level_Et: [11., 15.]
-        particle_level_Et: [9., 22.]
+        - { detector_level_Et: [11., 15.], particle_level_Et: [9., 22.] }
     jet:
-      jet_R: [0.2, 0.5]
+      R: [0.2, 0.5]
       pt: [10., 15., 20.]
-      eta_cut_R: 1.0
+      eta_R: 1.0
 
     xtitle: "#it{p}_{T} (GeV/#it{c})"
     logy: true
