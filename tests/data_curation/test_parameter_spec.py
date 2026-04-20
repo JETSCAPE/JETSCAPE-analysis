@@ -20,10 +20,13 @@ logger = logging.getLogger(__name__)
         observable.RapiditySpec(1.0),
         observable.MassSpec(70.0, 120.0),
         observable.JetRSpec(0.4),
-        observable.SoftDropSpec(0.2, 0.1),
-        observable.DynamicalGroomingSpec(1.0),
-        observable.JetAxisDifferenceSpec("WTA-SD", observable.SoftDropSpec(0.2, 0.1)),
-        observable.JetAxisDifferenceSpec("WTA-SD", grooming_settings={"z_cut": 0.2, "beta": 0.5}),
+        observable.GroomingSettingsSpec(observable.SoftDropSpec(0.2, 0.1)),
+        observable.GroomingSettingsSpec(method={"z_cut": 0.1, "beta": 0.5}),
+        observable.GroomingSettingsSpec(observable.DynamicalGroomingSpec(1.0)),
+        observable.GroomingSettingsSpec(method={"a": 2.0}),
+        observable.JetAxisDifferenceSpec("WTA_SD", observable.SoftDropSpec(0.2, 0.1)),
+        observable.JetAxisDifferenceSpec("WTA_SD", grooming_settings={"z_cut": 0.2, "beta": 0.5}),
+        observable.JetAxisDifferenceSpec("WTA_Standard"),
         observable.AngularitySpec(2.0),
         observable.AngularitySpec(2.0, 1.0),
         observable.JetChargeSpec(0.3),
@@ -36,8 +39,13 @@ logger = logging.getLogger(__name__)
 )
 def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> None:
     caplog.set_level(logging.INFO)
-    logger.info(f"{spec.encode()=}")
-    assert spec.decode(spec.encode()) == spec
+    encoded = spec.encode()
+    decoded = spec.decode(encoded)
+    assert decoded == spec
+
+    # For testing as needed...
+    # if isinstance(spec, observable.GroomingSettingsSpec):
+    #     pytest.fail("Need to inspect")
 
 
 @pytest.mark.parametrize(
@@ -85,34 +93,60 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
         observable.JetRSpecs(values=[observable.JetRSpec(0.2)]),
         observable.JetRSpecs(values=[observable.JetRSpec(0.2), observable.JetRSpec(0.4), observable.JetRSpec(0.6)]),
         observable.JetRSpecs(values=[observable.JetRSpec(0.2), observable.JetRSpec(0.4)], label="jet"),
-        # SoftDrop
-        observable.SoftDropSpecs(values=[observable.SoftDropSpec(0.2, 0.1)]),
-        observable.SoftDropSpecs(values=[observable.SoftDropSpec(0.2, 0.1), observable.SoftDropSpec(0.1, 0.0)]),
-        observable.SoftDropSpecs(
-            values=[observable.SoftDropSpec(0.2, 0.1), observable.SoftDropSpec(0.1, 0.0)], label="jet"
+        # Grooming settings
+        ## SD
+        observable.GroomingSettingsSpecs(values=[observable.GroomingSettingsSpec(observable.SoftDropSpec(0.2, 0.1))]),
+        observable.GroomingSettingsSpecs(
+            values=[
+                observable.GroomingSettingsSpec(observable.SoftDropSpec(0.2, 0.1)),
+                observable.GroomingSettingsSpec(observable.SoftDropSpec(0.1, 0.0)),
+            ]
         ),
-        # DyG
-        observable.DynamicalGroomingSpecs(values=[observable.DynamicalGroomingSpec(1.0)]),
-        observable.DynamicalGroomingSpecs(
-            values=[observable.DynamicalGroomingSpec(1.0), observable.DynamicalGroomingSpec(2.0)]
+        observable.GroomingSettingsSpecs(
+            values=[
+                observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.1}),
+                observable.GroomingSettingsSpec({"z_cut": 0.1, "beta": 0.0}),
+            ],
+            label="jet",
         ),
-        observable.DynamicalGroomingSpecs(
-            values=[observable.DynamicalGroomingSpec(1.0), observable.DynamicalGroomingSpec(2.0)], label="jet"
+        ## DyG
+        observable.GroomingSettingsSpecs(
+            values=[observable.GroomingSettingsSpec({"a": 1.0}), observable.GroomingSettingsSpec({"a": 2.0})]
+        ),
+        ## Mixed values
+        # NOTE: Just trying the two methods here, but either could be used to construct the GroomingSettingsSpec. The dict happens to be more concise.
+        observable.GroomingSettingsSpecs(
+            values=[
+                observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.1}),
+                observable.GroomingSettingsSpec(observable.DynamicalGroomingSpec(2.0)),
+            ],
+            label="jet",
         ),
         # Jet-axis difference
         observable.JetAxisDifferenceSpecs(
-            values=[observable.JetAxisDifferenceSpec("WTA-SD", observable.SoftDropSpec(0.2, 0.1))]
-        ),
-        observable.JetAxisDifferenceSpecs(
             values=[
-                observable.JetAxisDifferenceSpec("WTA-SD", observable.SoftDropSpec(0.2, 0.1)),
-                observable.JetAxisDifferenceSpec("WTA-SD", observable.SoftDropSpec(0.2, 0.0)),
+                observable.JetAxisDifferenceSpec("WTA_SD", observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.1}))
             ]
         ),
         observable.JetAxisDifferenceSpecs(
             values=[
-                observable.JetAxisDifferenceSpec("WTA-SD", observable.SoftDropSpec(0.2, 0.1)),
-                observable.JetAxisDifferenceSpec("WTA-SD", observable.SoftDropSpec(0.2, 0.0)),
+                observable.JetAxisDifferenceSpec(
+                    "WTA_SD", observable.GroomingSettingsSpec(observable.SoftDropSpec(0.2, 0.1))
+                ),
+                observable.JetAxisDifferenceSpec(
+                    "WTA_SD", observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.0})
+                ),
+            ]
+        ),
+        observable.JetAxisDifferenceSpecs(
+            values=[
+                observable.JetAxisDifferenceSpec(
+                    "WTA_SD", observable.GroomingSettingsSpec(observable.SoftDropSpec(0.2, 0.1))
+                ),
+                observable.JetAxisDifferenceSpec(
+                    "WTA_SD", observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.0})
+                ),
+                observable.JetAxisDifferenceSpec("WTA_Standard"),
             ],
             label="jet",
         ),
@@ -176,8 +210,13 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
 )
 def test_param_specs_round_trip(specs: observable.ParameterSpecs, caplog: Any) -> None:
     caplog.set_level(logging.INFO)
-    logger.info(f"{specs.encode()=}")
-    assert specs.decode(specs.encode()) == specs
+    encoded = specs.encode()
+    decoded = specs.decode(encoded)
+    assert decoded == specs
+
+    # For testing as needed...
+    # if isinstance(specs, observable.JetAxisDifferenceSpecs):
+    #     pytest.fail("Need to inspect")
 
 
 @pytest.mark.parametrize("add_label", [False, True])

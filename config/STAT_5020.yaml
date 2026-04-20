@@ -600,8 +600,8 @@ inclusive_chjet:
       eta_R: 0.9
       axis:
         - { "type": "WTA_Standard" }
-        - { "type": "WTA_SD", "grooming_settings": { "z_cut": 0.2, "beta": 0 } }
-        - { "type": "WTA_SD", "grooming_settings": { "z_cut": 0.1, "beta": 0 } }
+        - { "type": "WTA_SD", "grooming_settings": { "type": "soft_drop", "z_cut": 0.2, "beta": 0 } }
+        - { "type": "WTA_SD", "grooming_settings": { "type": "soft_drop", "z_cut": 0.1, "beta": 0 } }
 
     xtitle: "#Delta R_{axis}"
 
@@ -815,9 +815,10 @@ inclusive_chjet:
       R: [0.2]
       pt: [60., 80.]
       eta_R: 0.9
-      soft_drop:
+      grooming_settings:
+        # This is implicitly SoftDrop
         - { "z_cut": 0.2, "beta": 0 }
-      dynamical_grooming:
+        # And this is implicitly Dynamical Grooming
         - { "a": 1.0 }
 
     # hepdata: "HEPData-ins2831271-v1-root.root"
@@ -877,9 +878,9 @@ inclusive_chjet:
                 additional_systematics: {}
                 index: 0
                 combinations:
-                  - parameters: { "jet_soft_drop": "z_cut_020_beta_0" }
+                  - parameters: { "jet_grooming_settings": "SD_z_cut_020_beta_0" }
                     table: "Table 4"
-                  - parameters: { "jet_dynamical_grooming": "a_1.0" }
+                  - parameters: { "jet_dynamical_grooming": "DyG_a_1.0" }
                     table: "Table 1"
               # # Equivalent to:
               # - parameters: {"pt": ["60_80"], "centrality": ["0_10"], "soft_drop": "z_cut_020_beta_0"}
@@ -924,14 +925,14 @@ inclusive_chjet:
                 systematics_names: {}
                 additional_systematics: {}
                 combinations:
-                  - parameters: { "jet_soft_drop": "z_cut_020_beta_0" }
+                  - parameters: { "jet_grooming_settings": "SD_z_cut_020_beta_0" }
                     index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 3"
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 2"
-                  - parameters: { "jet_dynamical_grooming": "a_1.0" }
+                  - parameters: { "jet_grooming_settings": "DyG_a_1.0" }
                     index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
@@ -942,14 +943,14 @@ inclusive_chjet:
                 systematics_names: {}
                 additional_systematics: {}
                 combinations:
-                  - parameters: { "jet_soft_drop": "z_cut_020_beta_0" }
+                  - parameters: { "jet_grooming_settings": "SD_z_cut_020_beta_0" }
                     index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 3"
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 2"
-                  - parameters: { "jet_dynamical_grooming": "a_1.0" }
+                  - parameters: { "jet_grooming_settings": "DyG_a_1.0" }
                     index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
@@ -968,14 +969,14 @@ inclusive_chjet:
                 systematics_names: {}
                 additional_systematics: {}
                 combinations:
-                  - parameters: { "jet_soft_drop": "z_cut_020_beta_0" }
+                  - parameters: { "jet_grooming_settings": "SD_z_cut_020_beta_0" }
                     index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
                         table: "Table 10"
                       - parameters: { "centrality": ["30_50"] }
                         table: "Table 9"
-                  - parameters: { "jet_dynamical_grooming": "a_1.0" }
+                  - parameters: { "jet_grooming_settings": "DyG_a_1.0" }
                     index: 0
                     combinations:
                       - parameters: { "centrality": ["0_10"] }

@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -288,6 +288,13 @@ class JetRSpec(ParameterSpec):
 
 @attrs.frozen
 class SoftDropSpec(ParameterSpec):
+    """Soft drop spec.
+
+    NOTE:
+        This isn't used directly in Specs, but rather through the GroomingSettingsSpec, since we need to
+        be able to mix the specification of grooming methods.
+    """
+
     z_cut: float
     beta: float
 
@@ -312,6 +319,13 @@ class SoftDropSpec(ParameterSpec):
 
 @attrs.frozen
 class DynamicalGroomingSpec(ParameterSpec):
+    """Dynamical grooming spec.
+
+    NOTE:
+        This isn't used directly in Specs, but rather through the GroomingSettingsSpec, since we need to
+        be able to mix the specification of grooming methods.
+    """
+
     a: float
 
     def __str__(self) -> str:
@@ -330,29 +344,104 @@ class DynamicalGroomingSpec(ParameterSpec):
         )
 
 
-def _convert_grooming_settings(
-    value: SoftDropSpec | DynamicalGroomingSpec | dict[str, float] | None,
-) -> SoftDropSpec | DynamicalGroomingSpec | None:
+def _convert_to_grooming_method_spec(
+    value: SoftDropSpec | DynamicalGroomingSpec | dict[str, float],
+) -> SoftDropSpec | DynamicalGroomingSpec:
     # If it's already a grooming spec or None, nothing else to be done
-    if isinstance(value, SoftDropSpec | DynamicalGroomingSpec | None):
+    if isinstance(value, SoftDropSpec | DynamicalGroomingSpec):
         return value
     # Now, check for kwargs for different grooming methods
+    # Soft Drop
     if "z_cut" in value:
         return SoftDropSpec(**value)
+    # Dynamical grooming
     if list(value.keys()) == ["a"]:
         return DynamicalGroomingSpec(**value)
 
-    msg = f"Could not convert grooming_methods argument to JetAxisDifference. Provided: {value=}"
+    msg = f"Could not convert grooming_methods argument into specs. Provided: {value=}"
+    raise ValueError(msg)
+
+
+# Convenience dictionaries to aid in conversion back and forth
+GROOMING_SETTINGS_TYPE_TO_LABEL: dict[SoftDropSpec | DynamicalGroomingSpec, str] = {
+    SoftDropSpec: "SD",
+    DynamicalGroomingSpec: "DyG",
+}
+GROOMING_SETTINGS_LABEL_TO_TYPE: dict[str, SoftDropSpec | DynamicalGroomingSpec] = {
+    v: k for k, v in GROOMING_SETTINGS_TYPE_TO_LABEL.items()
+}
+
+
+@attrs.frozen
+class GroomingSettingsSpec(ParameterSpec):
+    """Grooming settings specification, which contains the settings of a particular grooming method.
+
+    I'm being a little loose with the language, since here "method" refers to the method + some particular settings specification.
+    However, it's useful to have some separate label since this is already called a GroomingSettingsSpec
+
+    NOTE:
+        This additional level of indirection is necessary since we want to be able to mix SoftDrop
+        and Dynamical Grooming together. They're exclusive methods (i.e. we wouldn't apply both at once),
+        so we only want to specify one at a time.
+
+    Attributes:
+        method: Settings for a grooming method.
+    """
+
+    # The point with the convert here is that we'll be passed arguments that are a dict with SoftDrop or Dynamical Grooming
+    # parameters, so we need to ensure that it's actually of the expected type.
+    method: SoftDropSpec | DynamicalGroomingSpec = attrs.field(converter=_convert_to_grooming_method_spec)
+
+    def __str__(self) -> str:
+        return f"Grooming Settings ({self.method!s}))"
+
+    def encode(self) -> str:
+        output = f"{GROOMING_SETTINGS_TYPE_TO_LABEL[type(self.method)]}"
+        output += f"_{self.method.encode()}"
+        return output
+
+    @classmethod
+    def decode(cls, value: str) -> GroomingSettingsSpec:
+        # `value` is of the form: "{grooming_type}_{grooming_settings}"
+        # indices:                  0              1
+        split = value.split("_")
+        grooming_type = GROOMING_SETTINGS_LABEL_TO_TYPE[split[0]]
+        grooming_settings = grooming_type.decode("_".join(split[1:]))
+
+        return cls(method=grooming_settings)
+
+
+def _convert_to_grooming_settings_spec(
+    value: GroomingSettingsSpec | SoftDropSpec | DynamicalGroomingSpec | dict[str, float],
+) -> SoftDropSpec | DynamicalGroomingSpec:
+    # If it's already a grooming settings spec, nothing else to be done
+    if isinstance(value, GroomingSettingsSpec):
+        return value
+    # If it's already the underlying method or a mapping, we should pass it through to
+    if isinstance(value, SoftDropSpec | DynamicalGroomingSpec | Mapping):
+        return GroomingSettingsSpec(value)
+
+    msg = f"Could not convert grooming_methods argument into specs. Provided: {value=}"
     raise ValueError(msg)
 
 
 @attrs.frozen
 class JetAxisDifferenceSpec(ParameterSpec):
-    type: str
-    # The point with the convert here is that we'll be passed arguments that are a dict with SoftDrop parameters,
-    # so we need to ensure that it's actually of the expected type.
-    grooming_settings: SoftDropSpec | DynamicalGroomingSpec | None = attrs.field(
-        default=None, converter=_convert_grooming_settings
+    """Jet-axis difference specification.
+
+    NOTE:
+        Possible axis values include "WTA_Standard", "WTA_SD", and "Standard_SD".
+
+    Args:
+        type: Type of the jet-axis difference. Note that each method should be separated by an "_"!
+            For consistency, you should not use "-".
+    """
+
+    type: str = attrs.field(converter=lambda x: x.replace("-", "_"))
+    # The point with the convert here is that we'll be passed arguments that are a dict with SoftDrop or Dynamical Grooming
+    # parameters, so we need to ensure that it's actually of the expected type.
+    grooming_settings: GroomingSettingsSpec | None = attrs.field(
+        default=None, converter=lambda x: _convert_to_grooming_settings_spec(x) if x is not None else None
     )
 
     def __str__(self) -> str:
@@ -370,19 +459,15 @@ class JetAxisDifferenceSpec(ParameterSpec):
     @classmethod
     def decode(cls, value: str) -> JetAxisDifferenceSpec:
         # `value` is of the form: "{type}_{grooming_settings}"
-        # where type is of the form method1_method2, so the indices are offset by one
-        # indices:                 0 (1)   2
+        # where type is of the form "method1_method2", so the indices are offset by +1
+        # e.g.     "method1_method2_{grooming_settings}"
+        # indices:  0      (1)       (2) ...
         split = value.split("_")
         grooming_settings = None
+        # Grooming settings start at index 2
         if len(split) > 2:
-            # We have grooming settings, so we need to parse those
-            # Use "z_cut" as the sentinel for whether we have SoftDrop or DynamicalGrooming
-            if "z_cut" in value:
-                grooming_settings = SoftDropSpec.decode("_".join(split[1:]))
-            else:
-                grooming_settings = DynamicalGroomingSpec.decode("_".join(split[1:]))
-
-        return cls(type="_".join(split[:1]), grooming_settings=grooming_settings)
+            grooming_settings = GroomingSettingsSpec.decode("_".join(split[2:]))
+        return cls(type="_".join(split[:2]), grooming_settings=grooming_settings)
 
 
 @attrs.frozen
@@ -752,25 +837,13 @@ class JetRSpecs(ParameterSpecs[JetRSpec]):
 
 
 @attrs.define
-class SoftDropSpecs(ParameterSpecs[SoftDropSpec]):
-    name: ClassVar[str] = "soft_drop"
+class GroomingSettingsSpecs(ParameterSpecs[GroomingSettingsSpec]):
+    name: ClassVar[str] = "grooming_settings"
 
     @classmethod
-    def from_config(cls, config: dict[str, Any], label: str = "") -> SoftDropSpecs:
+    def from_config(cls, config: dict[str, Any], label: str = "") -> GroomingSettingsSpecs:
         return cls(
-            values=[SoftDropSpec(**v) for v in config[cls.name]],
-            label=label,
-        )
-
-
-@attrs.define
-class DynamicalGroomingSpecs(ParameterSpecs[DynamicalGroomingSpec]):
-    name: ClassVar[str] = "dynamical_grooming"
-
-    @classmethod
-    def from_config(cls, config: dict[str, Any], label: str = "") -> DynamicalGroomingSpecs:
-        return cls(
-            values=[DynamicalGroomingSpec(**v) for v in config[cls.name]],
+            values=[_convert_to_grooming_settings_spec(**v) for v in config[cls.name]],
             label=label,
         )
 
@@ -946,8 +1019,7 @@ def extract_jet_parameters(config: dict[str, Any], label: str = "") -> AllParame
         # Jet finding parameters
         JetRSpecs,
         # Jet observable parameters
-        SoftDropSpecs,
-        DynamicalGroomingSpecs,
+        GroomingSettingsSpecs,
         JetAxisDifferenceSpecs,
         AngularitySpecs,
         SubjetRSpecs,
