@@ -1390,7 +1390,7 @@ class Observable:
 
         # Need the names for labeling later
         # As noted above, we're return the encoded name since it's unique.
-        parameter_specs_names = [p.encode_name() for p in parameters]
+        parameter_specs_names = [p.encode_name for p in parameters]
         # parameter_specs_names = [p.name for p in parameters]
         # And then determine all of the values, as well as the indices
         values_of_parameters = [p.values for p in parameters]
