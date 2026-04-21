@@ -200,7 +200,7 @@ def construct_hepdata_v2_histogram_properties_from_hepdata_v1(
     )
 
 
-def is_observable_hepdata_v1(config: dict[str, Any]) -> bool:
+def does_observable_contain_hepdata_v1(config: dict[str, Any]) -> bool:
     """True if the observable config is HEPData v1.
 
     NOTE:
@@ -526,24 +526,25 @@ def main(  # noqa: C901
         # Option to select particular observables or classes of observables.
         # Super useful for debugging, so I leave them comment out here for when needed
         # if (obs.sqrt_s, obs.observable_class) != (200, "hadron"):
-        # if obs.sqrt_s != 5020 or obs.name != "zg_cms":
-        # if obs.sqrt_s != 5020:
+        # if obs.identifier != (5020, "gamma_trigger_jet", "g_cms"):
         # if obs.identifier != (5020, "inclusive_jet", "mg_cms"):
-        #    continue
+        # if obs.identifier != (5020, "inclusive_jet", "zg_cms"):
+        if obs.identifier != (5020, "inclusive_chjet", "angularity_alice"):
+            continue
 
         logger.info(f"Processing {obs.identifier}")
-        is_v1 = is_observable_hepdata_v1(obs.config)
+        is_v1 = does_observable_contain_hepdata_v1(obs.config)
 
         if not is_v1:
+            msg = f"'{obs.observable_str}' No HEPData v1 available."
             # Customize the messages a bit just to help keep track...
             if "data" in obs.config:
-                logger.info(f"'{obs.observable_str}' is already HEPData v2")
+                msg += " It's already HEPData v2"
             elif "custom_data" in obs.config:
-                logger.info(f"'{obs.observable_str}' uses custom data and cannot be converted automatically.")
+                msg += " It uses custom data and cannot be converted automatically."
             else:
-                logger.info(
-                    f"'{obs.observable_str}' is not recognized as HEPData v2 - not sure what this is, so nothing else to be done."
-                )
+                msg += " It is not recognized as HEPData v2 - not sure what this is, so nothing else to be done."
+            logger.info(msg)
             continue
 
         # First, let's build the HEPData records, as best we can.
