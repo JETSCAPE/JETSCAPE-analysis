@@ -560,8 +560,13 @@ def main(  # noqa: C901
 
         # Now, we need to retrieve the HEPData information based on the parameters
         parameters = obs.parameters()
-        # NOTE: We need the pt binning info solely to generate the older entry name from the parameters
-        pt_specs = observable.find_parameter_by_spec_type(parameters, desired_type=observable.PtSpecs)
+        # NOTE: We need the pt binning info solely to generate the older entry name from the parameters.
+        #       There could be multiple pt specs in the case of a trigger and recoil, so we need to retrieve the correct one.
+        available_pt_specs = observable.find_parameter_by_spec_type(parameters, desired_type=observable.PtSpecs)
+        if len(available_pt_specs) > 1:
+            msg = f"Multiple pt specs: {available_pt_specs}. Need to figure out what to do (probably edit around here)"
+            raise ValueError(msg)
+        pt_specs = available_pt_specs[0]
         n_pt_bins = len(pt_specs.values)
 
         observable_blocks = {
@@ -570,7 +575,11 @@ def main(  # noqa: C901
         }
         for label, (collision_system, observable_block_name) in label_to_observable_block.items():
             histograms = []
+            # We will use these to determine which parameters to write.
+            # NOTE: It's import to use the encoded name so we can match the parameter combinations below.
+            essential_parameters_labels = [p.encode_name for p in obs.essential_parameters()]
             for params, param_indices in obs.generate_parameter_combinations(parameters=parameters):
+                # Encode the index key so we can pass those to the entry_name function and not overwrite the parameters themselves.
                 labeled_indices = {f"{k}_index": v for k, v in param_indices.items()}
                 suffix, pt_suffix = generate_entry_name_from_parameters(
                     **{**params, **labeled_indices},
@@ -586,7 +595,11 @@ def main(  # noqa: C901
                 )
                 histograms.append(
                     data.HEPDataEntry(
-                        parameters=params,
+                        # Only pass the parameters which are essential to the description of the HEPDataEntry
+                        # This keeps the parameter list as brief as
+                        # NOTE: It's important that we pass the parameters themselves rather than the essential parameters
+                        #       since we want ParameterSpec objects here, and the essential parameters are ParameterSpecs.
+                        parameters={k: v for k, v in params.items() if k in essential_parameters_labels},
                         table=hepdata_table,
                         table_index=hepdata_table_index,
                         # These values are not stored here, so there's nothing to add...
