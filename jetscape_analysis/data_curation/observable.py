@@ -1212,7 +1212,7 @@ _T_Specs = TypeVar("_T_Specs", bound=ParameterSpecs)
 def find_parameter_by_spec_type(
     parameters: AllParameters,
     desired_type: type[_T_Spec] | type[_T_Specs],
-) -> _T_Specs:
+) -> list[_T_Specs]:
     """Find the ParameterSpecs in a list of all observable parameters.
 
     It's preferred to iterate over values, but sometimes it's useful to be able to pick them out individually.
@@ -1226,19 +1226,24 @@ def find_parameter_by_spec_type(
         desired_type: Type of the desired ParameterSpec of ParameterSpecs
 
     Returns:
-        The desired ParameterSpecs, or raises a ValueError if the type cannot be found
+        A list of the desired ParameterSpecs, or raises a ValueError if the type cannot be found
     """
+    specs = []
     for p in parameters:
         if issubclass(desired_type, ParameterSpec):
             # Parameter Spec
             for v in p.values:
                 if isinstance(v, desired_type):
-                    return p
+                    specs.append(p)
         elif isinstance(p, desired_type):
             # ParameterSpecs
-            return p
-    msg = f"Could not find desired type: {desired_type} in {parameters=}"
-    raise ValueError(msg)
+            specs.append(p)
+
+    if not specs:
+        msg = f"Could not find desired type: {desired_type} in {parameters=}"
+        raise ValueError(msg)
+
+    return specs
 
 
 @attrs.define
