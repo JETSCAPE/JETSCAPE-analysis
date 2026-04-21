@@ -73,6 +73,9 @@ That's it! Now you can proceed to analyze events.
 
 #### Manual installation
 
+> [!WARNING]
+> Installing the dependencies (particularly heppy) is non-trivial. Only go this route if you know what you're doing!
+
 We recommend to use a virtual environment such as [uv](https://docs.astral.sh/uv/) or [venv](https://docs.python.org/3/library/venv.html) to manage your python environment, e.g.:
 
 ```bash
@@ -80,11 +83,11 @@ $ cd /home/jetscape-user/JETSCAPE-analysis
 # Using uv
 $ uv venv --python <path_to_python_executable_if_needed> .venv
 $ source .venv/bin/activate
-$ pip install pyhepmc pyyaml numpy tqdm
+$ uv pip install -e ".[dev]"
 # Using virtualenv
 $ python3 -m venv .venv
 $ source .venv/bin/activate
-$ pip install pyhepmc pyyaml numpy tqdm
+$ python3 -m pip install -e ".[dev]"
 ```
 
 Install `heppy` wherever you desire:
