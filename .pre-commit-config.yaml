@@ -13,13 +13,13 @@ repos:
   #    name: identity (all)
 
   - repo: https://github.com/adamchainz/blacken-docs
-    rev: "1.19.1"
+    rev: "1.20.0"
     hooks:
       - id: blacken-docs
         additional_dependencies: [black==24.*]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: "v5.0.0"
+    rev: "v6.0.0"
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -51,14 +51,14 @@ repos:
         args: ["--prose-wrap=preserve", "--print-width=120"]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.12.3"
+    rev: "v0.15.11"
     hooks:
       - id: ruff-check
         args: ["--fix", "--show-fixes"]
       - id: ruff-format
 
   - repo: https://github.com/codespell-project/codespell
-    rev: "v2.4.1"
+    rev: "v2.4.2"
     hooks:
       - id: codespell
         additional_dependencies: [tomli]
@@ -66,7 +66,7 @@ repos:
         exclude: .ipynb
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: "v0.10.0.1"
+    rev: "v0.11.0.1"
     hooks:
       - id: shellcheck
 
@@ -79,13 +79,13 @@ repos:
         exclude: .pre-commit-config.yaml
 
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: "v0.24.1"
+    rev: "v0.25"
     hooks:
       - id: validate-pyproject
         additional_dependencies: ["validate-pyproject-schema-store[all]"]
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: "0.33.2"
+    rev: "0.37.1"
     hooks:
       - id: check-dependabot
       - id: check-github-workflows
