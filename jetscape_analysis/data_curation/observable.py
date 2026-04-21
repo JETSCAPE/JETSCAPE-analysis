@@ -1300,22 +1300,6 @@ class Observable:
         # (e.g. not a hadron, jet, ...), such as centrality.
         _parameters: AllParameters = [CentralitySpecs.from_config(config=self.config)]
 
-        ######################
-        # Inclusive parameters
-        ######################
-        if self.observable_class.startswith("inclusive") or self.observable_class == "hadron":
-            # Jet parameters
-            if "jet" in self.observable_class:
-                _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label="jet"))
-
-            # Hadron parameters
-            if "hadron" in self.observable_class:
-                _parameters.extend(extract_hadron_parameters(config=self.config.get("hadron", {}), label="hadron"))
-
-        # Hadron correlations
-        if self.observable_class == "hadron_correlation":
-            _parameters.extend(extract_hadron_correlations_parameters(config=self.config, label=""))
-
         ####################
         # Trigger parameters
         ####################
@@ -1336,23 +1320,34 @@ class Observable:
                     res = func(config=self.config.get("trigger", {}), label=f"{trigger_name}_trigger")
                     _parameters.extend(res)
 
-            # And then:
-            # TODO(RJE): Fill the rest of this out!!
-            # Recoil/associated properties
-            # NOTE: The observable_class are of the form "X_trigger_Y", where X is the trigger and Y is the recoil/associated.
-            #       Since we only want to target the recoil here, we look for "_trigger_Y" for Y
-            # Jet properties
-            # NOTE: Need to explicitly check for chjet and jet since we're including more of the observable class
-            # TODO(RJE): Double check in the morning - think these are redundant now with everything moved into consistent configs...
-            if "_trigger_chjet" in self.observable_class or "_trigger_jet" in self.observable_class:
-                # TODO(RJE): Is this really the right distinction? The above is explicitly labeled as trigger, so that seems like enough?
-                # Either ch_jet or jet
-                # jet_label = self.observable_class.split("_")[-1]
-                _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label="jet"))
+        ###############################################
+        # Inclusive and/or recoil/associated parameters
+        ###############################################
+        # We cover two cases here:
+        # 1. Inclusive hadrons and jets properties
+        # 2. Recoil/associated properties from a trigger
+        # NOTE: The observable_class are of the form "X_trigger_Y", where X is the trigger and Y is the recoil/associated.
+        #       Since we want to target the recoil here, we look for "_trigger_Y" for Y
 
-            # Hadron properties
-            if "_trigger_hadron" in self.observable_class:
-                _parameters.extend(extract_hadron_parameters(config=self.config.get("hadron", {}), label="hadron"))
+        # Hadron parameters
+        if self.observable_class == "hadron" or "_trigger_hadron" in self.observable_class:
+            _parameters.extend(extract_hadron_parameters(config=self.config.get("hadron", {}), label="hadron"))
+
+        # Inclusive jet parameters
+        if (
+            self.observable_class in ["inclusive_chjet", "inclusive_jet"]
+            or "_trigger_chjet" in self.observable_class
+            or "_trigger_jet" in self.observable_class
+        ):
+            _parameters.extend(extract_jet_parameters(config=self.config.get("jet", {}), label="jet"))
+
+        ################################
+        # Hadron correlations parameters
+        ################################
+        # This isn't necessarily a traditional trigger particle here, so we just handle it as an inclusive case.
+        # NOTE: This method probably needs to be developed further
+        if self.observable_class == "hadron_correlation":
+            _parameters.extend(extract_hadron_correlations_parameters(config=self.config, label=""))
 
         return _parameters
 
@@ -1379,9 +1374,16 @@ class Observable:
             List of parameter specs, list of bins associated with the parameters (e.g. pt). These
             can be zipped together to provide the appropriate indices.
         """
+        # Determining the appropriate label is a bit tricky:
+        # 1. We want to be able to identify the parameter by the obvious name - e.g. `pt`.
+        #    This would argue for the parameter spec name.
+        # 2. However, we need unique names for the keys, since e.g. both the trigger and the recoil could have a pt field.
+        #    This would argue for using the encoded name.
+        # As of 2026 April, we return #2 since we need the unique key. But if this became a problem,
+        # we could always add another mapping between the key and the "obvious" parameter name.
+
         # Need the names for labeling later
-        # TODO(RJE): Confirm whether there are cases where we need the encoded name instead.
-        #            If we use the encoded name, it's a bit annoying to associate with the parameters.
+        # As noted above, we're return the encoded name since it's unique.
         parameter_specs_names = [p.encode_name() for p in parameters]
         # parameter_specs_names = [p.name for p in parameters]
         # And then determine all of the values, as well as the indices
@@ -1393,6 +1395,7 @@ class Observable:
 
         # And then return them labeled by the parameter name
         # We want: ({"pt": [], ...], {"pt": }})
+        # NOTE: Since we use the encoded parameters, the key will likely be more complicated - e.g. `jet_pt`
         yield from zip(
             (dict(zip(parameter_specs_names, values, strict=True)) for values in combinations),
             (dict(zip(parameter_specs_names, values, strict=True)) for values in indices_combinations),
