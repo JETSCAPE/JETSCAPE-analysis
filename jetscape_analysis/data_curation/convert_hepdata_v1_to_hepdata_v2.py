@@ -23,43 +23,80 @@ from jetscape_analysis.data_curation import data, hepdata_utils, observable
 logger = logging.getLogger(__name__)
 
 
-def generate_entry_name_from_parameters(
+def generate_entry_name_from_parameters(  # noqa: C901
     n_pt_bins: int = 1,
-    pt_index: int | None = None,
+    hadron_pt_index: int | None = None,
+    jet_pt_index: int | None = None,
     jet_R: observable.JetRSpec | None = None,
-    kappa: observable.AngularitySpec | None = None,
-    soft_drop: observable.SoftDropSpec | None = None,
-    axis: observable.JetAxisDifferenceSpec | None = None,
+    jet_grooming_settings: observable.GroomingSettingsSpec | None = None,
+    jet_axis: observable.JetAxisDifferenceSpec | None = None,
+    jet_angularity: observable.AngularitySpec | None = None,
+    jet_charge: observable.JetChargeSpec | None = None,
+    jet_subjet_R: observable.SubjetRSpec | None = None,
     # kwargs just absorbs the rest of the arguments, so they can be passed blindly
-    **kwargs: Any,  # noqa: ARG001
-) -> str:
+    **kwargs: Any,
+) -> tuple[str, str]:
     """Generate HEPData v1 entry name from HEPData v2 parameters.
 
     We basically dump all of the parameters here and just let it sort it out.
+
+    Args:
+        ... Any parameters and indices that we need to build up the HEPData v1 entry name.
+        If they're not available, they will be None.
+    Returns:
+        suffix, pt_suffix to specify the HEPData v1 entry name.
     """
+    # Double check to warn the user if there are problems.
+    # We expect to process all arguments, except for the indices and selected specs.
+    # This list of specs is empirically determined
+    expected_specs_to_skip = ["centrality", "hadron_pt", "hadron_eta", "jet_pt", "jet_eta", "jet_eta_R"]
+    for k, v in kwargs.items():
+        if not ("index" in k or any(k == name for name in expected_specs_to_skip)):
+            logger.warning(f"Unrecognized argument to generating entry name: {k=}: {v=}")
+
+    # First, start with the pt_suffix since it's simpler.
+    # We only want to include if we have multiple pt bins
+    # NOTE: This might change in the v2 format, but this is correct for the v1 format.
+    pt_suffix = ""
+    # We want either the hadron or the jet pt index, but we won't know which one is available a priori
+    pt_index = hadron_pt_index if hadron_pt_index is not None else jet_pt_index
+    if pt_index is not None and n_pt_bins > 2:
+        pt_suffix = f"_pt{pt_index}"
+
+    # Next, onto the full suffix
     suffix = ""
     # jet_R
     if jet_R is not None:
         suffix += f"_R{jet_R.R}"
-    # pt
-    pt_suffix = ""
-    # We only want to include if we have multiple pt bins
-    # NOTE: This might change in the v2 format, but this is correct for the v1 format.
-    if pt_index is not None and n_pt_bins > 2:
-        pt_suffix = f"_pt{pt_index}"
-    # soft drop
+    # Grooming settings
+    # By convention, the subobservable (e.g. axis, ...) goes after the grooming settings if grooming settings are provided.
     # Generated: hepdata_pp_dir_R0.2_zcut0.2_beta0_WTA_SD
     # In config: hepdata_pp_dir_R0.2_zcut0.2_beta0_WTA_SD_pt0
-    if soft_drop is not None:
-        suffix += f"_zcut{soft_drop.z_cut:g}_beta{soft_drop.beta:g}"
-    # kappa
-    if kappa is not None:
-        suffix += f"_k{kappa.kappa}"
+    if jet_grooming_settings:
+        if isinstance(jet_grooming_settings.method, observable.SoftDropSpec):
+            soft_drop = jet_grooming_settings.method
+            # For the alice angularity and mass measurements, we pass through a SoftDrop with z_cut = 0 and beta = 0,
+            # so we want to filter out that case. Maybe this is a poor design...
+            if soft_drop.z_cut > 0.0 or soft_drop.beta > 0.0:
+                suffix += f"_zcut{soft_drop.z_cut:g}_beta{soft_drop.beta:g}"
+        elif isinstance(jet_grooming_settings.method, observable.DynamicalGroomingSpec):
+            dyg = jet_grooming_settings.method
+            suffix += f"_a{dyg.a:g}"
     # Jet-axis difference
-    if axis:
-        if axis.grooming_settings:
-            suffix += f"_zcut{axis.grooming_settings.z_cut:g}_beta{axis.grooming_settings.beta:g}"
-        suffix += f"_{axis.type}"
+    if jet_axis:
+        if jet_axis.grooming_settings:
+            method = jet_axis.grooming_settings.method
+            suffix += f"_zcut{method.z_cut:g}_beta{method.beta:g}"
+        suffix += f"_{jet_axis.type}"
+    # Angularity
+    if jet_angularity:
+        suffix += f"_alpha_{jet_angularity.alpha}"
+    # Charge
+    if jet_charge:
+        suffix += f"_k{jet_charge.kappa}"
+    # Subjet R
+    if jet_subjet_R:
+        suffix += f"_r{jet_subjet_R.r}"
 
     return suffix, pt_suffix
 
