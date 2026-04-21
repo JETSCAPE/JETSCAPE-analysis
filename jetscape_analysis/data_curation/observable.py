@@ -1356,6 +1356,18 @@ class Observable:
 
         return _parameters
 
+    def essential_parameters(self) -> AllParameters:
+        """Just the parameters that are needed to describe variations in an observable.
+
+        In practice, this means parameters that actually vary, rather than those where there is only one variation.
+
+        Args:
+            None. It will determine the observable parameters
+        Returns:
+            Just the essential parameters needed to describe observable variations.
+        """
+        return [p for p in self.parameters() if len(p.values) > 1]
+
     def generate_parameter_combinations(self, parameters: AllParameters) -> Iterator[tuple[Parameters, Indices]]:
         """Generate combinations of parameters that are relevant to the observable.
 
