@@ -345,18 +345,23 @@ class DynamicalGroomingSpec(ParameterSpec):
 
 
 def _convert_to_grooming_method_spec(
-    value: SoftDropSpec | DynamicalGroomingSpec | dict[str, float],
+    value: SoftDropSpec | DynamicalGroomingSpec | dict[str, float | str],
 ) -> SoftDropSpec | DynamicalGroomingSpec:
+    """Convert a possible grooming method spec or arguments to a confirmed grooming method spec."""
     # If it's already a grooming spec or None, nothing else to be done
     if isinstance(value, SoftDropSpec | DynamicalGroomingSpec):
         return value
-    # Now, check for kwargs for different grooming methods
-    # Soft Drop
-    if "z_cut" in value:
-        return SoftDropSpec(**value)
-    # Dynamical grooming
-    if list(value.keys()) == ["a"]:
-        return DynamicalGroomingSpec(**value)
+    # Now, check for dict arguments for different grooming methods
+    # We'll determine the spec from the type
+    type = value.pop("type")
+    match type:
+        case "soft_drop":
+            return SoftDropSpec(**value)
+        case "dynamical_grooming":
+            return DynamicalGroomingSpec(**value)
+        case _:
+            # Call through to the ValueError
+            ...
 
     msg = f"Could not convert grooming_methods argument into specs. Provided: {value=}"
     raise ValueError(msg)
@@ -383,6 +388,11 @@ class GroomingSettingsSpec(ParameterSpec):
         This additional level of indirection is necessary since we want to be able to mix SoftDrop
         and Dynamical Grooming together. They're exclusive methods (i.e. we wouldn't apply both at once),
         so we only want to specify one at a time.
+
+    NOTE:
+        We support passing arguments to the method as a dictionary. If this is done, it needs to include:
+        {"type": name_of_grooming_method, "grooming_settings_1": a, "grooming_setting_2": b}. Accepted types
+        are "soft_drop" and "dynamical_grooming".
 
     Attributes:
         method: Settings for a grooming method.
@@ -414,11 +424,19 @@ class GroomingSettingsSpec(ParameterSpec):
 def _convert_to_grooming_settings_spec(
     value: GroomingSettingsSpec | SoftDropSpec | DynamicalGroomingSpec | dict[str, float],
 ) -> SoftDropSpec | DynamicalGroomingSpec:
+    """Convert a grooming settings spec, grooming method spec, or arguments, to a GroomingSettingsSpec.
+
+    NOTE:
+        We particularly accept the underlying SoftDropSpec or DynamicalGroomingSpec
+    """
     # If it's already a grooming settings spec, nothing else to be done
     if isinstance(value, GroomingSettingsSpec):
         return value
-    # If it's already the underlying method or a mapping, we should pass it through to
-    if isinstance(value, SoftDropSpec | DynamicalGroomingSpec | Mapping):
+    # If it's already the underlying method, we should pass it through to the standard conversion method
+    if isinstance(value, SoftDropSpec | DynamicalGroomingSpec):
+        return GroomingSettingsSpec(value)
+    # In the case of a map of arguments, we need some separate processing to handle the additional "type" argument
+    if isinstance(value, Mapping):
         return GroomingSettingsSpec(value)
 
     msg = f"Could not convert grooming_methods argument into specs. Provided: {value=}"
@@ -1025,7 +1043,7 @@ def extract_jet_parameters(config: dict[str, Any], label: str = "") -> AllParame
         SubjetRSpecs,
     ]
 
-    # Some types can be obviously related to the category - e.g. soft drop.
+    # Some types can be obviously related to the parameter category - e.g. soft drop is always related to a jet.
     # In that case, we can suppress the additional label.
     # This is mostly an aesthetic and conciseness choice, so as of 2026 April 16, we don't add any labels.
     # NOTE: If you modify this list, you should carefully follow through the consequences, and ensure that things still work.

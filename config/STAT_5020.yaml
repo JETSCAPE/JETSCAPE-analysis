@@ -599,9 +599,9 @@ inclusive_chjet:
       pt: [40., 60., 80., 100., 140.]
       eta_R: 0.9
       axis:
-        - { "type": "WTA_Standard" }
-        - { "type": "WTA_SD", "grooming_settings": { "type": "soft_drop", "z_cut": 0.2, "beta": 0 } }
-        - { "type": "WTA_SD", "grooming_settings": { "type": "soft_drop", "z_cut": 0.1, "beta": 0 } }
+        - { type: "WTA_Standard" }
+        - { type: "WTA_SD", grooming_settings: { type: "soft_drop", z_cut: 0.2, beta: 0 } }
+        - { type: "WTA_SD", grooming_settings: { type: "soft_drop", z_cut: 0.1, beta: 0 } }
 
     xtitle: "#Delta R_{axis}"
 
@@ -817,9 +817,9 @@ inclusive_chjet:
       eta_R: 0.9
       grooming_settings:
         # This is implicitly SoftDrop
-        - { "z_cut": 0.2, "beta": 0 }
+        - { type: "soft_drop", z_cut: 0.2, beta: 0 }
         # And this is implicitly Dynamical Grooming
-        - { "a": 1.0 }
+        - { type: "dynamical_grooming", a: 1.0 }
 
     # hepdata: "HEPData-ins2831271-v1-root.root"
 

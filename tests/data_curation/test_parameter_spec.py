@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
         observable.MassSpec(70.0, 120.0),
         observable.JetRSpec(0.4),
         observable.GroomingSettingsSpec(observable.SoftDropSpec(0.2, 0.1)),
-        observable.GroomingSettingsSpec(method={"z_cut": 0.1, "beta": 0.5}),
+        observable.GroomingSettingsSpec(method={"type": "soft_drop", "z_cut": 0.1, "beta": 0.5}),
         observable.GroomingSettingsSpec(observable.DynamicalGroomingSpec(1.0)),
-        observable.GroomingSettingsSpec(method={"a": 2.0}),
+        observable.GroomingSettingsSpec(method={"type": "dynamical_grooming", "a": 2.0}),
         observable.JetAxisDifferenceSpec("WTA_SD", observable.SoftDropSpec(0.2, 0.1)),
-        observable.JetAxisDifferenceSpec("WTA_SD", grooming_settings={"z_cut": 0.2, "beta": 0.5}),
+        observable.JetAxisDifferenceSpec("WTA_SD", grooming_settings={"type": "soft_drop", "z_cut": 0.2, "beta": 0.5}),
         observable.JetAxisDifferenceSpec("WTA_Standard"),
         observable.AngularitySpec(2.0),
         observable.AngularitySpec(2.0, 1.0),
@@ -104,20 +104,23 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
         ),
         observable.GroomingSettingsSpecs(
             values=[
-                observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.1}),
-                observable.GroomingSettingsSpec({"z_cut": 0.1, "beta": 0.0}),
+                observable.GroomingSettingsSpec({"type": "soft_drop", "z_cut": 0.2, "beta": 0.1}),
+                observable.GroomingSettingsSpec({"type": "soft_drop", "z_cut": 0.1, "beta": 0.0}),
             ],
             label="jet",
         ),
         ## DyG
         observable.GroomingSettingsSpecs(
-            values=[observable.GroomingSettingsSpec({"a": 1.0}), observable.GroomingSettingsSpec({"a": 2.0})]
+            values=[
+                observable.GroomingSettingsSpec({"type": "dynamical_grooming", "a": 1.0}),
+                observable.GroomingSettingsSpec({"type": "dynamical_grooming", "a": 2.0}),
+            ]
         ),
         ## Mixed values
         # NOTE: Just trying the two methods here, but either could be used to construct the GroomingSettingsSpec. The dict happens to be more concise.
         observable.GroomingSettingsSpecs(
             values=[
-                observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.1}),
+                observable.GroomingSettingsSpec({"type": "soft_drop", "z_cut": 0.2, "beta": 0.1}),
                 observable.GroomingSettingsSpec(observable.DynamicalGroomingSpec(2.0)),
             ],
             label="jet",
@@ -125,7 +128,9 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
         # Jet-axis difference
         observable.JetAxisDifferenceSpecs(
             values=[
-                observable.JetAxisDifferenceSpec("WTA_SD", observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.1}))
+                observable.JetAxisDifferenceSpec(
+                    "WTA_SD", observable.GroomingSettingsSpec({"type": "soft_drop", "z_cut": 0.2, "beta": 0.1})
+                )
             ]
         ),
         observable.JetAxisDifferenceSpecs(
@@ -134,7 +139,7 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
                     "WTA_SD", observable.GroomingSettingsSpec(observable.SoftDropSpec(0.2, 0.1))
                 ),
                 observable.JetAxisDifferenceSpec(
-                    "WTA_SD", observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.0})
+                    "WTA_SD", observable.GroomingSettingsSpec({"type": "soft_drop", "z_cut": 0.2, "beta": 0.0})
                 ),
             ]
         ),
@@ -144,7 +149,7 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
                     "WTA_SD", observable.GroomingSettingsSpec(observable.SoftDropSpec(0.2, 0.1))
                 ),
                 observable.JetAxisDifferenceSpec(
-                    "WTA_SD", observable.GroomingSettingsSpec({"z_cut": 0.2, "beta": 0.0})
+                    "WTA_SD", observable.GroomingSettingsSpec({"type": "soft_drop", "z_cut": 0.2, "beta": 0.0})
                 ),
                 observable.JetAxisDifferenceSpec("WTA_Standard"),
             ],
