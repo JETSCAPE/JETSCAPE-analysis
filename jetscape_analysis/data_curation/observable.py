@@ -639,8 +639,8 @@ class ParameterSpecs(Generic[T]):
 
     Attributes:
         values: Values of parameter spec
-        name: Name of the parameter specs. Must match the name of the parameter spec, as well as
-            the name in the config.
+        name: Name of the parameter specs. By convention, this name should match the name of the parameter spec.
+            It's also nice if it matches the name in the config, but that doesn't always make sense.
         spec_type: The ParameterSpec itself.
         label: An additional label to append to the
     """
@@ -862,7 +862,7 @@ class GroomingSettingsSpecs(ParameterSpecs[GroomingSettingsSpec]):
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> GroomingSettingsSpecs:
         return cls(
-            values=[_convert_to_grooming_settings_spec(**v) for v in config[cls.name]],
+            values=[_convert_to_grooming_settings_spec(v) for v in config[cls.name]],
             label=label,
         )
 
@@ -893,7 +893,7 @@ class AngularitySpecs(ParameterSpecs[AngularitySpec]):
 
 @attrs.define
 class JetChargeSpecs(ParameterSpecs[JetChargeSpec]):
-    name: ClassVar[str] = "jet_charge"
+    name: ClassVar[str] = "charge"
 
     @classmethod
     def from_config(cls, config: dict[str, Any], label: str = "") -> JetChargeSpecs:
@@ -1041,6 +1041,7 @@ def extract_jet_parameters(config: dict[str, Any], label: str = "") -> AllParame
         GroomingSettingsSpecs,
         JetAxisDifferenceSpecs,
         AngularitySpecs,
+        JetChargeSpecs,
         SubjetRSpecs,
     ]
 

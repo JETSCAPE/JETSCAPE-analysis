@@ -1477,7 +1477,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 and jet_pt > pt_min
                 and abs(jet.eta()) < self.inclusive_jet_observables["charge_cms"]["jet"]["eta"]
             ):
-                for kappa in self.inclusive_jet_observables["charge_cms"]["jet"]["jet_charge"]:
+                for kappa in self.inclusive_jet_observables["charge_cms"]["jet"]["charge"]:
                     sum_charge = 0
                     for hadron in hadrons_for_jet_finding:
                         if jet_collection_label in ["_negative_recombiner"] and hadron.user_index() < 0:
