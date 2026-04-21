@@ -353,12 +353,13 @@ def _convert_to_grooming_method_spec(
         return value
     # Now, check for dict arguments for different grooming methods
     # We'll determine the spec from the type
-    type = value.pop("type")
+    mutable_value = value.copy()
+    type = mutable_value.pop("type")
     match type:
         case "soft_drop":
-            return SoftDropSpec(**value)
+            return SoftDropSpec(**mutable_value)
         case "dynamical_grooming":
-            return DynamicalGroomingSpec(**value)
+            return DynamicalGroomingSpec(**mutable_value)
         case _:
             # Call through to the ValueError
             ...
