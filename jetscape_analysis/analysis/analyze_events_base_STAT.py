@@ -30,6 +30,7 @@ import yaml
 from numba import jit
 
 from jetscape_analysis.base import common_base
+from jetscape_analysis.data_curation import observable
 
 logger = logging.getLogger(__name__)
 
@@ -842,3 +843,40 @@ def mask_from_select_status(event, select_status: str, is_AA: bool, model_name: 
             status_mask = event["status"] > -1e6
 
     return status_mask
+
+def calculate_groomed_jet(
+    grooming_setting: observable.SoftDropSpec | observable.DynamicalGroomingSpec | dict[str, str | float],
+    jet: Any,
+    jet_R: float,
+    jet_collection_label: str = "",
+) -> tuple[Any, observable.SoftDropSpec | observable.DynamicalGroomingSpec]:
+    """Calculate groomed jet from existing jet.
+
+    Args:
+        grooming_settings: Grooming settings to be applied.
+        jet: Jet.
+        jet_R: Jet R.
+        jet_collection_label: Label of the jet collection type.
+    Returns:
+        Splitting properties of the splitting identified by the grooming method, grooming method spec
+    """
+    # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering
+    jet_def = fj.JetDefinition(fj.cambridge_algorithm, jet_R)
+    if jet_collection_label in ["_negative_recombiner"]:
+        recombiner = fjext.NegativeEnergyRecombiner()
+        jet_def.set_recombiner(recombiner)
+    gshop = fjcontrib.GroomerShop(jet, jet_def)
+
+    grooming_method_spec = observable.convert_to_grooming_method_spec(grooming_setting)
+
+    # Identify the splitting of interest based on the grooming method
+    match type(grooming_method_spec):
+        case observable.SoftDropSpec:
+            jet_groomed_lund = gshop.soft_drop(grooming_method_spec.beta, grooming_method_spec.z_cut, jet_R)
+        case observable.DynamicalGroomingSpec:
+            jet_groomed_lund = gshop.dynamical(grooming_method_spec.a)
+        case _:
+            msg = f"Unrecognized grooming method spec: {grooming_setting}"
+            raise ValueError(msg)
+
+    return jet_groomed_lund, grooming_method_spec
