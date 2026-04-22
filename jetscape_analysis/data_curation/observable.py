@@ -604,29 +604,33 @@ class IsolationSpec(ParameterSpec):
     Attributes:
         type: Type of isolation, e.g. "neutral"
         R: Cone size of isolation (which we store in jet R for convenience, even if a jet finding isn't always used)
-        Et_max: Maximum Et allowed inside of the isolation cone. If a single value is provided, it's assumed to
+        Et_max_pp: Maximum Et allowed inside of the isolation cone in pp. If a single value is provided, it's assumed to
+            be the max value.
+        Et_max_AA: Maximum Et allowed inside of the isolation cone in AA. If a single value is provided, it's assumed to
             be the max value.
     """
 
     type: str
     R: JetRSpec = attrs.field(converter=lambda x: JetRSpec(x) if isinstance(x, float) else x)
-    Et_max: EtSpec = attrs.field(converter=lambda x: EtSpec(0, x) if isinstance(x, float) else x)
+    Et_max_pp: EtSpec = attrs.field(converter=lambda x: EtSpec(0, x) if isinstance(x, float) else x)
+    Et_max_AA: EtSpec = attrs.field(converter=lambda x: EtSpec(0, x) if isinstance(x, float) else x)
 
     def __str__(self) -> str:
         return f"Photon Isolation (type={self.type}, R={self.R!s}, Et_max={self.Et_max!s})"
 
     def encode(self) -> str:
-        return f"type_{self.type}_R_{self.R.encode()}_Et_max_{self.Et_max.encode()}"
+        return f"type_{self.type}_R_{self.R.encode()}_Et_max_pp_{self.Et_max_pp.encode()}_Et_max_AA_{self.Et_max_AA.encode()}"
 
     @classmethod
     def decode(cls, value: str) -> SubjetRSpec:
-        # `value` is of the form: "type_{self.type}_R_{self.R.encode()}_Et_max_{self.Et_max.encode()}"
-        # indices:                 0     1                    2  3                4  5    6
+        # `value` is of the form: "type_{self.type}_R_{self.R.encode()}_Et_max_pp_{self.Et_max_pp.encode()}_Et_max_AA_{self.Et_max_AA.encode()}"
+        # indices:                 0     1          2  3                4  5   6   7                        8  9   10  11
         split = value.split("_")
         return cls(
             type=str(split[1]),
-            R=JetRSpec.decode(value[value.find("_R_") + len("_R_") : value.find("_Et_max")]),
-            Et_max=EtSpec.decode(value[value.find("_Et_max_") + len("_Et_max_") :]),
+            R=JetRSpec.decode(value[value.find("_R_") + len("_R_") : value.find("_Et_max_pp")]),
+            Et_max_pp=EtSpec.decode(value[value.find("_Et_max_pp") + len("_Et_max_pp") : value.find("_Et_max_AA")]),
+            Et_max_AA=EtSpec.decode(value[value.find("_Et_max_AA") + len("_Et_max_AA") : ]),
         )
 
 

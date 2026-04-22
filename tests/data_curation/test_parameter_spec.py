@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
         observable.SubjetRSpec(0.1),
         observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
         observable.SmearingSpec(observable.EtSpec(9.0, 22.0), observable.EtSpec(10.0, 15.0)),
-        observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 5.0)),
+        observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 5.0), observable.EtSpec(0, 10.0)),
     ],
     ids=lambda x: f"{x!r}",
 )
@@ -195,18 +195,18 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
         ),
         # Isolation
         observable.IsolationSpecs(
-            values=[observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 5.0))],
+            values=[observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 5.0), observable.EtSpec(0, 10.0))],
         ),
         observable.IsolationSpecs(
             values=[
-                observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 5.0)),
-                observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 6.0)),
+                observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 5.0), observable.EtSpec(0, 6.0)),
+                observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 6.0), observable.EtSpec(0, 7.0)),
             ],
         ),
         observable.IsolationSpecs(
             values=[
-                observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 5.0)),
-                observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 6.0)),
+                observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 5.0), observable.EtSpec(0, 6.0)),
+                observable.IsolationSpec("neutral", observable.JetRSpec(0.4), observable.EtSpec(0, 6.0), observable.EtSpec(0, 7.0)),
             ],
             label="gamma_trigger",
         ),

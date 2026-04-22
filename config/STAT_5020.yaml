@@ -2216,7 +2216,8 @@ gamma_trigger_jet:
         # sum of pt in cone and then subtract and UE estimate from isolation quantity … this is the easiest I can think of.
         type: "full"
         R: 0.4
-        Et_max: 5.0 # GeV
+        Et_max_pp: 5.0 # GeV
+        Et_max_AA: 5.0 # GeV
     jet:
       R: [0.3]
       pt: [30., null] # GeV
@@ -2250,7 +2251,8 @@ gamma_trigger_jet:
         # TODO(RJE): 2025/08: Need to sort out the isolation criteria. There is some efficiencies that
         #            may already be corrected. Mentions the 5 GeV value as possible maximum value on pg 6
         #            (although it's not directly comparable, I think), so will use that for now.
-        Et_max: 5. # GeV
+        Et_max_pp: 5. # GeV
+        Et_max_AA: 5. # GeV
     jet:
       R: [0.2]
       pt: [40.0, null] # GeV
@@ -2278,7 +2280,8 @@ gamma_trigger_jet:
         # TODO(RJE): 2025/08: Need to sort out the isolation criteria. There is some efficiencies that
         #            may already be corrected. Mentions the 5 GeV value as possible maximum value on pg 6
         #            (although it's not directly comparable, I think), so will use that for now.
-        Et_max: 5. # GeV
+        Et_max_pp: 5. # GeV
+        Et_max_AA: 5. # GeV
     jet:
       R: [0.2]
       pt: [40.0, null] # GeV
