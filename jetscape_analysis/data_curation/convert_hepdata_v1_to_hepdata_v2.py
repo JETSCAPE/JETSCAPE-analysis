@@ -510,7 +510,7 @@ def main(  # noqa: C901
 ) -> None:
     """Convert HEPData v1 entries to HEPData v2"""
     # We want to update all observables, so let's grab them all
-    observables = observable.read_observables_from_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
+    observables = observable.read_observables_from_all_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
     # And the data curation database, for convenience
     data_curation_database = hepdata_utils.read_database()
 

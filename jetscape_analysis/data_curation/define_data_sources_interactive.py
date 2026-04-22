@@ -467,7 +467,7 @@ def create_overview_dataframe(current_data: list[CombinationData]) -> pd.DataFra
 def setup_observables() -> None:
     if not st.session_state.observables:
         _here = Path(__file__).parent
-        st.session_state.observables = observable.read_observables_from_config(
+        st.session_state.observables = observable.read_observables_from_all_config(
             jetscape_analysis_config_path=_here.parent.parent / "config"
         )
 

@@ -1434,7 +1434,34 @@ class Observable:
         return pd.DataFrame(data)
 
 
-def read_observables_from_config(jetscape_analysis_config_path: Path) -> dict[str, Observable]:
+def read_observable_from_config(config_path: Path, sqrt_s: int) -> dict[str, Observable]:
+    with config_path.open() as f:
+        config = yaml.safe_load(f)
+
+    # We need to skip all of the parameters at the top of the config files
+    observable_classes = []
+    found_start_of_observables = False
+    for k in config:
+        if "hadron" in k or found_start_of_observables:
+            observable_classes.append(k)
+            found_start_of_observables = True
+
+    # Now extract all of the observables
+    observables = {}
+    for observable_class in observable_classes:
+        for observable_key in config[observable_class]:
+            observable_info = config[observable_class][observable_key]
+            observables[f"{sqrt_s}_{observable_class}_{observable_key}"] = Observable(
+                sqrt_s=sqrt_s,
+                observable_class=observable_class,
+                name=observable_key,
+                config=observable_info,
+            )
+
+    return observables
+
+
+def read_observables_from_all_config(jetscape_analysis_config_path: Path, sqrt_s_values_to_load: list[int] | None = None) -> dict[str, Observable]:
     """Construct Observables from the configuration files at a given path.
 
     Note:
@@ -1449,34 +1476,18 @@ def read_observables_from_config(jetscape_analysis_config_path: Path) -> dict[st
     jetscape_analysis_config_path = Path(jetscape_analysis_config_path)
 
     # Parameters
-    sqrt_s_values = [200, 2760, 5020]
+    if sqrt_s_values_to_load is None:
+        sqrt_s_values_to_load = [200, 2760, 5020]
 
     # Read configuration files
-    configs = {}
-    observable_classes = {}
-    for sqrt_s in sqrt_s_values:
-        with (jetscape_analysis_config_path / f"STAT_{sqrt_s}.yaml").open() as f:
-            configs[sqrt_s] = yaml.safe_load(f)
-
-        observable_classes[sqrt_s] = []
-        found_start_of_observables = False
-        for k in configs[sqrt_s]:
-            if "hadron" in k or found_start_of_observables:
-                observable_classes[sqrt_s].append(k)
-                found_start_of_observables = True
-
-    # Now extract all of the observables
     observables = {}
-    for sqrt_s, config in configs.items():
-        for observable_class in observable_classes[sqrt_s]:
-            for observable_key in config[observable_class]:
-                observable_info = config[observable_class][observable_key]
-                observables[f"{sqrt_s}_{observable_class}_{observable_key}"] = Observable(
-                    sqrt_s=sqrt_s,
-                    observable_class=observable_class,
-                    name=observable_key,
-                    config=observable_info,
-                )
+    for sqrt_s in sqrt_s_values_to_load:
+        observables.update(
+            read_observable_from_config(
+                config_path=jetscape_analysis_config_path / f"STAT_{sqrt_s}.yaml",
+                sqrt_s=sqrt_s,
+            )
+        )
 
     # Return them sorted by convention
     return sort_observables(observables)
@@ -1493,7 +1504,7 @@ def main(jetscape_analysis_config_path: Path) -> None:
     Not for actual use...
     """
     # Just some testing code...
-    observables = read_observables_from_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
+    observables = read_observables_from_all_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
 
     # for obs in sorted(observables):
     # for sqrt_s in sorted(observables.keys()):

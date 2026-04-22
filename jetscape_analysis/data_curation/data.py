@@ -648,7 +648,7 @@ def main() -> None:
 
     helpers.setup_logging(level=logging.INFO)
 
-    observables = observable.read_observables_from_config(jetscape_analysis_config_path=Path("config"))
+    observables = observable.read_observables_from_all_config(jetscape_analysis_config_path=Path("config"))
 
     # example_search_for_table(obs=observables["5020_inclusive_chjet_ktg_alice"])
     # example_construct_observables(observables=observables)
