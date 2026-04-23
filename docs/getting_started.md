@@ -2,11 +2,36 @@
 
 Below I attempt to outline the information needed to get up to speed on the jetscape-analysis framework. It's divided into the analysis code and the data curation.
 
-Work is ongoing in the [dev-stat-observables](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-stat-observables) branch
+Work is ongoing in the [dev-stat-observables](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-stat-observables) and [dev-aggregation](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-aggregation) branches.
 
 # Essentials for running the code
 
 Before getting to code structure, a quick primer on running the code:
+
+## Working with the repository
+
+> [!tip]
+> If you're just running simulations and don't need to edit code, a copy is already included in the container described below and you **do not** need to clone the repository. You can skip this section.
+
+We utilize submodules to store the experimental data, so you need to adjust your usual git commands. To clone the repository, you should include `--recurse-submodules`, such as:
+
+```bash
+$ git clone --recurse-submodules git@github.com:JETSCAPE/JETSCAPE-analysis.git jetscape-analysis
+```
+
+If you already have the repository cloned, you can grab the submodules with
+
+```bash
+$git submodule update --init --recursive
+```
+
+Finally, if you need to update the submodule, you can use:
+
+```bash
+$ git submodule update --remote data/hard-sector-data-curation
+$ git add data/hard-sector-data-curation
+$ git commit -m "Bump hard-sector-data-curation to latest main"
+```
 
 ## Containers
 
@@ -17,7 +42,7 @@ JETSCAPE-analysis relies on a number of packages that are not so trivial to inst
 
 The following instructions are assuming that you're using option #1. Note that if you don't have apptainer or singularity available, you can also try running the container with recent versions of podman. Alternatively, try out your local cluster / HPC system - it should be available there.
 
-Some additional info on containers is available in the private [stat-xsede repo](https://github.com/JETSCAPE/STAT-XSEDE-2021/tree/main/containers). Ask STAT conveners for help if you don't have access.
+Some additional info on containers is available in the private [stat-xsede repo](https://github.com/JETSCAPE/STAT-XSEDE-2021/tree/main/containers). Ask the STAT conveners for help if you don't have access.
 
 ## Simulation output files
 
