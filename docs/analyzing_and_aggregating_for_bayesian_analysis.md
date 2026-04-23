@@ -1,6 +1,6 @@
 This guide describes analysis and data aggregation using the jetscape frameworks. Although it's mostly general, the steps here are described particularly in the context of the hybrid-bayesian project, so if you're working on something else, you may need to adapt for your particular project.
 
-> [!NOTE]
+> [!note]
 > This guide is written for running on the Cambridge HPC system, CSD3. It's left to the use to adapt paths, conventions, etc, as needed for your work.
 
 # Overview
@@ -31,7 +31,7 @@ The basic unit of bookkeeping is a "Run", which corresponds to the execution of 
 > [!note]
 > You can also have runs for pp collisions. In that case, you often only have the one design point of your pp tune. Which is to say, you usually will have just one pp run.
 
-[1]: Note for experts: If you want to re-run a set of parameters to e.g. increase statistics, you can either pick up after the last index of that run (e.g. if you run job index 0-199, then you could start from 200) or you can create a new run. I find the latter to be more clear conceptually, but either approach is supported by the aggregation.
+[^1]: Note for experts: If you want to re-run a set of parameters to e.g. increase statistics, you can either pick up after the last index of that run (e.g. if you run job index 0-199, then you could start from 200) or you can create a new run. I find the latter to be more clear conceptually, but either approach is supported by the aggregation.
 
 By convention, run numbers are expected to have at least four digits. That is to say, when printing with e.g. printf or formatting in python, you should use something like `%04g`. As two explicit examples:
 
@@ -140,7 +140,7 @@ We need to define a set of Run conventions for the hybrid-model sandbox producti
 
 Note that these choices are particularly convenient, since it means that once you remove the offset number, you also automatically know the design point index. That is to say, for PbPb, 5-10%, you know that Run505 uses the parameters of design point index 5[^2].
 
-[2]: I specifically note "design point index 5" because by convention, we assume that everything is 0-indexed.
+[^2]: I specifically note "design point index 5" because by convention, we assume that everything is 0-indexed.
 
 ### Generating run info files after the fact
 
@@ -330,7 +330,7 @@ Next, we need process the parquet files into observables. This happens in two st
 
 The final output is three files: the observable skim (parquet), the cross section and other event quantities (parquet), and the processed histogram (root). This process is fairly involved, and since this guide is focused on running the analysis, we'll skip over the details.
 
-> [!NOTE]
+> [!note]
 > If you want to learn more about implementing observables in jetscape-analysis, see [docs/getting_started.md](https://github.com/JETSCAPE/JETSCAPE-analysis/blob/dev-stat-observables/docs/getting_started.md) in the jetscape-analysis repository. (n.b. you may need to be in the dev-stat-observables branch to find it).
 
 To run the analysis for a single output, use the container app called `post-processing`. We can see the options by asking for the app help:
