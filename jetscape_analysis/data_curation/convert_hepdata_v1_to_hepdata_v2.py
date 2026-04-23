@@ -409,10 +409,10 @@ def _build_block_dict(block: data.HEPDataBlock, enable_factorization: bool = Tru
             else:
                 outer_params_dict[key] = unique_values[0]
 
-        if outer_params_dict:
-            outer_params = CommentedMap(outer_params_dict)
-            outer_params.fa.set_flow_style()
-            table_entry["parameters"] = outer_params
+        # We always want to write the parameters key, even if empty...
+        outer_params = CommentedMap(outer_params_dict)
+        outer_params.fa.set_flow_style()
+        table_entry["parameters"] = outer_params
 
         sys_map = CommentedMap(sys_names)
         sys_map.fa.set_flow_style()
