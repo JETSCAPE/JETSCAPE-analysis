@@ -427,7 +427,7 @@ class MissingAADataBlock(MissingDataBlock):
     """Missing the AA data block in the observable definition."""
 
 
-def parse_data_block(observable_str: str, config: dict[str, Any]) -> ...:
+def parse_data_block(observable_str: str, config: dict[str, Any]) -> HEPData | CustomData | Binning:
     data = config.get("data")
 
     if not data:
@@ -532,7 +532,7 @@ def example_construct_observables(observables: dict[str, observable.Observable])
 
 
 def build_hepdata_repository(observables: dict[str, observable.Observable]) -> None:  # noqa: C901
-    """Retrieve all available data from HEPData v1 URLs and store it in our repository."""
+    """Retrieve all available data from the stored HEPData info (v1 or v2) and store it in our repository."""
     import time  # noqa: PLC0415
 
     from jetscape_analysis.base import helpers  # noqa: PLC0415
@@ -652,6 +652,7 @@ def main() -> None:
 
     # example_search_for_table(obs=observables["5020_inclusive_chjet_ktg_alice"])
     # example_construct_observables(observables=observables)
+    # Build up the HEPData repository based on the configuration...
     build_hepdata_repository(observables=observables)
     # sorted_obs = dict(sorted(observables.items(), key=lambda o: (o[1].observable_class, o[1].sqrt_s, o[1].name)))
     # output = {}
