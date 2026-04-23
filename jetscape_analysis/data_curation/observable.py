@@ -316,6 +316,22 @@ class SoftDropSpec(ParameterSpec):
             beta=float(split[4]),
         )
 
+    def to_dict(self) -> dict[str, str | float]:
+        """Convert the type to a dictionary.
+
+        Only for use in the analysis code, where it makes comparisons much easier!
+
+        Args:
+            None
+        Returns:
+            Dictionary with the Soft Drop attributes.
+        """
+        return {
+            "type": "soft_drop",
+            "z_cut": self.z_cut,
+            "beta": self.beta,
+        }
+
 
 @attrs.frozen
 class DynamicalGroomingSpec(ParameterSpec):
@@ -343,8 +359,23 @@ class DynamicalGroomingSpec(ParameterSpec):
             a=float(split[1]),
         )
 
+    def to_dict(self) -> dict[str, str | float]:
+        """Convert the type to a dictionary.
 
-def _convert_to_grooming_method_spec(
+        Only for use in the analysis code, where it makes comparisons much easier!
+
+        Args:
+            None
+        Returns:
+            Dictionary with the Dynamical Grooming attributes.
+        """
+        return {
+            "type": "dynamical_grooming",
+            "a": self.a,
+        }
+
+
+def convert_to_grooming_method_spec(
     value: SoftDropSpec | DynamicalGroomingSpec | dict[str, float | str],
 ) -> SoftDropSpec | DynamicalGroomingSpec:
     """Convert a possible grooming method spec or arguments to a confirmed grooming method spec."""
@@ -401,7 +432,7 @@ class GroomingSettingsSpec(ParameterSpec):
 
     # The point with the convert here is that we'll be passed arguments that are a dict with SoftDrop or Dynamical Grooming
     # parameters, so we need to ensure that it's actually of the expected type.
-    method: SoftDropSpec | DynamicalGroomingSpec = attrs.field(converter=_convert_to_grooming_method_spec)
+    method: SoftDropSpec | DynamicalGroomingSpec = attrs.field(converter=convert_to_grooming_method_spec)
 
     def __str__(self) -> str:
         return f"Grooming Settings ({self.method!s}))"
@@ -413,7 +444,7 @@ class GroomingSettingsSpec(ParameterSpec):
 
     @classmethod
     def decode(cls, value: str) -> GroomingSettingsSpec:
-        # `value` is of the form: "{grooming_type}_{grooming_settings}"
+        # `value` is of the form: "{grooming_type}_{grooming_settings...}"
         # indices:                  0              1
         split = value.split("_")
         grooming_type = GROOMING_SETTINGS_LABEL_TO_TYPE[split[0]]
@@ -1211,6 +1242,7 @@ def pretty_print_name(name: str) -> str:
 
 _T_Spec = TypeVar("_T_Spec", bound=ParameterSpec)
 _T_Specs = TypeVar("_T_Specs", bound=ParameterSpecs)
+
 
 class DidNotFindDesiredParameterSpec(ValueError):
     """Indicates that we could not find the requested parameter spec."""
