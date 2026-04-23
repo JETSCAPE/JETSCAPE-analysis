@@ -48,8 +48,17 @@ def generate_entry_name_from_parameters(  # noqa: C901
     """
     # Double check to warn the user if there are problems.
     # We expect to process all arguments, except for the indices and selected specs.
-    # This list of specs is empirically determined
-    expected_specs_to_skip = ["centrality", "hadron_pt", "hadron_eta", "jet_pt", "jet_eta", "jet_eta_R"]
+    # This list of specs is empirically determined.
+    # fmt: off
+    expected_specs_to_skip = [
+        "centrality",
+        "hadron_pt", "hadron_eta", "hadron_trigger_pt", "hadron_trigger_eta",
+        "jet_pt", "jet_eta", "jet_eta_R", "jet_rapidity",
+        "pion_trigger_pt", "pion_trigger_Et", "pion_trigger_eta", "pion_trigger_smearing",
+        "gamma_trigger_pt", "gamma_trigger_Et", "gamma_trigger_eta", "gamma_trigger_isolation", "gamma_trigger_smearing",
+        "z_trigger_pt", "z_trigger_mass", "z_trigger_rapidity", "z_trigger_electron_pt", "z_trigger_electron_pt", "z_trigger_electron_eta", "z_trigger_muon_pt", "z_trigger_muon_eta",
+    ]
+    # fmt: on
     for k, v in kwargs.items():
         if not ("index" in k or any(k == name for name in expected_specs_to_skip)):
             logger.warning(f"Unrecognized argument to generating entry name: {k=}: {v=}")
@@ -510,7 +519,9 @@ def main(  # noqa: C901
 ) -> None:
     """Convert HEPData v1 entries to HEPData v2"""
     # We want to update all observables, so let's grab them all
-    observables = observable.read_observables_from_all_config(jetscape_analysis_config_path=jetscape_analysis_config_path)
+    observables = observable.read_observables_from_all_config(
+        jetscape_analysis_config_path=jetscape_analysis_config_path
+    )
     # And the data curation database, for convenience
     data_curation_database = hepdata_utils.read_database()
 
@@ -529,8 +540,8 @@ def main(  # noqa: C901
         # if obs.identifier != (5020, "gamma_trigger_jet", "g_cms"):
         # if obs.identifier != (5020, "inclusive_jet", "mg_cms"):
         # if obs.identifier != (5020, "inclusive_jet", "zg_cms"):
-        if obs.identifier != (5020, "inclusive_chjet", "angularity_alice"):
-            continue
+        # if obs.identifier != (5020, "inclusive_chjet", "angularity_alice"):
+        #     continue
 
         logger.info(f"Processing {obs.identifier}")
         is_v1 = does_observable_contain_hepdata_v1(obs.config)
@@ -600,12 +611,27 @@ def main(  # noqa: C901
         parameters = obs.parameters()
         # NOTE: We need the pt binning info solely to generate the older entry name from the parameters.
         #       There could be multiple pt specs in the case of a trigger and recoil, so we need to retrieve the correct one.
-        available_pt_specs = observable.find_parameter_by_spec_type(parameters, desired_type=observable.PtSpecs)
-        if len(available_pt_specs) > 1:
-            msg = f"Multiple pt specs: {available_pt_specs}. Need to figure out what to do (probably edit around here)"
-            raise ValueError(msg)
-        pt_specs = available_pt_specs[0]
-        n_pt_bins = len(pt_specs.values)
+        try:
+            available_pt_specs = observable.find_parameter_by_spec_type(parameters, desired_type=observable.PtSpecs)
+            if len(available_pt_specs) > 1:
+                # There is more than one, so it's ambiguous. Let's preferentially take the one with the jet or hadron label
+                specs_with_jet_or_hadron_label = [
+                    s for s in available_pt_specs if "jet" in s.label or "hadron" in s.label
+                ]
+                pt_specs = specs_with_jet_or_hadron_label[0]
+
+                logger.warning(
+                    f"There were multiple pt specs ({available_pt_specs}), so we took the hadron or jet pt spec ({pt_specs}), as that tends to be what we want. You should probably double check this observable..."
+                )
+            else:
+                # Take the pt_spec that's available
+                pt_specs = available_pt_specs[0]
+            logger.info(f"{pt_specs=}")
+            n_pt_bins = len(pt_specs.values)
+        except observable.DidNotFindDesiredParameterSpec:
+            # There was no pt spec - this basically must be a gamma or Z trigger, which we don't need to convert, so we just skip it.
+            logger.debug("Could not find pt_specs for the observable...")
+            n_pt_bins = 1
 
         observable_blocks = {
             "pp": {},
