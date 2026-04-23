@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
         observable.AngularitySpec(2.0, 1.0),
         observable.JetChargeSpec(0.3),
         observable.SubjetRSpec(0.1),
+        observable.EnergyCorrelatorWeightSpec(2.0),
         observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0)),
         observable.SmearingSpec(observable.EtSpec(9.0, 22.0), observable.EtSpec(10.0, 15.0)),
         observable.IsolationSpec(
@@ -171,6 +172,14 @@ def test_param_spec_round_trip(spec: observable.ParameterSpec, caplog: Any) -> N
         observable.SubjetRSpecs(values=[observable.SubjetRSpec(1.0)]),
         observable.SubjetRSpecs(values=[observable.SubjetRSpec(1.0), observable.SubjetRSpec(2.0)]),
         observable.SubjetRSpecs(values=[observable.SubjetRSpec(1.0), observable.SubjetRSpec(2.0)], label="jet"),
+        # Energy Correlator Weight
+        observable.EnergyCorrelatorWeightSpecs(values=[observable.EnergyCorrelatorWeightSpec(1.0)]),
+        observable.EnergyCorrelatorWeightSpecs(
+            values=[observable.EnergyCorrelatorWeightSpec(1.0), observable.EnergyCorrelatorWeightSpec(2.0)]
+        ),
+        observable.EnergyCorrelatorWeightSpecs(
+            values=[observable.EnergyCorrelatorWeightSpec(1.0), observable.EnergyCorrelatorWeightSpec(2.0)], label="jet"
+        ),
         # Smearing
         observable.SmearingSpecs(
             values=[observable.SmearingSpec(observable.PtSpec(9.0, 22.0), observable.PtSpec(10.0, 15.0))]

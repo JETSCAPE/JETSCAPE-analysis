@@ -582,6 +582,26 @@ class SubjetRSpec(ParameterSpec):
         )
 
 
+@attrs.frozen
+class EnergyCorrelatorWeightSpec(ParameterSpec):
+    n: float
+
+    def __str__(self) -> str:
+        return f"Energy correlator weight(n={self.n})"
+
+    def encode(self) -> str:
+        return f"n_{self.n}"
+
+    @classmethod
+    def decode(cls, value: str) -> EnergyCorrelatorWeightSpec:
+        # `value` is of the form: "n_{self.n}"
+        # indices:                 0  1
+        split = value.split("_")
+        return cls(
+            n=float(split[1]),
+        )
+
+
 def _decode_smearing_spec(value: str) -> PtSpec | EtSpec:
     """Helper to decode a smearing spec.
 
@@ -951,6 +971,18 @@ class SubjetRSpecs(ParameterSpecs[SubjetRSpec]):
 
 
 @attrs.define
+class EnergyCorrelatorWeightSpecs(ParameterSpecs[EnergyCorrelatorWeightSpec]):
+    name: ClassVar[str] = "weight"
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any], label: str = "") -> EnergyCorrelatorWeightSpecs:
+        return cls(
+            values=[EnergyCorrelatorWeightSpec(v) for v in config[cls.name]],
+            label=label,
+        )
+
+
+@attrs.define
 class SmearingSpecs(ParameterSpecs[SmearingSpec]):
     """Detector-level smearing specifications
 
@@ -1078,6 +1110,7 @@ def extract_jet_parameters(config: dict[str, Any], label: str = "") -> AllParame
         AngularitySpecs,
         JetChargeSpecs,
         SubjetRSpecs,
+        EnergyCorrelatorWeightSpecs,
     ]
 
     # Some types can be obviously related to the parameter category - e.g. soft drop is always related to a jet.
