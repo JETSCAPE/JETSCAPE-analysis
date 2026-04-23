@@ -661,7 +661,7 @@ class IsolationSpec(ParameterSpec):
             type=str(split[1]),
             R=JetRSpec.decode(value[value.find("_R_") + len("_R_") : value.find("_Et_max_pp")]),
             Et_max_pp=EtSpec.decode(value[value.find("_Et_max_pp") + len("_Et_max_pp") : value.find("_Et_max_AA")]),
-            Et_max_AA=EtSpec.decode(value[value.find("_Et_max_AA") + len("_Et_max_AA") : ]),
+            Et_max_AA=EtSpec.decode(value[value.find("_Et_max_AA") + len("_Et_max_AA") :]),
         )
 
 
@@ -1471,7 +1471,7 @@ class Observable:
         return pd.DataFrame(data)
 
 
-def read_observable_from_config(config_path: Path, sqrt_s: int) -> dict[str, Observable]:
+def read_observables_from_config(config_path: Path, sqrt_s: int) -> dict[str, Observable]:
     with config_path.open() as f:
         config = yaml.safe_load(f)
 
@@ -1498,7 +1498,9 @@ def read_observable_from_config(config_path: Path, sqrt_s: int) -> dict[str, Obs
     return observables
 
 
-def read_observables_from_all_config(jetscape_analysis_config_path: Path, sqrt_s_values_to_load: list[int] | None = None) -> dict[str, Observable]:
+def read_observables_from_all_config(
+    jetscape_analysis_config_path: Path, sqrt_s_values_to_load: list[int] | None = None
+) -> dict[str, Observable]:
     """Construct Observables from the configuration files at a given path.
 
     Note:
@@ -1520,7 +1522,7 @@ def read_observables_from_all_config(jetscape_analysis_config_path: Path, sqrt_s
     observables = {}
     for sqrt_s in sqrt_s_values_to_load:
         observables.update(
-            read_observable_from_config(
+            read_observables_from_config(
                 config_path=jetscape_analysis_config_path / f"STAT_{sqrt_s}.yaml",
                 sqrt_s=sqrt_s,
             )
