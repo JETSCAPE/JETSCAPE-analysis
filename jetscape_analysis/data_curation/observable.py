@@ -1212,6 +1212,9 @@ def pretty_print_name(name: str) -> str:
 _T_Spec = TypeVar("_T_Spec", bound=ParameterSpec)
 _T_Specs = TypeVar("_T_Specs", bound=ParameterSpecs)
 
+class DidNotFindDesiredParameterSpec(ValueError):
+    """Indicates that we could not find the requested parameter spec."""
+
 
 def find_parameter_by_spec_type(
     parameters: AllParameters,
@@ -1239,13 +1242,15 @@ def find_parameter_by_spec_type(
             for v in p.values:
                 if isinstance(v, desired_type):
                     specs.append(p)
+                    # Since we return the full ParameterSpecs, we only want one copy
+                    break
         elif isinstance(p, desired_type):
             # ParameterSpecs
             specs.append(p)
 
     if not specs:
         msg = f"Could not find desired type: {desired_type} in {parameters=}"
-        raise ValueError(msg)
+        raise DidNotFindDesiredParameterSpec(msg)
 
     return specs
 
