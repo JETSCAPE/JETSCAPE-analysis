@@ -132,7 +132,7 @@ hadron:
               label: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
               range: ["2e-12", "1e-4"]
             tables:
-              - parameters: { pt: 5.0_20.0, eta: "0.35", centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"] }
+              - parameters: { centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"] }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -151,7 +151,7 @@ hadron:
               range: ["2e-10", "2e2"]
               log: true
             tables:
-              - parameters: { pt: 5.0_20.0, eta: "0.35" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Figure 5
@@ -175,7 +175,7 @@ hadron:
               range: [0.0, 2.0]
               log: true
             tables:
-              - parameters: { pt: 5.0_20.0, eta: "0.35" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Figure 11
@@ -242,7 +242,7 @@ hadron:
               label: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
               range: ["2e-10", "2e2"]
             tables:
-              - parameters: { pt: 5.0_12.0, eta: "0.5", centrality: ["0_5", "10_20", "20_30", "30_40"] }
+              - parameters: { centrality: ["0_5", "10_20", "20_30", "30_40"] }
                 systematics_names: {}
                 additional_systematics: {}
                 table: Table 1
@@ -261,7 +261,7 @@ hadron:
               range: ["2e-10", "2e2"]
               log: true
             tables:
-              - parameters: { pt: 5.0_12.0, eta: "0.5" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Table 1
@@ -282,7 +282,7 @@ hadron:
               label: "#it{R}_{AA}"
               log: true
             tables:
-              - parameters: { pt: 5.0_12.0, eta: "0.5" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Table 3
@@ -511,7 +511,7 @@ inclusive_chjet:
               label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right"
               range: ["2e-8", "1e-1"]
             tables:
-              - parameters: { centrality: "0_10", pt: 5.0_30.0, jet_R: ["0.2", "0.3", "0.4"] }
+              - parameters: { jet_R: ["0.2", "0.3", "0.4"] }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -530,7 +530,7 @@ inclusive_chjet:
               range: ["2e-8", "1e-1"]
               log: true
             tables:
-              - parameters: { centrality: "0_10", pt: 5.0_30.0 }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Table 1
@@ -550,7 +550,7 @@ inclusive_chjet:
               range: [0.0, 2.0]
               log: true
             tables:
-              - parameters: { centrality: "0_10", pt: 5.0_30.0 }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Table 10
@@ -614,7 +614,12 @@ hadron_trigger_chjet:
               label: I_{AA}
               range: ["2e-5", 2.0]
             tables:
-              - parameters: { centrality: "0_10", pt: 5.0_30.0, eta: "0.9", jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: "0.2" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: "0.5" }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -632,7 +637,12 @@ hadron_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_10", pt: 5.0_30.0, eta: "0.9", jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: "0.2" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: "0.5" }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -645,7 +655,7 @@ hadron_trigger_chjet:
               label: "#it{R}_{AA}"
               log: true
             tables:
-              - parameters: { centrality: "0_10", pt: 5.0_30.0, eta: "0.9", jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: ["0.2", "0.5"] }
                 systematics_names: {}
                 additional_systematics: {}
                 table: Table 38
@@ -704,7 +714,7 @@ hadron_trigger_chjet:
               label: "#Phi(#Delta#it{#varphi})"
               range: [0.0, 1.0]
             tables:
-              - parameters: { centrality: "0_10", pt: 9.0_13.0, eta: "0.9", jet_R: "0.3" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Table 42
@@ -722,7 +732,7 @@ hadron_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_10", pt: 9.0_13.0, eta: "0.9", jet_R: "0.3" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -739,7 +749,7 @@ hadron_trigger_chjet:
               range: [0.0, 2.0]
               log: true
             tables:
-              - parameters: { centrality: "0_10", pt: 9.0_13.0, eta: "0.9", jet_R: "0.3" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Table 39
@@ -809,7 +819,12 @@ pion_trigger_chjet:
               label: I_{AA}
               range: [0.1, 1.2]
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", pt: 5.0_30.0, jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: 0.2 }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: 0.5 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -827,7 +842,12 @@ pion_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", pt: 5.0_30.0, jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: 0.2 }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: 0.5 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -840,7 +860,12 @@ pion_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", pt: 5.0_30.0, jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: 0.2 }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: 0.5 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -902,7 +927,12 @@ pion_trigger_chjet:
               label: I_{AA}(#Delta#varphi)
               range: [0.01, 50.0]
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", jet_R: ["0.2", "0.5"], pt: [10.0_15.0, 15.0_20.0] }
+              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.2 }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.5 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -920,7 +950,12 @@ pion_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", jet_R: ["0.2", "0.5"], pt: [10.0_15.0, 15.0_20.0] }
+              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.2 }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.5 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -933,7 +968,12 @@ pion_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", jet_R: ["0.2", "0.5"], pt: [10.0_15.0, 15.0_20.0] }
+              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.2 }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.5 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -996,7 +1036,7 @@ gamma_trigger_hadron:
             y_axis:
               label: I_{AA}
             tables:
-              - parameters: { centrality: "0_40", pt: 5.0_7.0, eta: "0.35" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -1014,7 +1054,7 @@ gamma_trigger_hadron:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_40", pt: 5.0_7.0, eta: "0.35" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -1027,7 +1067,7 @@ gamma_trigger_hadron:
               label: I_{AA}
               log: true
             tables:
-              - parameters: { centrality: "0_40", pt: 5.0_7.0, eta: "0.35" }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
                 table: Figure 4b
@@ -1093,7 +1133,12 @@ gamma_trigger_chjet:
               label: I_{AA}
               range: [0.1, 1.2]
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", pt: 5.0_20.0, jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: ["0.2"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: ["0.5"] }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -1111,7 +1156,12 @@ gamma_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", pt: 5.0_20.0, jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: ["0.2"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: ["0.5"] }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -1124,7 +1174,12 @@ gamma_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_15", eta: "1.0", pt: 5.0_20.0, jet_R: ["0.2", "0.5"] }
+              - parameters: { jet_R: ["0.2"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: ["0.5"] }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
