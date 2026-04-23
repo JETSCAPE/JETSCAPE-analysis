@@ -673,15 +673,15 @@ class IsolationSpec(ParameterSpec):
         return f"type_{self.type}_R_{self.R.encode()}_Et_max_pp_{self.Et_max_pp.encode()}_Et_max_AA_{self.Et_max_AA.encode()}"
 
     @classmethod
-    def decode(cls, value: str) -> SubjetRSpec:
+    def decode(cls, value: str) -> IsolationSpec:
         # `value` is of the form: "type_{self.type}_R_{self.R.encode()}_Et_max_pp_{self.Et_max_pp.encode()}_Et_max_AA_{self.Et_max_AA.encode()}"
         # indices:                 0     1          2  3                4  5   6   7                        8  9   10  11
         split = value.split("_")
         return cls(
             type=str(split[1]),
             R=JetRSpec.decode(value[value.find("_R_") + len("_R_") : value.find("_Et_max_pp")]),
-            Et_max_pp=EtSpec.decode(value[value.find("_Et_max_pp") + len("_Et_max_pp") : value.find("_Et_max_AA")]),
-            Et_max_AA=EtSpec.decode(value[value.find("_Et_max_AA") + len("_Et_max_AA") :]),
+            Et_max_pp=EtSpec.decode(value[value.find("_Et_max_pp") + len("_Et_max_pp_") : value.find("_Et_max_AA")]),
+            Et_max_AA=EtSpec.decode(value[value.find("_Et_max_AA") + len("_Et_max_AA_") :]),
         )
 
 
