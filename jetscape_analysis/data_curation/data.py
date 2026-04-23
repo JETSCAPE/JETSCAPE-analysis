@@ -15,7 +15,7 @@ from jetscape_analysis.data_curation import hepdata_utils, observable
 
 logger = logging.getLogger(__name__)
 
-Parameters = dict[str, Any]
+Parameters = dict[str, observable.ParameterSpec]
 Config = dict[str, Any]
 
 

@@ -81,10 +81,19 @@ class DecoderRegistry:
         self._registry[name] = decoder_type
 
     def get_type(self, name: str) -> type[Encodable]:
-        if name not in self._registry:
-            msg = f"Unknown decoder type: {name}"
-            raise ValueError(msg)
-        return self._registry[name]
+        # If the name is immediately in the registry, just use it.
+        if name in self._registry:
+            return self._registry[name]
+        # Handle labeled names produced by ParameterSpecs.encode_name where we have f"{label}_{spec_name}".
+        # The strategy is to try the longest suffix first, and then narrow down if nothing is found.
+        # This should ensure that e.g. "eta_R" is found rather than "R".
+        parts = name.split("_")
+        for i in range(1, len(parts)):
+            suffix = "_".join(parts[i:])
+            if suffix in self._registry:
+                return self._registry[suffix]
+        msg = f"Unknown decoder type: {name}"
+        raise ValueError(msg)
 
     def get_name(self, instance: Encodable) -> str:
         for k, v in self._registry.items():
