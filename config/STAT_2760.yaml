@@ -131,7 +131,7 @@ hadron:
             tables:
               - parameters:
                   { pt: 5.0_50.0, eta: "0.8", centrality: ["0_5", "10_20", "20_30", "30_40", "40_50", "5_10"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 4
                 index: "2"
@@ -150,7 +150,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_50.0, eta: "0.8" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 1
                 combinations:
@@ -175,7 +175,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_50.0, eta: "0.8" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 7
                 combinations:
@@ -246,7 +246,7 @@ hadron:
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
-                index: ""
+                index: "" # pp data not available in this HEPData record
       AA:
         hepdata:
           record:
@@ -262,7 +262,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_20.0, eta: "0.8" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 1
                 combinations:
@@ -283,7 +283,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_20.0, eta: "0.8" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -351,7 +351,7 @@ hadron:
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
-                index: ""
+                index: "" # pp data not available in this HEPData record
       AA:
         hepdata:
           record:
@@ -367,7 +367,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_20.0, eta: "0.7" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -384,7 +384,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_20.0, eta: "0.7" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -449,7 +449,7 @@ hadron:
             tables:
               - parameters:
                   { pt: 5.0_150.0, eta: "2.0", centrality: ["0_5", "10_20", "20_30", "30_40", "40_50", "5_10"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 1
                 index: "1"
@@ -468,7 +468,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_150.0, eta: "2.0" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -493,7 +493,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_150.0, eta: "2.0" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -566,7 +566,7 @@ hadron:
               range: ["2e-16", "1e2"]
             tables:
               - parameters: { pt: 6.0_100.0, eta: "1.0", centrality: ["0_5", "10_30", "5_10"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 1
                 index: "1"
@@ -587,7 +587,7 @@ hadron:
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
-                index: ""
+                index: "" # AA spectra not available in this HEPData record
           ratio:
             quantity: pt_ch
             x_axis:
@@ -598,7 +598,7 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 6.0_100.0, eta: "1.0" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 5
                 combinations:
@@ -1287,8 +1287,8 @@ inclusive_jet:
               range: ["2e-10", "1e-3"]
             tables:
               - parameters: { jet_R: "0.2", pt: 30.0_120.0, centrality: ["0_10", "10_30"] }
-                systematics_names: {}
-                additional_systematics: {}
+                systematics_names: {stat: stat, "sys,uncorr": uncorrelated}
+                additional_systematics: {inelastic_xsec: 0.08}
                 table: Table 2
                 index: "1"
       AA:
@@ -1306,8 +1306,8 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { jet_R: "0.2", pt: 30.0_120.0 }
-                systematics_names: {}
-                additional_systematics: {}
+                systematics_names: {stat: stat, "sys,corr": correlated, "sys,shape": unfolding}
+                additional_systematics: {ncoll: 0.11}
                 table: Table 3
                 combinations:
                   - parameters: { centrality: "0_10" }
@@ -1324,7 +1324,11 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { jet_R: "0.2", pt: 30.0_120.0 }
-                systematics_names: {}
+                # TAA uncertainty varies per centrality (3.7% for 0-10%, 5.2% for 10-30%),
+                # so it is read per-bin from HEPData rather than lifted to additional_systematics.
+                # HEPData label "sys,shape" is actually the unfolding systematic (per ALICE).
+                systematics_names:
+                  {stat: stat, "sys,corr": correlated, "sys,shape": unfolding, "sys,$T_{\\mathrm{AA}}$ uncertainty": taa}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1388,8 +1392,8 @@ inclusive_jet:
               range: ["2e-6", "1e4"]
             tables:
               - parameters: { jet_R: "0.4", pt: 32.0_500.0, centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"] }
-                systematics_names: {}
-                additional_systematics: {}
+                systematics_names: {stat: stat, "sys,corr": correlated, "sys,uncorr": uncorrelated}
+                additional_systematics: {luminosity: 0.031}
                 table: Table 2
                 index: "1"
       AA:
@@ -1407,7 +1411,7 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { jet_R: "0.4", pt: 32.0_500.0 }
-                systematics_names: {}
+                systematics_names: {stat: stat, "sys,corr": correlated, "sys,uncorr": uncorrelated}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1431,8 +1435,12 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { jet_R: "0.4", pt: 32.0_500.0 }
-                systematics_names: {}
-                additional_systematics: {}
+                # TAA uncertainty varies per centrality (1.6% / 2.1% / 3.0% / 4.4% / 6.4%),
+                # so it is read per-bin from HEPData rather than lifted to additional_systematics.
+                # Luminosity uncertainty is constant 3.1% across all centralities and lifted out.
+                systematics_names:
+                  {stat: stat, "sys,corr": correlated, "sys,uncorr": uncorrelated, "sys,TAA uncertainty": taa}
+                additional_systematics: {luminosity: 0.031}
                 index: "1"
                 combinations:
                   - parameters: { centrality: "0_10" }
@@ -1528,7 +1536,7 @@ inclusive_jet:
               range: ["2e-10", "1e10"]
             tables:
               - parameters: { pt: 70.0_300.0, centrality: ["0_5", "10_30", "30_50", "5_10"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 4
                 combinations:
@@ -1553,7 +1561,7 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { pt: 70.0_300.0 }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 combinations:
                   - parameters: { centrality: "0_5", jet_R: "0.2" }
@@ -1602,7 +1610,10 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { pt: 70.0_300.0 }
-                systematics_names: {}
+                # CMS Fig 9 quotes a combined pp-lumi + TAA "global" box of 18% on RAA,
+                # but the per-centrality TAA is not provided in this HEPData record.
+                # Leaving additional_systematics empty; see paper (ins1487278) for globals.
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 combinations:
                   - parameters: { centrality: "0_5", jet_R: "0.2" }
