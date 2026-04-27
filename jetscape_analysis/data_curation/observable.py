@@ -171,7 +171,6 @@ class PtSpec(ParameterSpec):
     def decode(cls, value: str) -> PtSpec:
         # `value` is of the form: "{self.low}_{self.high}"
         # indices:                 0           1
-        logger.warning(f"{value=}")
         low, high = value.split("_")
         return cls(low=float(low), high=float(high) if not np.isclose(float(high), -1.0) else None)
 
@@ -1370,6 +1369,36 @@ class Observable:
         """
         # -1 removes the experiment name
         return pretty_print_name(self.internal_name_without_experiment)
+
+    def encode_name_for_storing_in_file(self, **parameters_to_encode: ParameterSpec) -> str:
+        # The baseline is that we want to encode the essential parameters, as well as any others
+        # that we might be interested in.
+        # Determine additional parameters to encode (if available)
+        additional_parameters_to_encode = [JetRSpec]
+        encoded_parameters = {p.encode_name: p for p in self.parameters()}
+        encoded_essential_parameters = {p.encode_name: p for p in self.essential_parameters()}
+        # Loop over the available parameters to order the additional parameters w.r.t the essential parameters
+        # The order matters for the encoding
+        to_encode = {}
+        for encoded_name, param_specs in encoded_parameters.items():
+            # Only include them if they're in the essential parameters, or we've specifically requested for them
+            if not (encoded_name in encoded_essential_parameters or param_specs.spec_type in additional_parameters_to_encode):
+                continue
+            try:
+                to_encode[encoded_name] = parameters_to_encode[encoded_name]
+            except KeyError:
+                msg = f"Expected to find {encoded_name}, but was not provided in {parameters_to_encode}. Please add it"
+                raise KeyError(msg)
+
+        # TODO(RJE): Aiming for something like:
+        # f"inclusive_chjet_ktg_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+        # TODO(RJE): So I need to encode the jet_R, the grooming setting, and the jet_collection_label
+        base_name = f"{self.observable_class}_{self.name}"
+        for k, v in to_encode.items():
+            base_name += f"_{k}_{v.encode()}"
+        # inclusive_chjet_ktg_alice_centrality_0_10_jet_R_0.2_jet_grooming_settings_DyG_a_1.0
+
+        return base_name
 
     def parameters(self) -> AllParameters:
         """The parameter specifications that are relevant to the observable.

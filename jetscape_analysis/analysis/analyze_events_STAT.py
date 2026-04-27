@@ -46,6 +46,7 @@ import pandas as pd
 import yaml
 
 from jetscape_analysis.analysis import analyze_events_base_STAT
+from jetscape_analysis.data_curation import observable
 from jetscape_analysis.base import helpers
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         self.outlier_jet_R = config["outlier_jet_R"]
         self.outlier_pt_hat_cut = config["outlier_pt_hat_cut"]
 
+        # Load observables info
+        self.observables_info = observable.read_observables_from_config(config_path=self.config_file, sqrt_s=self.sqrts)
+
         # Load observable blocks
         # NOTE: As a general principle, we use .get() here for most entries since they are not defined
         #       at every sqrt_s. However, for a few cases, we assume they exist since we have external
@@ -129,14 +133,48 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         self.z_trigger_jet_observables = config.get("z_trigger_jet", {})
 
         # General jet finding parameters
-        self.jet_R = config["jet_R"]
         self.min_jet_pt = config["min_jet_pt"]
         self.max_jet_y = config["max_jet_y"]
+        # We need to know all of the jet R for the central jet finding, so we'll collect them from all of the observables.
+        jet_R = set()
+        for obs in self.observables_info.values():
+            # Skip observables which are not enabled...
+            if not obs.config["enabled"]:
+                continue
+            # And store all of the Jet R values
+            # It's okay if we don't find the desired parameter spec - some observables don't have it.
+            try:
+                jet_R_specs = observable.find_parameter_by_spec_type(obs.parameters(), observable.JetRSpecs)
+                for specs in jet_R_specs:
+                    # We unpack the underlying values, since we don't need the Specs - just the values
+                    jet_R.update([v.R for v in specs.values])
+            except observable.DidNotFindDesiredParameterSpec:
+                ...
+        self.jet_R = list(sorted(jet_R))
+        logger.info(f"Found {self.jet_R=}")
 
-        # General grooming parameters'
-        self.grooming_settings = {}
-        if "soft_drop" in config:
-            self.grooming_settings = config["soft_drop"]
+        # We need to know all grooming parameters, so we'll collect them from all of the observables
+        grooming_settings = set()
+        for obs in self.observables_info.values():
+            # Skip observables which are not enabled...
+            if not obs.config["enabled"]:
+                continue
+            # And store all of the grooming parameters
+            # It's okay if we don't find the desired parameter spec - most observables don't have it.
+            try:
+                grooming_settings_specs = observable.find_parameter_by_spec_type(obs.parameters(), observable.GroomingSettingsSpecs)
+                for specs in grooming_settings_specs:
+                    # We unwrap to the underlying method since we don't need the GroomingSettings Spec here - it's easier to
+                    # work with the underlying object.
+                    grooming_settings.update([s.method for s in specs.values])
+            except observable.DidNotFindDesiredParameterSpec:
+                ...
+        # During the assignment, we are sorted by the name (through the encoding), so DyG will go first.
+        self.grooming_settings = list(sorted(grooming_settings, key=lambda v: v.encode()))
+        # And then finally, convert to a dict. This is a bit backwards, but it's convenient for integrating with the existing code
+        # (namely, it makes comparisons with the obs config much easier), so we'll go with it.
+        self.grooming_settings: dict[str, str | float] = [gs.to_dict() for gs in self.grooming_settings]
+        logger.info(f"Found {self.grooming_settings=}")
 
         # If AA, set different options for hole subtraction treatment
         if self.is_AA:
@@ -761,9 +799,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # Groomed
             if self.grooming_settings:
                 for grooming_setting in self.grooming_settings:
-                    self.fill_full_jet_groomed_observables(
-                        grooming_setting, jet, jet_pt, jetR, jet_collection_label=jet_collection_label
-                    )
+                    # TEMP: Disabled
+                    #self.fill_full_jet_groomed_observables(
+                    #    grooming_setting, jet, jet_pt, jetR, jet_collection_label=jet_collection_label
+                    #)
+                    # ENDTEMP
+                    ...
 
         else:
             # Ungroomed
@@ -1070,7 +1111,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
     def fill_charged_jet_groomed_observables(  # noqa: C901
         self,
-        grooming_setting: dict[str, float],
+        grooming_setting: observable.SoftDropSpec | observable.DynamicalGroomingSpec,
         jet: PseudoJet,
         jet_pt: float,
         jetR: float,
@@ -1087,18 +1128,23 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         Returns:
             None.
         """
-        # Construct groomed jet
-        # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering
-        jet_def = fj.JetDefinition(fj.cambridge_algorithm, jetR)
-        if jet_collection_label in ["_negative_recombiner"]:
-            recombiner = fjext.NegativeEnergyRecombiner()
-            jet_def.set_recombiner(recombiner)
-        gshop = fjcontrib.GroomerShop(jet, jet_def)
+        # Setup
+        _observable_class = "inclusive_chjet"
+        logger.warning("Trying in charged jet groomed observables")
 
-        # Soft drop grooming
-        zcut = grooming_setting["z_cut"]
-        beta = grooming_setting["beta"]
-        jet_groomed_lund = gshop.soft_drop(beta, zcut, jetR)
+        # Calculate the splitting of interest based on the grooming method
+        jet_groomed_lund, grooming_setting_spec = analyze_events_base_STAT.calculate_groomed_jet(
+            grooming_setting=grooming_setting,
+            jet=jet,
+            jet_R=jetR,
+            jet_collection_label=jet_collection_label,
+        )
+
+        # If a single particle jet, there's no substructure, so skip it.
+        if not jet_groomed_lund:
+            return
+
+        logger.warning(f"{jet_groomed_lund=}, {grooming_setting_spec=}")
 
         # ALICE hardest kt
         # NOTE: ktg is measured for both Soft Drop (SD) and Dynamical Grooming (DyG).
@@ -1111,43 +1157,31 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="ktg_alice")
-            # We fill both DyG and SD after this setting to avoid filling DyG multiple times
-            # (since DyG isn't included in the global set of grooming settings). It just relies
-            # on the SD being called at once, which it they must because the ktg measurement
-            # also relies on them.
-            and grooming_setting in self.inclusive_chjet_observables["ktg_alice"]["jet"]["soft_drop"]
+            and grooming_setting in self.inclusive_chjet_observables["ktg_alice"]["jet"]["grooming_settings"]
         ):
+            obs = self.observables_info[f"{self.sqrts}_{_observable_class}_ktg_alice"]
             pt_min = self.inclusive_chjet_observables["ktg_alice"]["jet"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["ktg_alice"]["jet"]["pt"][-1]
+            logger.warning("kt")
             if (
                 jetR in self.inclusive_chjet_observables["ktg_alice"]["jet"]["R"]
                 and pt_min < jet_pt < pt_max
                 and abs(jet.eta()) < (self.inclusive_chjet_observables["ktg_alice"]["jet"]["eta_R"] - jetR)
             ):
-                # Fill DyG
-                for dg in self.inclusive_chjet_observables["ktg_alice"]["jet"]["dynamical_grooming"]:
-                    a = dg["a"]
-                    jet_dyg_lund = gshop.dynamical(a)
-                    # If a single particle jet, there's no substructure, so skip it.
-                    if not jet_dyg_lund:
-                        continue
-
-                    # Note: There's no concept of untagged here.
-                    ktg = jet_dyg_lund.kt()
-                    self.observable_dict_event[f"inclusive_chjet_ktg_alice_R{jetR}_a{a}{jet_collection_label}"].append(
-                        ktg
-                    )
-
-                # Only fill if SD identified a splitting
-                if jet_groomed_lund:
-                    ktg = jet_groomed_lund.kt()
-                    # Note: untagged jets will return negative value
-                    self.observable_dict_event[
-                        f"inclusive_chjet_ktg_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                    ].append(ktg)
-
-        if not jet_groomed_lund:
-            return
+                logger.warning("kt 2")
+                ktg = jet_groomed_lund.kt()
+                # Note: untagged jets will return negative value
+                #self.observable_dict_event[
+                #    f"inclusive_chjet_ktg_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+                #].append(ktg)
+                # TODO(RJE): Need to encode the grooming method here...
+                #            To do this, probably need a search for parameter values function. But not sure how this should look...
+                #            Is it so bad to just ask the user to do it with some checks?
+                #            I think this would be okay, but then the problem is: how do I determine what the name should be in the histogramming??
+                encode_name(jet_R=observable.JetRSpec(jetR), grooming_settings=grooming_setting_spec, label=jet_collection_label)
+                self.observable_dict_event[
+                    f"inclusive_chjet_ktg_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+                ].append(ktg)
 
         # TODO(RJE): Double check grooming settings and their definition here. It's not done right.
 
@@ -1158,7 +1192,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="zg_alice")
-            and grooming_setting in self.inclusive_chjet_observables["zg_alice"]["jet"]["soft_drop"]
+            and grooming_setting in self.inclusive_chjet_observables["zg_alice"]["jet"]["grooming_settings"]
         ):
             pt_min = self.inclusive_chjet_observables["zg_alice"]["jet"]["pt"][0]
             pt_max = self.inclusive_chjet_observables["zg_alice"]["jet"]["pt"][1]
