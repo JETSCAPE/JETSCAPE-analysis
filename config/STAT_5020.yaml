@@ -178,7 +178,8 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # HEPData ins1657384 publishes only lumped stat + sys for RAA.
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 8
                 combinations:
@@ -286,7 +287,8 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # HEPData ins1759506 uses literal labels "stat." / "syst." (with trailing period).
+                systematics_names: {"stat.": stat, "syst.": sys}
                 additional_systematics: {}
                 table: Table 15
                 combinations:
@@ -401,7 +403,10 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # HEPData ins1496050 splits TAA and luminosity out of the main "sys" residual.
+                # TAA and luminosity fractions may vary per centrality, so both are kept inline
+                # (the reader picks them up per-bin from HEPData).
+                systematics_names: {stat: stat, sys: sys, "sys,TAA": taa, "sys,lumi": luminosity}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -490,7 +495,21 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # HEPData ins2601282 publishes a rich per-source decomposition.
+                # All sources vary per-bin, so all are kept inline.
+                systematics_names:
+                  stat: stat
+                  "syst, track selection": track_selection
+                  "syst, momentum bias": momentum_bias
+                  "syst, track to particle matching": track_particle_matching
+                  "syst, particle composition": particle_composition
+                  "syst, fake and secondary tracks": fake_secondary_tracks
+                  "syst, pT resolution correction": pt_resolution
+                  "syst, eta resolution correction": eta_resolution
+                  "syst, unfolding procedure": unfolding
+                  "syst, track reconstruction efficiency": tracking_efficiency
+                  "syst, luminosity": luminosity
+                  "syst, TAA": taa
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1139,14 +1158,51 @@ inclusive_chjet:
             x_axis:
               label: "#it{p}_{T,jet} (GeV/#it{c})"
             y_axis:
-              label: ""
+              label: "#it{R}_{AA}"
               log: true
+            # HEPData ins2637686 provides two subtraction methods (ML, AB); per the ALICE
+            # recommendation we use the ML-subtraction tables. Only lumped stat + sys are
+            # published. Each table's error labels embed the R/centrality tag and even mix
+            # "Semi Central" (stat) vs "SemiCentral" (sys) spellings, so systematics_names
+            # is placed per-combination to override the (empty) top-level mapping.
+            # Note: R=0.6, 30-50% ML is not published — for that single combination we
+            # fall back to the AB-subtraction table (Figure 4c middle AB).
             tables:
-              - parameters: { centrality: ["0_10", "30_50"], jet_R: ["0.2", "0.4", "0.6"] }
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                index: "1"
+                combinations:
+                  - parameters: { centrality: "0_10", jet_R: "0.2" }
+                    table: "Figure 4a top ML"
+                    systematics_names:
+                      {"Raa, R = 0.2, Central, ML, statistical uncertainty": stat,
+                       "Raa, R = 0.2, Central, ML, systematic uncertainty": sys}
+                  - parameters: { centrality: "0_10", jet_R: "0.4" }
+                    table: "Figure 4b top ML"
+                    systematics_names:
+                      {"Raa, R = 0.4, Central, ML, statistical uncertainty": stat,
+                       "Raa, R = 0.4, Central, ML, systematic uncertainty": sys}
+                  - parameters: { centrality: "0_10", jet_R: "0.6" }
+                    table: "Figure 4c top ML"
+                    systematics_names:
+                      {"Raa, R = 0.6, Central, ML, statistical uncertainty": stat,
+                       "Raa, R = 0.6, Central, ML, systematic uncertainty": sys}
+                  - parameters: { centrality: "30_50", jet_R: "0.2" }
+                    table: "Figure 4a middle ML"
+                    systematics_names:
+                      {"Raa, R = 0.2, Semi Central, ML, statistical uncertainty": stat,
+                       "Raa, R = 0.2, SemiCentral, ML, systematic uncertainty": sys}
+                  - parameters: { centrality: "30_50", jet_R: "0.4" }
+                    table: "Figure 4b middle ML"
+                    systematics_names:
+                      {"Raa, R = 0.4, Semi Central, ML, statistical uncertainty": stat,
+                       "Raa, R = 0.4, SemiCentral, ML, systematic uncertainty": sys}
+                  - parameters: { centrality: "30_50", jet_R: "0.6" }
+                    table: "Figure 4c middle AB"
+                    systematics_names:
+                      {"Raa, R = 0.6, Semi Central, AB, statistical uncertainty": stat,
+                       "Raa, R = 0.6, SemiCentral, AB, systematic uncertainty": sys}
 
   # ALICE charged jet RAA, mixed-event background subtraction.
   # Preliminary as of August 2025.
@@ -1349,7 +1405,7 @@ inclusive_chjet:
               range: [0.0, 5.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1375,7 +1431,7 @@ inclusive_chjet:
               range: [0.0, 5.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1396,7 +1452,7 @@ inclusive_chjet:
               range: [0.0, 2.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2724,9 +2780,13 @@ inclusive_jet:
               range: [0.0, 1.9]
               log: true
             tables:
-              - parameters: {}
-                systematics_names: {}
-                additional_systematics: {}
+              - parameters: { centrality: "0_10" }
+                # HEPData ins1755387 RAA tables. "sys,shape" is mapped to `unfolding` following
+                # the ALICE convention (same as in STAT_2760.yaml ins1343112, confirmed by ALICE expert).
+                # "sys,lumi+TAA" is a combined 2.8% global uncertainty, constant across both
+                # R=0.2 and R=0.4 RAA tables, so it is lifted to additional_systematics.
+                systematics_names: {stat: stat, "sys,correlated": correlated, "sys,shape": unfolding}
+                additional_systematics: {lumi_taa: 0.028}
                 index: "1"
                 combinations:
                   - parameters: { jet_R: "0.2" }
@@ -2838,8 +2898,12 @@ inclusive_jet:
               range: [0.0, 1.9]
               log: true
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { jet_R: "0.4" }
+                # HEPData ins1673184 (ATLAS jet RAA). TAA varies per centrality
+                # (0.87% → 4.27% from 0-10% to 40-50%), so it is kept inline. Luminosity is
+                # stored per-bin (absolute values), also kept inline rather than lifted.
+                systematics_names:
+                  {stat: stat, sys: sys, "sys TAA uncertainty": taa, "sys luminosity uncertainty": luminosity}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2983,8 +3047,10 @@ inclusive_jet:
               range: [0.0, 1.9]
               log: true
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10", jet_R: "0.4" }
+                # HEPData ins1673184 Table 27 (rapidity-dependent RAA ratio, 4 jet-pT bins).
+                # Only lumped stat + sys are published for this ratio quantity.
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 27
                 combinations:
@@ -3070,7 +3136,7 @@ inclusive_jet:
               log: True
             tables:
               - parameters: { "centrality": ["0_10", "10_30", "30_50"] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 index: 4
                 combinations:
@@ -3102,7 +3168,7 @@ inclusive_jet:
               log: True
             tables:
               - parameters: { "jet_R": [0.2] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-1"
                 combinations:
@@ -3113,7 +3179,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [0.3] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-2"
                 combinations:
@@ -3124,7 +3190,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [0.4] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-3"
                 combinations:
@@ -3135,7 +3201,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [0.6] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-4"
                 combinations:
@@ -3146,7 +3212,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [0.8] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-5"
                 combinations:
@@ -3157,7 +3223,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [1.0] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-6"
                 combinations:
@@ -3177,7 +3243,7 @@ inclusive_jet:
               log: True
             tables:
               - parameters: { "jet_R": [0.2] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-1"
                 combinations:
@@ -3188,7 +3254,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [0.3] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-2"
                 combinations:
@@ -3199,7 +3265,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [0.4] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-3"
                 combinations:
@@ -3210,7 +3276,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [0.6] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-4"
                 combinations:
@@ -3221,7 +3287,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [0.8] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-5"
                 combinations:
@@ -3232,7 +3298,7 @@ inclusive_jet:
                   - parameters: { "centrality": ["30_50"] }
                     index: 2
               - parameters: { "jet_R": [1.0] }
-                systematics_names: { "TAA": "TAA", "lumi": "lumi" }
+                systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-6"
                 combinations:
@@ -3307,7 +3373,7 @@ inclusive_jet:
               range: ["2e-3", "1e6"]
             tables:
               - parameters: { centrality: ["0_10", "10_20", "20_30", "30_40"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -3336,7 +3402,7 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { centrality: "0_10" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "2"
                 combinations:
@@ -3351,7 +3417,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 16
               - parameters: { centrality: "10_20" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "3"
                 combinations:
@@ -3366,7 +3432,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 16
               - parameters: { centrality: "20_30" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "4"
                 combinations:
@@ -3381,7 +3447,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 16
               - parameters: { centrality: "30_40" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "5"
                 combinations:
@@ -3404,8 +3470,8 @@ inclusive_jet:
               range: [0, 2.5]
               log: true
             tables:
-              - parameters: { centrality: "0_10" }
-                systematics_names: {}
+              - parameters: { centrality: "0_10" , jet_R: "0.4" }
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -3419,8 +3485,8 @@ inclusive_jet:
                     table: Table 14
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 18
-              - parameters: { centrality: "10_20" }
-                systematics_names: {}
+              - parameters: { centrality: "10_20" , jet_R: "0.4" }
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "2"
                 combinations:
@@ -3434,8 +3500,8 @@ inclusive_jet:
                     table: Table 14
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 18
-              - parameters: { centrality: "20_30" }
-                systematics_names: {}
+              - parameters: { centrality: "20_30" , jet_R: "0.4" }
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "3"
                 combinations:
@@ -3449,8 +3515,8 @@ inclusive_jet:
                     table: Table 14
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 18
-              - parameters: { centrality: "30_40" }
-                systematics_names: {}
+              - parameters: { centrality: "30_40" , jet_R: "0.4" }
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "4"
                 combinations:
@@ -3529,7 +3595,7 @@ inclusive_jet:
               range: ["2e-4", "1e2"]
             tables:
               - parameters: { centrality: ["0_10", "10_20", "20_30", "30_40"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -3558,7 +3624,7 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { centrality: "0_10" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "2"
                 combinations:
@@ -3573,7 +3639,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 17
               - parameters: { centrality: "10_20" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "3"
                 combinations:
@@ -3588,7 +3654,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 17
               - parameters: { centrality: "20_30" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "4"
                 combinations:
@@ -3603,7 +3669,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 17
               - parameters: { centrality: "30_40" }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "4"
                 combinations:
@@ -3626,8 +3692,8 @@ inclusive_jet:
               range: [0, 2.5]
               log: true
             tables:
-              - parameters: { centrality: "0_10" }
-                systematics_names: {}
+              - parameters: { centrality: "0_10" , jet_R: "0.4" }
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -3641,8 +3707,8 @@ inclusive_jet:
                     table: Table 15
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 19
-              - parameters: { centrality: "10_20" }
-                systematics_names: {}
+              - parameters: { centrality: "10_20" , jet_R: "0.4" }
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "2"
                 combinations:
@@ -3656,8 +3722,8 @@ inclusive_jet:
                     table: Table 15
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 19
-              - parameters: { centrality: "20_30" }
-                systematics_names: {}
+              - parameters: { centrality: "20_30" , jet_R: "0.4" }
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "3"
                 combinations:
@@ -3671,8 +3737,8 @@ inclusive_jet:
                     table: Table 15
                   - parameters: { jet_pt: 316.22_398.1 }
                     table: Table 19
-              - parameters: { centrality: "30_40" }
-                systematics_names: {}
+              - parameters: { centrality: "30_40" , jet_R: "0.4" }
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "4"
                 combinations:
