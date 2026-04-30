@@ -178,23 +178,33 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                # HEPData ins1657384 publishes only lumped stat + sys for RAA.
+                # HEPData ins1657384 publishes lumped stat + sys per-bin for RAA.
+                # Table 8's description also gives a flat-norm uncertainty per centrality
+                # (constant across pT, varies across centralities), encoded below as
+                # `additional_systematics: {norm: <frac>}` per combination. Values quoted
+                # verbatim from the HEPData submission.yaml description.
                 systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 8
                 combinations:
                   - parameters: { centrality: "0_5" }
                     index: "1"
+                    additional_systematics: { norm: 0.027 }
                   - parameters: { centrality: "5_10" }
                     index: "2"
+                    additional_systematics: { norm: 0.035 }
                   - parameters: { centrality: "10_20" }
                     index: "3"
+                    additional_systematics: { norm: 0.035 }
                   - parameters: { centrality: "20_30" }
                     index: "4"
+                    additional_systematics: { norm: 0.041 }
                   - parameters: { centrality: "30_40" }
                     index: "5"
+                    additional_systematics: { norm: 0.037 }
                   - parameters: { centrality: "40_50" }
                     index: "6"
+                    additional_systematics: { norm: 0.039 }
 
   # ALICE charged pion RAA
   pt_pi_alice:
@@ -3173,66 +3183,66 @@ inclusive_jet:
                 table: "Figure 5-1"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [0.3] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-2"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [0.4] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-3"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [0.6] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-4"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [0.8] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-5"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [1.0] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 5-6"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
           ratio:
             quantity: "jet_pt"
             x_axis:
@@ -3248,66 +3258,66 @@ inclusive_jet:
                 table: "Figure 7-1"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [0.3] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-2"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [0.4] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-3"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [0.6] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-4"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [0.8] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-5"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
               - parameters: { "jet_R": [1.0] }
                 systematics_names: { stat: stat, sys: sys, TAA: taa, lumi: luminosity }
                 additional_systematics: {}
                 table: "Figure 7-6"
                 combinations:
                   - parameters: { "centrality": ["0_10"] }
-                    index: 0
+                    index: "1"
                   - parameters: { "centrality": ["10_30"] }
-                    index: 1
+                    index: "2"
                   - parameters: { "centrality": ["30_50"] }
-                    index: 2
+                    index: "3"
 
   # ATLAS D(z)
   Dz_atlas:
