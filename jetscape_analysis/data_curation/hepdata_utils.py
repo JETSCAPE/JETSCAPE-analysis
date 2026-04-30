@@ -19,11 +19,7 @@ import ruamel.yaml
 logger = logging.getLogger(__name__)
 
 _here = Path(__file__).parent
-# Prefer the in-tree submodule location (once pulled from upstream);
-# fall back to the sibling checkout used before the submodule migration.
-_SUBMODULE_DATA_DIR = _here.parent.parent / "data" / "hard-sector-data-curation"
-_SIBLING_DATA_DIR = _here.parent.parent.parent / "hard-sector-data-curation"
-BASE_DATA_DIR = _SUBMODULE_DATA_DIR if _SUBMODULE_DATA_DIR.is_dir() else _SIBLING_DATA_DIR
+BASE_DATA_DIR = _here.parent.parent / "data" / "hard-sector-data-curation"
 DEFAULT_DATABASE_NAME: Final[Path] = Path("hepdata_database.yaml")
 
 URLParams = dict[str, Any]
