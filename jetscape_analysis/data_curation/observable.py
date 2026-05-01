@@ -171,7 +171,6 @@ class PtSpec(ParameterSpec):
     def decode(cls, value: str) -> PtSpec:
         # `value` is of the form: "{self.low}_{self.high}"
         # indices:                 0           1
-        logger.warning(f"{value=}")
         low, high = value.split("_")
         return cls(low=float(low), high=float(high) if not np.isclose(float(high), -1.0) else None)
 
@@ -1370,6 +1369,57 @@ class Observable:
         """
         # -1 removes the experiment name
         return pretty_print_name(self.internal_name_without_experiment)
+
+    def encode_name_for_storing_in_file(self, *, tag: str = "", **parameters_to_encode: ParameterSpec) -> str:
+        # The baseline that we want to encode the essential parameters.
+        # From there, we have two possible modifications:
+        # 1. Additional parameters that we want to include (if they're available).
+        additional_parameters_to_encode = [JetRSpec]
+        # 2. Parameters that we want to exclude (namely, those which we don't want to specify at the observable level)
+        #    For example, we skip the centrality since we want to deal with that binning later.
+        parameters_to_exclude = [CentralitySpec]
+
+        # We need the encoded parameter names to have the right names for comparison
+        encoded_parameters = {p.encode_name: p for p in self.parameters()}
+        encoded_essential_parameters = {p.encode_name: p for p in self.essential_parameters()}
+
+        # Loop over the available parameters to order the additional parameters w.r.t the essential parameters
+        # The order matters for the encoding
+        to_encode = {}
+        for encoded_name, param_specs in encoded_parameters.items():
+            # Only include them if they're in the essential parameters, or we've specifically requested for them
+            if not (
+                encoded_name in encoded_essential_parameters or param_specs.spec_type in additional_parameters_to_encode
+            ):
+                continue
+            # And also skip those that we've excluded
+            if param_specs.spec_type in parameters_to_exclude:
+                continue
+
+            try:
+                to_encode[encoded_name] = parameters_to_encode.pop(encoded_name)
+            except KeyError as e:
+                msg = f"Expected to find {encoded_name}, but was not provided in {parameters_to_encode}. Please add it"
+                raise KeyError(msg) from e
+
+        if parameters_to_encode:
+            logger.warning(f"Provided {parameters_to_encode=}, but they're not needed to encode the name")
+
+        # Aiming for something like:
+        # f"inclusive_chjet_ktg_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
+        # TODO(RJE): So I need to encode the jet_R, the grooming setting, and the jet_collection_label
+        # Or for tg:
+        # inclusive_chjet_tg_alice_R0.2_zcut0.2_beta0
+        base_name = f"{self.observable_class}_{self.name}"
+        for k, v in to_encode.items():
+            base_name += f"_{k}_{v.encode()}"
+        # And then include if specified.
+        if tag:
+            base_name += f"_{tag}"
+
+        # inclusive_chjet_ktg_alice_centrality_0_10_jet_R_0.2_jet_grooming_settings_DyG_a_1.0
+
+        return base_name
 
     def parameters(self) -> AllParameters:
         """The parameter specifications that are relevant to the observable.
