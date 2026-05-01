@@ -1388,7 +1388,9 @@ class Observable:
         to_encode = {}
         for encoded_name, param_specs in encoded_parameters.items():
             # Only include them if they're in the essential parameters, or we've specifically requested for them
-            if not (encoded_name in encoded_essential_parameters or param_specs.spec_type in additional_parameters_to_encode):
+            if not (
+                encoded_name in encoded_essential_parameters or param_specs.spec_type in additional_parameters_to_encode
+            ):
                 continue
             # And also skip those that we've excluded
             if param_specs.spec_type in parameters_to_exclude:
@@ -1396,9 +1398,9 @@ class Observable:
 
             try:
                 to_encode[encoded_name] = parameters_to_encode.pop(encoded_name)
-            except KeyError:
+            except KeyError as e:
                 msg = f"Expected to find {encoded_name}, but was not provided in {parameters_to_encode}. Please add it"
-                raise KeyError(msg)
+                raise KeyError(msg) from e
 
         if parameters_to_encode:
             logger.warning(f"Provided {parameters_to_encode=}, but they're not needed to encode the name")
