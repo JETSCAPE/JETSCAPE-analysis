@@ -5142,7 +5142,7 @@ gamma_trigger_jet:
 
   # ATLAS xj_gamma
   xj_gamma_atlas:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1694678
       hepdata: https://www.hepdata.net/record/ins1694678
@@ -5164,7 +5164,7 @@ gamma_trigger_jet:
       R: [0.4]
       eta: 2.8
       pt: [31.6, 1000.]
-    dPhi: 7./8. # dPhi > 7/8*pi
+    dPhi: 0.875 # 7/8 — analyzer multiplies by pi to get the cut
 
     hepdata: "HEPData-ins1694678-v1-root.root"
     # one table per pt gamma bin
@@ -5283,7 +5283,7 @@ gamma_trigger_jet:
   # resulting likelihood not very meaningful imho
   # comment FJ: note that only highest pT photon per event is used for the calculation of xj_gamma!!
   xj_gamma_cms:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1638996
       hepdata: https://www.hepdata.net/record/ins1638996
@@ -5303,7 +5303,7 @@ gamma_trigger_jet:
       R: [0.3]
       eta: 1.6
       pt: [30., -1.]
-    dPhi: 7./8. # dPhi > 7/8*pi
+    dPhi: 0.875 # 7/8 — analyzer multiplies by pi to get the cut
 
     hepdata: "HEPData-ins1638996-v1-root.root"
 

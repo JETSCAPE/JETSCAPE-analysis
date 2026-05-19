@@ -89,6 +89,38 @@ the new YAML; the new equivalent lives in `data.pp.spectra.tables[i].table`
 and friends. Same fix shape as the histogrammer binning lookup —
 delegate to `data_curation`.
 
+### Targeted patches landed on top of the schema-rename commit
+
+- **`xj_gamma_atlas` and `xj_gamma_cms`** were re-enabled and patched
+  end-to-end so a student can run them on the new YAML. Fixed:
+  - YAML: `enabled: true`; `dPhi: 7./8.` → `dPhi: 0.875` (was a YAML
+    string, broke the `* np.pi` arithmetic).
+  - Analyzer: full schema rewrite for these two observables — old keys
+    (`gamma_pT`, `gamma_eta`, `isolation_R`, `R`, `jet_eta`, `jet_pT`,
+    `jet_deltaphi`) → new nested locations (`trigger.pt`, `trigger.eta`,
+    `trigger.isolation.{R,type,Et_max_pp,Et_max_AA}`, `jet.R`,
+    `jet.eta`, `jet.pt`, `dPhi`). Also adjusted shape expectations: new
+    `trigger.pt` is a list of bin edges (used min/max for the trigger
+    cut), `trigger.eta` and `jet.eta` are scalars (used as upper bound
+    with min=0), `jet.R` is a list (took `[0]`).
+  - Analyzer: `.append(photon.Et(), xj)` (Python TypeError) →
+    `.append([photon.Et(), xj])`. Four sites.
+  - Histogrammer: `photon_jet_xj_{atlas,cms}_...` → `gamma_trigger_jet_xj_{atlas,cms}_...`
+    column-name reconciliation (analyzer always wrote
+    `gamma_trigger_jet_*` — the histogrammer was looking for a stale
+    name that never existed in the dict).
+  - Histogrammer: the `column_names` list at line ~423 had no `f`
+    prefix, so `{jet_R}` was being looked up as a literal string. Fixed.
+
+  These two observables now have explicit `hepdata:` filename +
+  `pt_gamma_bins:` + `hepdata_{pp,AA}_hname:` in the YAML, so the
+  histogrammer's binning lookup works for them even though it's broken
+  for most other observables.
+
+  **Pre-flight check before running**: the student needs the HEPData
+  ROOT file at `data/STAT/5020/gamma_trigger_jet/{xj_gamma_atlas,xj_gamma_cms}/HEPData-ins*.root`.
+  Download from the inspire_hep link in the YAML if missing.
+
 ### 4. Per-observable cleanup items (Raymond's note)
 
 - **Split `mass_alice` (5020) into `mass_alice` + `mg_alice`** — currently

@@ -3077,17 +3077,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.measure_observable_for_current_event(
             self.gamma_trigger_jet_observables, observable_name="xj_gamma_atlas"
         ):
-            gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["gamma_pT"]
-            gamma_eta_min, gamma_eta_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["gamma_eta"]
-            isolation_R = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_R"]
-            isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_Et_max_AA"]
-            isolation_type = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_type"]
-            if not self.is_AA:
-                isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_Et_max_pp"]
-            jet_R = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["R"]
-            jet_eta_min, jet_eta_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_eta"]
-            jet_pt_min, jet_pt_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_pT"]
-            photon_jet_dPhi = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_deltaphi"]
+            _xj_atlas_block = self.gamma_trigger_jet_observables["xj_gamma_atlas"]
+            _trigger_pt_edges = _xj_atlas_block["trigger"]["pt"]
+            gamma_Pt_min = _trigger_pt_edges[0]
+            gamma_Pt_max = _trigger_pt_edges[-1]
+            gamma_eta_min = 0.0
+            gamma_eta_max = _xj_atlas_block["trigger"]["eta"]
+            _isolation = _xj_atlas_block["trigger"]["isolation"]
+            isolation_R = _isolation["R"]
+            isolation_type = _isolation["type"]
+            isolation_Et_max = _isolation["Et_max_AA"] if self.is_AA else _isolation["Et_max_pp"]
+            jet_R = _xj_atlas_block["jet"]["R"][0]
+            jet_eta_min = 0.0
+            jet_eta_max = _xj_atlas_block["jet"]["eta"]
+            jet_pt_min, jet_pt_max = _xj_atlas_block["jet"]["pt"]
+            photon_jet_dPhi = _xj_atlas_block["dPhi"]
 
             # determine relevant particles for isolation calculation
             if isolation_type == "full":
@@ -3145,11 +3149,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             xj_uncorrected = jet_pt_uncorrected / photon.Et()
                             self.observable_dict_event[
                                 f"gamma_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}_xj"
-                            ].append(photon.Et(), xj)
+                            ].append([photon.Et(), xj])
                             if jet_collection_label in ["_shower_recoil"]:
                                 self.observable_dict_event[
                                     f"gamma_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}_xj_unsubtracted"
-                                ].append(photon.Et(), xj_uncorrected)
+                                ].append([photon.Et(), xj_uncorrected])
 
         # ------------------------------------------------------------
         # ------------------------------------------------------------
@@ -3161,17 +3165,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.measure_observable_for_current_event(
             self.gamma_trigger_jet_observables, observable_name="xj_gamma_cms"
         ):
-            gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["gamma_pT"]
-            gamma_eta_min, gamma_eta_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["gamma_eta"]
-            isolation_R = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_R"]
-            isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_Et_max_AA"]
-            if not self.is_AA:
-                isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_Et_max_pp"]
-            isolation_type = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_type"]
-            jet_R = self.gamma_trigger_jet_observables["xj_gamma_cms"]["R"]
-            jet_eta_min, jet_eta_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_eta"]
-            jet_pt_min, jet_pt_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_pT"]
-            photon_jet_dPhi = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_deltaphi"]
+            _xj_cms_block = self.gamma_trigger_jet_observables["xj_gamma_cms"]
+            _trigger_pt_edges = _xj_cms_block["trigger"]["pt"]
+            gamma_Pt_min = _trigger_pt_edges[0]
+            gamma_Pt_max = _trigger_pt_edges[-1]
+            gamma_eta_min = 0.0
+            gamma_eta_max = _xj_cms_block["trigger"]["eta"]
+            _isolation = _xj_cms_block["trigger"]["isolation"]
+            isolation_R = _isolation["R"]
+            isolation_type = _isolation["type"]
+            isolation_Et_max = _isolation["Et_max_AA"] if self.is_AA else _isolation["Et_max_pp"]
+            jet_R = _xj_cms_block["jet"]["R"][0]
+            jet_eta_min = 0.0
+            jet_eta_max = _xj_cms_block["jet"]["eta"]
+            jet_pt_min, jet_pt_max = _xj_cms_block["jet"]["pt"]  # upper bound is -1 (unused below)
+            photon_jet_dPhi = _xj_cms_block["dPhi"]
 
             # determine relevant particles for isolation calculation
             if isolation_type == "full":
@@ -3243,11 +3251,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             xj_uncorrected = jet_pt_uncorrected / highest_pt_photon.Et()
                             self.observable_dict_event[
                                 f"gamma_trigger_jet_xj_cms_R{jetR}{jet_collection_label}"
-                            ].append(highest_pt_photon.Et(), xj)
+                            ].append([highest_pt_photon.Et(), xj])
                             if jet_collection_label in ["_shower_recoil"]:
                                 self.observable_dict_event[
                                     f"gamma_trigger_jet_xj_cms_R{jetR}{jet_collection_label}_unsubtracted"
-                                ].append(highest_pt_photon.Et(), xj_uncorrected)
+                                ].append([highest_pt_photon.Et(), xj_uncorrected])
 
         # ------------------------------------------------------------
         # ------------------------------------------------------------

@@ -397,7 +397,7 @@ class HistogramResults(common_base.CommonBase):
 
                 if observable == "xj_gamma_atlas":
                     # Get NGamma for normalization
-                    column_name_ngamma = f"photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_Ngamma"
+                    column_name_ngamma = f"gamma_trigger_jet_xj_atlas_R{jet_R}{jet_collection_label}_Ngamma"
                     bins_pt = np.arange(0, 1000, 1)
                     if column_name_ngamma in self.observables_df.columns:
                         col = self.observables_df[column_name_ngamma]
@@ -421,8 +421,8 @@ class HistogramResults(common_base.CommonBase):
 
                     # loop over the different pt_gamma_bins_i for i=1 to 4
                     column_names = [
-                        "photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj",
-                        "photon_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj_unsubtracted",
+                        f"gamma_trigger_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj",
+                        f"gamma_trigger_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj_unsubtracted",
                     ]
 
                     # loop over the pt_gamma_bins
@@ -449,7 +449,7 @@ class HistogramResults(common_base.CommonBase):
 
                 if observable == "xj_gamma_cms":
                     # Get NGamma for normalization
-                    column_name_ngamma = f"photon_jet_xj_cms_R{jet_R}{jet_collection_label}_Ngamma"
+                    column_name_ngamma = f"gamma_trigger_jet_xj_cms_R{jet_R}{jet_collection_label}_Ngamma"
                     # array from 0 to 1000 in 1 GeV steps
                     bins_pt = np.arange(0, 1000, 1)
                     if column_name_ngamma in self.observables_df.columns:
@@ -471,10 +471,10 @@ class HistogramResults(common_base.CommonBase):
 
                     # get the pt_gamma_bins from config and loop over them
                     pt_gamma_bins = block["pt_gamma_bins"]
-                    column_names_dphi = [f"photon_jet_dphi_cms_R{jet_R}{jet_collection_label}"]
+                    column_names_dphi = [f"gamma_trigger_jet_dphi_cms_R{jet_R}{jet_collection_label}"]
                     column_names_xj = [
-                        f"photon_jet_xj_cms_R{jet_R}{jet_collection_label}",
-                        f"photon_jet_xj_cms_R{jet_R}{jet_collection_label}_unsubtracted",
+                        f"gamma_trigger_jet_xj_cms_R{jet_R}{jet_collection_label}",
+                        f"gamma_trigger_jet_xj_cms_R{jet_R}{jet_collection_label}_unsubtracted",
                     ]
                     # loop over the pt_gamma_bins
                     for i, pt_gamma_bin in enumerate(pt_gamma_bins):
