@@ -177,10 +177,10 @@ class HistogramResults(common_base.CommonBase):
                     )
 
                 # gamma-triggered jet observables (xj_gamma_*, pt_atlas, etc.) live under
-                # gamma_trigger_jet in the new YAML. Their special-case handlers were left
-                # inside histogram_hadron_observables, so dispatch through that.
+                # gamma_trigger_jet in the new YAML. The handlers are in
+                # histogram_photon_jet_observables (kept its old name despite the YAML rename).
                 if "gamma_trigger_jet" in self.config:
-                    self.histogram_hadron_observables(
+                    self.histogram_photon_jet_observables(
                         observable_type="gamma_trigger_jet", jet_collection_label=jet_collection_label
                     )
 
@@ -399,6 +399,9 @@ class HistogramResults(common_base.CommonBase):
                     pass
 
                 if observable == "xj_gamma_atlas":
+                    # xj_gamma_atlas has a single jet R; define it here since the
+                    # pt_atlas branch above may be disabled / skipped.
+                    jet_R = block["jet"]["R"][0]
                     # Get NGamma for normalization
                     column_name_ngamma = f"gamma_trigger_jet_xj_atlas_R{jet_R}{jet_collection_label}_Ngamma"
                     bins_pt = np.arange(0, 1000, 1)
@@ -432,9 +435,10 @@ class HistogramResults(common_base.CommonBase):
                     for i, pt_gamma_bin in enumerate(pt_gamma_bins):
                         # get the xj bins
                         system = "AA" if self.is_AA else "pp"
-                        h_xj_hepdata = f.Get(block["hepdata_pt_bin_dir"][i]).Get(
-                            block[f"hepdata_{system}_hname"][centrality_index if self.is_AA else 0]
-                        )
+                        h_name_entry = block[f"hepdata_{system}_hname"]
+                        # AA shape: list of one name per centrality. pp shape: single string.
+                        h_name = h_name_entry[centrality_index] if isinstance(h_name_entry, list) else h_name_entry
+                        h_xj_hepdata = f.Get(block["hepdata_pt_bin_dir"][i]).Get(h_name)
                         bins_xj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
 
                         for column_name in column_names:
@@ -451,6 +455,9 @@ class HistogramResults(common_base.CommonBase):
                             self.output_list.append(h)
 
                 if observable == "xj_gamma_cms":
+                    # xj_gamma_cms has a single jet R; define it here since other branches
+                    # in this function may be disabled / skipped.
+                    jet_R = block["jet"]["R"][0]
                     # Get NGamma for normalization
                     column_name_ngamma = f"gamma_trigger_jet_xj_cms_R{jet_R}{jet_collection_label}_Ngamma"
                     # array from 0 to 1000 in 1 GeV steps
