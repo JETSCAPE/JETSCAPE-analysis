@@ -332,6 +332,27 @@ class HistogramResults(common_base.CommonBase):
         self.output_list.append(h)
 
     # -------------------------------------------------------------------------------------------
+    # Read bin edges from a ROOT histogram, handling both variable and fixed binning.
+    # ROOT's GetXbins() returns an empty TArrayD for fixed-width histograms; we synthesize
+    # the edges from GetNbinsX/GetXmin/GetXmax in that case.
+    # Returns an empty numpy array when the input histogram is null or has zero bins.
+    # -------------------------------------------------------------------------------------------
+    @staticmethod
+    def _bin_edges_from_hist(h):
+        if h is None:
+            return np.array([])
+        axis = h.GetXaxis()
+        if axis is None:
+            return np.array([])
+        xbins = np.array(axis.GetXbins())
+        if xbins.size >= 2:
+            return xbins
+        nbins = h.GetNbinsX()
+        if nbins <= 0:
+            return np.array([])
+        return np.linspace(axis.GetXmin(), axis.GetXmax(), nbins + 1)
+
+    # -------------------------------------------------------------------------------------------
     # Histogram hadron observables
     # -------------------------------------------------------------------------------------------
     def histogram_hadron_observables(self, observable_type="", jet_collection_label=""):
@@ -439,7 +460,13 @@ class HistogramResults(common_base.CommonBase):
                         # AA shape: list of one name per centrality. pp shape: single string.
                         h_name = h_name_entry[centrality_index] if isinstance(h_name_entry, list) else h_name_entry
                         h_xj_hepdata = f.Get(block["hepdata_pt_bin_dir"][i]).Get(h_name)
-                        bins_xj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
+                        bins_xj = self._bin_edges_from_hist(h_xj_hepdata)
+                        if bins_xj.size < 2:
+                            logger.warning(
+                                f"\tCould not read bin edges for {observable} pt_gamma_bin {i} "
+                                f"({block['hepdata_pt_bin_dir'][i]}/{h_name}); skipping."
+                            )
+                            continue
 
                         for column_name in column_names:
                             hname = f"h_{column_name}_{centrality}_photonPt_{i}"
@@ -491,9 +518,14 @@ class HistogramResults(common_base.CommonBase):
                         # get the dphi dphi bins
                         system = "AA" if self.is_AA else "pp"
                         h_dphi_hepdata = f.Get(block["hepdata_dphi_dir"][0]).Get(block[f"hepdata_{system}_hname"][i])
-                        bins_dPhi = np.array(h_dphi_hepdata.GetXaxis().GetXbins())
+                        bins_dPhi = self._bin_edges_from_hist(h_dphi_hepdata)
                         h_xj_hepdata = f.Get(block["hepdata_xjg_dir"][0]).Get(block[f"hepdata_{system}_hname"][i])
-                        bins_xj = np.array(h_xj_hepdata.GetXaxis().GetXbins())
+                        bins_xj = self._bin_edges_from_hist(h_xj_hepdata)
+                        if bins_dPhi.size < 2 or bins_xj.size < 2:
+                            logger.warning(
+                                f"\tCould not read bin edges for xj_gamma_cms pt_gamma_bin {i}; skipping."
+                            )
+                            continue
 
                         for column_name in column_names_dphi:
                             hname = f"h_{column_name}_{centrality}_photonPt_{i}"
