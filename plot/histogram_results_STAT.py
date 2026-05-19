@@ -644,6 +644,10 @@ class HistogramResults(common_base.CommonBase):
                         for subobservable_label in subobservable_label_list:
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
+                                    # New YAML schema mixes methods (soft_drop + dynamical_grooming).
+                                    # Legacy histogram naming below only knows SoftDrop, so skip other methods.
+                                    if grooming_setting.get("type", "soft_drop") != "soft_drop":
+                                        continue
                                     zcut = grooming_setting["z_cut"]
                                     beta = grooming_setting["beta"]
 

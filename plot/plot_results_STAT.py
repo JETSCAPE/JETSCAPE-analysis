@@ -265,6 +265,10 @@ class PlotResults(common_base.CommonBase):
 
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
+                                    # New YAML schema mixes methods (soft_drop + dynamical_grooming).
+                                    # Legacy plot naming below only knows SoftDrop, so skip other methods.
+                                    if grooming_setting.get("type", "soft_drop") != "soft_drop":
+                                        continue
                                     # Custom skip
                                     if observable in ["zg_alice", "tg_alice"]:
                                         if np.isclose(self.jet_R, 0.4) and centrality_index == 0:
