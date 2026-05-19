@@ -7,7 +7,7 @@ The bulk of the repository covers physics analysis and aggregation of simulation
 It is written entirely in python -– leveraging c++ underneath where necessary -–, so no compilation necessary beyond setup!
 
 > [!IMPORTANT]
-> This repository is provided without user support! Code may break unexpectedly, and we cannot help with issues. For JETSCAPE folks, see some additional docs at [docs/getting_started.md](docs/getting_started.md)
+> This repository is provided without user support! Code may break unexpectedly, and we cannot help with issues. For JETSCAPE folks, see some additional docs at [docs/getting_started.md](docs/getting_started.md), which have superseded the info in this README.
 
 ## (1) Generating events
 
@@ -24,8 +24,11 @@ you should do (from outside the docker container):
 
 ```bash
 $ cd ~/jetscape-docker/
-$ git clone git@github.com:JETSCAPE/JETSCAPE-analysis.git
+$ git clone --recurse-submodules git@github.com:JETSCAPE/JETSCAPE-analysis.git
 ```
+
+> [!tip]
+> If you've already clone the repo and forgot to grab the submodules, you can use `git submodule update --init --recursive` in your existing repository.
 
 You should then enter the docker container as specified in the above instructions.
 

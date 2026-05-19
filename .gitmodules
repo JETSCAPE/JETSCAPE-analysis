@@ -1,0 +1,4 @@
+[submodule "data/hard-sector-data-curation"]
+	path = data/hard-sector-data-curation
+	url = https://github.com/raymondEhlers/hard-sector-data-curation
+	branch = main
