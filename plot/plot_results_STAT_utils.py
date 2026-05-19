@@ -84,6 +84,7 @@ class PlotUtils(common_base.CommonBase):
             dir_key = "hepdata_AA_dir"
         else:
             logger.info(f"hepdata_AA_dir{suffix} not found!")
+            return np.array([])
 
         # Check for hist names in config
         if f"hepdata_AA_hname{suffix}" in block:
