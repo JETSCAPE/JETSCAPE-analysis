@@ -176,9 +176,12 @@ class HistogramResults(common_base.CommonBase):
                         observable_type="dijet_trigger_jet", jet_collection_label=jet_collection_label
                     )
 
-                if "photon_jet" in self.config:
-                    self.histogram_photon_jet_observables(
-                        observable_type="photon_jet", jet_collection_label=jet_collection_label
+                # gamma-triggered jet observables (xj_gamma_*, pt_atlas, etc.) live under
+                # gamma_trigger_jet in the new YAML. Their special-case handlers were left
+                # inside histogram_hadron_observables, so dispatch through that.
+                if "gamma_trigger_jet" in self.config:
+                    self.histogram_hadron_observables(
+                        observable_type="gamma_trigger_jet", jet_collection_label=jet_collection_label
                     )
 
         else:
@@ -331,7 +334,7 @@ class HistogramResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Histogram hadron observables
     # -------------------------------------------------------------------------------------------
-    def histogram_hadron_observables(self, observable_type=""):
+    def histogram_hadron_observables(self, observable_type="", jet_collection_label=""):
         logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
