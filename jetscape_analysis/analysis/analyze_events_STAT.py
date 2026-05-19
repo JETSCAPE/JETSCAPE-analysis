@@ -1143,7 +1143,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             return
 
         # Parameters used to encode observable names
-        _parameters = {"jet_R": observable.JetRSpec(jetR), "grooming_settings": grooming_setting_spec}
+        _parameters = {"jet_R": observable.JetRSpec(jetR), "jet_grooming_settings": grooming_setting_spec}
 
         # ALICE hardest kt
         # NOTE: ktg is measured for both Soft Drop (SD) and Dynamical Grooming (DyG).
@@ -1642,7 +1642,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             return
 
         # Parameters used to encode observable names
-        _parameters = {"jet_R": observable.JetRSpec(jetR), "grooming_settings": grooming_setting_spec}
+        _parameters = {"jet_R": observable.JetRSpec(jetR), "jet_grooming_settings": grooming_setting_spec}
 
         # CMS m_g
         #   Hole treatment:
