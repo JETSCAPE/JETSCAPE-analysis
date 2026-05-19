@@ -57,15 +57,41 @@ are those that vary (`len(values) > 1`); they uniquely identify a table.
 
 Old logic:
 - if `"bins"` in block → use it directly
-- elif `"hepdata"` in block → read from the HEPData ROOT file referenced
+- elif `"hepdata"` in block → read from the HEPData **ROOT** file referenced
 
 In the new YAML neither key is present on most observables (3 still have explicit `bins:`, 3 still have a top-level `hepdata:` filename). The other ~49 observables have only the new `data:` block, which references HEPData by `inspire_hep_id` + `table` + `index`. The histogrammer doesn't yet know how to consume that.
 
+**Important: the new HEPData source is YAML, not ROOT.** The
+`hard-sector-data-curation` submodule (sibling clone at
+`/afs/cern.ch/work/z/zhangj/jetscape-analysis/hard-sector-data-curation/`
+right now since the submodule isn't initialized) stores HEPData in
+per-table `.yaml` files:
+
+```
+hard-sector-data-curation/
+├── hepdata_database.yaml                          # observable → directory
+└── data/5020/inclusive_jet/mg_cms/
+    └── HEPData-ins1672962-v1-yaml/
+        ├── Table1.yaml
+        ├── Table2.yaml
+        └── …
+```
+
+So the binning lookup migration is actually two changes at once:
+- read a different YAML key (`data:` block instead of `hepdata:` filename),
+- read a different *file format* (HEPData YAML instead of HEPData ROOT).
+
 **Possible paths to fix:**
 - Quick: hand-add explicit `bins:` to every observable block (tedious, defeats Raymond's design).
-- Right: extend `bins_from_config` to read from the new `data:` block via the `data_curation` module, which already parses HEPData v2 records and exposes binning. See `jetscape_analysis/data_curation/data.py:parse_binning_block` (~line 469) and `jetscape_analysis/data_curation/hepdata_utils.py`.
+- Right: extend `bins_from_config` to read from the new `data:` block via the `data_curation` module, which already parses HEPData v2 YAML and exposes binning. See `jetscape_analysis/data_curation/data.py:parse_binning_block` (~line 469) and `jetscape_analysis/data_curation/hepdata_utils.py`. The same helper should replace `bins_from_hepdata` in `plot_results_STAT_utils.py`.
 
 Without this fix, after running through the analyzer + histogrammer, the resulting ROOT file will contain zero (or near-zero) histograms despite the analyzer doing all the work correctly.
+
+**Observables still on the ROOT-file path** (kept working in this commit batch):
+- `xj_gamma_atlas`, `xj_gamma_cms` (top-level `hepdata:` filename + `pt_gamma_bins:` + `hepdata_{pp,AA}_hname:` still present).
+- 1 other (search `^    hepdata: ` in `config/STAT_5020.yaml` for the full list).
+
+Everything else expects YAML.
 
 ### 2. Groomed observables in histogrammer + plotter
 
