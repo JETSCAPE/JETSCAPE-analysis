@@ -245,17 +245,17 @@ class PlotResults(common_base.CommonBase):
                     logger.info(f"skipping {observable}")
                     continue
 
-                for self.jet_R in block["jet_R"]:
+                for self.jet_R in block["jet"]["R"]:
                     # Optional: Loop through pt bins
-                    for pt_bin in range(len(block["pt"]) - 1):
+                    for pt_bin in range(len(block["jet"]["pt"]) - 1):
                         pt_suffix = ""
-                        if len(block["pt"]) > 2:
+                        if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
                         # Optional: subobservable
                         subobservable_label_list = [""]
-                        if "kappa" in block:
-                            subobservable_label_list = [f"_k{kappa}" for kappa in block["kappa"]]
+                        if "kappa" in block["jet"]:
+                            subobservable_label_list = [f"_k{kappa}" for kappa in block["jet"]["kappa"]]
                         for subobservable_label in subobservable_label_list:
                             # Set normalization
                             self_normalize = False
@@ -263,8 +263,8 @@ class PlotResults(common_base.CommonBase):
                                 if x in observable:
                                     self_normalize = True
 
-                            if "soft_drop" in block:
-                                for grooming_setting in block["soft_drop"]:
+                            if "grooming_settings" in block["jet"]:
+                                for grooming_setting in block["jet"]["grooming_settings"]:
                                     # Custom skip
                                     if observable in ["zg_alice", "tg_alice"]:
                                         if np.isclose(self.jet_R, 0.4) and centrality_index == 0:
@@ -326,7 +326,7 @@ class PlotResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                for self.jet_R in block["jet_R"]:
+                for self.jet_R in block["jet"]["R"]:
                     self.suffix = f"_R{self.jet_R}"
                     if "hepdata" not in block and "custom_data" not in block:
                         continue
@@ -430,13 +430,18 @@ class PlotResults(common_base.CommonBase):
             self.eta_cut = block["eta_cut"]
         if "y_cut" in block:
             self.y_cut = block["y_cut"]
+        # pt list may live at top-level (legacy), under jet:, or under hadron:
         if "pt" in block:
             self.pt = block["pt"]
+        elif isinstance(block.get("jet"), dict) and "pt" in block["jet"]:
+            self.pt = block["jet"]["pt"]
+        elif isinstance(block.get("hadron"), dict) and "pt" in block["hadron"]:
+            self.pt = block["hadron"]["pt"]
         if "eta_cut_R" in block:
             self.eta_R = block["eta_cut_R"]
             self.eta_cut = np.round(self.eta_R - self.jet_R, decimals=1)
         if "c_ref" in block:
-            index = block["jet_R"].index(self.jet_R)
+            index = block["jet"]["R"].index(self.jet_R)
             self.c_ref = block["c_ref"][index]
         if "low_trigger_range" in block:
             self.low_trigger_range = block["low_trigger_range"]

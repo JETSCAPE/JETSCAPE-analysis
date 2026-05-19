@@ -378,7 +378,7 @@ class HistogramResults(common_base.CommonBase):
                     )
                     if not bins.any():
                         continue
-                    for jet_R in block["jet_R"]:
+                    for jet_R in block["jet"]["R"]:
                         logger.info(f"{observable_type}_{observable}_R{jet_R}{jet_collection_label}")
                         self.histogram_observable(
                             column_name=f"{observable_type}_{observable}_R{jet_R}{jet_collection_label}",
@@ -615,7 +615,7 @@ class HistogramResults(common_base.CommonBase):
                 if self.is_AA and centrality not in self.observable_centrality_list:
                     self.observable_centrality_list.append(centrality)
 
-                for jet_R in block["jet_R"]:
+                for jet_R in block["jet"]["R"]:
                     # Custom skip
                     if observable in ["zg_alice", "tg_alice"]:
                         if np.isclose(jet_R, 0.4) and centrality_index == 0:
@@ -624,26 +624,26 @@ class HistogramResults(common_base.CommonBase):
                             continue
 
                     # Optional: Loop through pt bins
-                    for pt_bin in range(len(block["pt"]) - 1):
+                    for pt_bin in range(len(block["jet"]["pt"]) - 1):
                         # Custom skip
                         if observable in ["xj_atlas"] and centrality_index > 0 and pt_bin != 0:
                             continue
 
                         pt_suffix = ""
-                        if len(block["pt"]) > 2:
+                        if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
                         # Optional: subobservable
                         subobservable_label_list = [""]
-                        if "axis" in block:
-                            subobservable_label_list = [f"_{axis_block['type']}" for axis_block in block["axis"]]
-                        if "kappa" in block:
-                            subobservable_label_list = [f"_k{kappa}" for kappa in block["kappa"]]
-                        if "r" in block:
-                            subobservable_label_list = [f"_r{r}" for r in block["r"]]
+                        if "axis" in block["jet"]:
+                            subobservable_label_list = [f"_{axis_block['type']}" for axis_block in block["jet"]["axis"]]
+                        if "kappa" in block["jet"]:
+                            subobservable_label_list = [f"_k{kappa}" for kappa in block["jet"]["kappa"]]
+                        if "r" in block["jet"]:
+                            subobservable_label_list = [f"_r{r}" for r in block["jet"]["r"]]
                         for subobservable_label in subobservable_label_list:
-                            if "soft_drop" in block:
-                                for grooming_setting in block["soft_drop"]:
+                            if "grooming_settings" in block["jet"]:
+                                for grooming_setting in block["jet"]["grooming_settings"]:
                                     zcut = grooming_setting["z_cut"]
                                     beta = grooming_setting["beta"]
 
@@ -724,13 +724,6 @@ class HistogramResults(common_base.CommonBase):
         for observable, block in self.config[observable_type].items():
             if not block.get("enabled", True):
                 continue
-            # Flatten nested jet config to top level — hadron_trigger observables
-            # store jet_R, pt, eta_cut under a "jet:" subkey
-            if "jet" in block and isinstance(block["jet"], dict):
-                for key, value in block["jet"].items():
-                    if key not in block:
-                        block[key] = value
-
             if "trigger" in block and isinstance(block["trigger"], dict):
                 trigger = block["trigger"]
                 if "low_range" in trigger:
@@ -745,13 +738,13 @@ class HistogramResults(common_base.CommonBase):
                 if self.is_AA and centrality not in self.observable_centrality_list:
                     self.observable_centrality_list.append(centrality)
 
-                for jet_R in block["jet_R"]:
+                for jet_R in block["jet"]["R"]:
                     self.suffix = f"_R{jet_R}"
 
                     if self.sqrts in [2760, 5020]:
                         if "dphi" in observable:
                             # loop over pt bins for dphi observable
-                            for pt_bin in range(len(block["pt"]) - 1):
+                            for pt_bin in range(len(block["jet"]["pt"]) - 1):
                                 pt_suffix = f"_pt{pt_bin}"
 
                                 # Construct appropriate binning
@@ -850,7 +843,7 @@ class HistogramResults(common_base.CommonBase):
                                     centrality=centrality,
                                 )
 
-                        if np.isclose(jet_R, block["jet_R"][0]):
+                        if np.isclose(jet_R, block["jet"]["R"][0]):
                             column_name = f"{observable_type}_{observable}_trigger_pt{jet_collection_label}"
                             bins = np.array(block["low_trigger_range"] + block["high_trigger_range"]).astype(np.float64)
                             self.histogram_observable(
@@ -874,7 +867,7 @@ class HistogramResults(common_base.CommonBase):
                                 centrality=centrality,
                             )
 
-                        if observable == "IAA_pt_star" and np.isclose(jet_R, block["jet_R"][0]):
+                        if observable == "IAA_pt_star" and np.isclose(jet_R, block["jet"]["R"][0]):
                             column_name = f"{observable_type}_star_trigger_pt{jet_collection_label}"
                             bins = np.array(block["trigger_range"])
                             self.histogram_observable(column_name=column_name, bins=bins, centrality=centrality)
@@ -937,7 +930,7 @@ class HistogramResults(common_base.CommonBase):
         if "Dz" in column_name:
             column_name = f"{column_name}_Njets"
             col = self.observables_df[column_name]
-            bins = np.array([block["pt"][pt_bin], block["pt"][pt_bin + 1]])
+            bins = np.array([block["jet"]["pt"][pt_bin], block["jet"]["pt"][pt_bin + 1]])
             self.histogram_1d_observable(
                 col,
                 column_name=column_name,
@@ -1032,8 +1025,8 @@ class HistogramResults(common_base.CommonBase):
 
         # Get pt bin
         pt_index = int(pt_suffix[-1])
-        pt_min = block["pt"][pt_index]
-        pt_max = block["pt"][pt_index + 1]
+        pt_min = block["jet"]["pt"][pt_index]
+        pt_max = block["jet"]["pt"][pt_index + 1]
 
         # block is everything in config for the observable
         # look at example form axis_alice
