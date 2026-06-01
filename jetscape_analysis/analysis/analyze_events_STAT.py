@@ -883,12 +883,23 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="axis_alice"):
-            pt_min = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][-1]
+            obs = self.observables_info[f"{self.sqrts}_inclusive_chjet_axis_alice"]
+            axis_block = self.inclusive_chjet_observables["axis_alice"]["jet"]
+            pt_edges = axis_block["pt"]
+            # WTA-Standard is the ungroomed jet-axis variant of axis_alice. Migrate it to the encoder
+            # + 1D-per-pt-bin, like the WTA-SD entries (C3): the encoder name pins the pt bin and the
+            # jet_axis type, so we store the scalar deltaR per bin. jet_axis is essential here (>1 axis
+            # variant configured), so it appears in the name as ..._jet_axis_WTA_Standard.
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
+            standard_axis = next((e for e in axis_block["axis"] if e["type"] == "WTA_Standard"), None)
             if (
-                jetR in self.inclusive_chjet_observables["axis_alice"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["axis_alice"]["jet"]["eta_R"] - jetR)
+                jet_pt_spec is not None
+                and standard_axis is not None
+                and jetR in axis_block["R"]
+                and abs(jet.eta()) < (axis_block["eta_R"] - jetR)
             ):
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
                 if jet_collection_label in ["_negative_recombiner"]:
@@ -899,10 +910,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 jet_wta = reclusterer_wta.result(jet)
 
                 deltaR = jet_wta.delta_R(jet)
-                # self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}{jet_collection_label}'].append([jet_pt, deltaR])
                 self.observable_dict_event[
-                    f"inclusive_chjet_axis_alice_R{jetR}_WTA_Standard{jet_collection_label}"
-                ].append([jet_pt, deltaR])
+                    obs.encode_name_for_storing_in_file(
+                        jet_R=observable.JetRSpec(jetR),
+                        jet_pt=jet_pt_spec,
+                        jet_axis=observable.JetAxisDifferenceSpec(type=standard_axis["type"]),
+                        tag=jet_collection_label,
+                    )
+                ].append(deltaR)
 
         # ALICE ungroomed angularity
         #   Hole treatment:
@@ -1601,11 +1616,17 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="axis_cms"):
-            pt_min = self.inclusive_jet_observables["axis_cms"]["jet"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["axis_cms"]["jet"]["pt"][-1]
+            obs = self.observables_info[f"{self.sqrts}_inclusive_jet_axis_cms"]
+            pt_edges = self.inclusive_jet_observables["axis_cms"]["jet"]["pt"]
+            # 1D-per-pt-bin convention (like axis_alice, C3): the encoder name pins the pt bin, so we
+            # store the scalar deltaR per bin rather than a 2D [jet_pt, deltaR] pair.
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_jet_observables["axis_cms"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
+                jet_pt_spec is not None
+                and jetR in self.inclusive_jet_observables["axis_cms"]["jet"]["R"]
                 and abs(jet.eta()) < (self.inclusive_jet_observables["axis_cms"]["jet"]["eta"])
             ):
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
@@ -1616,10 +1637,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
                 jet_wta = reclusterer_wta.result(jet)
 
+                # The single WTA_Standard axis entry is not an essential parameter (only one
+                # variant configured), so the encoder omits jet_axis; pass only jet_R and jet_pt.
                 deltaR = jet_wta.delta_R(jet)
-                self.observable_dict_event[f"inclusive_jet_axis_cms_R{jetR}_WTA_Standard{jet_collection_label}"].append(
-                    [jet_pt, deltaR]
-                )
+                self.observable_dict_event[
+                    obs.encode_name_for_storing_in_file(
+                        jet_R=observable.JetRSpec(jetR), jet_pt=jet_pt_spec, tag=jet_collection_label
+                    )
+                ].append(deltaR)
 
         # ATLAS, d_12
         #   Hole treatment:

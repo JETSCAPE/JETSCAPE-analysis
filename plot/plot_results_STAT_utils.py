@@ -51,7 +51,8 @@ class PlotUtils(common_base.CommonBase):
     # Get bin array specified in config block
     # ---------------------------------------------------------------
     def bins_from_config(
-        self, block, sqrts, observable_type, observable, centrality, centrality_index, suffix="", is_AA=False, pt_suffix=""
+        self, block, sqrts, observable_type, observable, centrality, centrality_index, suffix="", is_AA=False, pt_suffix="",
+        data_block_params=None,
     ) -> npt.NDarray[np.int32] | npt.NDArray[np.int64]:
         if "bins" in block:
             logger.info(f"  Histogram with custom binning found for {observable} {centrality} {suffix}")
@@ -64,7 +65,7 @@ class PlotUtils(common_base.CommonBase):
             # is_AA selects the measured artifact (AA->ratio, pp->spectra), which
             # determines the binning the histogram must match.
             return self.bins_from_data_block(
-                block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix
+                block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix, data_block_params
             )
         logger.warning(f"\tNo binning found for {observable} {centrality} {suffix}")
         return np.array([])
@@ -193,7 +194,7 @@ class PlotUtils(common_base.CommonBase):
     # vs 61 bins (AA spectrum) — the histogram must match the measurement.
     # ---------------------------------------------------------------
     def _resolve_data_hepdata_table(
-        self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix=""
+        self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix="", data_block_params=None
     ):
         # Lazy imports: keep ROOT-only callers free of the data_curation deps.
         from jetscape_analysis.data_curation import data as data_mod  # noqa: PLC0415
@@ -242,6 +243,15 @@ class PlotUtils(common_base.CommonBase):
             if i + 1 < len(pt_edges):
                 desired["jet_pt"] = f"{pt_edges[i]}_{pt_edges[i + 1]}"
 
+        # Sub-observable parameters (jet_grooming_settings, jet_axis, ...) the caller has already
+        # encoded in the data-block convention (GroomingSettingsSpec/JetAxisDifferenceSpec encoding,
+        # which carries the "SD_"/"DyG_" prefix -- distinct from the analyzer's storage encoding).
+        # Without these, observables with one HEPData table per grooming/axis variant would all match
+        # the first table (centrality/jet_R/jet_pt only) and so share the wrong bin edges. Entries
+        # that don't constrain a key still impose no condition (see _matches).
+        if data_block_params:
+            desired.update(data_block_params)
+
         def _matches(entry_params):
             # An entry matches if every parameter it constrains that we also
             # know about agrees. Entries that don't constrain a key impose no
@@ -279,9 +289,11 @@ class PlotUtils(common_base.CommonBase):
     # Reads the bin edges from independent_variables[0] of the table that the
     # measured quantity uses (AA->ratio, pp->spectra; see _resolve_data_hepdata_table).
     # ---------------------------------------------------------------
-    def bins_from_data_block(self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix=""):
+    def bins_from_data_block(
+        self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix="", data_block_params=None
+    ):
         hd, _entry = self._resolve_data_hepdata_table(
-            block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix
+            block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix, data_block_params
         )
         if hd is None:
             return np.array([])
