@@ -10,6 +10,10 @@ histogrammer runs but silently produces no histograms for most observables
 because the binning lookup hasn't been migrated yet.** Plan for finishing
 the migration is at the end.
 
+See also **`OBSERVABLE_EDGE_CASES.md`** for the registry of HEPData/observable
+edge cases (missing pp, only-spectra, no-data-block, center-value tables, …) and
+exactly how each is handled (fallback / protect / skip-null / pending).
+
 ## Raymond's design (one paragraph)
 
 The `data_curation/observable.py` module is meant to be the single source
