@@ -21,6 +21,12 @@ from plot import plot_results_STAT_utils
 
 # Prevent ROOT from stealing focus when plotting
 ROOT.gROOT.SetBatch(True)
+# Do not tie newly-created histograms to the current ROOT directory. The
+# histogrammer opens HEPData TFiles (e.g. for the xj_gamma / D(z),D(pt) bin
+# lookups); without this, booked histograms become owned by whichever TFile is
+# the current gDirectory and are deleted when that file closes, leaving dangling
+# (null) entries in output_list. We write everything explicitly via TFile.Write.
+ROOT.TH1.AddDirectory(False)
 
 logger = logging.getLogger(__name__)
 
@@ -1018,6 +1024,11 @@ class HistogramResults(common_base.CommonBase):
     def histogram_1d_observable(
         self, col, column_name=None, bins=None, centrality=None, pt_suffix="", observable="", skip_eventwise_check=False
     ):
+        # Need at least 2 edges to define a histogram; a degenerate binning would
+        # otherwise book an invalid TH1F (len(bins)-1 <= 0 bins).
+        if bins is None or len(bins) < 2:
+            return
+
         # Flag to check if any valid event exists
         h = None
 
@@ -1046,6 +1057,11 @@ class HistogramResults(common_base.CommonBase):
     def histogram_2d_observable(
         self, col, column_name=None, bins=None, centrality=None, pt_suffix="", block=None, skip_eventwise_check=False
     ):
+        # Need at least 2 edges to define a histogram; a degenerate binning would
+        # otherwise book an invalid TH1F (len(bins)-1 <= 0 bins).
+        if bins is None or len(bins) < 2:
+            return
+
         h = None
         h2 = None
 

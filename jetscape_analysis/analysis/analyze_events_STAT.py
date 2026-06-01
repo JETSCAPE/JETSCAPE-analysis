@@ -1235,12 +1235,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             if "grooming_settings" in entry
         ]:
             obs = self.observables_info[f"{self.sqrts}_{_observable_class}_axis_alice"]
-            pt_min = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][-1]
+            axis_block = self.inclusive_chjet_observables["axis_alice"]["jet"]
+            pt_edges = axis_block["pt"]
+            # Find the pt bin this jet falls into (1D-per-bin convention, like angularity/mass);
+            # the encoder name pins the pt bin, so we store the scalar deltaR per bin.
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_chjet_observables["axis_alice"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["axis_alice"]["jet"]["eta_R"] - jetR)
+                jet_pt_spec is not None
+                and jetR in axis_block["R"]
+                and abs(jet.eta()) < (axis_block["eta_R"] - jetR)
             ):
                 # Recluster with WTA (with larger jet R)
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
@@ -1254,16 +1260,28 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # TODO: Why is this disabled...?
                 ## WTA-Standard
                 # deltaR = jet_wta.delta_R(jet)
-                # self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_jet_collection_label}'].append([jet_pt, deltaR])
 
-                # WTA-SD
+                # WTA-SD axis difference. The fill gate above restricts to the WTA_SD axis entry
+                # whose nested grooming matches the current grooming_setting; build the jet_axis
+                # spec from it. Essential params for axis_alice are jet_R, jet_pt, jet_axis
+                # (the grooming is carried inside jet_axis, so jet_grooming_settings is NOT passed).
                 deltaR = jet_wta.delta_R(jet_groomed_lund.pair())
-                # self.observable_dict_event[
-                #     f"inclusive_chjet_axis_alice_R{jetR}_WTA_SD_zcut{zcut}_beta{beta}{jet_collection_label}"
-                # ].append([jet_pt, deltaR])
-                self.observable_dict_event[
-                    obs.encode_name_for_storing_in_file(**_parameters, tag=jet_collection_label)
-                ].append([jet_pt, deltaR])
+                matching_axis = next(
+                    (e for e in axis_block["axis"] if e.get("grooming_settings") == grooming_setting),
+                    None,
+                )
+                if matching_axis is not None:
+                    jet_axis_spec = observable.JetAxisDifferenceSpec(
+                        type=matching_axis["type"], grooming_settings=grooming_setting
+                    )
+                    self.observable_dict_event[
+                        obs.encode_name_for_storing_in_file(
+                            jet_R=observable.JetRSpec(jetR),
+                            jet_pt=jet_pt_spec,
+                            jet_axis=jet_axis_spec,
+                            tag=jet_collection_label,
+                        )
+                    ].append(deltaR)
 
         # ALICE groomed angularity
         #   Hole treatment:
