@@ -368,7 +368,7 @@ class HistogramResults(common_base.CommonBase):
 
                 # Construct appropriate binning
                 bins = self.plot_utils.bins_from_config(
-                    block, self.sqrts, observable_type, observable, centrality, centrality_index
+                    block, self.sqrts, observable_type, observable, centrality, centrality_index, is_AA=self.is_AA
                 )
                 if not bins.any():
                     continue
@@ -398,7 +398,7 @@ class HistogramResults(common_base.CommonBase):
                 if observable == "pt_atlas":
                     # Construct appropriate binning
                     bins = self.plot_utils.bins_from_config(
-                        block, self.sqrts, observable_type, observable, centrality, centrality_index
+                        block, self.sqrts, observable_type, observable, centrality, centrality_index, is_AA=self.is_AA
                     )
                     if not bins.any():
                         continue
@@ -574,7 +574,7 @@ class HistogramResults(common_base.CommonBase):
                 if "v2" in observable and ("atlas" in observable or "cms" in observable):
                     # Construct appropriate binning
                     bins = self.plot_utils.bins_from_config(
-                        block, self.sqrts, observable_type, observable, centrality, centrality_index
+                        block, self.sqrts, observable_type, observable, centrality, centrality_index, is_AA=self.is_AA
                     )
                     if not bins.any():
                         continue
@@ -706,6 +706,7 @@ class HistogramResults(common_base.CommonBase):
                                         centrality,
                                         centrality_index,
                                         suffix=f"{self.suffix}{pt_suffix}",
+                                        is_AA=self.is_AA,
                                     )
                                     if not bins.any():
                                         continue
@@ -738,6 +739,7 @@ class HistogramResults(common_base.CommonBase):
                                     centrality,
                                     centrality_index,
                                     suffix=f"{self.suffix}{pt_suffix}",
+                                    is_AA=self.is_AA,
                                 )
 
                                 if not bins.any():
@@ -803,6 +805,7 @@ class HistogramResults(common_base.CommonBase):
                                     centrality_index,
                                     # suffix=f'{self.suffix}{pt_suffix}')
                                     self.suffix,
+                                    is_AA=self.is_AA,
                                 )
                                 if not bins.any():
                                     continue
@@ -861,6 +864,7 @@ class HistogramResults(common_base.CommonBase):
                                 centrality,
                                 centrality_index,
                                 self.suffix,
+                                is_AA=self.is_AA,
                             )
 
                             if not bins.any():
@@ -898,7 +902,8 @@ class HistogramResults(common_base.CommonBase):
 
                     elif self.sqrts == 200:
                         bins = self.plot_utils.bins_from_config(
-                            block, self.sqrts, observable_type, observable, centrality, centrality_index, self.suffix
+                            block, self.sqrts, observable_type, observable, centrality, centrality_index, self.suffix,
+                            is_AA=self.is_AA,
                         )
 
                         self.histogram_observable(

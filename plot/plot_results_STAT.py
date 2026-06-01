@@ -173,7 +173,7 @@ class PlotResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                if "hepdata" not in block and "custom_data" not in block:
+                if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                     continue
 
                 # Initialize observable configuration
@@ -191,7 +191,7 @@ class PlotResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                if "hepdata" not in block and "custom_data" not in block:
+                if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                     continue
 
                 # for hadron v2
@@ -208,7 +208,7 @@ class PlotResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                if "hepdata" not in block and "custom_data" not in block:
+                if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                     continue
 
                 # STAR dihadron
@@ -286,7 +286,7 @@ class PlotResults(common_base.CommonBase):
                                     else:
                                         self.suffix = f"_R{self.jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
 
-                                    if "hepdata" not in block and "custom_data" not in block:
+                                    if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                                         continue
 
                                     # Initialize observable configuration
@@ -305,7 +305,7 @@ class PlotResults(common_base.CommonBase):
 
                             else:
                                 self.suffix = f"_R{self.jet_R}{subobservable_label}"
-                                if "hepdata" not in block and "custom_data" not in block:
+                                if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                                     continue
 
                                 # Initialize observable configuration
@@ -332,7 +332,7 @@ class PlotResults(common_base.CommonBase):
             for centrality_index, centrality in enumerate(block["centrality"]):
                 for self.jet_R in block["jet"]["R"]:
                     self.suffix = f"_R{self.jet_R}"
-                    if "hepdata" not in block and "custom_data" not in block:
+                    if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                         continue
 
                     # Set normalization
@@ -383,6 +383,20 @@ class PlotResults(common_base.CommonBase):
                 observable_type,
                 observable,
                 centrality_index,
+                suffix=self.suffix,
+                pt_suffix=pt_suffix,
+            )
+        elif "data" in block:
+            # New-schema `data:` block -> read the measured points from the HEPData YAML.
+            # Note: pass `centrality` (the [low, high] list), not centrality_index — the
+            # exact table+index is matched by centrality/jet_R/jet_pt value.
+            self.observable_settings["data_distribution"] = self.plot_utils.tgraph_from_data_block(
+                block,
+                self.is_AA,
+                self.sqrts,
+                observable_type,
+                observable,
+                centrality,
                 suffix=self.suffix,
                 pt_suffix=pt_suffix,
             )
