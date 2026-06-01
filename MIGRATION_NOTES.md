@@ -160,12 +160,50 @@ delegate to `data_curation`.
   decide if the canonical bin edges live in `data:.spectra.x_axis` or
   in the old top-level `bins:` field. Pick one.
 
+## Step 1 — DONE (2026-06-01): `bins_from_config` now reads the `data:` block
+
+Implemented `PlotUtils.bins_from_data_block` in `plot/plot_results_STAT_utils.py`
++ a `if "data" in block:` branch in `bins_from_config`. Verified end-to-end on the
+PbPb 5020 small sample: 47/47 targeted non-groomed histograms now populate
+(hadron RAA `pt_ch_alice`/`pt_pi_alice`/`pt_ch_cms`, inclusive-jet RAA
+`pt_atlas`/`pt_cms` all R, `Dz_atlas`) — previously ~zero.
+
+**Corrections to this doc found while implementing:**
+- **Bin edges are NOT in `data.spectra.x_axis`.** That field only holds
+  `{label, range, log}` for display. The real edges live in the HEPData per-table
+  YAML at `independent_variables[0].values` (`{low, high}` per bin). The new code
+  reads them there, reusing the same pattern as `build_tables.py:write_data_table`.
+- **`parse_binning_block` (data.py:469) is a stub** and only ever applied to a
+  literal `bins:` sub-block — NOT the HEPData path. Bypassed it.
+- **`BASE_DATA_DIR` selection was broken** for an uninitialized submodule: the
+  empty placeholder dir `data/hard-sector-data-curation/` passed `.is_dir()` and
+  shadowed the populated sibling clone. Changed to require the database file to
+  exist. (`hepdata_utils.py`)
+
+**Environment gotchas (analysis container `stat_local_gcc_v5.2.sif`):**
+- Container is missing `ruamel.yaml` and `requests`; made both lazy imports in
+  `hepdata_utils.py` so the histogrammer can import `data_curation`. The new
+  binning code parses the DB with pyyaml directly (not `read_database`, which
+  needs ruamel). Analyzer additionally needs `scipy` (pip `--target` to /tmp).
+- Run the analyzer with the heppy env (`/jetscapeOpt/heppy/modules/heppy/1.0`):
+  set PYTHONPATH/LD_LIBRARY_PATH to pythia8309 + root + hepmc2 + lhapdf6 + fastjet
+  3.3.4 (lib + `local/lib/python3.10/dist-packages`) + heppy cpptools. The
+  histogrammer needs only root on the path (no fastjet).
+
+**Newly surfaced, deferred to Step 4 (substructure):** enabling the `data:`-block
+binning made `inclusive_jet/axis_cms` (a WTA-axis substructure observable) book
+histograms; its fill path appends ~165 null ROOT objects to `output_list`.
+`write_output_objects` now skips nulls (so one bad observable can't corrupt the
+whole file), but the root cause in the axis/substructure fill path is unfixed —
+address with the groomed/substructure rewrite in Step 4.
+
+**pp analyzer note:** the pp small-sample analyzer segfaults at event 0 in the
+fastjet/C++ layer (exit 139) — independent of this change (PbPb runs clean on the
+same code/env). Needs separate investigation before the pp arm can be tested.
+
 ## Recommended order for next session
 
-1. **Fix `bins_from_config`** to read binning from the `data:` block (or
-   directly from the HEPData submodule). Without this, no histograms come
-   out regardless of any further work. Smallest change with biggest
-   payoff.
+1. ~~**Fix `bins_from_config`**~~ — DONE, see "Step 1" above.
 2. **Run end-to-end on the small sample** and confirm non-groomed
    histograms appear. Sanity-check shapes against a known-good 2.76 TeV
    reference if you have one.

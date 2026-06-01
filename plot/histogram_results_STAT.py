@@ -1120,14 +1120,31 @@ class HistogramResults(common_base.CommonBase):
         output_path = self.output_dir / output_file
         f_out = ROOT.TFile(str(output_path), "recreate")
         f_out.cd()
+        n_skipped = 0
+        last_name = "<start>"
         for obj in self.output_list:
+            # Guard against null/non-ROOT entries: a null ROOT pointer in the
+            # list surfaces as CPyCppyy_NoneType, which has no GetName(). Skip it
+            # rather than crashing the whole write. One bad observable should not
+            # take down the entire output file.
+            if obj is None or not hasattr(obj, "GetName"):
+                if n_skipped == 0:
+                    logger.warning(
+                        f"Encountered non-writable (null) output object(s); first one follows "
+                        f"'{last_name}'. These are skipped — see MIGRATION_NOTES (axis/substructure)."
+                    )
+                n_skipped += 1
+                continue
             logger.info(f"Writing {obj.GetName()} to {output_path}")
+            last_name = obj.GetName()
             types = (ROOT.TH1, ROOT.THnBase)
             if isinstance(obj, types):
                 obj.Write()
                 obj.SetDirectory(0)
                 del obj
 
+        if n_skipped:
+            logger.warning(f"Skipped {n_skipped} non-writable (null) output object(s) during write.")
         f_out.Close()
 
 

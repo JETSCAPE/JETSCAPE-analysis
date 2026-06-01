@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ctypes
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +59,11 @@ class PlotUtils(common_base.CommonBase):
         if "hepdata" in block:
             logger.info(f"  Histogram with hepdata binning found for {observable} {centrality} {suffix}")
             return self.bins_from_hepdata(block, sqrts, observable_type, observable, centrality_index, suffix)
+        if "data" in block:
+            logger.info(f"  Histogram with data-block (HEPData YAML) binning found for {observable} {centrality} {suffix}")
+            return self.bins_from_data_block(
+                block, sqrts, observable_type, observable, centrality, suffix
+            )
         logger.warning(f"\tNo binning found for {observable} {centrality} {suffix}")
         return np.array([])
 
@@ -130,6 +136,129 @@ class PlotUtils(common_base.CommonBase):
             bins = np.insert(bins, 0, 0.0, axis=0)
 
         f.Close()
+
+        return bins
+
+    # ---------------------------------------------------------------
+    # Get bin array from the new-schema `data:` block, which references
+    # HEPData by inspire_hep_id + table (in YAML, not ROOT).
+    #
+    # Raymond's migration replaced the old top-level `hepdata:` ROOT-file
+    # lookup with a `data:` block that points at the hard-sector-data-curation
+    # HEPData YAML files. We resolve the relevant table here and read its bin
+    # edges from `independent_variables[0]`, reusing the same machinery as
+    # data_curation/build_tables.py.
+    # ---------------------------------------------------------------
+    def bins_from_data_block(self, block, sqrts, observable_type, observable, centrality, suffix=""):
+        # Lazy imports: keep ROOT-only callers free of the data_curation deps,
+        # and avoid any import-time cost when this path isn't exercised.
+        from jetscape_analysis.data_curation import data as data_mod  # noqa: PLC0415
+        from jetscape_analysis.data_curation import hepdata_utils  # noqa: PLC0415
+
+        # Read (and cache) the HEPData record database. BASE_DATA_DIR auto-falls
+        # back to the sibling hard-sector-data-curation clone when the submodule
+        # isn't initialized.
+        #
+        # NOTE: We parse it with pyyaml directly rather than calling
+        # hepdata_utils.read_database(), which depends on ruamel.yaml — a package
+        # that isn't installed in the analysis container. The database is a plain
+        # dict, so pyyaml is sufficient here.
+        if getattr(self, "_hepdata_database", None) is None:
+            db_path = hepdata_utils.BASE_DATA_DIR / hepdata_utils.DEFAULT_DATABASE_NAME
+            with open(db_path) as f:
+                self._hepdata_database = yaml.safe_load(f) or {}
+        db = self._hepdata_database
+
+        # The database is keyed by the observable path, identical to the
+        # config layout: "{sqrts}/{observable_type}/{observable}". Each value is
+        # a list of records: {directory, inspire_hep_id, version, tables_to_filenames}.
+        db_key = f"{sqrts}/{observable_type}/{observable}"
+        infos = db.get(db_key)
+        if not infos:
+            logger.warning(f"\tNo HEPData database entry for {db_key}; cannot determine binning")
+            return np.array([])
+
+        # Pick the spectra block. The new schema describes both pp and AA data
+        # sources regardless of the system being histogrammed; the bin edges are
+        # the same, so prefer AA (matches the old code, which read the AA hist)
+        # and fall back to pp.
+        spectra = None
+        for system in ("AA", "pp"):
+            spectra = block.get("data", {}).get(system, {}).get("hepdata", {}).get("spectra")
+            if spectra:
+                break
+        if not spectra or "tables" not in spectra:
+            logger.warning(f"\tNo spectra/tables in data block for {observable} {centrality} {suffix}")
+            return np.array([])
+
+        # Expand the `tables` (with their nested `combinations`) into one flat
+        # config per (table, parameters) — same helper data_curation uses.
+        expanded = data_mod.expand_parameter_combinations_into_individual_configs(spectra["tables"])
+
+        # Build the desired parameter selection from the caller's arguments.
+        # centrality arrives as a [low, high] list -> the YAML uses "low_high".
+        desired = {}
+        if isinstance(centrality, (list, tuple)) and len(centrality) == 2:
+            desired["centrality"] = f"{int(centrality[0])}_{int(centrality[1])}"
+        # jet_R is encoded into the suffix as "_R0.4"; the YAML stores it as a
+        # string parameter. This disambiguates per-R tables (e.g. pt_alice).
+        m = re.search(r"_R([0-9.]+)", suffix or "")
+        if m:
+            desired["jet_R"] = f"{float(m.group(1)):g}"
+
+        def _matches(entry_params):
+            # An entry matches if every parameter it constrains that we also
+            # know about agrees. Entries that don't constrain a key impose no
+            # condition on it.
+            for k, v in entry_params.items():
+                if k in desired:
+                    a = f"{float(v):g}" if k == "jet_R" else str(v)
+                    if a != desired[k]:
+                        return False
+            return True
+
+        match = next((e for e in expanded if e.get("table") and _matches(e.get("parameters", {}))), None)
+        if match is None:
+            logger.warning(f"\tNo matching table for {observable} {centrality} {suffix} (desired={desired})")
+            return np.array([])
+        table_name = match["table"]
+
+        # Resolve the HEPData record for this table. Match on inspire_hep_id from
+        # the spectra `record`; if there's a single record, just use it.
+        record_id = spectra.get("record", {}).get("inspire_hep_id")
+        info = next((i for i in infos if i.get("inspire_hep_id") == record_id), infos[0])
+
+        rel_filename = info.get("tables_to_filenames", {}).get(table_name)
+        if rel_filename is None:
+            logger.warning(f"\t'{table_name}' not in HEPData record ins{info.get('inspire_hep_id')} for {observable}")
+            return np.array([])
+        yaml_path = hepdata_utils.BASE_DATA_DIR / "data" / info["directory"] / rel_filename
+        if not yaml_path.exists():
+            logger.warning(f"\tHEPData YAML missing: {yaml_path}")
+            return np.array([])
+        with yaml_path.open() as f:
+            hd = yaml.safe_load(f)
+
+        # Bin edges live in the first independent variable as {low, high} per bin.
+        # The dependent-variable index selects which measurement column, not the
+        # binning, so it is irrelevant here.
+        indep = (hd or {}).get("independent_variables") or []
+        values = indep[0].get("values") if indep else None
+        if not values:
+            logger.warning(f"\tNo independent-variable values in {yaml_path} for {observable}; cannot bin")
+            return np.array([])
+        # Force float64: some HEPData tables store integer bin edges, but ROOT's
+        # TH1F(..., const double* xbins) requires a double buffer.
+        bins = np.array([v["low"] for v in values] + [values[-1]["high"]], dtype=np.float64)
+
+        # Preserve the special cases from the old ROOT path:
+        # - zg/tg_alice: drop the leading "untagged" bin so it becomes underflow.
+        if observable in ["zg_alice", "tg_alice"]:
+            bins = bins[1:]
+        # - pt_y_atlas: HEPData omits the 0<|y|<0.3 bin (it's the ratio denominator);
+        #   re-insert it.
+        if observable == "pt_y_atlas":
+            bins = np.insert(bins, 0, 0.0, axis=0)
 
         return bins
 
