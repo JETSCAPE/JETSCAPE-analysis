@@ -1130,8 +1130,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Setup
         _observable_class = "inclusive_chjet"
 
-        # Calculate the splitting of interest based on the grooming method
-        jet_groomed_lund, grooming_setting_spec = analyze_events_base_STAT.calculate_groomed_jet(
+        # Calculate the splitting of interest based on the grooming method.
+        # Keep `groomer_shop` bound for the lifetime of this method: it owns the reclustering
+        # ClusterSequence backing the groomed jet's constituents. Letting it be garbage-collected
+        # frees that memory, so any later constituent access (e.g. fjext.lambda_beta_kappa on the
+        # groomed pair) would dereference dangling memory and segfault.
+        jet_groomed_lund, grooming_setting_spec, groomer_shop = analyze_events_base_STAT.calculate_groomed_jet(
             grooming_setting=grooming_setting,
             jet=jet,
             jet_R=jetR,
@@ -1286,9 +1290,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 for ang_settings in self.inclusive_chjet_observables["angularity_alice"]["jet"]["angularity"]:
                     alpha = ang_settings["alpha"]
                     kappa = 1
-                    lambda_alpha = fjext.lambda_beta_kappa(jet, jet_groomed_lund.pair(), alpha, kappa, jetR)
+                    # Untagged jets (grooming found no splitting) have an empty groomed pair;
+                    # fjext.lambda_beta_kappa segfaults on it (unlike .kt()/.Delta()/.z(), which
+                    # return a negative sentinel). Delta() < 0 marks untagged — emit a negative
+                    # sentinel into the underflow, matching the ktg/zg/theta_g treatment above.
+                    if jet_groomed_lund.Delta() >= 0:
+                        lambda_alpha = fjext.lambda_beta_kappa(jet, jet_groomed_lund.pair(), alpha, kappa, jetR)
+                    else:
+                        lambda_alpha = -1.0
                     self.observable_dict_event[
-                        obs.encode_name_for_storing_in_file(**_parameters, jet_pt=jet_pt_spec, tag=jet_collection_label)
+                        obs.encode_name_for_storing_in_file(
+                            **_parameters,
+                            jet_pt=jet_pt_spec,
+                            jet_angularity=observable.AngularitySpec(alpha=alpha, kappa=kappa),
+                            tag=jet_collection_label,
+                        )
                     ].append(lambda_alpha)
 
         # ALICE m_g (which is described as the groomed mass in the paper, but using m_g for consistency with CMS)
@@ -1629,8 +1645,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Setup
         _observable_class = "inclusive_jet"
 
-        # Calculate the splitting of interest based on the grooming method
-        jet_groomed_lund, grooming_setting_spec = analyze_events_base_STAT.calculate_groomed_jet(
+        # Calculate the splitting of interest based on the grooming method.
+        # Keep `groomer_shop` bound for the lifetime of this method: it owns the reclustering
+        # ClusterSequence backing the groomed jet's constituents. Letting it be garbage-collected
+        # frees that memory, so any later constituent access (e.g. fjext.lambda_beta_kappa on the
+        # groomed pair) would dereference dangling memory and segfault.
+        jet_groomed_lund, grooming_setting_spec, groomer_shop = analyze_events_base_STAT.calculate_groomed_jet(
             grooming_setting=grooming_setting,
             jet=jet,
             jet_R=jetR,
