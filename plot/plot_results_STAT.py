@@ -536,10 +536,23 @@ class PlotResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     def init_common_settings(self, observable: str, block: dict[str, Any]) -> None:  # noqa: C901
         self.xtitle = block.get("xtitle", "")
+        # Acceptance cuts. eta (pseudorapidity) -> self.eta_cut; rapidity (y) -> self.y_cut; these
+        # are distinct and drive different scale_histogram normalizations (e.g. ATLAS jets use
+        # rapidity, CMS jets/hadrons use pseudorapidity), so they are kept separate. The new YAML
+        # schema nests these under hadron:/jet: (hadron.eta, jet.eta, jet.eta_R, jet.rapidity);
+        # the old top-level eta_cut/y_cut/eta_cut_R keys are kept as a fallback.
+        _jet = block.get("jet") if isinstance(block.get("jet"), dict) else {}
+        _hadron = block.get("hadron") if isinstance(block.get("hadron"), dict) else {}
         if "eta_cut" in block:
             self.eta_cut = block["eta_cut"]
+        elif "eta" in _hadron:
+            self.eta_cut = _hadron["eta"]
+        elif "eta" in _jet:
+            self.eta_cut = _jet["eta"]
         if "y_cut" in block:
             self.y_cut = block["y_cut"]
+        elif "rapidity" in _jet:
+            self.y_cut = _jet["rapidity"]
         # pt list may live at top-level (legacy), under jet:, or under hadron:
         if "pt" in block:
             self.pt = block["pt"]
@@ -547,8 +560,14 @@ class PlotResults(common_base.CommonBase):
             self.pt = block["jet"]["pt"]
         elif isinstance(block.get("hadron"), dict) and "pt" in block["hadron"]:
             self.pt = block["hadron"]["pt"]
+        # eta_R = jet outer pseudorapidity acceptance; the fiducial cut is eta_R - R. Runs after the
+        # plain-eta block above so jets that declare eta_R get the R-subtracted value (matches the
+        # legacy ordering where the eta_cut_R block came last).
         if "eta_cut_R" in block:
             self.eta_R = block["eta_cut_R"]
+            self.eta_cut = np.round(self.eta_R - self.jet_R, decimals=1)
+        elif "eta_R" in _jet:
+            self.eta_R = _jet["eta_R"]
             self.eta_cut = np.round(self.eta_R - self.jet_R, decimals=1)
         if "c_ref" in block:
             index = block["jet"]["R"].index(self.jet_R)
