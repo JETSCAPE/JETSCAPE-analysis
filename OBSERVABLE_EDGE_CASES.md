@@ -138,6 +138,12 @@ nests/renames things the never-run code paths still read the old way).
 | E3 | **`Data_*.dat` table write aborts on data/hist binning mismatch.** `write_experimental_data` hard-`raise`d `ValueError` when the truncated data graph didn't align bin-for-bin with the prediction histogram (e.g. `pt_cms`: HEPData doesn't cover every bin → trailing-zero x-points), aborting the whole run AFTER `plot_RAA` had already saved the R_AA PDF. | **FIXED** (`51e1ffa`): warn-and-skip the ancillary table (guard both the length mismatch and the containment check) instead of raising. The R_AA plot is unaffected. | `plot_results_STAT.py:write_experimental_data` |
 
 **Render status:** real plotter renders pp (128 PDFs) + AA→R_AA (25 PDFs) clean, exit 0.
+**⚠️ CAVEAT (open, 2026-06-02):** "renders" ≠ "validated" — the user observed the **AA R_AA
+histograms look physically strange/suspect**. Not yet diagnosed; debugging deferred to the
+next session (see MIGRATION_NOTES "Full render now COMPLETES … but the AA R_AA output looks
+WRONG" for first suspects: AA `scale_histogram` `eta_cut` normalization, the `plot_RAA`
+pp-reference division, small-sample centrality effects). E1/E2/E3 fixed the *crashes*, not
+necessarily the *numbers*.
 `axis_alice` is excluded from a full whole-config render — it still carries legacy
 `hepdata_pp`/`hepdata_AA` keys pointing at HEPData ROOT files NOT on disk
 (`data/STAT/5020/inclusive_chjet/axis_alice/HEPData-ins{2182727,2648610}-v1-root.root`), so

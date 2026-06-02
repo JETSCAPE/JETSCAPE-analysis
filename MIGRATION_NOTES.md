@@ -228,7 +228,20 @@ end-to-end**: the analyzer, histogrammer (Step 4 ③, `5a4f30f`), and plotter
 overlay path (legacy `hepdata_*` keys → strip in Step 6). See
 `OBSERVABLE_EDGE_CASES.md` C5 / A9 / C6 / C7.
 
-### Full render now works (2026-06-02): pre-existing render-path fixes E1/E2/E3
+### Full render now COMPLETES (2026-06-02): pre-existing render-path fixes E1/E2/E3
+### ⚠️ but the AA R_AA output looks WRONG — physics validation pending (next session)
+
+**OPEN — top item for next session.** With E1/E2/E3 the render runs to exit 0, but
+"completes" ≠ "correct": the user inspected the AA `aa_RAA_render` plots on
+2026-06-02 and the **R_AA histograms look physically strange/suspect**. Not yet
+diagnosed — debugging deferred to the next session. First suspects to check (hypotheses,
+NOT conclusions): (a) the AA normalization in `scale_histogram`, which divides by
+`self.eta_cut` — E1 only just started populating it, so confirm the value/derivation is
+right for AA (esp. jets, where `eta_cut = eta_R − jet_R`); (b) the pp-reference division
+in `plot_RAA` (right pp histogram matched? correct scaling on both arms?); (c) small-sample
+effects (the PbPb test sample is a narrow centrality slice → R_AA can look odd); (d) the
+E2 `y_ratio` default range only affects the *display* axis, not the values. Mechanical
+render is verified; numerical/physics correctness is NOT.
 
 The first complete render after Step 4 ④ exercised the AA→R_AA path for the first
 time and hit three **pre-existing** render-layer bugs (separate from the encoder
