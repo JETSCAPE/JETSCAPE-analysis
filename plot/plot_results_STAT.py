@@ -21,6 +21,7 @@ import ROOT  # pyright: ignore [reportMissingImports]
 import uproot
 import yaml
 from jetscape_analysis.base import common_base, helpers
+from jetscape_analysis.data_curation import observable as observable_module
 from plot import plot_results_STAT_utils
 
 # Prevent ROOT from stealing focus when plotting
@@ -52,8 +53,18 @@ class PlotResults(common_base.CommonBase):
 
         # Validation
         config_file = Path(config_file)
+        self.config_file = config_file
         input_file = Path(input_file)
         pp_ref_file = Path(pp_ref_file)
+
+        # Encoder context for the migrated jet/substructure observables (set inside the migrated
+        # branch of plot_jet_observables, read by get_histogram). Default OFF so every non-jet
+        # get_histogram call (hadron, semi-inclusive, STAR, ...) keeps the legacy f-string name.
+        self._is_migrated_obs = False
+        self._encoder_block = None
+        self._encoder_grooming_setting = None
+        self._encoder_pt_bin = None
+        self._encoder_axis_entry = None
 
         # Default to the same directory as the input_file if an output_dir is not provided.
         if not output_dir:
@@ -118,6 +129,14 @@ class PlotResults(common_base.CommonBase):
         self.sqrts = self.config["sqrt_s"]
         self.power = self.config["power"]
         self.pt_ref = self.config["pt_ref"]
+
+        # Observable objects keyed "{sqrts}_{observable_class}_{name}", used to rebuild the
+        # encoder-based histogram names for the migrated groomed & substructure observables so the
+        # plotter finds what the histogrammer wrote (see MIGRATION_NOTES Step 4 ④, OBSERVABLE_EDGE_CASES
+        # C5). Container-safe import (attrs/numpy/pyyaml only), same as the histogrammer.
+        self.observables_info = observable_module.read_observables_from_config(
+            config_path=self.config_file, sqrt_s=self.sqrts
+        )
 
         # If AA, set different options for hole subtraction treatment
         self.jet_collection_labels_AA = self.config["jet_collection_labels"]  # + ['_shower_recoil_unsubtracted']
@@ -252,11 +271,31 @@ class PlotResults(common_base.CommonBase):
                         if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
-                        # Optional: subobservable
-                        subobservable_label_list = [""]
+                        # Optional: subobservable. Carry the structured sub-entry (axis variant dict)
+                        # alongside the legacy label string, mirroring the histogrammer: the label
+                        # feeds the (jet_R/pt-only) suffix used for plot labels/filenames, while the
+                        # entry dict feeds the encoder for migrated axis observables (the bare `type`
+                        # label can't distinguish the grooming variant).
+                        subobservable_label_list = [("", None)]
+                        if "axis" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_{axis_block['type']}", axis_block) for axis_block in block["jet"]["axis"]
+                            ]
                         if "kappa" in block["jet"]:
-                            subobservable_label_list = [f"_k{kappa}" for kappa in block["jet"]["kappa"]]
-                        for subobservable_label in subobservable_label_list:
+                            subobservable_label_list = [(f"_k{kappa}", None) for kappa in block["jet"]["kappa"]]
+
+                        # Whether the histogram name comes from the observable encoder (the analyzer +
+                        # histogrammer use encoder names for these) or the legacy hand-built f-string.
+                        is_migrated = (
+                            observable_type,
+                            observable,
+                        ) in plot_results_STAT_utils.ENCODER_MIGRATED_JET_OBSERVABLES
+                        # jet_axis is an essential (encoded) parameter only when >1 axis variant is
+                        # configured; with a single axis entry the encoder omits it (mirrors the
+                        # histogrammer: axis_alice passes jet_axis, axis_cms does not).
+                        axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
+
+                        for subobservable_label, axis_entry in subobservable_label_list:
                             # Set normalization
                             self_normalize = False
                             for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj"]:
@@ -289,6 +328,25 @@ class PlotResults(common_base.CommonBase):
                                     if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                                         continue
 
+                                    # For migrated groomed observables, select the per-grooming
+                                    # HEPData overlay table (data block keyed by jet_grooming_settings
+                                    # in the GroomingSettingsSpec encoding, WITH the SD_/DyG_ prefix --
+                                    # distinct from the no-prefix column encoding used for the name).
+                                    data_block_params = None
+                                    if is_migrated:
+                                        data_block_params = {
+                                            "jet_grooming_settings": observable_module.GroomingSettingsSpec(
+                                                grooming_setting
+                                            ).encode()
+                                        }
+                                    # Stash the encoder context so get_histogram rebuilds the migrated
+                                    # histogram name from the same encoder the histogrammer used.
+                                    self._is_migrated_obs = is_migrated
+                                    self._encoder_block = block
+                                    self._encoder_grooming_setting = grooming_setting
+                                    self._encoder_pt_bin = pt_bin
+                                    self._encoder_axis_entry = None
+
                                     # Initialize observable configuration
                                     self.init_observable(
                                         observable_type,
@@ -298,15 +356,38 @@ class PlotResults(common_base.CommonBase):
                                         centrality_index,
                                         pt_suffix=pt_suffix,
                                         self_normalize=self_normalize,
+                                        data_block_params=data_block_params,
                                     )
 
                                     # Plot observable
                                     self.plot_observable(observable_type, observable, centrality, pt_suffix)
+                                    self._is_migrated_obs = False
 
                             else:
                                 self.suffix = f"_R{self.jet_R}{subobservable_label}"
                                 if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                                     continue
+
+                                # For migrated axis observables with >1 axis variant (axis_alice), the
+                                # data block has one HEPData overlay table per jet_axis variant, so
+                                # select it (JetAxisDifferenceSpec encoding -- grooming carried inside
+                                # the axis). NOTE: axis_alice still carries legacy hepdata_* keys, so
+                                # its overlay routes through tgraph_from_hepdata (ROOT) and ignores
+                                # this; it takes effect for any data:-only axis observable (Step 6).
+                                data_block_params = None
+                                if is_migrated and axis_is_essential and axis_entry is not None:
+                                    data_block_params = {
+                                        "jet_axis": observable_module.JetAxisDifferenceSpec(
+                                            type=axis_entry["type"], grooming_settings=axis_entry.get("grooming_settings")
+                                        ).encode()
+                                    }
+                                # Stash the encoder context (no grooming in the else branch; pass the
+                                # axis entry only when jet_axis is essential, mirroring the analyzer).
+                                self._is_migrated_obs = is_migrated
+                                self._encoder_block = block
+                                self._encoder_grooming_setting = None
+                                self._encoder_pt_bin = pt_bin
+                                self._encoder_axis_entry = axis_entry if axis_is_essential else None
 
                                 # Initialize observable configuration
                                 self.init_observable(
@@ -317,10 +398,12 @@ class PlotResults(common_base.CommonBase):
                                     centrality_index,
                                     pt_suffix=pt_suffix,
                                     self_normalize=self_normalize,
+                                    data_block_params=data_block_params,
                                 )
 
                                 # Plot observable
                                 self.plot_observable(observable_type, observable, centrality, pt_suffix)
+                                self._is_migrated_obs = False
 
     # -------------------------------------------------------------------------------------------
     # Histogram semi-inclusive jet observables
@@ -353,7 +436,15 @@ class PlotResults(common_base.CommonBase):
     # Initialize a single observable's config
     # -------------------------------------------------------------------------------------------
     def init_observable(
-        self, observable_type, observable, block, centrality, centrality_index, pt_suffix="", self_normalize=False
+        self,
+        observable_type,
+        observable,
+        block,
+        centrality,
+        centrality_index,
+        pt_suffix="",
+        self_normalize=False,
+        data_block_params=None,
     ):
         # Initialize an empty dict containing relevant info
         self.observable_settings = {}
@@ -399,6 +490,7 @@ class PlotResults(common_base.CommonBase):
                 centrality,
                 suffix=self.suffix,
                 pt_suffix=pt_suffix,
+                data_block_params=data_block_params,
             )
         else:
             self.observable_settings["data_distribution"] = None
@@ -614,6 +706,47 @@ class PlotResults(common_base.CommonBase):
             self.post_process_histogram(observable_type, observable, block, centrality, centrality_index)
 
     # -------------------------------------------------------------------------------------------
+    # Build the encoder-based storage column name for a migrated jet/substructure observable.
+    #
+    # This mirrors, byte-for-byte, the name the analyzer writes (and the histogrammer histogrammed)
+    # via obs.encode_name_for_storing_in_file(...). It is the COLUMN-name encoding: the grooming is
+    # passed via convert_to_grooming_method_spec (the underlying SoftDropSpec/DynamicalGroomingSpec,
+    # NO "SD_"/"DyG_" prefix) -- distinct from the DATA-BLOCK key encoding (GroomingSettingsSpec /
+    # JetAxisDifferenceSpec .encode(), WITH the prefix) used only for data_block_params. Mirror of
+    # HistogramResults._encoder_column_name; keep the two in lockstep.
+    # -------------------------------------------------------------------------------------------
+    def _encoder_column_name(
+        self,
+        observable_type,
+        observable,
+        jet_R,
+        jet_collection_label,
+        block=None,
+        grooming_setting=None,
+        pt_bin=None,
+        axis_entry=None,
+    ):
+        obs = self.observables_info[f"{self.sqrts}_{observable_type}_{observable}"]
+        kwargs = {"jet_R": observable_module.JetRSpec(jet_R)}
+
+        if pt_bin is not None and isinstance((block or {}).get("jet", {}).get("pt"), list):
+            pt_edges = block["jet"]["pt"]
+            if pt_bin + 1 < len(pt_edges):
+                kwargs["jet_pt"] = observable_module.PtSpec(pt_edges[pt_bin], pt_edges[pt_bin + 1])
+
+        if axis_entry is not None:
+            # Grooming is encoded inside the jet-axis spec; do not also pass jet_grooming_settings.
+            kwargs["jet_axis"] = observable_module.JetAxisDifferenceSpec(
+                type=axis_entry["type"], grooming_settings=axis_entry.get("grooming_settings")
+            )
+        elif grooming_setting is not None:
+            # Mirror the analyzer exactly: it passes the underlying method spec (no "SD_"/"DyG_"
+            # prefix) as jet_grooming_settings for the column name.
+            kwargs["jet_grooming_settings"] = observable_module.convert_to_grooming_method_spec(grooming_setting)
+
+        return obs.encode_name_for_storing_in_file(tag=jet_collection_label, **kwargs)
+
+    # -------------------------------------------------------------------------------------------
     # Get histogram and add to self.observable_settings
     #  - In AA case, also add hole histogram
     #  - In the case of semi-inclusive measurements construct difference of histograms
@@ -629,8 +762,24 @@ class PlotResults(common_base.CommonBase):
 
         # For all other histograms, get the histogram directly
         else:
-            # Get histogram
-            self.hname = f"h_{observable_type}_{observable}{self.suffix}{collection_label}_{centrality}{pt_suffix}"
+            # Get histogram. For the encoder-migrated jet/substructure observables, rebuild the
+            # name from the same encoder the histogrammer used (recomputed per collection_label,
+            # whose tag is folded into the encoder name) -- the pt range is already encoded, so the
+            # _pt{i} suffix is suppressed here (it is still used by the binning/overlay lookups).
+            if getattr(self, "_is_migrated_obs", False):
+                column_name = self._encoder_column_name(
+                    observable_type,
+                    observable,
+                    self.jet_R,
+                    collection_label,
+                    block=self._encoder_block,
+                    grooming_setting=self._encoder_grooming_setting,
+                    pt_bin=self._encoder_pt_bin,
+                    axis_entry=self._encoder_axis_entry,
+                )
+                self.hname = f"h_{column_name}_{centrality}"
+            else:
+                self.hname = f"h_{observable_type}_{observable}{self.suffix}{collection_label}_{centrality}{pt_suffix}"
             if self.hname in keys:
                 h_jetscape = self.input_file.Get(self.hname)
                 h_jetscape.SetDirectory(0)
@@ -1191,7 +1340,13 @@ class PlotResults(common_base.CommonBase):
         text = f"{centrality} {self.suffix} {pt_suffix}"
         text_latex.DrawLatex(x, 0.8, text)
 
-        hname = f"h_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}"
+        # For migrated observables use the unique encoder-based name (self.hname, set in
+        # get_histogram) so per-grooming / per-axis variants don't collide on the legacy suffix
+        # (e.g. axis_alice's two WTA_SD variants share `_R{R}_WTA_SD`). Legacy path unchanged.
+        if getattr(self, "_is_migrated_obs", False) and self.hname:
+            hname = self.hname
+        else:
+            hname = f"h_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}"
         c.SaveAs(str(self.output_dir / f"{hname}{self.file_format}"))
         c.Close()
 

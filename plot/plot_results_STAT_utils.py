@@ -22,6 +22,30 @@ ROOT.gROOT.SetBatch(True)
 
 logger = logging.getLogger(__name__)
 
+# Jet/substructure observables whose ANALYZER fill is migrated to the observable encoder
+# (obs.encode_name_for_storing_in_file). For these, the histogrammer and plotter must derive the
+# storage column / histogram name from the same encoder rather than hand-building a legacy
+# f-string, otherwise the lookup misses and the observable silently produces no histogram (Step 4;
+# OBSERVABLE_EDGE_CASES C5). Keyed (observable_type, observable). Everything not listed here
+# (e.g. charge_cms, plain RAA/Dz/...) stays on the legacy f-string path, matching its analyzer.
+# Lives here (shared utils) so the histogrammer and plotter use a single source of truth and can
+# never drift on membership.
+# NOTE: mass_alice and angularity_alice are intentionally NOT here. Each conflates an ungroomed
+# quantity (jet.m() / lambda(jet), written by a legacy f-string fill) with a groomed one
+# (m_g / lambda(groomed pair), written by the encoder). Splitting them into distinct observables
+# (mass_alice + mg_alice; angularity_alice + angularity_groomed_alice) is Step 5. Until then they
+# stay on the legacy path (histogramming the ungroomed quantity, as before -- no regression).
+ENCODER_MIGRATED_JET_OBSERVABLES = {
+    ("inclusive_chjet", "ktg_alice"),
+    ("inclusive_chjet", "zg_alice"),
+    ("inclusive_chjet", "tg_alice"),
+    ("inclusive_chjet", "axis_alice"),
+    ("inclusive_jet", "mg_cms"),
+    ("inclusive_jet", "zg_cms"),
+    ("inclusive_jet", "rg_atlas"),
+    ("inclusive_jet", "axis_cms"),
+}
+
 
 def available_hepdata_files_in_block(block: dict[str, Any]) -> list[str]:
     """Determine the hepdata files available in the config block.
@@ -469,12 +493,16 @@ class PlotUtils(common_base.CommonBase):
     # `additional_systematics` (the plot draws a single combined band, matching
     # what the old HEPData ROOT graphs encoded).
     # ---------------------------------------------------------------
-    def tgraph_from_data_block(self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix=""):
+    def tgraph_from_data_block(
+        self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix="", data_block_params=None
+    ):
         # Lazy import for the error-parsing helpers (reused from build_tables).
         from jetscape_analysis.data_curation import build_tables  # noqa: PLC0415
 
+        # data_block_params selects the per-grooming / per-axis HEPData table for migrated
+        # observables (same mechanism as the binning path; OBSERVABLE_EDGE_CASES A9).
         hd, match = self._resolve_data_hepdata_table(
-            block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix
+            block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix, data_block_params
         )
         if hd is None:
             return None

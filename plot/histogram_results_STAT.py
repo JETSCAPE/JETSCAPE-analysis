@@ -32,27 +32,9 @@ ROOT.TH1.AddDirectory(False)
 
 logger = logging.getLogger(__name__)
 
-# Jet/substructure observables whose ANALYZER fill is migrated to the observable encoder
-# (obs.encode_name_for_storing_in_file). For these, the histogrammer must derive the storage
-# column / histogram name from the same encoder rather than hand-building a legacy f-string,
-# otherwise the lookup misses and the observable silently produces no histogram (Step 4 ③;
-# OBSERVABLE_EDGE_CASES C5). Keyed (observable_type, observable). Everything not listed here
-# (e.g. charge_cms, plain RAA/Dz/...) stays on the legacy f-string path, matching its analyzer.
-# NOTE: mass_alice and angularity_alice are intentionally NOT here. Each conflates an ungroomed
-# quantity (jet.m() / lambda(jet), written by a legacy f-string fill) with a groomed one
-# (m_g / lambda(groomed pair), written by the encoder). Splitting them into distinct observables
-# (mass_alice + mg_alice; angularity_alice + angularity_groomed_alice) is Step 5. Until then they
-# stay on the legacy path (histogramming the ungroomed quantity, as before -- no regression).
-ENCODER_MIGRATED_JET_OBSERVABLES = {
-    ("inclusive_chjet", "ktg_alice"),
-    ("inclusive_chjet", "zg_alice"),
-    ("inclusive_chjet", "tg_alice"),
-    ("inclusive_chjet", "axis_alice"),
-    ("inclusive_jet", "mg_cms"),
-    ("inclusive_jet", "zg_cms"),
-    ("inclusive_jet", "rg_atlas"),
-    ("inclusive_jet", "axis_cms"),
-}
+# The set of encoder-migrated jet/substructure observables now lives in plot_results_STAT_utils
+# (ENCODER_MIGRATED_JET_OBSERVABLES) so the histogrammer and plotter share one source of truth.
+# Referenced below as plot_results_STAT_utils.ENCODER_MIGRATED_JET_OBSERVABLES.
 
 
 ################################################################
@@ -781,7 +763,10 @@ class HistogramResults(common_base.CommonBase):
 
                         # Whether the histogram name comes from the observable encoder (the analyzer
                         # writes encoder names for these) or the legacy hand-built f-string.
-                        is_migrated = (observable_type, observable) in ENCODER_MIGRATED_JET_OBSERVABLES
+                        is_migrated = (
+                            observable_type,
+                            observable,
+                        ) in plot_results_STAT_utils.ENCODER_MIGRATED_JET_OBSERVABLES
                         # jet_axis is an essential (encoded) parameter only when >1 axis variant is
                         # configured; with a single axis entry the encoder omits it, so we don't pass
                         # it (mirrors the analyzer: axis_alice passes jet_axis, axis_cms does not).
