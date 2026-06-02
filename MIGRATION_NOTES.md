@@ -229,19 +229,15 @@ overlay path (legacy `hepdata_*` keys → strip in Step 6). See
 `OBSERVABLE_EDGE_CASES.md` C5 / A9 / C6 / C7.
 
 ### Full render now COMPLETES (2026-06-02): pre-existing render-path fixes E1/E2/E3
-### ⚠️ but the AA R_AA output looks WRONG — physics validation pending (next session)
+### ✅ RESOLVED (2026-06-02 PM): AA R_AA bin-mismatch bug fixed — see "AA R_AA binning fix" below
 
-**OPEN — top item for next session.** With E1/E2/E3 the render runs to exit 0, but
-"completes" ≠ "correct": the user inspected the AA `aa_RAA_render` plots on
-2026-06-02 and the **R_AA histograms look physically strange/suspect**. Not yet
-diagnosed — debugging deferred to the next session. First suspects to check (hypotheses,
-NOT conclusions): (a) the AA normalization in `scale_histogram`, which divides by
-`self.eta_cut` — E1 only just started populating it, so confirm the value/derivation is
-right for AA (esp. jets, where `eta_cut = eta_R − jet_R`); (b) the pp-reference division
-in `plot_RAA` (right pp histogram matched? correct scaling on both arms?); (c) small-sample
-effects (the PbPb test sample is a narrow centrality slice → R_AA can look odd); (d) the
-E2 `y_ratio` default range only affects the *display* axis, not the values. Mechanical
-render is verified; numerical/physics correctness is NOT.
+**RESOLVED.** The suspect AA R_AA was hypothesis (b): the histogrammer binned the AA arm
+on the HEPData `ratio` table but the pp arm on the `spectra` table → different, non-nested
+edges → `plot_RAA`'s `AA.Divide(h_pp)` failed with "Cannot divide histograms with different
+number of bins" (16×, AA stage only) → R_AA wrong/empty. Fixed by booking a pp
+R_AA-denominator on the AA `ratio` binning (`_raa_denom`); see the dedicated section below.
+(The other hypotheses were not the cause: (a) eta_cut is applied to both arms and cancels in
+the ratio; (c) limited-centrality sample is real but secondary; (d) display-only.)
 
 The first complete render after Step 4 ④ exercised the AA→R_AA path for the first
 time and hit three **pre-existing** render-layer bugs (separate from the encoder
@@ -261,6 +257,86 @@ Verified: real plotter renders pp (128 PDFs) + AA→R_AA (25 PDFs) clean, exit 0
 `hepdata_*` keys pointing at HEPData ROOT files not on disk (the only enabled
 observable in that state); resolve in Step 6 by stripping those keys so it uses
 its `data:` block.
+
+## AA R_AA binning fix — DONE (2026-06-02 PM)
+
+**Bug:** the AA arm was binned on the HEPData `ratio` table but the pp arm on the `spectra`
+table → different, NON-nested edges → `plot_RAA`'s `AA.Divide(h_pp)` failed (16× "Cannot
+divide histograms with different number of bins", AA stage only), so R_AA was wrong/empty for
+`pt_ch_cms`, `pt_ch_atlas`, `pt_cms` R0.8/R1.0, `Dz/Dpt_atlas`, etc. (`pt_ch_alice`/`pt_pi_alice`
+happened to have ratio==spectra in the test sample, so they divided fine and masked the bug.)
+
+**Fix (re-fill, NOT resample):** the histogrammer now books a SECOND pp histogram on the AA
+`ratio` binning by re-filling the same observable column, named with a `_raa_denom` suffix
+(`HistogramResults.maybe_book_raa_denom`, pp-run only; skipped when ratio==spectra, no ratio
+table, or non-monotonic edges e.g. `pt_y_atlas`). The plotter scales it through the identical
+chain (`_scale_one_histogram`), persists `jetscape_distribution_raa_denom_{label}` into pp
+`final_results.root`, and `plot_RAA` divides by it — falling back to the spectra histogram when
+no denom exists (preserves prior behavior for ratio==spectra). `_raa_denom` is excluded from
+`keys_to_plot` and `write_experimental_data`. Files: `plot/histogram_results_STAT.py`,
+`plot/plot_results_STAT.py`.
+
+**Also (TASK B):** `_save_logxy_twin` emits a log-x/log-y `_logxy.pdf` twin for distribution/
+spectra plots only (NOT R_AA ratios — degenerate log-y on a 0–2 range).
+
+**Verified e2e (small sample):** analyzer/histogrammer/plotter all exit 0, **0** "Cannot divide"
+errors (was 16), pp 255 PDFs (128 + 127 `_logxy`), AA 25. Multi-agent adversarial review +
+runtime checks passed: pp `_raa_denom` edges bit-identical to AA (incl. the genuine mismatch
+cases pt_cms R0.8/R1.0 5-vs-4, pt_atlas R0.4 15-vs-14), 0 `_raa_denom` in the AA arm, all AA
+Divides finite (means ~0.69–0.95), no silent denom misses. One confirmed LOW-severity latent
+defect (Dz `_raa_denom` re-booked the binning-independent `_Njets` companion under a duplicate
+name — dormant in 5020, would activate for 2760 Dz blocks) fixed with an `and not name_suffix`
+guard. Residual (pre-existing, not introduced): pp `_raa_denom` is persisted under the bare key
+(no collection_label) — correct only because the pp run always uses `collection_label=""`.
+
+Note: AA=25 (vs pp 128) is the limited-centrality single-chunk sample, not a bug — the AA
+plotter skips ~93 (observable, centrality) combos whose AA MC histogram is empty for this chunk
+(only [10,20]/[10,30] populate). Run more PbPb chunks across centralities for fuller coverage.
+
+## Disabled-observable audit (2026-06-02): why each non-by-design observable is off
+
+Audit of every disabled observable in `config/STAT_5020.yaml` that is **not**
+already an accepted by-design-off case, plus the reason each is off. Data
+availability cross-checked against the `hard-sector-data-curation` clone
+(`hepdata_database.yaml` registry + `data/5020/<type>/<obs>/` payloads).
+
+### Categories to re-visit
+**All ATLAS, z-trigger / gamma-trigger, and v2 (flow) categories need to be
+re-visited.** They are disabled wholesale right now; revisit each for correct
+inspire/HEPData record, curation, and analyzer support before re-enabling.
+
+### Reasons individual observables are off (analyzer- vs data-blocked)
+- **`dijet_trigger_jet/v2_cms`** (CMS, ins2165916) — **analyzer code not available.**
+  HEPData *is* curated (CMS HIN-21-002, dijet v₂/v₃/v₄), so this is analyzer-blocked,
+  not data-blocked. (Also arguably belongs in the by-design v2-flow bucket.)
+- **`inclusive_jet/eec_cms`** (CMS, ins2904406) — **analyzer code not available.**
+  HEPData *is* curated (ins2904406-v2); analyzer-blocked, not data-blocked.
+- **`inclusive_chjet/pt_mixed_events_alice`** (ALICE) — **preliminary measurement**
+  (no inspire/HEPData record yet) **and analyzer code not available.**
+
+### Data-blocked (no curated HEPData → `hepdata: N/A`)
+- `inclusive_jet/pt_small_R_atlas` (inspire 2623088), `rg_atlas` (2512925),
+  `d12_atlas` (2623088), `dR12_atlas` (2909617) — none present in the curation
+  clone or registered in `hepdata_database.yaml`. `d12`/`dR12` are marked
+  `# TODO: Update` in the config.
+- `dijet_trigger_jet/{pt_pair,xj,yield}_atlas` — see config edit below.
+
+### Config edits made this session
+- `z_trigger_hadron/IAA_pt_atlas` → `enabled: false` (the whole `z_trigger_hadron`
+  group is now off).
+- `dijet_trigger_jet/{pt_pair,xj,yield}_atlas` — `inspire_hep` repointed from the
+  **wrong** CMS record (ins2165916) to the correct ATLAS paper
+  **inspire 2811406** (arXiv 2407.18796, *"Jet radius dependence of dijet momentum
+  balance and suppression in Pb+Pb collisions at 5.02 TeV with the ATLAS
+  detector"*); `hepdata: N/A` (not yet curated). `v2_cms` left on ins2165916
+  (genuinely CMS).
+
+### Stale curation to clean up
+The three ATLAS dijet dirs under
+`hard-sector-data-curation/data/5020/dijet_trigger_jet/{pt_pair,xj,yield}_atlas/`
+still hold **byte-identical copies of the CMS `ins2165916` payload** (wrong data —
+they are not the ATLAS measurement). The config no longer references them; delete
+so they aren't mistaken for real ATLAS dijet data.
 
 ## Recommended order for next session
 

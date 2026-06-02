@@ -5003,8 +5003,8 @@ dijet_trigger_jet:
   pt_pair_atlas:
     enabled: false
     urls:
-      inspire_hep: https://inspirehep.net/literature/2165916
-      hepdata: https://www.hepdata.net/record/ins2165916
+      inspire_hep: https://inspirehep.net/literature/2811406
+      hepdata: N/A
 
     centrality: [[0, 10], [10, 20], [20, 40]]
 
@@ -5012,8 +5012,8 @@ dijet_trigger_jet:
   xj_atlas:
     enabled: false
     urls:
-      inspire_hep: https://inspirehep.net/literature/2165916
-      hepdata: https://www.hepdata.net/record/ins2165916
+      inspire_hep: https://inspirehep.net/literature/2811406
+      hepdata: N/A
 
     centrality: [[0, 10], [10, 20], [20, 40]]
 
@@ -5021,8 +5021,8 @@ dijet_trigger_jet:
   yield_atlas:
     enabled: false
     urls:
-      inspire_hep: https://inspirehep.net/literature/2165916
-      hepdata: https://www.hepdata.net/record/ins2165916
+      inspire_hep: https://inspirehep.net/literature/2811406
+      hepdata: N/A
 
     centrality: [[0, 10], [10, 20], [20, 40]]
 
@@ -5142,7 +5142,7 @@ gamma_trigger_jet:
 
   # ATLAS xj_gamma
   xj_gamma_atlas:
-    enabled: true
+    enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/1694678
       hepdata: https://www.hepdata.net/record/ins1694678
@@ -5283,7 +5283,7 @@ gamma_trigger_jet:
   # resulting likelihood not very meaningful imho
   # comment FJ: note that only highest pT photon per event is used for the calculation of xj_gamma!!
   xj_gamma_cms:
-    enabled: true
+    enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/1638996
       hepdata: https://www.hepdata.net/record/ins1638996
@@ -5764,7 +5764,7 @@ gamma_trigger_jet:
 z_trigger_hadron:
   # ATLAS z boson-hadron correlations
   IAA_pt_atlas:
-    enabled: true
+    enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/1812957
       hepdata: N/A
