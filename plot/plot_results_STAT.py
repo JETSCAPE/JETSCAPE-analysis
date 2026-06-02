@@ -819,6 +819,20 @@ class PlotResults(common_base.CommonBase):
                 h_jetscape = None
             self.observable_settings[f"jetscape_distribution{collection_label}"] = h_jetscape
 
+            # pp run only: also fetch the R_AA-denominator histogram booked on the AA `ratio`
+            # binning (same hname + "_raa_denom"). plot_RAA (AA run) divides by this to avoid the
+            # spectra-vs-ratio bin-count mismatch. None when the histogrammer didn't book one (i.e.
+            # ratio binning == spectra binning, or no ratio table) -- plot_RAA falls back then.
+            h_raa_denom = None
+            if not self.is_AA:
+                raa_denom_name = f"{self.hname}_raa_denom"
+                if raa_denom_name in keys:
+                    h_raa_denom = self.input_file.Get(raa_denom_name)
+                    h_raa_denom.SetDirectory(0)
+                    if not h_raa_denom.GetSumw2():
+                        h_raa_denom.Sumw2()
+            self.observable_settings[f"jetscape_distribution_raa_denom{collection_label}"] = h_raa_denom
+
     # -------------------------------------------------------------------------------------------
     # Construct semi-inclusive observables from difference of histograms
     # -------------------------------------------------------------------------------------------
@@ -876,7 +890,7 @@ class PlotResults(common_base.CommonBase):
     #  - observable-specific factors (eta, sigma_inel, n_jets, ...)
     #  - self-normalization
     # -------------------------------------------------------------------------------------------
-    def scale_histogram(  # noqa: C901
+    def scale_histogram(
         self,
         observable_type,
         observable: str,
@@ -885,7 +899,39 @@ class PlotResults(common_base.CommonBase):
         pt_suffix: str = "",
         self_normalize: bool = False,
     ):
-        h = self.observable_settings[f"jetscape_distribution{collection_label}"]
+        # Apply the IDENTICAL scaling chain to the prediction histogram and, when present (pp run),
+        # to the "_raa_denom" companion booked on the AA `ratio` binning. Scaling both through the
+        # same path (xsec/weight_sum, bin width, observable-specific factors, self-normalization)
+        # keeps the denominator a correctly-normalized pp spectrum so plot_RAA's Divide is valid.
+        for settings_key in (
+            f"jetscape_distribution{collection_label}",
+            f"jetscape_distribution_raa_denom{collection_label}",
+        ):
+            if settings_key not in self.observable_settings:
+                continue
+            self._scale_one_histogram(
+                self.observable_settings[settings_key],
+                observable_type,
+                observable,
+                centrality,
+                collection_label=collection_label,
+                pt_suffix=pt_suffix,
+                self_normalize=self_normalize,
+            )
+
+    # -------------------------------------------------------------------------------------------
+    # Apply the full scaling chain to a single histogram (see scale_histogram).
+    # -------------------------------------------------------------------------------------------
+    def _scale_one_histogram(  # noqa: C901
+        self,
+        h,
+        observable_type,
+        observable: str,
+        centrality,
+        collection_label: str = "",
+        pt_suffix: str = "",
+        self_normalize: bool = False,
+    ):
         if not h:
             return
 
@@ -1208,9 +1254,13 @@ class PlotResults(common_base.CommonBase):
         filename = f"Data_{label}.dat"
         output_file = output_dir / filename
         if force_write or not output_file.exists():
-            # Get histogram binning
+            # Get histogram binning ("raa_denom" is the R_AA-denominator helper hist, not a prediction)
             key = next(
-                (key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key)
+                (
+                    key
+                    for key in self.observable_settings
+                    if "jetscape_distribution" in key and "holes" not in key and "raa_denom" not in key
+                )
             )
             h_prediction = self.observable_settings[key]
 
@@ -1264,9 +1314,12 @@ class PlotResults(common_base.CommonBase):
     #           self.observable_settings[f'jetscape_distribution{jet_collection_label}']
     # -------------------------------------------------------------------------------------------
     def plot_RAA(self, observable_type, observable, centrality, label, pt_suffix=""):  # noqa: C901
-        # Assemble the list of hole subtraction variations
+        # Assemble the list of hole subtraction variations ("raa_denom" is the pp-only
+        # R_AA-denominator helper hist, never a prediction to plot/divide here)
         keys_to_plot = [
-            key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key
+            key
+            for key in self.observable_settings
+            if "jetscape_distribution" in key and "holes" not in key and "raa_denom" not in key
         ]
         model_display_name = _model_display_name[self.model_name]
         self.jetscape_legend_label = {}
@@ -1285,10 +1338,18 @@ class PlotResults(common_base.CommonBase):
             logger.warning(f"Skipping {label} since data is missing")
             return
 
-        # Get the pp reference histogram and form the RAA ratios
+        # Get the pp reference histogram and form the RAA ratios.
+        # Prefer the "_raa_denom" pp histogram (booked on the AA `ratio` binning) so the bin edges
+        # match the AA arm -- this avoids the "Cannot divide histograms with different number of
+        # bins" error when the pp spectra binning differs from the ratio binning. Fall back to the
+        # plain spectra histogram when no _raa_denom was produced (ratio binning == spectra binning,
+        # or no ratio table), which preserves the previous behavior for those observables.
         if not self.skip_AA_ratio:
-            h_pp_name = f"jetscape_distribution_{label}"
+            h_pp_name = f"jetscape_distribution_raa_denom_{label}"
             h_pp = self.pp_ref_file.Get(h_pp_name)
+            if not h_pp:
+                h_pp_name = f"jetscape_distribution_{label}"
+                h_pp = self.pp_ref_file.Get(h_pp_name)
             for key in keys_to_plot:
                 if self.observable_settings[key] and h_pp:
                     self.observable_settings[key].Divide(h_pp)
@@ -1388,6 +1449,31 @@ class PlotResults(common_base.CommonBase):
         c.Close()
 
     # -------------------------------------------------------------------------------------------
+    # Save a log-x/log-y twin of a (non-ratio) distribution canvas.
+    #
+    # For each distribution/spectrum plot we additionally emit a "<name>_logxy.pdf" with log x (and
+    # log y) on the upper distribution pad and log x on the ratio pad. This is purely a second view;
+    # the pad log-flags are restored afterwards so the normal save (if it happens after) is unchanged.
+    # NOT used for R_AA ratios (y ~ 0-2 with y-min often 0 -> degenerate log-y).
+    # -------------------------------------------------------------------------------------------
+    def _save_logxy_twin(self, canvas, base_name, dist_pad=None, ratio_pad=None):
+        # Remember current log state so we can restore it (callers may reuse the canvas/pads).
+        saved = [(p, p.GetLogx(), p.GetLogy()) for p in (dist_pad, ratio_pad) if p is not None]
+        try:
+            if dist_pad is not None:
+                dist_pad.SetLogx()
+                dist_pad.SetLogy()
+            if ratio_pad is not None:
+                ratio_pad.SetLogx()
+            canvas.Update()
+            canvas.SaveAs(str(self.output_dir / f"{base_name}_logxy{self.file_format}"))
+        finally:
+            for p, logx, logy in saved:
+                p.SetLogx(logx)
+                p.SetLogy(logy)
+            canvas.Update()
+
+    # -------------------------------------------------------------------------------------------
     # Plot distributions in upper panel, and ratio in lower panel
     # -------------------------------------------------------------------------------------------
     def plot_distribution_and_ratio(  # noqa: C901
@@ -1475,6 +1561,12 @@ class PlotResults(common_base.CommonBase):
 
         # Draw JETSCAPE
         self.output_dict[f"jetscape_distribution_{label}"] = self.observable_settings["jetscape_distribution"]
+        # Persist the R_AA-denominator companion (pp run only) into final_results.root so the AA
+        # plot_RAA run can divide by it (it is scaled/normalized identically; only the binning is the
+        # AA `ratio` binning). Not drawn here -- it's an internal histogram for the ratio, not a pp curve.
+        h_raa_denom = self.observable_settings.get("jetscape_distribution_raa_denom")
+        if h_raa_denom:
+            self.output_dict[f"jetscape_distribution_raa_denom_{label}"] = h_raa_denom
         if self.observable_settings["jetscape_distribution"].GetNbinsX() > 1:
             self.observable_settings["jetscape_distribution"].SetFillColor(self.jetscape_color[0])
             self.observable_settings["jetscape_distribution"].SetFillColorAlpha(
@@ -1557,6 +1649,8 @@ class PlotResults(common_base.CommonBase):
             text_latex.DrawLatex(x, 0.93, text)
 
         c.SaveAs(str(self.output_dir / f"{self.hname}{self.file_format}"))
+        # Also emit a log-x/log-y twin of this distribution plot (NOT for R_AA ratios).
+        self._save_logxy_twin(c, self.hname, dist_pad=pad1, ratio_pad=pad2)
         c.Close()
 
     # -------------------------------------------------------------------------------------------

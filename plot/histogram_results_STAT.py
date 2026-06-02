@@ -403,6 +403,17 @@ class HistogramResults(common_base.CommonBase):
                     self.histogram_observable(
                         column_name=f"{observable_type}_{observable}_holes", bins=bins, centrality=centrality
                     )
+                else:
+                    # pp: also book the R_AA-denominator on the AA `ratio` binning (see helper)
+                    self.maybe_book_raa_denom(
+                        observable_type=observable_type,
+                        observable=observable,
+                        centrality=centrality,
+                        centrality_index=centrality_index,
+                        spectra_bins=bins,
+                        column_name=f"{observable_type}_{observable}",
+                        block=block,
+                    )
 
     # -------------------------------------------------------------------------------------------
     # Histograms for gamma-jet observables
@@ -815,21 +826,37 @@ class HistogramResults(common_base.CommonBase):
                                         # Encoder name already encodes the pt range, so suppress the
                                         # now-redundant _pt{i} suffix on the histogram name (but keep
                                         # it in the binning lookup above, which resolves by pt index).
+                                        encoder_name = self._encoder_column_name(
+                                            observable_type,
+                                            observable,
+                                            jet_R,
+                                            jet_collection_label,
+                                            block=block,
+                                            grooming_setting=grooming_setting,
+                                            pt_bin=pt_bin,
+                                        )
                                         self.histogram_observable(
-                                            column_name=self._encoder_column_name(
-                                                observable_type,
-                                                observable,
-                                                jet_R,
-                                                jet_collection_label,
-                                                block=block,
-                                                grooming_setting=grooming_setting,
-                                                pt_bin=pt_bin,
-                                            ),
+                                            column_name=encoder_name,
                                             bins=bins,
                                             centrality=centrality,
                                             pt_suffix="",
                                             pt_bin=pt_bin,
                                             block=block,
+                                        )
+                                        # pp: book the R_AA-denominator on the AA `ratio` binning
+                                        # (migrated groomed-jet substructure RAA, e.g. mg_cms/zg_cms).
+                                        self.maybe_book_raa_denom(
+                                            observable_type=observable_type,
+                                            observable=observable,
+                                            centrality=centrality,
+                                            centrality_index=centrality_index,
+                                            spectra_bins=bins,
+                                            column_name=encoder_name,
+                                            pt_suffix="",
+                                            pt_bin=pt_bin,
+                                            block=block,
+                                            suffix=f"{self.suffix}{pt_suffix}",
+                                            data_block_params=data_block_params,
                                         )
                                     else:
                                         self.histogram_observable(
@@ -878,21 +905,37 @@ class HistogramResults(common_base.CommonBase):
                                     continue
 
                                 if is_migrated:
+                                    encoder_name = self._encoder_column_name(
+                                        observable_type,
+                                        observable,
+                                        jet_R,
+                                        jet_collection_label,
+                                        block=block,
+                                        pt_bin=pt_bin,
+                                        axis_entry=axis_entry if axis_is_essential else None,
+                                    )
                                     self.histogram_observable(
-                                        column_name=self._encoder_column_name(
-                                            observable_type,
-                                            observable,
-                                            jet_R,
-                                            jet_collection_label,
-                                            block=block,
-                                            pt_bin=pt_bin,
-                                            axis_entry=axis_entry if axis_is_essential else None,
-                                        ),
+                                        column_name=encoder_name,
                                         bins=bins,
                                         centrality=centrality,
                                         pt_suffix="",
                                         pt_bin=pt_bin,
                                         block=block,
+                                    )
+                                    # pp: book the R_AA-denominator on the AA `ratio` binning
+                                    # (migrated axis/substructure RAA, e.g. axis_cms/rg_atlas).
+                                    self.maybe_book_raa_denom(
+                                        observable_type=observable_type,
+                                        observable=observable,
+                                        centrality=centrality,
+                                        centrality_index=centrality_index,
+                                        spectra_bins=bins,
+                                        column_name=encoder_name,
+                                        pt_suffix="",
+                                        pt_bin=pt_bin,
+                                        block=block,
+                                        suffix=f"{self.suffix}{pt_suffix}",
+                                        data_block_params=data_block_params,
                                     )
                                 else:
                                     self.histogram_observable(
@@ -912,6 +955,20 @@ class HistogramResults(common_base.CommonBase):
                                             pt_bin=pt_bin,
                                             block=block,
                                         )
+                                    # pp: book the R_AA-denominator (inclusive_jet pt/Dz/Dpt RAA)
+                                    # on the AA `ratio` binning when it differs from the spectra binning.
+                                    self.maybe_book_raa_denom(
+                                        observable_type=observable_type,
+                                        observable=observable,
+                                        centrality=centrality,
+                                        centrality_index=centrality_index,
+                                        spectra_bins=bins,
+                                        column_name=f"{observable_type}_{observable}{self.suffix}{jet_collection_label}",
+                                        pt_suffix=pt_suffix,
+                                        pt_bin=pt_bin,
+                                        block=block,
+                                        suffix=f"{self.suffix}{pt_suffix}",
+                                    )
 
     # -------------------------------------------------------------------------------------------
     # Histogram semi-inclusive jet observables
@@ -1077,7 +1134,8 @@ class HistogramResults(common_base.CommonBase):
     # Histogram a single observable
     # -------------------------------------------------------------------------------------------
     def histogram_observable(
-        self, column_name=None, bins=None, centrality=None, pt_suffix="", pt_bin=None, block=None, observable=""
+        self, column_name=None, bins=None, centrality=None, pt_suffix="", pt_bin=None, block=None, observable="",
+        name_suffix="",
     ):
         # Get column
         logger.debug(f"Column name: {column_name}")
@@ -1113,6 +1171,7 @@ class HistogramResults(common_base.CommonBase):
                 pt_suffix=pt_suffix,
                 observable=observable,
                 skip_eventwise_check=skip_eventwise_check,
+                name_suffix=name_suffix,
             )
         elif dim_observable == 2:
             self.histogram_2d_observable(
@@ -1123,12 +1182,16 @@ class HistogramResults(common_base.CommonBase):
                 pt_suffix=pt_suffix,
                 block=block,
                 skip_eventwise_check=skip_eventwise_check,
+                name_suffix=name_suffix,
             )
         else:
             return
 
-        # Also store N_jets for D(z) observables
-        if "Dz" in column_name:
+        # Also store N_jets for D(z) observables.
+        # Skip on the R_AA-denominator pass (name_suffix set): the N_jets companion is binned by the
+        # jet-pt range (independent of the spectra-vs-ratio observable binning), so the primary pass
+        # already booked it -- re-booking here would only create a duplicate, identically-named key.
+        if "Dz" in column_name and not name_suffix:
             column_name = f"{column_name}_Njets"
             col = self.observables_df[column_name]
             bins = np.array([block["jet"]["pt"][pt_bin], block["jet"]["pt"][pt_bin + 1]])
@@ -1144,7 +1207,7 @@ class HistogramResults(common_base.CommonBase):
         # Also store N_trig for dihadron correlations
         # NOTE: We use pt_bin being set as a signal whether we should histogram the triggers.
         #       We then only set it sometimes so that we don't repeating histogram the same quantity.
-        if "dihadron_" in column_name and pt_bin is not None:
+        if "dihadron_" in column_name and pt_bin is not None and not name_suffix:
             start_of_label = column_name.find("_pt_trig")
             column_name_suffix = "_holes" if "_holes" in column_name else ""
             column_name = f"{column_name[:start_of_label]}_Ntrig{column_name_suffix}"
@@ -1163,10 +1226,59 @@ class HistogramResults(common_base.CommonBase):
             )
 
     # -------------------------------------------------------------------------------------------
+    # Book the R_AA-denominator pp histogram (pp run only).
+    #
+    # The AA arm bins R_AA observables from the measured `ratio` table while the pp arm bins from
+    # the `spectra` table -- these edges differ and are NOT nested, so plot_RAA's AA.Divide(h_pp)
+    # fails ("Cannot divide histograms with different number of bins"). To fix it WITHOUT
+    # resampling, we re-fill the SAME observable column on the AA `ratio` binning and store it under
+    # a "_raa_denom" name; plot_RAA divides by that instead. This is a correctly-normalized pp
+    # spectrum on the ratio edges (with proper Sumw2). The normal pp spectra histogram is untouched.
+    #
+    # We only book the denominator when (a) this is the pp run, and (b) the ratio binning actually
+    # differs from the spectra binning (otherwise the existing spectra histogram already aligns and
+    # plot_RAA's fallback handles it). All other args mirror the normal histogram_observable call.
+    # -------------------------------------------------------------------------------------------
+    def maybe_book_raa_denom(
+        self, *, observable_type, observable, centrality, centrality_index, spectra_bins,
+        column_name, pt_suffix="", pt_bin=None, block=None, suffix="", data_block_params=None,
+    ):
+        # Only the pp run produces the denominator; the AA arm already uses the ratio binning.
+        if self.is_AA or block is None:
+            return
+        ratio_bins = self.plot_utils.bins_from_config(
+            block, self.sqrts, observable_type, observable, centrality, centrality_index,
+            suffix=suffix, is_AA=True, data_block_params=data_block_params,
+        )
+        # Skip when there is no usable ratio binning, or when it matches the spectra binning
+        # (e.g. pt_ch_alice / pt_pi_alice) -- plot_RAA's fallback covers those exactly.
+        if ratio_bins is None or len(ratio_bins) < 2:
+            return
+        ratio_bins = np.asarray(ratio_bins)
+        # Some non-standard "ratio" tables (e.g. pt_y_atlas, a rapidity double-ratio that gets
+        # post-processed differently downstream) yield non-monotonic edges that would book an
+        # invalid TAxis. Such observables aren't the simple-spectrum R_AA this denominator targets,
+        # so skip them and let plot_RAA fall back to the spectra histogram.
+        if not np.all(np.diff(ratio_bins) > 0):
+            return
+        if spectra_bins is not None and np.array_equal(ratio_bins, np.asarray(spectra_bins)):
+            return
+        self.histogram_observable(
+            column_name=column_name,
+            bins=ratio_bins,
+            centrality=centrality,
+            pt_suffix=pt_suffix,
+            pt_bin=pt_bin,
+            block=block,
+            name_suffix="_raa_denom",
+        )
+
+    # -------------------------------------------------------------------------------------------
     # Histogram a single observable
     # -------------------------------------------------------------------------------------------
     def histogram_1d_observable(
-        self, col, column_name=None, bins=None, centrality=None, pt_suffix="", observable="", skip_eventwise_check=False
+        self, col, column_name=None, bins=None, centrality=None, pt_suffix="", observable="", skip_eventwise_check=False,
+        name_suffix="",
     ):
         # Need at least 2 edges to define a histogram; a degenerate binning would
         # otherwise book an invalid TH1F (len(bins)-1 <= 0 bins).
@@ -1185,7 +1297,7 @@ class HistogramResults(common_base.CommonBase):
                         continue
                 # Create histogram only when the first valid event is found
                 if h is None:
-                    hname = f"h_{column_name}{observable}_{centrality}{pt_suffix}"
+                    hname = f"h_{column_name}{observable}_{centrality}{pt_suffix}{name_suffix}"
                     h = ROOT.TH1F(hname, hname, len(bins) - 1, bins)
                     h.Sumw2()
                 for value in col[i]:
@@ -1199,7 +1311,8 @@ class HistogramResults(common_base.CommonBase):
     # Histogram a single observable
     # -------------------------------------------------------------------------------------------
     def histogram_2d_observable(
-        self, col, column_name=None, bins=None, centrality=None, pt_suffix="", block=None, skip_eventwise_check=False
+        self, col, column_name=None, bins=None, centrality=None, pt_suffix="", block=None, skip_eventwise_check=False,
+        name_suffix="",
     ):
         # Need at least 2 edges to define a histogram; a degenerate binning would
         # otherwise book an invalid TH1F (len(bins)-1 <= 0 bins).
@@ -1209,7 +1322,7 @@ class HistogramResults(common_base.CommonBase):
         h = None
         h2 = None
 
-        hname = f"h_{column_name}_{centrality}{pt_suffix}"
+        hname = f"h_{column_name}_{centrality}{pt_suffix}{name_suffix}"
 
         if "hadron_correlation_v2" in hname:
             # for v2 calculation only
