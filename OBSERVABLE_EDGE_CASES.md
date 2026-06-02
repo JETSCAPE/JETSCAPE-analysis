@@ -125,4 +125,22 @@ Handled in `_axis_from_independent_values` (utils:153) and the per-point loop of
 - **C6 (DyG `ktg_alice`)** — dynamical-grooming variant still not histogrammed (loop skips non-soft_drop); pre-existing limitation, revisit when convenient.
 - **C7 (`mass_alice`/`angularity_alice` ungroomed↔groomed split)** — deferred to Step 5; until then they stay on the legacy path (ungroomed quantity).
 - **A9 for the `tgraph` overlay** — DONE (Step 4 ④): the overlay path (`tgraph_from_data_block`) now also threads `data_block_params`. `axis_alice` is the one exception (legacy ROOT overlay path) — deferred to Step 6 (see A9 caveat).
-- **E1 — plotter render-layer schema-rename casualties (pre-existing, NOT the encoder migration; deferred follow-up).** Surfaced by the first full Step 4 ④ end-to-end render. The new YAML nests cuts under `hadron:`/`jet:` (`hadron.eta`, `jet.eta`, `jet.y`), but `init_common_settings` still reads only the legacy top-level `eta_cut`/`eta_cut_R`/`y_cut`, so `self.eta_cut`/`self.y_cut` are never set → `scale_histogram` raises `AttributeError: 'eta_cut'` (hadron `pt_ch_alice`, inclusive_jet `pt_alice`/`pt_cms`) and `'y_cut'` (inclusive_jet `pt_atlas`). Same class as the migration's already-done plotter schema renames (which fixed `self.pt` to read `block["hadron"]["pt"]`/`block["jet"]["pt"]` but never extended to `eta`/`y`). Fix = read the nested `eta`/`y` in `init_common_settings` when the legacy key is absent. Blocks the *complete* AA+pp render; tracked separately per user (2026-06-02). `plot_results_STAT.py:init_common_settings` / `scale_histogram`.
+## E. Plotter render-layer fixes (pre-existing, NOT the encoder migration)
+
+Surfaced by the first true end-to-end render after Step 4 ④ unblocked the plotter. The AA
+render path in particular had never been exercised. All FIXED 2026-06-02 (the new schema
+nests/renames things the never-run code paths still read the old way).
+
+| # | Edge case | Behaviour | Where |
+|---|---|---|---|
+| E1 | **Acceptance cuts: schema rename `eta_cut`/`eta_cut_R`/`y_cut` → nested.** New YAML nests them under `hadron:`/`jet:` (`hadron.eta`, `jet.eta`, `jet.eta_R`, `jet.rapidity`); `init_common_settings` read only the legacy top-level keys → `self.eta_cut`/`self.y_cut` never set → `scale_histogram` `AttributeError` (hadron `pt_ch_alice`; inclusive_jet `pt_alice`/`pt_cms` for eta, `pt_atlas` for y). η (pseudorapidity) and y (rapidity) are kept SEPARATE — ATLAS jets use `rapidity`→`y_cut`, CMS jets/hadrons use `eta`→`eta_cut`, ALICE jets use `eta_R`→`eta_cut=round(eta_R−R,1)`. | **FIXED** (`f13a717`): read the nested keys (legacy kept as fallback); config-agnostic (5020/2760/200). | `plot_results_STAT.py:init_common_settings` |
+| E2 | **AA-branch attribute defaults missing.** `init_common_settings`'s `is_AA` branch never defaulted `self.ytitle` (new schema comments out `ytitle_AA`) and never set `self.y_ratio_min/max` for non-v2 observables (only pp/v2 did) → `plot_RAA` `AttributeError` on `SetYTitle` / `SetRangeUser`. | **FIXED** (`51e1ffa`): default `ytitle` via `.get`, add the `y_ratio` block (per-block override else 0.0/1.99), mirroring the pp branch. | `plot_results_STAT.py:init_common_settings` (AA branch) |
+| E3 | **`Data_*.dat` table write aborts on data/hist binning mismatch.** `write_experimental_data` hard-`raise`d `ValueError` when the truncated data graph didn't align bin-for-bin with the prediction histogram (e.g. `pt_cms`: HEPData doesn't cover every bin → trailing-zero x-points), aborting the whole run AFTER `plot_RAA` had already saved the R_AA PDF. | **FIXED** (`51e1ffa`): warn-and-skip the ancillary table (guard both the length mismatch and the containment check) instead of raising. The R_AA plot is unaffected. | `plot_results_STAT.py:write_experimental_data` |
+
+**Render status:** real plotter renders pp (128 PDFs) + AA→R_AA (25 PDFs) clean, exit 0.
+`axis_alice` is excluded from a full whole-config render — it still carries legacy
+`hepdata_pp`/`hepdata_AA` keys pointing at HEPData ROOT files NOT on disk
+(`data/STAT/5020/inclusive_chjet/axis_alice/HEPData-ins{2182727,2648610}-v1-root.root`), so
+the legacy `tgraph_from_hepdata` overlay path `OSError`s. It is the ONLY enabled observable with
+missing legacy ROOT files (xj_gamma_atlas/cms files are present). Resolve in Step 6 by stripping
+its legacy `hepdata_*` keys so it routes through the (present) `data:` block.

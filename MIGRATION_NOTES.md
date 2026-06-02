@@ -228,16 +228,26 @@ end-to-end**: the analyzer, histogrammer (Step 4 ③, `5a4f30f`), and plotter
 overlay path (legacy `hepdata_*` keys → strip in Step 6). See
 `OBSERVABLE_EDGE_CASES.md` C5 / A9 / C6 / C7.
 
-### Follow-up surfaced by the full Step 4 ④ render (pre-existing, NOT yet fixed)
+### Full render now works (2026-06-02): pre-existing render-path fixes E1/E2/E3
 
-The first complete AA+pp render hit **pre-existing plotter schema-rename
-casualties** (separate from the encoder migration): `init_common_settings`
-still reads the legacy top-level `eta_cut`/`eta_cut_R`/`y_cut`, but the new YAML
-nests them as `hadron.eta` / `jet.eta` / `jet.y` → `scale_histogram` raises
-`AttributeError: 'eta_cut'`/`'y_cut'` on the hadron + inclusive-jet RAA paths.
-Same class as the renames in "What was fixed" #3, just missed for `eta`/`y`. Fix
-= read the nested values in `init_common_settings`. Tracked separately (user,
-2026-06-02); see `OBSERVABLE_EDGE_CASES.md` E1.
+The first complete render after Step 4 ④ exercised the AA→R_AA path for the first
+time and hit three **pre-existing** render-layer bugs (separate from the encoder
+migration), all now fixed — see `OBSERVABLE_EDGE_CASES.md` section E:
+- **E1** (`f13a717`): acceptance-cut schema rename — `init_common_settings` read
+  the legacy top-level `eta_cut`/`eta_cut_R`/`y_cut`; the new YAML nests them as
+  `hadron.eta` / `jet.eta` / `jet.eta_R` / `jet.rapidity`. η (pseudorapidity) and
+  y (rapidity) kept separate. Now reads the nested keys (legacy as fallback).
+- **E2** (`51e1ffa`): AA branch never defaulted `self.ytitle` / `self.y_ratio_min/max`
+  → `plot_RAA` AttributeError. Defaulted, mirroring the pp branch.
+- **E3** (`51e1ffa`): `write_experimental_data` hard-raised on a data/hist binning
+  mismatch (`pt_cms`), aborting the run after the R_AA PDF was already saved. Now
+  warn-skips the ancillary `Data_*.dat` table.
+
+Verified: real plotter renders pp (128 PDFs) + AA→R_AA (25 PDFs) clean, exit 0.
+**`axis_alice` is excluded** from a whole-config render — it still has legacy
+`hepdata_*` keys pointing at HEPData ROOT files not on disk (the only enabled
+observable in that state); resolve in Step 6 by stripping those keys so it uses
+its `data:` block.
 
 ## Recommended order for next session
 
