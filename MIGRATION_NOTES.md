@@ -373,22 +373,40 @@ still hold **byte-identical copies of the CMS `ins2165916` payload** (wrong data
 they are not the ATLAS measurement). The config no longer references them; delete
 so they aren't mistaken for real ATLAS dijet data.
 
-## Recommended order for next session
+## Remaining steps (next sessions) — updated 2026-06-02 PM
 
-1. ~~**Fix `bins_from_config`**~~ — DONE, see "Step 1" above.
-2. **Run end-to-end on the small sample** and confirm non-groomed
-   histograms appear. Sanity-check shapes against a known-good 2.76 TeV
-   reference if you have one.
-3. **Migrate the rest of the analyzer to the new encoder** observable
-   family at a time (hadron RAA first — most heavily measured). Keep
-   the 1D-per-bin convention I started for the groomed observables.
-4. ~~**Migrate the histogrammer** to the encoder names~~ — DONE (Step 4 ③,
-   `5a4f30f`); see "Step 4 — DONE" above. (The deeper `essential_parameters()`
-   walk + declarative `combinations:` + `double_ratio` dispatch is still future.)
-5. ~~**Migrate the plotter** the same way~~ — DONE (Step 4 ④, `47583d2`).
-6. **Cleanup items** (`mass_alice` split = Step 5; strip legacy `hepdata_*` keys
-   incl. `axis_alice` + `double_ratio` type + bin source = Step 6; plus the E1
-   `eta`/`y` schema-rename render fix above).
+> Fuller orchestration plan + history live in the project memory
+> `jetscape_migration_orchestration.md`. **Note:** that file is under the HOME-dir project
+> (`~/.claude/projects/-afs-cern-ch-user-z-zhangj/memory/`), so a session started in *this* work
+> dir may not auto-recall it — read it explicitly, or rely on this section (kept in sync).
+
+Steps 1–4 + render-path fixes E1/E2/E3 + the AA R_AA binning fix + plotter cosmetics are **DONE**
+(see the dated sections above; commits `05e25b7` … `1fb6379` on `dev-aggregation`).
+
+**▶ Step 4.5 (NEXT) — parametrized-observable migration.** Wire the observables the analyzer
+*computes* but the histogrammer/plotter don't yet iterate, so they finally histogram:
+- `inclusive_jet/charge_cms` — jet charge, parametrized by **kappa** (cols `…_R0.4_k0.3/k0.5/…`)
+- `inclusive_chjet/zr_alice` — parametrized by **r** (cols `…_R0.4_r0.1/r0.2`)
+- `inclusive_chjet/angularity_alice` — parametrized by **alpha** (also needs the Step-5 split)
+
+Same mechanism as Step 4's groomed migration, extended to kappa/r/alpha-indexed observables (they
+are NOT in `ENCODER_MIGRATED_JET_OBSERVABLES`; the hist/plot loops don't iterate their parameter).
+Evidence: the parquet has the columns, but 0 histogram keys → no plots (see the disabled-observable
+audit above for the per-stage breakdown).
+
+**Step 5 — ungroomed/groomed split + double_ratio.** Split `mass_alice` → `mass_alice` + `mg_alice`,
+and `angularity_alice` → `angularity_groomed_alice` (separate ungroomed `jet.m()`/`λ` from groomed
+`m_g`/`λ(groomed)`). Add a `double_ratio` artifact type alongside `spectra`/`ratio` for jet R_AA.
+
+**Step 6 — drop legacy YAML keys.** Strip `hepdata_*_dir`/`_hname`/`_gname`/dangling `bins:` from
+MIXED entries; **first = `axis_alice`** (only enabled observable still on the legacy ROOT path →
+excluded from whole-config renders). Decide the canonical bin-edges source. Then sweep STAT_2760,
+then STAT_200 (both still MIXED/OLD).
+
+End state: every observable on one path (`data:` + new encoder + `obs.essential_parameters()`).
+
+**Side-items (not blocking):** `ktg_alice` DyG variant still not histogrammed (C6); v2/flow +
+γ-trigger analyzers not implemented (by-design-off); 2760 / 200 not yet audited.
 
 ## Diagnostic snippets
 
