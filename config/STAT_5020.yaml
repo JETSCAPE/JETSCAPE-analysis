@@ -3798,7 +3798,10 @@ inclusive_jet:
     #ytitle_AA: "#frac{1}{#sigma} #frac{d#sigma}{d#it{Q}} #left[1/e#right]"
     #y_min_AA: 0
     #y_max_AA: 2.5
-    #skip_AA_ratio: True
+    # charge_cms is a self-normalized 1/N dN/dQ distribution (its `ratio` block == `spectra`),
+    # NOT a spectrum R_AA -- so the AA arm must NOT divide by the pp reference. Plot the AA
+    # distribution vs the measured PbPb distribution instead (Step 4.5 follow-up).
+    skip_AA_ratio: True
 
     #hepdata_AA_distribution_dir_R0.4_k0.3: "Table 8"
     #hepdata_AA_distribution_dir_R0.4_k0.5: "Table 1"

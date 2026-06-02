@@ -1574,6 +1574,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Charged particles (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
         acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="charge_cms"):
+            obs = self.observables_info[f"{self.sqrts}_inclusive_jet_charge_cms"]
             pt_min = self.inclusive_jet_observables["charge_cms"]["jet"]["pt"][0]
             if (
                 jetR in self.inclusive_jet_observables["charge_cms"]["jet"]["R"]
@@ -1599,15 +1600,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 if abs(pid) in acceptable_hadrons and jet.delta_R(hadron) < jetR:
                                     sum_holes += particle_charge(pid) * np.power(hadron.pt(), kappa)
                         charge = (sum_charge - sum_holes) / np.power(jet_pt, kappa)
-                        if jet_collection_label in ["_shower_recoil"]:
-                            charge_unsubtracted = sum_charge / np.power(jet_pt, kappa)
-                            self.observable_dict_event[
-                                f"inclusive_jet_charge_cms_R{jetR}_k{kappa}{jet_collection_label}_unsubtracted"
-                            ].append(charge_unsubtracted)
                     else:
                         charge = sum_charge / np.power(jet_pt, kappa)
+                    # Step 4.5: encoder name (jet_R + jet_charge=kappa). jet_pt here is a single cut
+                    # bin ([120, null]), not essential, so the encoder omits it. The legacy
+                    # `_unsubtracted` QA companion was dropped in the migration -- it produced 0
+                    # histograms on the legacy path (never matched), so this is not a regression.
                     self.observable_dict_event[
-                        f"inclusive_jet_charge_cms_R{jetR}_k{kappa}{jet_collection_label}"
+                        obs.encode_name_for_storing_in_file(
+                            jet_R=observable.JetRSpec(jetR),
+                            jet_charge=observable.JetChargeSpec(kappa),
+                            tag=jet_collection_label,
+                        )
                     ].append(charge)
 
         # CMS jet-axis difference (WTA-Standard)

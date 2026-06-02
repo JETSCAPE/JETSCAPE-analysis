@@ -22,6 +22,16 @@ ROOT.gROOT.SetBatch(True)
 
 logger = logging.getLogger(__name__)
 
+# One-shot guards so recurring data-quality warnings (e.g. swapped HEPData bin edges, seen on
+# every bin-read) are logged once per process rather than once per call.
+_warned_once: set[str] = set()
+
+
+def _warn_once(key: str, message: str) -> None:
+    if key not in _warned_once:
+        _warned_once.add(key)
+        logger.warning(message)
+
 # Jet/substructure observables whose ANALYZER fill is migrated to the observable encoder
 # (obs.encode_name_for_storing_in_file). For these, the histogrammer and plotter must derive the
 # storage column / histogram name from the same encoder rather than hand-building a legacy
@@ -44,6 +54,8 @@ ENCODER_MIGRATED_JET_OBSERVABLES = {
     ("inclusive_jet", "zg_cms"),
     ("inclusive_jet", "rg_atlas"),
     ("inclusive_jet", "axis_cms"),
+    # Step 4.5: jet charge, parametrized by kappa (data block keyed by jet_charge: kappa_X).
+    ("inclusive_jet", "charge_cms"),
 }
 
 
@@ -179,9 +191,28 @@ class PlotUtils(common_base.CommonBase):
         if not values or not all(isinstance(v, dict) for v in values):
             return None
         if all("low" in v and "high" in v for v in values):
-            lows = np.array([float(v["low"]) for v in values], dtype=np.float64)
-            highs = np.array([float(v["high"]) for v in values], dtype=np.float64)
+            lo = np.array([float(v["low"]) for v in values], dtype=np.float64)
+            hi = np.array([float(v["high"]) for v in values], dtype=np.float64)
+            # Some curated HEPData tables store the bin boundaries with low/high swapped
+            # (low > high per bin -- e.g. charge_cms Tables 1/8/9 and their AA ratio tables).
+            # Normalize lower/upper = min/max so each bin is well-ordered; a well-formed
+            # (low < high) table is unaffected. Warn rather than silently absorb, so the
+            # underlying data bug stays visible for curation.
+            if np.any(lo > hi):
+                _warn_once(
+                    "swapped_bins",
+                    "\tHEPData bin has low > high (swapped); normalizing via min/max -- flag for curation.",
+                )
+            lows = np.minimum(lo, hi)
+            highs = np.maximum(lo, hi)
             edges = np.append(lows, highs[-1])
+            # The synthesized edges are monotonic only if the rows are in ascending bin order
+            # (the min/max above fixes a per-bin swap, not reversed/overlapping rows). Guard
+            # rather than hand a non-increasing array to ROOT TH1F (which errors + books a
+            # broken axis); None is handled by callers (bins_from_data_block -> empty -> skip).
+            if not np.all(np.diff(edges) > 0):
+                logger.warning("\tHEPData independent-variable edges are not monotonically increasing; skipping binning.")
+                return None
             centers = 0.5 * (lows + highs)
             return edges, centers, centers - lows, highs - centers
         if all("value" in v for v in values):

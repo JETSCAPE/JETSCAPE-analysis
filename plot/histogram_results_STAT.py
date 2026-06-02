@@ -700,6 +700,7 @@ class HistogramResults(common_base.CommonBase):
         grooming_setting=None,
         pt_bin=None,
         axis_entry=None,
+        charge=None,
     ):
         obs = self.observables_info[f"{self.sqrts}_{observable_type}_{observable}"]
         kwargs = {"jet_R": observable_module.JetRSpec(jet_R)}
@@ -723,6 +724,12 @@ class HistogramResults(common_base.CommonBase):
             # wrapper -- so its encoding has NO "SD_"/"DyG_" prefix (e.g. z_cut_010_beta_0). Using the
             # wrapper here would add the prefix and miss the analyzer's column.
             kwargs["jet_grooming_settings"] = observable_module.convert_to_grooming_method_spec(grooming_setting)
+
+        # Step 4.5: jet charge (charge_cms) is parametrized by kappa, an essential parameter. The
+        # analyzer encodes it as jet_charge=JetChargeSpec(kappa); the data block keys its tables with
+        # the same JetChargeSpec encoding (kappa_X). Independent of grooming/axis (none coexist today).
+        if charge is not None:
+            kwargs["jet_charge"] = observable_module.JetChargeSpec(charge)
 
         return obs.encode_name_for_storing_in_file(tag=jet_collection_label, **kwargs)
 
@@ -758,19 +765,19 @@ class HistogramResults(common_base.CommonBase):
                         if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
-                        # Optional: subobservable. Carry the structured sub-entry alongside the
-                        # legacy label string: the label feeds the (jet_R/pt-only) binning suffix,
-                        # while the entry dict feeds the encoder for migrated observables (e.g. the
-                        # jet-axis grooming variant, which the bare `type` label can't distinguish).
-                        subobservable_label_list = [("", None)]
+                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value):
+                        # the label feeds the (jet_R/pt-only) binning suffix; axis_entry feeds the
+                        # encoder for migrated axis observables (the bare `type` label can't
+                        # distinguish the grooming variant); charge_value (kappa) feeds the encoder
+                        # for charge_cms. The keys are mutually exclusive in the YAML.
+                        # (zr_alice's `subjet_R` is deferred -- no branch here; uncurated data, A5.)
+                        subobservable_label_list = [("", None, None)]
                         if "axis" in block["jet"]:
                             subobservable_label_list = [
-                                (f"_{axis_block['type']}", axis_block) for axis_block in block["jet"]["axis"]
+                                (f"_{axis_block['type']}", axis_block, None) for axis_block in block["jet"]["axis"]
                             ]
-                        if "kappa" in block["jet"]:
-                            subobservable_label_list = [(f"_k{kappa}", None) for kappa in block["jet"]["kappa"]]
-                        if "r" in block["jet"]:
-                            subobservable_label_list = [(f"_r{r}", None) for r in block["jet"]["r"]]
+                        if "charge" in block["jet"]:
+                            subobservable_label_list = [(f"_k{kappa}", None, kappa) for kappa in block["jet"]["charge"]]
 
                         # Whether the histogram name comes from the observable encoder (the analyzer
                         # writes encoder names for these) or the legacy hand-built f-string.
@@ -783,7 +790,7 @@ class HistogramResults(common_base.CommonBase):
                         # it (mirrors the analyzer: axis_alice passes jet_axis, axis_cms does not).
                         axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
 
-                        for subobservable_label, axis_entry in subobservable_label_list:
+                        for subobservable_label, axis_entry, charge_value in subobservable_label_list:
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
                                     # New YAML schema mixes methods (soft_drop + dynamical_grooming).
@@ -834,6 +841,7 @@ class HistogramResults(common_base.CommonBase):
                                             block=block,
                                             grooming_setting=grooming_setting,
                                             pt_bin=pt_bin,
+                                            charge=charge_value,
                                         )
                                         self.histogram_observable(
                                             column_name=encoder_name,
@@ -889,6 +897,12 @@ class HistogramResults(common_base.CommonBase):
                                             type=axis_entry["type"], grooming_settings=axis_entry.get("grooming_settings")
                                         ).encode()
                                     }
+                                # charge_cms: select the per-kappa HEPData table (data block keyed by
+                                # jet_charge in the JetChargeSpec encoding, kappa_X).
+                                if is_migrated and charge_value is not None:
+                                    data_block_params = {
+                                        "jet_charge": observable_module.JetChargeSpec(charge_value).encode()
+                                    }
                                 bins = self.plot_utils.bins_from_config(
                                     block,
                                     self.sqrts,
@@ -913,6 +927,7 @@ class HistogramResults(common_base.CommonBase):
                                         block=block,
                                         pt_bin=pt_bin,
                                         axis_entry=axis_entry if axis_is_essential else None,
+                                        charge=charge_value,
                                     )
                                     self.histogram_observable(
                                         column_name=encoder_name,

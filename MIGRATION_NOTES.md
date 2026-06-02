@@ -373,26 +373,60 @@ still hold **byte-identical copies of the CMS `ins2165916` payload** (wrong data
 they are not the ATLAS measurement). The config no longer references them; delete
 so they aren't mistaken for real ATLAS dijet data.
 
-## Remaining steps (next sessions) — updated 2026-06-02 PM
+## Step 4.5 — `charge_cms` encoder migration DONE (2026-06-03)
+
+`inclusive_jet/charge_cms` (jet charge, parametrized by **kappa**) is now migrated end-to-end onto
+the observable encoder — analyzer, histogrammer, and plotter all derive the histogram name from
+`obs.encode_name_for_storing_in_file(...)`. It previously produced **0 histograms**.
+
+**Root cause (C9):** the hist/plot sub-observable loops keyed on the **pre-migration** YAML name
+`"kappa"`, but the schema was renamed to `charge` → the kappa branch never fired → the name was built
+without `_k{kappa}` → it never matched the analyzer's columns. (Same class for `zr_alice`: loop keyed
+`"r"`, YAML is `subjet_R`; and `alpha`/`angularity_alice` had no branch at all.)
+
+**Changes (5 files):**
+- `analyze_events_STAT.py`: charge_cms fill → encoder name `encode_name_for_storing_in_file(jet_R, jet_charge=JetChargeSpec(kappa), tag=...)`, 1D scalar. `jet_pt` (`[120, null]`, single cut bin) is non-essential → omitted. **Dropped the `_unsubtracted` QA companion** (it was 0 hists on the legacy path → no regression).
+- `plot_results_STAT_utils.py`: added `("inclusive_jet","charge_cms")` to `ENCODER_MIGRATED_JET_OBSERVABLES`.
+- `histogram_results_STAT.py` + `plot_results_STAT.py`: `_encoder_column_name` gained a `charge=` arg (both lockstep copies stay byte-identical); the sub-observable loop renames `"kappa"`→`"charge"` (3-tuple `(label, axis_entry, charge_value)`); per-kappa HEPData table selected via `data_block_params={"jet_charge": JetChargeSpec(kappa).encode()}` (kappa 0.3→Table 8, 0.5→Table 1, 0.7→Table 9). Removed the dead `"r"` branch (lockstep harmonization). Plotter threads `self._encoder_charge` through `get_histogram`.
+- `plot_results_STAT_utils.py` `_axis_from_independent_values`: **B11 fix** — charge_cms HEPData tables ship `low`/`high` SWAPPED (`low > high` per bin) → non-monotonic edges → `TAxis::Set` errors. Now normalize lower/upper via `np.minimum/np.maximum` (no-op for well-formed tables), warn once per process (`_warn_once`, "flag for curation"), and a monotonicity guard returns `None` (skip) if edges still aren't strictly increasing.
+
+**No `_raa_denom`:** charge_cms AA `ratio` ≡ `spectra` (same Tables 8/1/9) → `maybe_book_raa_denom` self-skips. It's a self-normalized `1/N dN/dQ` distribution, not a spectrum R_AA.
+
+**Verified e2e (small sample, both arms):** analyzer/histogrammer/plotter all exit 0; 9 non-empty
+charge_cms hist keys/arm (3 kappa × pop. centralities/labels); per-kappa binning resolves the right
+table; plotter builds matching names 9/9 hits + per-kappa data overlay + MC/data ratio persisted to
+`final_results.root`; pp 273 / AA 28 PDFs (+18 / +3 charge_cms vs the Step-4 baseline); **0 TAxis, 0
+divide, 0 traceback** errors; Step-4 migrated set (mg_cms/zg_cms/axis_cms/…) counts unchanged.
+Reviewed via `/code-review high` — findings addressed (swap-warning + monotonicity guard, lockstep
+harmonization, grooming-branch `charge=` symmetry); refuted findings documented.
+
+**⚠️ Curation follow-up (B11):** the swapped `low`/`high` is a **data bug** in the curation repo
+(`charge_cms` Tables 1/8/9 + AA ratios); `build_tables.py` also reads `low`/`high` raw. Fix at the
+source in the curation track (log in its `CURATION_NOTES.md`); the plotter only papers over it.
+
+**Deferred (carried forward):** `zr_alice` (subjet_R) — uncurated data (A5) **and** loop key-mismatch
+(C9); stays off until its HEPData is filled. `angularity_alice` (alpha) — the ungroomed/groomed split
+(C7) is **Step 5**; not touched here.
+
+## Remaining steps (next sessions) — updated 2026-06-03
 
 > Fuller orchestration plan + history live in the project memory
 > `jetscape_migration_orchestration.md`. **Note:** that file is under the HOME-dir project
 > (`~/.claude/projects/-afs-cern-ch-user-z-zhangj/memory/`), so a session started in *this* work
 > dir may not auto-recall it — read it explicitly, or rely on this section (kept in sync).
 
-Steps 1–4 + render-path fixes E1/E2/E3 + the AA R_AA binning fix + plotter cosmetics are **DONE**
-(see the dated sections above; commits `05e25b7` … `1fb6379` on `dev-aggregation`).
+Steps 1–4 + render-path fixes E1/E2/E3 + the AA R_AA binning fix + plotter cosmetics + **Step 4.5
+`charge_cms`** are **DONE** (see the dated sections above; commits `05e25b7` … `1fb6379` on
+`dev-aggregation`, plus the in-progress Step 4.5 change).
 
-**▶ Step 4.5 (NEXT) — parametrized-observable migration.** Wire the observables the analyzer
-*computes* but the histogrammer/plotter don't yet iterate, so they finally histogram:
-- `inclusive_jet/charge_cms` — jet charge, parametrized by **kappa** (cols `…_R0.4_k0.3/k0.5/…`)
-- `inclusive_chjet/zr_alice` — parametrized by **r** (cols `…_R0.4_r0.1/r0.2`)
-- `inclusive_chjet/angularity_alice` — parametrized by **alpha** (also needs the Step-5 split)
-
-Same mechanism as Step 4's groomed migration, extended to kappa/r/alpha-indexed observables (they
-are NOT in `ENCODER_MIGRATED_JET_OBSERVABLES`; the hist/plot loops don't iterate their parameter).
-Evidence: the parquet has the columns, but 0 histogram keys → no plots (see the disabled-observable
-audit above for the per-stage breakdown).
+**Step 4.5 — parametrized-observable migration.** Wire the observables the analyzer *computes* but the
+histogrammer/plotter don't yet iterate (root cause: sub-observable loops keyed on the pre-migration
+names; see "Step 4.5 — DONE" above and edge case C9):
+- `inclusive_jet/charge_cms` — jet charge by **kappa** — ✅ **DONE (2026-06-03)**.
+- `inclusive_chjet/zr_alice` — by **r** (YAML `subjet_R`) — **deferred**: uncurated `data:` block (A5)
+  *and* loop key-mismatch (C9). Needs HEPData curation first, then a `subjet_R` branch.
+- `inclusive_chjet/angularity_alice` — by **alpha** — **deferred to Step 5** (needs the ungroomed/groomed
+  split, C7).
 
 **Step 5 — ungroomed/groomed split + double_ratio.** Split `mass_alice` → `mass_alice` + `mg_alice`,
 and `angularity_alice` → `angularity_groomed_alice` (separate ungroomed `jet.m()`/`λ` from groomed
