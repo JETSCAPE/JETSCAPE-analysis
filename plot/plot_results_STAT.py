@@ -586,14 +586,24 @@ class PlotResults(common_base.CommonBase):
             self.y_ratio_max = 1.99
 
         if self.is_AA:
-            if "ytitle_AA" in block:
-                self.ytitle = block["ytitle_AA"]
+            # Default ytitle (the new schema comments out ytitle_AA on most blocks) so plot_RAA's
+            # SetYTitle never sees an unset attribute; mirrors the pp branch's .get default.
+            self.ytitle = block.get("ytitle_AA", "")
             if "y_min_AA" in block:
                 self.y_min = float(block["y_min_AA"])
                 self.y_max = float(block["y_max_AA"])
             else:
                 self.y_min = 0.0
                 self.y_max = 1.0
+            # Ratio-panel y-range. The AA branch never set these (only pp/v2 did), so plot_RAA's
+            # SetRangeUser(self.y_ratio_min, self.y_ratio_max) hit an unset attribute. Same default
+            # as pp; honour a per-block override if present.
+            if "y_ratio_min" in block:
+                self.y_ratio_min = block["y_ratio_min"]
+                self.y_ratio_max = block["y_ratio_max"]
+            else:
+                self.y_ratio_min = 0.0
+                self.y_ratio_max = 1.99
         else:
             self.ytitle = block.get("ytitle_pp", "")
             if "y_min_pp" in block:
@@ -1217,13 +1227,21 @@ class PlotResults(common_base.CommonBase):
                 if g_truncated:
                     y = np.array(g_truncated.GetY())
                     y_err = np.array([g_truncated.GetErrorY(i) for i in range(g_truncated.GetN())])
-                    df = pd.DataFrame({"x_min": x_min, "x_max": x_max, "y": y, "y_err": y_err})
-
                     x = np.array(g_truncated.GetX())
-                    if np.any(np.greater(x_min, x)) or np.any(np.greater(x, x_max)):
-                        _msg = f"x not contained in hist binning: x={x} vs. x_bins={xbins}"
-                        raise ValueError(_msg)
 
+                    # The Data_*.dat table pairs the prediction-histogram bins (x_min/x_max) with the
+                    # truncated data points (x/y). If they don't line up -- different counts, or a point
+                    # outside its bin -- the measured data simply doesn't cover this histogram's binning
+                    # (a known HEPData edge case; see OBSERVABLE_EDGE_CASES). The R_AA plot is already
+                    # rendered by now, so skip this ancillary curation table instead of aborting the run.
+                    if len(x) != len(x_min) or np.any(np.greater(x_min, x)) or np.any(np.greater(x, x_max)):
+                        logger.warning(
+                            f"Skipping Data table {filename}: data points don't align with hist binning "
+                            f"(x={x} vs. x_bins={xbins})"
+                        )
+                        return
+
+                    df = pd.DataFrame({"x_min": x_min, "x_max": x_max, "y": y, "y_err": y_err})
                     # Write table
                     header = "Version 1.1\n"
                     header += "Label xmin xmax y y_err"
