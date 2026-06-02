@@ -205,6 +205,40 @@ address with the groomed/substructure rewrite in Step 4.
 fastjet/C++ layer (exit 139) — independent of this change (PbPb runs clean on the
 same code/env). Needs separate investigation before the pp arm can be tested.
 
+## Step 4 — DONE (2026-06-02): encoder-name migration, histogrammer + plotter
+
+Groomed/substructure jet observables (`mg_cms, zg_cms, rg_atlas, axis_cms,
+ktg_alice, zg_alice, tg_alice, axis_alice`) are now on **one name path
+end-to-end**: the analyzer, histogrammer (Step 4 ③, `5a4f30f`), and plotter
+(Step 4 ④, `47583d2`) all derive the histogram name from
+`obs.encode_name_for_storing_in_file(...)` instead of hand-built f-strings.
+
+- The migrated set lives in `plot_results_STAT_utils.ENCODER_MIGRATED_JET_OBSERVABLES`
+  (shared by histogrammer + plotter — single source of truth).
+- Per-grooming / per-axis HEPData table selection (`data_block_params`) is wired
+  into both the binning path and the overlay path (`tgraph_from_data_block`).
+- `_encoder_column_name` is duplicated in the histogrammer and the plotter
+  (lockstep copies); consolidate into a shared helper in a future refactor.
+- Verified e2e (small samples): plotter-built names resolve exactly against the
+  histogrammer output (AA mg_cms 6 / zg_cms 3 / axis_cms 12; pp mg_cms 24 /
+  zg_cms 3 / ktg·zg·tg_alice 2 / axis_alice 6). Non-migrated unaffected.
+
+**`mass_alice` / `angularity_alice`** are intentionally OFF the migrated set
+(ungroomed↔groomed split = Step 5). **`axis_alice`** keeps its legacy ROOT
+overlay path (legacy `hepdata_*` keys → strip in Step 6). See
+`OBSERVABLE_EDGE_CASES.md` C5 / A9 / C6 / C7.
+
+### Follow-up surfaced by the full Step 4 ④ render (pre-existing, NOT yet fixed)
+
+The first complete AA+pp render hit **pre-existing plotter schema-rename
+casualties** (separate from the encoder migration): `init_common_settings`
+still reads the legacy top-level `eta_cut`/`eta_cut_R`/`y_cut`, but the new YAML
+nests them as `hadron.eta` / `jet.eta` / `jet.y` → `scale_histogram` raises
+`AttributeError: 'eta_cut'`/`'y_cut'` on the hadron + inclusive-jet RAA paths.
+Same class as the renames in "What was fixed" #3, just missed for `eta`/`y`. Fix
+= read the nested values in `init_common_settings`. Tracked separately (user,
+2026-06-02); see `OBSERVABLE_EDGE_CASES.md` E1.
+
 ## Recommended order for next session
 
 1. ~~**Fix `bins_from_config`**~~ — DONE, see "Step 1" above.
@@ -214,13 +248,13 @@ same code/env). Needs separate investigation before the pp arm can be tested.
 3. **Migrate the rest of the analyzer to the new encoder** observable
    family at a time (hadron RAA first — most heavily measured). Keep
    the 1D-per-bin convention I started for the groomed observables.
-4. **Rewrite the histogrammer** to walk `obs.essential_parameters()`
-   instead of hand-looping. Replace the "Custom skip" exceptions with
-   declarative `combinations:` from the YAML. Add `spectra` / `ratio` /
-   `double_ratio` dispatch.
-5. **Rewrite the plotter** the same way — much smaller code path than
-   the histogrammer, similar shape.
-6. **Cleanup items** (`mass_alice` split, double_ratio type, bin source).
+4. ~~**Migrate the histogrammer** to the encoder names~~ — DONE (Step 4 ③,
+   `5a4f30f`); see "Step 4 — DONE" above. (The deeper `essential_parameters()`
+   walk + declarative `combinations:` + `double_ratio` dispatch is still future.)
+5. ~~**Migrate the plotter** the same way~~ — DONE (Step 4 ④, `47583d2`).
+6. **Cleanup items** (`mass_alice` split = Step 5; strip legacy `hepdata_*` keys
+   incl. `axis_alice` + `double_ratio` type + bin source = Step 6; plus the E1
+   `eta`/`y` schema-rename render fix above).
 
 ## Diagnostic snippets
 
