@@ -293,6 +293,41 @@ Note: AA=25 (vs pp 128) is the limited-centrality single-chunk sample, not a bug
 plotter skips ~93 (observable, centrality) combos whose AA MC histogram is empty for this chunk
 (only [10,20]/[10,30] populate). Run more PbPb chunks across centralities for fuller coverage.
 
+## Plotter cosmetics + data-overlay fixes — DONE (2026-06-02 PM)
+
+All in `plot/plot_results_STAT.py` + `plot/plot_results_STAT_utils.py` (+ a config flag). Verified
+e2e (exits 0, 0 divide errors, 0 invalid-index); reviewed via `/code-review high` (2 CONFIRMED +
+6 PLAUSIBLE findings, all addressed or documented as intentional).
+
+- **Content-driven y-auto-range** (`_content_extrema` + `_auto_y_range`): the upper distribution panel
+  is ranged from the actual drawn content (hists + data, errors included); log vs linear auto-chosen by
+  dynamic range. Replaces the old `[0, 1.99]` linear default that left many curves (e.g. `pt_y_atlas`,
+  values ~1e-3) invisible. Explicit config y-ranges (`y_min_pp` etc.) still win.
+- **Span-adaptive log headroom** (`_log_yrange`): top factor ×1e4 for steep pT spectra (≥4 decades),
+  ×50 otherwise, so the highest points clear the title/legend.
+- **R_AA fixed y-range 0–3** (`plot_RAA`) so the legend clears the points.
+- **log-x/log-y twin** (`_save_logxy_twin`): emits `<name>_logxy.pdf` for distribution plots only (NOT
+  R_AA); log-x only when the x-range is > 0 (so `m_g`/`z_g` get a non-empty log-y twin instead of an
+  empty log-x plot); restores pad log-state + a log-appropriate y-range for the twin.
+- **Display-only area normalization** (`area_normalize: true` config flag, currently on
+  `hadron/pt_ch_atlas`): when the data is an absolute cross-section (mb GeV⁻²) but the MC is a per-event
+  yield, scale a DISPLAY CLONE of the MC so its integral matches the data over the common range where
+  BOTH have content (i.e. above the MC pT cut). The original MC is persisted to `final_results.root`
+  (R_AA stays absolute); the MC/data ratio is recomputed from the clone; the plot is annotated
+  "MC area-normalized to data". Warns if requested but no overlapping range / no data graph.
+- **Robust MC/data ratio** (`divide_histogram_by_tgraph` rewrite): iterates the DATA graph points and
+  matches each to its hist bin via `h.FindBin` (point placed at the bin center), instead of the old
+  index-aligned `truncate_tgraph` that bailed the whole ratio to `None` on ANY mismatch. Fixes
+  observables whose measured spectrum leaves bins unpublished (`'-'`) so the data graph has fewer points
+  than the MC (e.g. `inclusive_jet/pt_cms` R0.8/R0.2). Intentional behavior changes vs the old path:
+  omits empty-MC bins (no longer 0-valued points), tolerates count mismatches. `truncate_tgraph` (the
+  `is_AA` overlay raise-guard) is untouched.
+- **ktg_alice data-overlay fix** (config): the `ktg_alice` data block used `index: 0`, which the
+  resolver rejects (1-based HEPData convention → overlay silently dropped). Changed the 7 `index: 0` →
+  `index: 1` (the only `index: 0` in the file; the tables have the ktg distribution as their single
+  dependent variable). `ktg_alice` now shows MC + data + ratio. **NOTE: HEPData table `index` is
+  1-based here — never write `index: 0`.**
+
 ## Disabled-observable audit (2026-06-02): why each non-by-design observable is off
 
 Audit of every disabled observable in `config/STAT_5020.yaml` that is **not**

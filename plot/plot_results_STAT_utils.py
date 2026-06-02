@@ -654,32 +654,33 @@ class PlotUtils(common_base.CommonBase):
     # Divide a histogram by a tgraph, point-by-point
     # ---------------------------------------------------------------
     def divide_histogram_by_tgraph(self, h, g, include_tgraph_uncertainties=True):
-        # Truncate tgraph to range of histogram bins
-        g_truncated = self.truncate_tgraph(g, h)
-        if not g_truncated:
-            return None
+        # Build the ratio point-by-point over the DATA graph's points, matching each to the
+        # histogram bin that contains it (h.FindBin). This is robust to a data graph that has fewer
+        # points than the histogram has bins -- e.g. when the measured spectrum leaves some pT bins
+        # unpublished ('-'), so the graph has gaps. (The previous index-aligned approach via
+        # truncate_tgraph bailed on the whole ratio at the first such mismatch.) We emit a ratio
+        # point only where the graph point falls inside a histogram bin that has nonzero content.
+        g_new = ROOT.TGraphAsymmErrors()
+        g_new.SetName(f"{g.GetName()}_divided")
 
-        # Clone tgraph, in order to return a new one
-        g_new = g_truncated.Clone(f"{g_truncated.GetName()}_divided")
+        n_new = 0
+        for i in range(g.GetN()):
+            gx, gy, yErrLow, yErrUp = self.get_gx_gy(g, i)
+            if gy == 0.0:
+                continue  # no measured value here (e.g. an unpublished '-' bin)
 
-        nBins = h.GetNbinsX()
-        for bin in range(1, nBins + 1):
-            # Get histogram (x,y)
-            h_x = h.GetBinCenter(bin)
+            bin = h.FindBin(gx)
+            if bin < 1 or bin > h.GetNbinsX():
+                continue  # graph point outside the histogram range
+            # Guard against mis-association: the graph x must lie within the matched bin.
+            if not (h.GetXaxis().GetBinLowEdge(bin) <= gx <= h.GetXaxis().GetBinUpEdge(bin)):
+                logger.warning(f"graph x: {gx} not inside its matched hist bin {bin} -- skipping point")
+                continue
+
             h_y = h.GetBinContent(bin)
             h_error = h.GetBinError(bin)
-
-            # Get TGraph (x,y) and errors
-            gx, gy, yErrLow, yErrUp = self.get_gx_gy(g_truncated, bin - 1)
-
-            # logger.debug(f'h_x: {h_x}')
-            # logger.debug(f'gx: {gx}')
-            # logger.debug(f'h_y: {h_y}')
-            # logger.debug(f'gy: {gy}')
-
-            if not np.isclose(h_x, gx):
-                logger.warning(f"hist x: {h_x}, graph x: {gx} -- will not plot ratio")
-                return None
+            if h_y == 0.0:
+                continue  # nothing to divide (empty MC bin)
 
             new_content = h_y / gy
 
@@ -695,10 +696,13 @@ class PlotUtils(common_base.CommonBase):
                 new_error_low = (yErrLow / gy) * new_content
                 new_error_up = (yErrUp / gy) * new_content
 
-            g_new.SetPoint(bin - 1, h_x, new_content)
-            g_new.SetPointError(bin - 1, 0, 0, new_error_low, new_error_up)
+            # Place the ratio point at the histogram bin center (matches the MC band's x and the
+            # pre-rewrite behavior) rather than the raw data x, so the lower panel stays aligned.
+            g_new.SetPoint(n_new, h.GetXaxis().GetBinCenter(bin), new_content)
+            g_new.SetPointError(n_new, 0, 0, new_error_low, new_error_up)
+            n_new += 1
 
-        return g_new
+        return g_new if n_new > 0 else None
 
     # ---------------------------------------------------------------
     # Get points from tgraph by index

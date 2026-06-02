@@ -579,6 +579,16 @@ class PlotResults(common_base.CommonBase):
         if "trigger_range" in block:
             self.trigger_range = block["trigger_range"]
         self.logy = block.get("logy", False)
+        # Whether the y-range / logy were set explicitly in the config. If not, the distribution
+        # plotter auto-ranges the upper panel from the histogram+data content (see _auto_y_range),
+        # since the new YAML schema rarely sets these and the old [0, 1.99] linear default left
+        # many distributions invisible.
+        self.logy_explicit = ("logy" in block) or ("logy_pp" in block)
+        # Display-only: scale the pp MC so its integral matches the data over the common measured
+        # range (shape comparison). For observables whose data is an absolute cross-section while the
+        # MC is a per-event yield (e.g. pt_ch_atlas, mb GeV^-2), the two otherwise don't overlay.
+        # R_AA stays absolute (this only rescales a display clone in plot_distribution_and_ratio).
+        self.area_normalize = block.get("area_normalize", False)
 
         # for v2
         if "v2" in observable:
@@ -589,7 +599,8 @@ class PlotResults(common_base.CommonBase):
             # Default ytitle (the new schema comments out ytitle_AA on most blocks) so plot_RAA's
             # SetYTitle never sees an unset attribute; mirrors the pp branch's .get default.
             self.ytitle = block.get("ytitle_AA", "")
-            if "y_min_AA" in block:
+            self.y_range_explicit = "y_min_AA" in block
+            if self.y_range_explicit:
                 self.y_min = float(block["y_min_AA"])
                 self.y_max = float(block["y_max_AA"])
             else:
@@ -606,7 +617,8 @@ class PlotResults(common_base.CommonBase):
                 self.y_ratio_max = 1.99
         else:
             self.ytitle = block.get("ytitle_pp", "")
-            if "y_min_pp" in block:
+            self.y_range_explicit = "y_min_pp" in block
+            if self.y_range_explicit:
                 self.y_min = float(block["y_min_pp"])
                 self.y_max = float(block["y_max_pp"])
             else:
@@ -1354,6 +1366,10 @@ class PlotResults(common_base.CommonBase):
                 if self.observable_settings[key] and h_pp:
                     self.observable_settings[key].Divide(h_pp)
 
+        # R_AA ratio: use a fixed 0-3 y-range (user-requested) so the legend clears the points;
+        # consistent across observables, independent of config defaults; unity line stays visible.
+        self.y_min, self.y_max = 0.0, 3.0
+
         c = ROOT.TCanvas("c", "c", 600, 450)
         c.SetRightMargin(0.05)
         c.SetLeftMargin(0.15)
@@ -1456,14 +1472,28 @@ class PlotResults(common_base.CommonBase):
     # the pad log-flags are restored afterwards so the normal save (if it happens after) is unchanged.
     # NOT used for R_AA ratios (y ~ 0-2 with y-min often 0 -> degenerate log-y).
     # -------------------------------------------------------------------------------------------
-    def _save_logxy_twin(self, canvas, base_name, dist_pad=None, ratio_pad=None):
+    def _save_logxy_twin(
+        self, canvas, base_name, dist_pad=None, ratio_pad=None, blank_histo=None, log_ymin=None, log_ymax=None
+    ):
         # Remember current log state so we can restore it (callers may reuse the canvas/pads).
         saved = [(p, p.GetLogx(), p.GetLogy()) for p in (dist_pad, ratio_pad) if p is not None]
+        # The main plot may be on a LINEAR y-range (so its y_min can be 0, which is invalid for
+        # log-y). When a positive log-range is supplied, swap the blank histo onto it for the twin
+        # so the curve isn't clipped/degenerate; restore afterwards.
+        saved_range = None
+        if blank_histo is not None and log_ymin and log_ymax and log_ymin > 0:
+            saved_range = (blank_histo.GetMinimum(), blank_histo.GetMaximum())
+            blank_histo.SetMinimum(log_ymin)
+            blank_histo.SetMaximum(log_ymax)
+        # Only use log-x where the x-range is strictly positive; observables whose x starts at 0
+        # (e.g. groomed mass m_g, z_g) would render an empty log-x plot, so fall back to log-y only.
+        can_logx = blank_histo is not None and blank_histo.GetXaxis().GetXmin() > 0
         try:
             if dist_pad is not None:
-                dist_pad.SetLogx()
+                if can_logx:
+                    dist_pad.SetLogx()
                 dist_pad.SetLogy()
-            if ratio_pad is not None:
+            if ratio_pad is not None and can_logx:
                 ratio_pad.SetLogx()
             canvas.Update()
             canvas.SaveAs(str(self.output_dir / f"{base_name}_logxy{self.file_format}"))
@@ -1471,7 +1501,95 @@ class PlotResults(common_base.CommonBase):
             for p, logx, logy in saved:
                 p.SetLogx(logx)
                 p.SetLogy(logy)
+            if saved_range is not None:
+                blank_histo.SetMinimum(saved_range[0])
+                blank_histo.SetMaximum(saved_range[1])
             canvas.Update()
+
+    # -------------------------------------------------------------------------------------------
+    # Content-driven y-axis range for the upper (distribution) panel.
+    #
+    # The new YAML schema rarely sets y_min/y_max/logy, so the old per-arm defaults ([0, 1.99]
+    # linear) left many distributions invisible (curve pinned at the axis). Instead we derive the
+    # range from the actual drawn content (JETSCAPE histograms + data graph, including errors) and
+    # auto-pick log vs linear from the dynamic range. Explicit config ranges still win.
+    # -------------------------------------------------------------------------------------------
+    def _content_extrema(self, objs):
+        """(vmin, vpos_min, vmax) over the drawn content of TH1/TGraph objects incl. errors; Nones if empty."""
+        vmin = vposmin = vmax = None
+        for o in objs:
+            if not o:
+                continue
+            if isinstance(o, ROOT.TH1):
+                for i in range(1, o.GetNbinsX() + 1):
+                    c = o.GetBinContent(i)
+                    e = o.GetBinError(i)
+                    if c == 0 and e == 0:
+                        continue
+                    hi, lo = c + e, c - e
+                    vmax = hi if vmax is None else max(vmax, hi)
+                    vmin = lo if vmin is None else min(vmin, lo)
+                    if c > 0:
+                        vposmin = c if vposmin is None else min(vposmin, c)
+            else:  # TGraph / TGraphErrors / TGraphAsymmErrors
+                y = o.GetY()
+                for i in range(o.GetN()):
+                    yi = y[i]
+                    ehi = max(o.GetErrorYhigh(i), 0.0)  # -1 for a plain TGraph -> 0
+                    elo = max(o.GetErrorYlow(i), 0.0)
+                    hi, lo = yi + ehi, yi - elo
+                    vmax = hi if vmax is None else max(vmax, hi)
+                    vmin = lo if vmin is None else min(vmin, lo)
+                    if yi > 0:
+                        vposmin = yi if vposmin is None else min(vposmin, yi)
+        return vmin, vposmin, vmax
+
+    def _log_yrange(self, vposmin, vmax):
+        """Log-scale (y_min, y_max) with span-adaptive top headroom. Steeply-falling pT spectra span
+        many decades and need far more headroom to clear the title/legend than O(1)-shape
+        distributions, so scale the top factor by the dynamic range; ~half a decade at the bottom."""
+        span = (vmax / vposmin) if (vposmin and vposmin > 0) else 1.0
+        top = 1.0e4 if span >= 1.0e4 else 50.0  # pT spectra (>=4 decades) -> x1e4; others -> x50
+        return vposmin / 3.0, vmax * top
+
+    def _auto_y_range(self, vmin, vposmin, vmax, prefer_log=None):
+        """Return (y_min, y_max, use_log) for the given content extrema (with headroom for the legend)."""
+        if vmax is None or vmax <= 0:
+            return 0.0, 1.0, bool(prefer_log)
+        if vposmin is None:
+            vposmin = vmax
+        span = (vmax / vposmin) if vposmin > 0 else 1.0
+        # >~2 decades of dynamic range -> log (unless the config forces a choice via prefer_log).
+        use_log = prefer_log if prefer_log is not None else (span >= 100.0 and (vmin is None or vmin >= 0))
+        if use_log:
+            y_lo, y_hi = self._log_yrange(vposmin, vmax)
+            return y_lo, y_hi, True
+        y_lo = 0.0 if (vmin is None or vmin >= 0) else vmin - 0.1 * abs(vmax)
+        return y_lo, vmax * 1.4, False
+
+    def _area_norm_scale(self, h, g):
+        """Factor to scale MC hist h so its integral matches data graph g over the bins both
+        populate (sum of value x bin-width over matched bins). None if not computable."""
+        mc_int = data_int = 0.0
+        for i in range(g.GetN()):
+            gx, gy, _yl, _yu = self.plot_utils.get_gx_gy(g, i)
+            if gy == 0.0:
+                continue
+            b = h.FindBin(gx)
+            if b < 1 or b > h.GetNbinsX():
+                continue
+            if not (h.GetXaxis().GetBinLowEdge(b) <= gx <= h.GetXaxis().GetBinUpEdge(b)):
+                continue
+            mc_y = h.GetBinContent(b)
+            if mc_y == 0.0:
+                continue  # below the MC kinematic cut (e.g. pT < 5 GeV) -> exclude; integrate only
+                # over the common range where BOTH MC and data have content.
+            w = h.GetXaxis().GetBinWidth(b)
+            mc_int += mc_y * w
+            data_int += gy * w
+        if mc_int > 0.0 and data_int > 0.0:
+            return data_int / mc_int
+        return None
 
     # -------------------------------------------------------------------------------------------
     # Plot distributions in upper panel, and ratio in lower panel
@@ -1506,6 +1624,56 @@ class PlotResults(common_base.CommonBase):
         self.plot_utils.setup_legend(legend_ratio, 0.07, sep=-0.1)
 
         self.bins = np.array(self.observable_settings["jetscape_distribution"].GetXaxis().GetXbins())
+
+        # Display-only area normalization (e.g. pt_ch_atlas): rescale a CLONE of the pp MC so its
+        # integral matches the data over the common measured range, for a shape comparison. The
+        # ORIGINAL is persisted to final_results.root (so R_AA stays absolute); only the drawn
+        # histogram and the MC/data ratio in this plot use the scaled clone.
+        jetscape_original = self.observable_settings["jetscape_distribution"]
+        self._area_normalized = False
+        if getattr(self, "area_normalize", False) and self.observable_settings.get("data_distribution"):
+            scale = self._area_norm_scale(jetscape_original, self.observable_settings["data_distribution"])
+            if scale and scale > 0:
+                disp = jetscape_original.Clone(f"{jetscape_original.GetName()}_areanorm")
+                disp.SetDirectory(0)
+                disp.Scale(scale)
+                self.observable_settings["jetscape_distribution"] = disp
+                self.observable_settings["ratio"] = self.plot_utils.divide_histogram_by_tgraph(
+                    disp, self.observable_settings["data_distribution"], include_tgraph_uncertainties=False
+                )
+                self._area_normalized = True
+            else:
+                logger.warning(
+                    f"area_normalize requested for {observable_type}_{observable} but no overlapping "
+                    f"MC/data range (scale={scale}) -- drawing un-normalized."
+                )
+        elif getattr(self, "area_normalize", False):
+            logger.warning(
+                f"area_normalize requested for {observable_type}_{observable} but no data graph -- not applied."
+            )
+
+        # Auto-range the upper panel from the drawn content (unless the config set y_min/y_max
+        # explicitly). Also compute a guaranteed-positive log range for the _logxy twin.
+        dist_objs = [self.observable_settings.get("data_distribution")]
+        dist_objs += [
+            v
+            for k, v in self.observable_settings.items()
+            if k.startswith("jetscape_distribution") and "raa_denom" not in k and "holes" not in k
+        ]
+        dist_objs = [o for o in dist_objs if o]
+        _vmin, _vposmin, _vmax = self._content_extrema(dist_objs)
+        if not getattr(self, "y_range_explicit", False) and _vmax and _vmax > 0:
+            self.y_min, self.y_max, _auto_log = self._auto_y_range(
+                _vmin, _vposmin, _vmax, prefer_log=(self.logy if getattr(self, "logy_explicit", False) else None)
+            )
+            if not getattr(self, "logy_explicit", False) and _auto_log:
+                self.logy = True
+                pad1.SetLogy()
+        if _vposmin and _vmax and _vposmin > 0:
+            log_ymin, log_ymax = self._log_yrange(_vposmin, _vmax)
+        else:
+            log_ymin = log_ymax = None
+
         myBlankHisto = ROOT.TH1F("myBlankHisto", "Blank Histogram", 1, self.bins[0], self.bins[-1])
         myBlankHisto.SetNdivisions(505)
         myBlankHisto.SetXTitle(self.xtitle)
@@ -1560,7 +1728,9 @@ class PlotResults(common_base.CommonBase):
             legend.AddEntry(self.observable_settings["data_distribution"], "Data", "PE")
 
         # Draw JETSCAPE
-        self.output_dict[f"jetscape_distribution_{label}"] = self.observable_settings["jetscape_distribution"]
+        # Persist the ORIGINAL (unscaled) MC -- even when area-normalized for display -- so the AA
+        # R_AA division (which may fall back to this hist) stays on the absolute normalization.
+        self.output_dict[f"jetscape_distribution_{label}"] = jetscape_original
         # Persist the R_AA-denominator companion (pp run only) into final_results.root so the AA
         # plot_RAA run can divide by it (it is scaled/normalized identically; only the binning is the
         # AA `ratio` binning). Not drawn here -- it's an internal histogram for the ratio, not a pp curve.
@@ -1639,6 +1809,9 @@ class PlotResults(common_base.CommonBase):
         text = f"{centrality} {self.suffix} {pt_suffix}"
         text_latex.DrawLatex(x, 0.73, text)
 
+        if getattr(self, "_area_normalized", False):
+            text_latex.DrawLatex(x, 0.63, "MC area-normalized to data")
+
         if self.skip_pp:
             text = "skip data plot -- no pp data in HEPData"
             text_latex.DrawLatex(x, 0.53, text)
@@ -1650,7 +1823,9 @@ class PlotResults(common_base.CommonBase):
 
         c.SaveAs(str(self.output_dir / f"{self.hname}{self.file_format}"))
         # Also emit a log-x/log-y twin of this distribution plot (NOT for R_AA ratios).
-        self._save_logxy_twin(c, self.hname, dist_pad=pad1, ratio_pad=pad2)
+        self._save_logxy_twin(
+            c, self.hname, dist_pad=pad1, ratio_pad=pad2, blank_histo=myBlankHisto, log_ymin=log_ymin, log_ymax=log_ymax
+        )
         c.Close()
 
     # -------------------------------------------------------------------------------------------
