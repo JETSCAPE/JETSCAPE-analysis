@@ -435,7 +435,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # CMS
             # Charged hadrons (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
             if self.measure_observable_for_current_event(self.hadron_observables, observable_name="pt_ch_cms"):
-                pt_min, pt_max = self.hadron_observables["pt_ch_cms"]["hadron"]["pt"][0]
+                pt_min, pt_max = self.hadron_observables["pt_ch_cms"]["hadron"]["pt"]
                 if (
                     pt_min < pt < pt_max
                     and abs(eta) < self.hadron_observables["pt_ch_cms"]["hadron"]["eta"]
@@ -883,12 +883,23 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="axis_alice"):
-            pt_min = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][-1]
+            obs = self.observables_info[f"{self.sqrts}_inclusive_chjet_axis_alice"]
+            axis_block = self.inclusive_chjet_observables["axis_alice"]["jet"]
+            pt_edges = axis_block["pt"]
+            # WTA-Standard is the ungroomed jet-axis variant of axis_alice. Migrate it to the encoder
+            # + 1D-per-pt-bin, like the WTA-SD entries (C3): the encoder name pins the pt bin and the
+            # jet_axis type, so we store the scalar deltaR per bin. jet_axis is essential here (>1 axis
+            # variant configured), so it appears in the name as ..._jet_axis_WTA_Standard.
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
+            standard_axis = next((e for e in axis_block["axis"] if e["type"] == "WTA_Standard"), None)
             if (
-                jetR in self.inclusive_chjet_observables["axis_alice"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["axis_alice"]["jet"]["eta_R"] - jetR)
+                jet_pt_spec is not None
+                and standard_axis is not None
+                and jetR in axis_block["R"]
+                and abs(jet.eta()) < (axis_block["eta_R"] - jetR)
             ):
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
                 if jet_collection_label in ["_negative_recombiner"]:
@@ -899,10 +910,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 jet_wta = reclusterer_wta.result(jet)
 
                 deltaR = jet_wta.delta_R(jet)
-                # self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}{jet_collection_label}'].append([jet_pt, deltaR])
                 self.observable_dict_event[
-                    f"inclusive_chjet_axis_alice_R{jetR}_WTA_Standard{jet_collection_label}"
-                ].append([jet_pt, deltaR])
+                    obs.encode_name_for_storing_in_file(
+                        jet_R=observable.JetRSpec(jetR),
+                        jet_pt=jet_pt_spec,
+                        jet_axis=observable.JetAxisDifferenceSpec(type=standard_axis["type"]),
+                        tag=jet_collection_label,
+                    )
+                ].append(deltaR)
 
         # ALICE ungroomed angularity
         #   Hole treatment:
@@ -1130,8 +1145,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Setup
         _observable_class = "inclusive_chjet"
 
-        # Calculate the splitting of interest based on the grooming method
-        jet_groomed_lund, grooming_setting_spec = analyze_events_base_STAT.calculate_groomed_jet(
+        # Calculate the splitting of interest based on the grooming method.
+        # Keep `groomer_shop` bound for the lifetime of this method: it owns the reclustering
+        # ClusterSequence backing the groomed jet's constituents. Letting it be garbage-collected
+        # frees that memory, so any later constituent access (e.g. fjext.lambda_beta_kappa on the
+        # groomed pair) would dereference dangling memory and segfault.
+        jet_groomed_lund, grooming_setting_spec, groomer_shop = analyze_events_base_STAT.calculate_groomed_jet(
             grooming_setting=grooming_setting,
             jet=jet,
             jet_R=jetR,
@@ -1143,7 +1162,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             return
 
         # Parameters used to encode observable names
-        _parameters = {"jet_R": observable.JetRSpec(jetR), "grooming_settings": grooming_setting_spec}
+        _parameters = {"jet_R": observable.JetRSpec(jetR), "jet_grooming_settings": grooming_setting_spec}
 
         # ALICE hardest kt
         # NOTE: ktg is measured for both Soft Drop (SD) and Dynamical Grooming (DyG).
@@ -1156,6 +1175,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="ktg_alice")
+            # We fill both DyG and SD after this setting to avoid filling DyG multiple times
+            # (since DyG isn't included in the global set of grooming settings). It just relies
+            # on the SD being called at once, which it they must because the ktg measurement
+            # also relies on them.
             and grooming_setting in self.inclusive_chjet_observables["ktg_alice"]["jet"]["grooming_settings"]
         ):
             obs = self.observables_info[f"{self.sqrts}_{_observable_class}_ktg_alice"]
@@ -1227,12 +1250,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             if "grooming_settings" in entry
         ]:
             obs = self.observables_info[f"{self.sqrts}_{_observable_class}_axis_alice"]
-            pt_min = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["axis_alice"]["jet"]["pt"][-1]
+            axis_block = self.inclusive_chjet_observables["axis_alice"]["jet"]
+            pt_edges = axis_block["pt"]
+            # Find the pt bin this jet falls into (1D-per-bin convention, like angularity/mass);
+            # the encoder name pins the pt bin, so we store the scalar deltaR per bin.
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_chjet_observables["axis_alice"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["axis_alice"]["jet"]["eta_R"] - jetR)
+                jet_pt_spec is not None
+                and jetR in axis_block["R"]
+                and abs(jet.eta()) < (axis_block["eta_R"] - jetR)
             ):
                 # Recluster with WTA (with larger jet R)
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
@@ -1246,16 +1275,28 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 # TODO: Why is this disabled...?
                 ## WTA-Standard
                 # deltaR = jet_wta.delta_R(jet)
-                # self.observable_dict_event[f'inclusive_chjet_axis_alice_R{jetR}_WTA_Standard_jet_collection_label}'].append([jet_pt, deltaR])
 
-                # WTA-SD
+                # WTA-SD axis difference. The fill gate above restricts to the WTA_SD axis entry
+                # whose nested grooming matches the current grooming_setting; build the jet_axis
+                # spec from it. Essential params for axis_alice are jet_R, jet_pt, jet_axis
+                # (the grooming is carried inside jet_axis, so jet_grooming_settings is NOT passed).
                 deltaR = jet_wta.delta_R(jet_groomed_lund.pair())
-                # self.observable_dict_event[
-                #     f"inclusive_chjet_axis_alice_R{jetR}_WTA_SD_zcut{zcut}_beta{beta}{jet_collection_label}"
-                # ].append([jet_pt, deltaR])
-                self.observable_dict_event[
-                    obs.encode_name_for_storing_in_file(**_parameters, tag=jet_collection_label)
-                ].append([jet_pt, deltaR])
+                matching_axis = next(
+                    (e for e in axis_block["axis"] if e.get("grooming_settings") == grooming_setting),
+                    None,
+                )
+                if matching_axis is not None:
+                    jet_axis_spec = observable.JetAxisDifferenceSpec(
+                        type=matching_axis["type"], grooming_settings=grooming_setting
+                    )
+                    self.observable_dict_event[
+                        obs.encode_name_for_storing_in_file(
+                            jet_R=observable.JetRSpec(jetR),
+                            jet_pt=jet_pt_spec,
+                            jet_axis=jet_axis_spec,
+                            tag=jet_collection_label,
+                        )
+                    ].append(deltaR)
 
         # ALICE groomed angularity
         #   Hole treatment:
@@ -1266,26 +1307,38 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             self.measure_observable_for_current_event(
                 self.inclusive_chjet_observables, observable_name="angularity_alice"
             )
-            and grooming_setting in self.inclusive_chjet_observables["angularity_alice"]["soft_drop"]
+            and grooming_setting in self.inclusive_chjet_observables["angularity_alice"]["jet"]["grooming_settings"]
         ):
             obs = self.observables_info[f"{self.sqrts}_{_observable_class}_angularity_alice"]
-            pt_min = self.inclusive_chjet_observables["angularity_alice"]["pt"]["jet"][0]
-            pt_max = self.inclusive_chjet_observables["angularity_alice"]["pt"]["jet"][-1]
+            pt_edges = self.inclusive_chjet_observables["angularity_alice"]["jet"]["pt"]
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_chjet_observables["angularity_alice"]["R"]
-                and pt_min < jet_pt < pt_max
+                jet_pt_spec is not None
+                and jetR in self.inclusive_chjet_observables["angularity_alice"]["jet"]["R"]
                 and abs(jet.eta()) < (self.inclusive_chjet_observables["angularity_alice"]["jet"]["eta_R"] - jetR)
             ):
                 for ang_settings in self.inclusive_chjet_observables["angularity_alice"]["jet"]["angularity"]:
                     alpha = ang_settings["alpha"]
                     kappa = 1
-                    lambda_alpha = fjext.lambda_beta_kappa(jet, jet_groomed_lund.pair(), alpha, kappa, jetR)
-                    # self.observable_dict_event[
-                    #     f"inclusive_chjet_angularity_alice_R{jetR}_alpha{alpha}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                    # ].append([jet_pt, lambda_alpha])
+                    # Untagged jets (grooming found no splitting) have an empty groomed pair;
+                    # fjext.lambda_beta_kappa segfaults on it (unlike .kt()/.Delta()/.z(), which
+                    # return a negative sentinel). Delta() < 0 marks untagged — emit a negative
+                    # sentinel into the underflow, matching the ktg/zg/theta_g treatment above.
+                    if jet_groomed_lund.Delta() >= 0:
+                        lambda_alpha = fjext.lambda_beta_kappa(jet, jet_groomed_lund.pair(), alpha, kappa, jetR)
+                    else:
+                        lambda_alpha = -1.0
                     self.observable_dict_event[
-                        obs.encode_name_for_storing_in_file(**_parameters, tag=jet_collection_label)
-                    ].append([jet_pt, lambda_alpha])
+                        obs.encode_name_for_storing_in_file(
+                            **_parameters,
+                            jet_pt=jet_pt_spec,
+                            jet_angularity=observable.AngularitySpec(alpha=alpha, kappa=kappa),
+                            tag=jet_collection_label,
+                        )
+                    ].append(lambda_alpha)
 
         # ALICE m_g (which is described as the groomed mass in the paper, but using m_g for consistency with CMS)
         #   Hole treatment:
@@ -1294,24 +1347,24 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="mass_alice")
-            and grooming_setting in self.inclusive_chjet_observables["mass_alice"]["jet"]["soft_drop"]
+            and grooming_setting in self.inclusive_chjet_observables["mass_alice"]["jet"]["grooming_settings"]
         ):
             obs = self.observables_info[f"{self.sqrts}_{_observable_class}_mass_alice"]
-            pt_min = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"][-1]
+            pt_edges = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"]
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_chjet_observables["mass_alice"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
+                jet_pt_spec is not None
+                and jetR in self.inclusive_chjet_observables["mass_alice"]["jet"]["R"]
                 and abs(jet.eta()) < (self.inclusive_chjet_observables["mass_alice"]["jet"]["eta_R"] - jetR)
             ):
                 # Note: untagged jets will return negative value
                 mg = jet_groomed_lund.pair().m()
-                # self.observable_dict_event[
-                #     f"inclusive_chjet_mass_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                # ].append([jet_pt, mg])
                 self.observable_dict_event[
-                    obs.encode_name_for_storing_in_file(**_parameters, tag=jet_collection_label)
-                ].append([jet_pt, mg])
+                    obs.encode_name_for_storing_in_file(**_parameters, jet_pt=jet_pt_spec, tag=jet_collection_label)
+                ].append(mg)
 
     def fill_full_jet_ungroomed_observables(  # noqa: C901
         self,
@@ -1521,6 +1574,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Charged particles (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
         acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="charge_cms"):
+            obs = self.observables_info[f"{self.sqrts}_inclusive_jet_charge_cms"]
             pt_min = self.inclusive_jet_observables["charge_cms"]["jet"]["pt"][0]
             if (
                 jetR in self.inclusive_jet_observables["charge_cms"]["jet"]["R"]
@@ -1546,15 +1600,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                                 if abs(pid) in acceptable_hadrons and jet.delta_R(hadron) < jetR:
                                     sum_holes += particle_charge(pid) * np.power(hadron.pt(), kappa)
                         charge = (sum_charge - sum_holes) / np.power(jet_pt, kappa)
-                        if jet_collection_label in ["_shower_recoil"]:
-                            charge_unsubtracted = sum_charge / np.power(jet_pt, kappa)
-                            self.observable_dict_event[
-                                f"inclusive_jet_charge_cms_R{jetR}_k{kappa}{jet_collection_label}_unsubtracted"
-                            ].append(charge_unsubtracted)
                     else:
                         charge = sum_charge / np.power(jet_pt, kappa)
+                    # Step 4.5: encoder name (jet_R + jet_charge=kappa). jet_pt here is a single cut
+                    # bin ([120, null]), not essential, so the encoder omits it. The legacy
+                    # `_unsubtracted` QA companion was dropped in the migration -- it produced 0
+                    # histograms on the legacy path (never matched), so this is not a regression.
                     self.observable_dict_event[
-                        f"inclusive_jet_charge_cms_R{jetR}_k{kappa}{jet_collection_label}"
+                        obs.encode_name_for_storing_in_file(
+                            jet_R=observable.JetRSpec(jetR),
+                            jet_charge=observable.JetChargeSpec(kappa),
+                            tag=jet_collection_label,
+                        )
                     ].append(charge)
 
         # CMS jet-axis difference (WTA-Standard)
@@ -1563,11 +1620,17 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed, although we recluster using the negative recombiner again
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="axis_cms"):
-            pt_min = self.inclusive_jet_observables["axis_cms"]["jet"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["axis_cms"]["jet"]["pt"][-1]
+            obs = self.observables_info[f"{self.sqrts}_inclusive_jet_axis_cms"]
+            pt_edges = self.inclusive_jet_observables["axis_cms"]["jet"]["pt"]
+            # 1D-per-pt-bin convention (like axis_alice, C3): the encoder name pins the pt bin, so we
+            # store the scalar deltaR per bin rather than a 2D [jet_pt, deltaR] pair.
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_jet_observables["axis_cms"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
+                jet_pt_spec is not None
+                and jetR in self.inclusive_jet_observables["axis_cms"]["jet"]["R"]
                 and abs(jet.eta()) < (self.inclusive_jet_observables["axis_cms"]["jet"]["eta"])
             ):
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
@@ -1578,10 +1641,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
                 jet_wta = reclusterer_wta.result(jet)
 
+                # The single WTA_Standard axis entry is not an essential parameter (only one
+                # variant configured), so the encoder omits jet_axis; pass only jet_R and jet_pt.
                 deltaR = jet_wta.delta_R(jet)
-                self.observable_dict_event[f"inclusive_jet_axis_cms_R{jetR}_WTA_Standard{jet_collection_label}"].append(
-                    [jet_pt, deltaR]
-                )
+                self.observable_dict_event[
+                    obs.encode_name_for_storing_in_file(
+                        jet_R=observable.JetRSpec(jetR), jet_pt=jet_pt_spec, tag=jet_collection_label
+                    )
+                ].append(deltaR)
 
         # ATLAS, d_12
         #   Hole treatment:
@@ -1625,8 +1692,12 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Setup
         _observable_class = "inclusive_jet"
 
-        # Calculate the splitting of interest based on the grooming method
-        jet_groomed_lund, grooming_setting_spec = analyze_events_base_STAT.calculate_groomed_jet(
+        # Calculate the splitting of interest based on the grooming method.
+        # Keep `groomer_shop` bound for the lifetime of this method: it owns the reclustering
+        # ClusterSequence backing the groomed jet's constituents. Letting it be garbage-collected
+        # frees that memory, so any later constituent access (e.g. fjext.lambda_beta_kappa on the
+        # groomed pair) would dereference dangling memory and segfault.
+        jet_groomed_lund, grooming_setting_spec, groomer_shop = analyze_events_base_STAT.calculate_groomed_jet(
             grooming_setting=grooming_setting,
             jet=jet,
             jet_R=jetR,
@@ -1638,7 +1709,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             return
 
         # Parameters used to encode observable names
-        _parameters = {"jet_R": observable.JetRSpec(jetR), "grooming_settings": grooming_setting_spec}
+        _parameters = {"jet_R": observable.JetRSpec(jetR), "jet_grooming_settings": grooming_setting_spec}
 
         # CMS m_g
         #   Hole treatment:
@@ -1647,24 +1718,24 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="mg_cms")
-            and grooming_setting in self.inclusive_jet_observables["mg_cms"]["jet"]["soft_drop"]
+            and grooming_setting in self.inclusive_jet_observables["mg_cms"]["jet"]["grooming_settings"]
         ):
             obs = self.observables_info[f"{self.sqrts}_{_observable_class}_mg_cms"]
-            pt_min = self.inclusive_jet_observables["mg_cms"]["jet"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["mg_cms"]["jet"]["pt"][-1]
+            pt_edges = self.inclusive_jet_observables["mg_cms"]["jet"]["pt"]
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_jet_observables["mg_cms"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
+                jet_pt_spec is not None
+                and jetR in self.inclusive_jet_observables["mg_cms"]["jet"]["R"]
                 and abs(jet.eta()) < (self.inclusive_jet_observables["mg_cms"]["jet"]["eta"])
                 and jet_groomed_lund.Delta() > self.inclusive_jet_observables["mg_cms"]["jet"]["dR"]
             ):
                 mg = jet_groomed_lund.pair().m() / jet_pt  # Note: untagged jets will return negative value
-                # self.observable_dict_event[
-                #     f"inclusive_jet_mg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                # ].append([jet_pt, mg])
                 self.observable_dict_event[
-                    obs.encode_name_for_storing_in_file(**_parameters, tag=jet_collection_label)
-                ].append([jet_pt, mg])
+                    obs.encode_name_for_storing_in_file(**_parameters, jet_pt=jet_pt_spec, tag=jet_collection_label)
+                ].append(mg)
 
         # CMS z_g
         #   Hole treatment:
@@ -1673,24 +1744,24 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="zg_cms")
-            and grooming_setting in self.inclusive_jet_observables["zg_cms"]["jet"]["soft_drop"]
+            and grooming_setting in self.inclusive_jet_observables["zg_cms"]["jet"]["grooming_settings"]
         ):
             obs = self.observables_info[f"{self.sqrts}_{_observable_class}_zg_cms"]
-            pt_min = self.inclusive_jet_observables["zg_cms"]["jet"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["zg_cms"]["jet"]["pt"][-1]
+            pt_edges = self.inclusive_jet_observables["zg_cms"]["jet"]["pt"]
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_jet_observables["zg_cms"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
+                jet_pt_spec is not None
+                and jetR in self.inclusive_jet_observables["zg_cms"]["jet"]["R"]
                 and abs(jet.eta()) < (self.inclusive_jet_observables["zg_cms"]["jet"]["eta"])
                 and jet_groomed_lund.Delta() > self.inclusive_jet_observables["zg_cms"]["jet"]["dR"]
             ):
                 zg = jet_groomed_lund.z()  # Note: untagged jets will return negative value
-                # self.observable_dict_event[
-                #     f"inclusive_jet_zg_cms_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                # ].append([jet_pt, zg])
                 self.observable_dict_event[
-                    obs.encode_name_for_storing_in_file(**_parameters, tag=jet_collection_label)
-                ].append([jet_pt, zg])
+                    obs.encode_name_for_storing_in_file(**_parameters, jet_pt=jet_pt_spec, tag=jet_collection_label)
+                ].append(zg)
 
         # ATLAS, Rg
         #   Hole treatment:
@@ -1699,24 +1770,24 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="rg_atlas")
-            and grooming_setting in self.inclusive_jet_observables["rg_atlas"]["soft_drop"]
+            and grooming_setting in self.inclusive_jet_observables["rg_atlas"]["jet"]["grooming_settings"]
         ):
             obs = self.observables_info[f"{self.sqrts}_{_observable_class}_rg_atlas"]
-            pt_min = self.inclusive_jet_observables["rg_atlas"]["jet"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["rg_atlas"]["jet"]["pt"][1]
+            pt_edges = self.inclusive_jet_observables["rg_atlas"]["jet"]["pt"]
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_jet_observables["rg_atlas"]["jet"]["eta"] - jetR)
+                jet_pt_spec is not None
                 and jetR in self.inclusive_jet_observables["rg_atlas"]["jet"]["R"]
+                and abs(jet.eta()) < (self.inclusive_jet_observables["rg_atlas"]["jet"]["eta"] - jetR)
             ):
                 # Note: untagged jets will return negative value
                 rg = jet_groomed_lund.Delta()
-                # self.observable_dict_event[
-                #     f"inclusive_jet_rg_atlas_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"
-                # ].append([jet_pt, rg])
                 self.observable_dict_event[
-                    obs.encode_name_for_storing_in_file(**_parameters, tag=jet_collection_label)
-                ].append([jet_pt, rg])
+                    obs.encode_name_for_storing_in_file(**_parameters, jet_pt=jet_pt_spec, tag=jet_collection_label)
+                ].append(rg)
 
     def fill_hadron_trigger_hadron_observables(  # noqa: C901
         self,
@@ -3073,17 +3144,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.measure_observable_for_current_event(
             self.gamma_trigger_jet_observables, observable_name="xj_gamma_atlas"
         ):
-            gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["gamma_pT"]
-            gamma_eta_min, gamma_eta_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["gamma_eta"]
-            isolation_R = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_R"]
-            isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_Et_max_AA"]
-            isolation_type = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_type"]
-            if not self.is_AA:
-                isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["isolation_Et_max_pp"]
-            jet_R = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["R"]
-            jet_eta_min, jet_eta_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_eta"]
-            jet_pt_min, jet_pt_max = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_pT"]
-            photon_jet_dPhi = self.gamma_trigger_jet_observables["xj_gamma_atlas"]["jet_deltaphi"]
+            _xj_atlas_block = self.gamma_trigger_jet_observables["xj_gamma_atlas"]
+            _trigger_pt_edges = _xj_atlas_block["trigger"]["pt"]
+            gamma_Pt_min = _trigger_pt_edges[0]
+            gamma_Pt_max = _trigger_pt_edges[-1]
+            gamma_eta_min = 0.0
+            gamma_eta_max = _xj_atlas_block["trigger"]["eta"]
+            _isolation = _xj_atlas_block["trigger"]["isolation"]
+            isolation_R = _isolation["R"]
+            isolation_type = _isolation["type"]
+            isolation_Et_max = _isolation["Et_max_AA"] if self.is_AA else _isolation["Et_max_pp"]
+            jet_R = _xj_atlas_block["jet"]["R"][0]
+            jet_eta_min = 0.0
+            jet_eta_max = _xj_atlas_block["jet"]["eta"]
+            jet_pt_min, jet_pt_max = _xj_atlas_block["jet"]["pt"]
+            photon_jet_dPhi = _xj_atlas_block["dPhi"]
 
             # determine relevant particles for isolation calculation
             if isolation_type == "full":
@@ -3141,11 +3216,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             xj_uncorrected = jet_pt_uncorrected / photon.Et()
                             self.observable_dict_event[
                                 f"gamma_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}_xj"
-                            ].append(photon.Et(), xj)
+                            ].append([photon.Et(), xj])
                             if jet_collection_label in ["_shower_recoil"]:
                                 self.observable_dict_event[
                                     f"gamma_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}_xj_unsubtracted"
-                                ].append(photon.Et(), xj_uncorrected)
+                                ].append([photon.Et(), xj_uncorrected])
 
         # ------------------------------------------------------------
         # ------------------------------------------------------------
@@ -3157,17 +3232,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.measure_observable_for_current_event(
             self.gamma_trigger_jet_observables, observable_name="xj_gamma_cms"
         ):
-            gamma_Pt_min, gamma_Pt_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["gamma_pT"]
-            gamma_eta_min, gamma_eta_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["gamma_eta"]
-            isolation_R = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_R"]
-            isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_Et_max_AA"]
-            if not self.is_AA:
-                isolation_Et_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_Et_max_pp"]
-            isolation_type = self.gamma_trigger_jet_observables["xj_gamma_cms"]["isolation_type"]
-            jet_R = self.gamma_trigger_jet_observables["xj_gamma_cms"]["R"]
-            jet_eta_min, jet_eta_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_eta"]
-            jet_pt_min, jet_pt_max = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_pT"]
-            photon_jet_dPhi = self.gamma_trigger_jet_observables["xj_gamma_cms"]["jet_deltaphi"]
+            _xj_cms_block = self.gamma_trigger_jet_observables["xj_gamma_cms"]
+            _trigger_pt_edges = _xj_cms_block["trigger"]["pt"]
+            gamma_Pt_min = _trigger_pt_edges[0]
+            gamma_Pt_max = _trigger_pt_edges[-1]
+            gamma_eta_min = 0.0
+            gamma_eta_max = _xj_cms_block["trigger"]["eta"]
+            _isolation = _xj_cms_block["trigger"]["isolation"]
+            isolation_R = _isolation["R"]
+            isolation_type = _isolation["type"]
+            isolation_Et_max = _isolation["Et_max_AA"] if self.is_AA else _isolation["Et_max_pp"]
+            jet_R = _xj_cms_block["jet"]["R"][0]
+            jet_eta_min = 0.0
+            jet_eta_max = _xj_cms_block["jet"]["eta"]
+            jet_pt_min, jet_pt_max = _xj_cms_block["jet"]["pt"]  # upper bound is -1 (unused below)
+            photon_jet_dPhi = _xj_cms_block["dPhi"]
 
             # determine relevant particles for isolation calculation
             if isolation_type == "full":
@@ -3239,11 +3318,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             xj_uncorrected = jet_pt_uncorrected / highest_pt_photon.Et()
                             self.observable_dict_event[
                                 f"gamma_trigger_jet_xj_cms_R{jetR}{jet_collection_label}"
-                            ].append(highest_pt_photon.Et(), xj)
+                            ].append([highest_pt_photon.Et(), xj])
                             if jet_collection_label in ["_shower_recoil"]:
                                 self.observable_dict_event[
                                     f"gamma_trigger_jet_xj_cms_R{jetR}{jet_collection_label}_unsubtracted"
-                                ].append(highest_pt_photon.Et(), xj_uncorrected)
+                                ].append([highest_pt_photon.Et(), xj_uncorrected])
 
         # ------------------------------------------------------------
         # ------------------------------------------------------------
@@ -3563,7 +3642,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     #    - For negative_recombiner case, no subtraction is needed
                     #    - For constituent_subtraction, no subtraction is needed
                     if (
-                        grooming_setting in self.gamma_trigger_jet_observables["rg_cms"]["soft_drop"]
+                        grooming_setting in self.gamma_trigger_jet_observables["rg_cms"]["jet"]["grooming_settings"]
                         and jetR in self.gamma_trigger_jet_observables["rg_cms"]["R"]
                         and jet_pt > jet_pt_min
                         and abs(jet.eta()) < (self.gamma_trigger_jet_observables["rg_cms"]["eta_cut_jet"])

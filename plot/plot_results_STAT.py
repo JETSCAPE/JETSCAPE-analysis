@@ -21,6 +21,7 @@ import ROOT  # pyright: ignore [reportMissingImports]
 import uproot
 import yaml
 from jetscape_analysis.base import common_base, helpers
+from jetscape_analysis.data_curation import observable as observable_module
 from plot import plot_results_STAT_utils
 
 # Prevent ROOT from stealing focus when plotting
@@ -52,8 +53,19 @@ class PlotResults(common_base.CommonBase):
 
         # Validation
         config_file = Path(config_file)
+        self.config_file = config_file
         input_file = Path(input_file)
         pp_ref_file = Path(pp_ref_file)
+
+        # Encoder context for the migrated jet/substructure observables (set inside the migrated
+        # branch of plot_jet_observables, read by get_histogram). Default OFF so every non-jet
+        # get_histogram call (hadron, semi-inclusive, STAR, ...) keeps the legacy f-string name.
+        self._is_migrated_obs = False
+        self._encoder_block = None
+        self._encoder_grooming_setting = None
+        self._encoder_pt_bin = None
+        self._encoder_axis_entry = None
+        self._encoder_charge = None
 
         # Default to the same directory as the input_file if an output_dir is not provided.
         if not output_dir:
@@ -119,6 +131,14 @@ class PlotResults(common_base.CommonBase):
         self.power = self.config["power"]
         self.pt_ref = self.config["pt_ref"]
 
+        # Observable objects keyed "{sqrts}_{observable_class}_{name}", used to rebuild the
+        # encoder-based histogram names for the migrated groomed & substructure observables so the
+        # plotter finds what the histogrammer wrote (see MIGRATION_NOTES Step 4 ④, OBSERVABLE_EDGE_CASES
+        # C5). Container-safe import (attrs/numpy/pyyaml only), same as the histogrammer.
+        self.observables_info = observable_module.read_observables_from_config(
+            config_path=self.config_file, sqrt_s=self.sqrts
+        )
+
         # If AA, set different options for hole subtraction treatment
         self.jet_collection_labels_AA = self.config["jet_collection_labels"]  # + ['_shower_recoil_unsubtracted']
         self.jet_collection_label_pp = ""
@@ -173,7 +193,7 @@ class PlotResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                if "hepdata" not in block and "custom_data" not in block:
+                if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                     continue
 
                 # Initialize observable configuration
@@ -191,7 +211,7 @@ class PlotResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                if "hepdata" not in block and "custom_data" not in block:
+                if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                     continue
 
                 # for hadron v2
@@ -208,7 +228,7 @@ class PlotResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                if "hepdata" not in block and "custom_data" not in block:
+                if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                     continue
 
                 # STAR dihadron
@@ -245,26 +265,51 @@ class PlotResults(common_base.CommonBase):
                     logger.info(f"skipping {observable}")
                     continue
 
-                for self.jet_R in block["jet_R"]:
+                for self.jet_R in block["jet"]["R"]:
                     # Optional: Loop through pt bins
-                    for pt_bin in range(len(block["pt"]) - 1):
+                    for pt_bin in range(len(block["jet"]["pt"]) - 1):
                         pt_suffix = ""
-                        if len(block["pt"]) > 2:
+                        if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
-                        # Optional: subobservable
-                        subobservable_label_list = [""]
-                        if "kappa" in block:
-                            subobservable_label_list = [f"_k{kappa}" for kappa in block["kappa"]]
-                        for subobservable_label in subobservable_label_list:
+                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value),
+                        # mirroring the histogrammer: the label feeds the (jet_R/pt-only) suffix used
+                        # for plot labels/filenames; axis_entry feeds the encoder for migrated axis
+                        # observables (the bare `type` label can't distinguish the grooming variant);
+                        # charge_value (kappa) feeds the encoder for charge_cms. Keys are mutually
+                        # exclusive in the YAML. (zr_alice's `subjet_R` is deferred -- no branch here.)
+                        subobservable_label_list = [("", None, None)]
+                        if "axis" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_{axis_block['type']}", axis_block, None) for axis_block in block["jet"]["axis"]
+                            ]
+                        if "charge" in block["jet"]:
+                            subobservable_label_list = [(f"_k{kappa}", None, kappa) for kappa in block["jet"]["charge"]]
+
+                        # Whether the histogram name comes from the observable encoder (the analyzer +
+                        # histogrammer use encoder names for these) or the legacy hand-built f-string.
+                        is_migrated = (
+                            observable_type,
+                            observable,
+                        ) in plot_results_STAT_utils.ENCODER_MIGRATED_JET_OBSERVABLES
+                        # jet_axis is an essential (encoded) parameter only when >1 axis variant is
+                        # configured; with a single axis entry the encoder omits it (mirrors the
+                        # histogrammer: axis_alice passes jet_axis, axis_cms does not).
+                        axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
+
+                        for subobservable_label, axis_entry, charge_value in subobservable_label_list:
                             # Set normalization
                             self_normalize = False
                             for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj"]:
                                 if x in observable:
                                     self_normalize = True
 
-                            if "soft_drop" in block:
-                                for grooming_setting in block["soft_drop"]:
+                            if "grooming_settings" in block["jet"]:
+                                for grooming_setting in block["jet"]["grooming_settings"]:
+                                    # New YAML schema mixes methods (soft_drop + dynamical_grooming).
+                                    # Legacy plot naming below only knows SoftDrop, so skip other methods.
+                                    if grooming_setting.get("type", "soft_drop") != "soft_drop":
+                                        continue
                                     # Custom skip
                                     if observable in ["zg_alice", "tg_alice"]:
                                         if np.isclose(self.jet_R, 0.4) and centrality_index == 0:
@@ -282,8 +327,28 @@ class PlotResults(common_base.CommonBase):
                                     else:
                                         self.suffix = f"_R{self.jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
 
-                                    if "hepdata" not in block and "custom_data" not in block:
+                                    if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                                         continue
+
+                                    # For migrated groomed observables, select the per-grooming
+                                    # HEPData overlay table (data block keyed by jet_grooming_settings
+                                    # in the GroomingSettingsSpec encoding, WITH the SD_/DyG_ prefix --
+                                    # distinct from the no-prefix column encoding used for the name).
+                                    data_block_params = None
+                                    if is_migrated:
+                                        data_block_params = {
+                                            "jet_grooming_settings": observable_module.GroomingSettingsSpec(
+                                                grooming_setting
+                                            ).encode()
+                                        }
+                                    # Stash the encoder context so get_histogram rebuilds the migrated
+                                    # histogram name from the same encoder the histogrammer used.
+                                    self._is_migrated_obs = is_migrated
+                                    self._encoder_block = block
+                                    self._encoder_grooming_setting = grooming_setting
+                                    self._encoder_pt_bin = pt_bin
+                                    self._encoder_axis_entry = None
+                                    self._encoder_charge = None
 
                                     # Initialize observable configuration
                                     self.init_observable(
@@ -294,15 +359,46 @@ class PlotResults(common_base.CommonBase):
                                         centrality_index,
                                         pt_suffix=pt_suffix,
                                         self_normalize=self_normalize,
+                                        data_block_params=data_block_params,
                                     )
 
                                     # Plot observable
                                     self.plot_observable(observable_type, observable, centrality, pt_suffix)
+                                    self._is_migrated_obs = False
 
                             else:
                                 self.suffix = f"_R{self.jet_R}{subobservable_label}"
-                                if "hepdata" not in block and "custom_data" not in block:
+                                if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                                     continue
+
+                                # For migrated axis observables with >1 axis variant (axis_alice), the
+                                # data block has one HEPData overlay table per jet_axis variant, so
+                                # select it (JetAxisDifferenceSpec encoding -- grooming carried inside
+                                # the axis). NOTE: axis_alice still carries legacy hepdata_* keys, so
+                                # its overlay routes through tgraph_from_hepdata (ROOT) and ignores
+                                # this; it takes effect for any data:-only axis observable (Step 6).
+                                data_block_params = None
+                                if is_migrated and axis_is_essential and axis_entry is not None:
+                                    data_block_params = {
+                                        "jet_axis": observable_module.JetAxisDifferenceSpec(
+                                            type=axis_entry["type"], grooming_settings=axis_entry.get("grooming_settings")
+                                        ).encode()
+                                    }
+                                # charge_cms: select the per-kappa HEPData overlay table (data block
+                                # keyed by jet_charge in the JetChargeSpec encoding, kappa_X).
+                                if is_migrated and charge_value is not None:
+                                    data_block_params = {
+                                        "jet_charge": observable_module.JetChargeSpec(charge_value).encode()
+                                    }
+                                # Stash the encoder context (no grooming in the else branch; pass the
+                                # axis entry only when jet_axis is essential, mirroring the analyzer;
+                                # charge_value is the kappa for charge_cms).
+                                self._is_migrated_obs = is_migrated
+                                self._encoder_block = block
+                                self._encoder_grooming_setting = None
+                                self._encoder_pt_bin = pt_bin
+                                self._encoder_axis_entry = axis_entry if axis_is_essential else None
+                                self._encoder_charge = charge_value
 
                                 # Initialize observable configuration
                                 self.init_observable(
@@ -313,10 +409,12 @@ class PlotResults(common_base.CommonBase):
                                     centrality_index,
                                     pt_suffix=pt_suffix,
                                     self_normalize=self_normalize,
+                                    data_block_params=data_block_params,
                                 )
 
                                 # Plot observable
                                 self.plot_observable(observable_type, observable, centrality, pt_suffix)
+                                self._is_migrated_obs = False
 
     # -------------------------------------------------------------------------------------------
     # Histogram semi-inclusive jet observables
@@ -326,9 +424,9 @@ class PlotResults(common_base.CommonBase):
 
         for observable, block in self.config[observable_type].items():
             for centrality_index, centrality in enumerate(block["centrality"]):
-                for self.jet_R in block["jet_R"]:
+                for self.jet_R in block["jet"]["R"]:
                     self.suffix = f"_R{self.jet_R}"
-                    if "hepdata" not in block and "custom_data" not in block:
+                    if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                         continue
 
                     # Set normalization
@@ -349,7 +447,15 @@ class PlotResults(common_base.CommonBase):
     # Initialize a single observable's config
     # -------------------------------------------------------------------------------------------
     def init_observable(
-        self, observable_type, observable, block, centrality, centrality_index, pt_suffix="", self_normalize=False
+        self,
+        observable_type,
+        observable,
+        block,
+        centrality,
+        centrality_index,
+        pt_suffix="",
+        self_normalize=False,
+        data_block_params=None,
     ):
         # Initialize an empty dict containing relevant info
         self.observable_settings = {}
@@ -381,6 +487,26 @@ class PlotResults(common_base.CommonBase):
                 centrality_index,
                 suffix=self.suffix,
                 pt_suffix=pt_suffix,
+            )
+        elif "data" in block and not (self.skip_pp and not self.is_AA):
+            # New-schema `data:` block -> read the measured points from the HEPData YAML.
+            # Note: pass `centrality` (the [low, high] list), not centrality_index — the
+            # exact table+index is matched by centrality/jet_R/jet_pt value.
+            # skip_pp marks an observable with no pp measurement (e.g. pt_y_atlas, a PbPb
+            # |y| self-ratio whose only |y| HEPData table is PbPb). For the pp arm we then
+            # load NO data overlay -- otherwise an off-axis/unrelated table (the pp pT
+            # spectrum) would draw a misleading "Data" legend contradicting the
+            # "skip data plot -- no pp data in HEPData" annotation.
+            self.observable_settings["data_distribution"] = self.plot_utils.tgraph_from_data_block(
+                block,
+                self.is_AA,
+                self.sqrts,
+                observable_type,
+                observable,
+                centrality,
+                suffix=self.suffix,
+                pt_suffix=pt_suffix,
+                data_block_params=data_block_params,
             )
         else:
             self.observable_settings["data_distribution"] = None
@@ -426,17 +552,41 @@ class PlotResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     def init_common_settings(self, observable: str, block: dict[str, Any]) -> None:  # noqa: C901
         self.xtitle = block.get("xtitle", "")
+        # Acceptance cuts. eta (pseudorapidity) -> self.eta_cut; rapidity (y) -> self.y_cut; these
+        # are distinct and drive different scale_histogram normalizations (e.g. ATLAS jets use
+        # rapidity, CMS jets/hadrons use pseudorapidity), so they are kept separate. The new YAML
+        # schema nests these under hadron:/jet: (hadron.eta, jet.eta, jet.eta_R, jet.rapidity);
+        # the old top-level eta_cut/y_cut/eta_cut_R keys are kept as a fallback.
+        _jet = block.get("jet") if isinstance(block.get("jet"), dict) else {}
+        _hadron = block.get("hadron") if isinstance(block.get("hadron"), dict) else {}
         if "eta_cut" in block:
             self.eta_cut = block["eta_cut"]
+        elif "eta" in _hadron:
+            self.eta_cut = _hadron["eta"]
+        elif "eta" in _jet:
+            self.eta_cut = _jet["eta"]
         if "y_cut" in block:
             self.y_cut = block["y_cut"]
+        elif "rapidity" in _jet:
+            self.y_cut = _jet["rapidity"]
+        # pt list may live at top-level (legacy), under jet:, or under hadron:
         if "pt" in block:
             self.pt = block["pt"]
+        elif isinstance(block.get("jet"), dict) and "pt" in block["jet"]:
+            self.pt = block["jet"]["pt"]
+        elif isinstance(block.get("hadron"), dict) and "pt" in block["hadron"]:
+            self.pt = block["hadron"]["pt"]
+        # eta_R = jet outer pseudorapidity acceptance; the fiducial cut is eta_R - R. Runs after the
+        # plain-eta block above so jets that declare eta_R get the R-subtracted value (matches the
+        # legacy ordering where the eta_cut_R block came last).
         if "eta_cut_R" in block:
             self.eta_R = block["eta_cut_R"]
             self.eta_cut = np.round(self.eta_R - self.jet_R, decimals=1)
+        elif "eta_R" in _jet:
+            self.eta_R = _jet["eta_R"]
+            self.eta_cut = np.round(self.eta_R - self.jet_R, decimals=1)
         if "c_ref" in block:
-            index = block["jet_R"].index(self.jet_R)
+            index = block["jet"]["R"].index(self.jet_R)
             self.c_ref = block["c_ref"][index]
         if "low_trigger_range" in block:
             self.low_trigger_range = block["low_trigger_range"]
@@ -445,6 +595,16 @@ class PlotResults(common_base.CommonBase):
         if "trigger_range" in block:
             self.trigger_range = block["trigger_range"]
         self.logy = block.get("logy", False)
+        # Whether the y-range / logy were set explicitly in the config. If not, the distribution
+        # plotter auto-ranges the upper panel from the histogram+data content (see _auto_y_range),
+        # since the new YAML schema rarely sets these and the old [0, 1.99] linear default left
+        # many distributions invisible.
+        self.logy_explicit = ("logy" in block) or ("logy_pp" in block)
+        # Display-only: scale the pp MC so its integral matches the data over the common measured
+        # range (shape comparison). For observables whose data is an absolute cross-section while the
+        # MC is a per-event yield (e.g. pt_ch_atlas, mb GeV^-2), the two otherwise don't overlay.
+        # R_AA stays absolute (this only rescales a display clone in plot_distribution_and_ratio).
+        self.area_normalize = block.get("area_normalize", False)
 
         # for v2
         if "v2" in observable:
@@ -452,17 +612,29 @@ class PlotResults(common_base.CommonBase):
             self.y_ratio_max = 1.99
 
         if self.is_AA:
-            if "ytitle_AA" in block:
-                self.ytitle = block["ytitle_AA"]
-            if "y_min_AA" in block:
+            # Default ytitle (the new schema comments out ytitle_AA on most blocks) so plot_RAA's
+            # SetYTitle never sees an unset attribute; mirrors the pp branch's .get default.
+            self.ytitle = block.get("ytitle_AA", "")
+            self.y_range_explicit = "y_min_AA" in block
+            if self.y_range_explicit:
                 self.y_min = float(block["y_min_AA"])
                 self.y_max = float(block["y_max_AA"])
             else:
                 self.y_min = 0.0
                 self.y_max = 1.0
+            # Ratio-panel y-range. The AA branch never set these (only pp/v2 did), so plot_RAA's
+            # SetRangeUser(self.y_ratio_min, self.y_ratio_max) hit an unset attribute. Same default
+            # as pp; honour a per-block override if present.
+            if "y_ratio_min" in block:
+                self.y_ratio_min = block["y_ratio_min"]
+                self.y_ratio_max = block["y_ratio_max"]
+            else:
+                self.y_ratio_min = 0.0
+                self.y_ratio_max = 1.99
         else:
             self.ytitle = block.get("ytitle_pp", "")
-            if "y_min_pp" in block:
+            self.y_range_explicit = "y_min_pp" in block
+            if self.y_range_explicit:
                 self.y_min = float(block["y_min_pp"])
                 self.y_max = float(block["y_max_pp"])
             else:
@@ -591,6 +763,54 @@ class PlotResults(common_base.CommonBase):
             self.post_process_histogram(observable_type, observable, block, centrality, centrality_index)
 
     # -------------------------------------------------------------------------------------------
+    # Build the encoder-based storage column name for a migrated jet/substructure observable.
+    #
+    # This mirrors, byte-for-byte, the name the analyzer writes (and the histogrammer histogrammed)
+    # via obs.encode_name_for_storing_in_file(...). It is the COLUMN-name encoding: the grooming is
+    # passed via convert_to_grooming_method_spec (the underlying SoftDropSpec/DynamicalGroomingSpec,
+    # NO "SD_"/"DyG_" prefix) -- distinct from the DATA-BLOCK key encoding (GroomingSettingsSpec /
+    # JetAxisDifferenceSpec .encode(), WITH the prefix) used only for data_block_params. Mirror of
+    # HistogramResults._encoder_column_name; keep the two in lockstep.
+    # -------------------------------------------------------------------------------------------
+    def _encoder_column_name(
+        self,
+        observable_type,
+        observable,
+        jet_R,
+        jet_collection_label,
+        block=None,
+        grooming_setting=None,
+        pt_bin=None,
+        axis_entry=None,
+        charge=None,
+    ):
+        obs = self.observables_info[f"{self.sqrts}_{observable_type}_{observable}"]
+        kwargs = {"jet_R": observable_module.JetRSpec(jet_R)}
+
+        if pt_bin is not None and isinstance((block or {}).get("jet", {}).get("pt"), list):
+            pt_edges = block["jet"]["pt"]
+            if pt_bin + 1 < len(pt_edges):
+                kwargs["jet_pt"] = observable_module.PtSpec(pt_edges[pt_bin], pt_edges[pt_bin + 1])
+
+        if axis_entry is not None:
+            # Grooming is encoded inside the jet-axis spec; do not also pass jet_grooming_settings.
+            kwargs["jet_axis"] = observable_module.JetAxisDifferenceSpec(
+                type=axis_entry["type"], grooming_settings=axis_entry.get("grooming_settings")
+            )
+        elif grooming_setting is not None:
+            # Mirror the analyzer exactly: it passes the underlying method spec (no "SD_"/"DyG_"
+            # prefix) as jet_grooming_settings for the column name.
+            kwargs["jet_grooming_settings"] = observable_module.convert_to_grooming_method_spec(grooming_setting)
+
+        # Step 4.5: jet charge (charge_cms) is parametrized by kappa, an essential parameter. The
+        # analyzer encodes it as jet_charge=JetChargeSpec(kappa); the data block keys its tables with
+        # the same JetChargeSpec encoding (kappa_X). Independent of grooming/axis (none coexist today).
+        if charge is not None:
+            kwargs["jet_charge"] = observable_module.JetChargeSpec(charge)
+
+        return obs.encode_name_for_storing_in_file(tag=jet_collection_label, **kwargs)
+
+    # -------------------------------------------------------------------------------------------
     # Get histogram and add to self.observable_settings
     #  - In AA case, also add hole histogram
     #  - In the case of semi-inclusive measurements construct difference of histograms
@@ -606,8 +826,25 @@ class PlotResults(common_base.CommonBase):
 
         # For all other histograms, get the histogram directly
         else:
-            # Get histogram
-            self.hname = f"h_{observable_type}_{observable}{self.suffix}{collection_label}_{centrality}{pt_suffix}"
+            # Get histogram. For the encoder-migrated jet/substructure observables, rebuild the
+            # name from the same encoder the histogrammer used (recomputed per collection_label,
+            # whose tag is folded into the encoder name) -- the pt range is already encoded, so the
+            # _pt{i} suffix is suppressed here (it is still used by the binning/overlay lookups).
+            if getattr(self, "_is_migrated_obs", False):
+                column_name = self._encoder_column_name(
+                    observable_type,
+                    observable,
+                    self.jet_R,
+                    collection_label,
+                    block=self._encoder_block,
+                    grooming_setting=self._encoder_grooming_setting,
+                    pt_bin=self._encoder_pt_bin,
+                    axis_entry=self._encoder_axis_entry,
+                    charge=self._encoder_charge,
+                )
+                self.hname = f"h_{column_name}_{centrality}"
+            else:
+                self.hname = f"h_{observable_type}_{observable}{self.suffix}{collection_label}_{centrality}{pt_suffix}"
             if self.hname in keys:
                 h_jetscape = self.input_file.Get(self.hname)
                 h_jetscape.SetDirectory(0)
@@ -617,6 +854,20 @@ class PlotResults(common_base.CommonBase):
             else:
                 h_jetscape = None
             self.observable_settings[f"jetscape_distribution{collection_label}"] = h_jetscape
+
+            # pp run only: also fetch the R_AA-denominator histogram booked on the AA `ratio`
+            # binning (same hname + "_raa_denom"). plot_RAA (AA run) divides by this to avoid the
+            # spectra-vs-ratio bin-count mismatch. None when the histogrammer didn't book one (i.e.
+            # ratio binning == spectra binning, or no ratio table) -- plot_RAA falls back then.
+            h_raa_denom = None
+            if not self.is_AA:
+                raa_denom_name = f"{self.hname}_raa_denom"
+                if raa_denom_name in keys:
+                    h_raa_denom = self.input_file.Get(raa_denom_name)
+                    h_raa_denom.SetDirectory(0)
+                    if not h_raa_denom.GetSumw2():
+                        h_raa_denom.Sumw2()
+            self.observable_settings[f"jetscape_distribution_raa_denom{collection_label}"] = h_raa_denom
 
     # -------------------------------------------------------------------------------------------
     # Construct semi-inclusive observables from difference of histograms
@@ -675,7 +926,7 @@ class PlotResults(common_base.CommonBase):
     #  - observable-specific factors (eta, sigma_inel, n_jets, ...)
     #  - self-normalization
     # -------------------------------------------------------------------------------------------
-    def scale_histogram(  # noqa: C901
+    def scale_histogram(
         self,
         observable_type,
         observable: str,
@@ -684,7 +935,39 @@ class PlotResults(common_base.CommonBase):
         pt_suffix: str = "",
         self_normalize: bool = False,
     ):
-        h = self.observable_settings[f"jetscape_distribution{collection_label}"]
+        # Apply the IDENTICAL scaling chain to the prediction histogram and, when present (pp run),
+        # to the "_raa_denom" companion booked on the AA `ratio` binning. Scaling both through the
+        # same path (xsec/weight_sum, bin width, observable-specific factors, self-normalization)
+        # keeps the denominator a correctly-normalized pp spectrum so plot_RAA's Divide is valid.
+        for settings_key in (
+            f"jetscape_distribution{collection_label}",
+            f"jetscape_distribution_raa_denom{collection_label}",
+        ):
+            if settings_key not in self.observable_settings:
+                continue
+            self._scale_one_histogram(
+                self.observable_settings[settings_key],
+                observable_type,
+                observable,
+                centrality,
+                collection_label=collection_label,
+                pt_suffix=pt_suffix,
+                self_normalize=self_normalize,
+            )
+
+    # -------------------------------------------------------------------------------------------
+    # Apply the full scaling chain to a single histogram (see scale_histogram).
+    # -------------------------------------------------------------------------------------------
+    def _scale_one_histogram(  # noqa: C901
+        self,
+        h,
+        observable_type,
+        observable: str,
+        centrality,
+        collection_label: str = "",
+        pt_suffix: str = "",
+        self_normalize: bool = False,
+    ):
         if not h:
             return
 
@@ -1007,9 +1290,13 @@ class PlotResults(common_base.CommonBase):
         filename = f"Data_{label}.dat"
         output_file = output_dir / filename
         if force_write or not output_file.exists():
-            # Get histogram binning
+            # Get histogram binning ("raa_denom" is the R_AA-denominator helper hist, not a prediction)
             key = next(
-                (key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key)
+                (
+                    key
+                    for key in self.observable_settings
+                    if "jetscape_distribution" in key and "holes" not in key and "raa_denom" not in key
+                )
             )
             h_prediction = self.observable_settings[key]
 
@@ -1026,13 +1313,21 @@ class PlotResults(common_base.CommonBase):
                 if g_truncated:
                     y = np.array(g_truncated.GetY())
                     y_err = np.array([g_truncated.GetErrorY(i) for i in range(g_truncated.GetN())])
-                    df = pd.DataFrame({"x_min": x_min, "x_max": x_max, "y": y, "y_err": y_err})
-
                     x = np.array(g_truncated.GetX())
-                    if np.any(np.greater(x_min, x)) or np.any(np.greater(x, x_max)):
-                        _msg = f"x not contained in hist binning: x={x} vs. x_bins={xbins}"
-                        raise ValueError(_msg)
 
+                    # The Data_*.dat table pairs the prediction-histogram bins (x_min/x_max) with the
+                    # truncated data points (x/y). If they don't line up -- different counts, or a point
+                    # outside its bin -- the measured data simply doesn't cover this histogram's binning
+                    # (a known HEPData edge case; see OBSERVABLE_EDGE_CASES). The R_AA plot is already
+                    # rendered by now, so skip this ancillary curation table instead of aborting the run.
+                    if len(x) != len(x_min) or np.any(np.greater(x_min, x)) or np.any(np.greater(x, x_max)):
+                        logger.warning(
+                            f"Skipping Data table {filename}: data points don't align with hist binning "
+                            f"(x={x} vs. x_bins={xbins})"
+                        )
+                        return
+
+                    df = pd.DataFrame({"x_min": x_min, "x_max": x_max, "y": y, "y_err": y_err})
                     # Write table
                     header = "Version 1.1\n"
                     header += "Label xmin xmax y y_err"
@@ -1055,9 +1350,12 @@ class PlotResults(common_base.CommonBase):
     #           self.observable_settings[f'jetscape_distribution{jet_collection_label}']
     # -------------------------------------------------------------------------------------------
     def plot_RAA(self, observable_type, observable, centrality, label, pt_suffix=""):  # noqa: C901
-        # Assemble the list of hole subtraction variations
+        # Assemble the list of hole subtraction variations ("raa_denom" is the pp-only
+        # R_AA-denominator helper hist, never a prediction to plot/divide here)
         keys_to_plot = [
-            key for key in self.observable_settings if "jetscape_distribution" in key and "holes" not in key
+            key
+            for key in self.observable_settings
+            if "jetscape_distribution" in key and "holes" not in key and "raa_denom" not in key
         ]
         model_display_name = _model_display_name[self.model_name]
         self.jetscape_legend_label = {}
@@ -1076,13 +1374,25 @@ class PlotResults(common_base.CommonBase):
             logger.warning(f"Skipping {label} since data is missing")
             return
 
-        # Get the pp reference histogram and form the RAA ratios
+        # Get the pp reference histogram and form the RAA ratios.
+        # Prefer the "_raa_denom" pp histogram (booked on the AA `ratio` binning) so the bin edges
+        # match the AA arm -- this avoids the "Cannot divide histograms with different number of
+        # bins" error when the pp spectra binning differs from the ratio binning. Fall back to the
+        # plain spectra histogram when no _raa_denom was produced (ratio binning == spectra binning,
+        # or no ratio table), which preserves the previous behavior for those observables.
         if not self.skip_AA_ratio:
-            h_pp_name = f"jetscape_distribution_{label}"
+            h_pp_name = f"jetscape_distribution_raa_denom_{label}"
             h_pp = self.pp_ref_file.Get(h_pp_name)
+            if not h_pp:
+                h_pp_name = f"jetscape_distribution_{label}"
+                h_pp = self.pp_ref_file.Get(h_pp_name)
             for key in keys_to_plot:
                 if self.observable_settings[key] and h_pp:
                     self.observable_settings[key].Divide(h_pp)
+
+        # R_AA ratio: use a fixed 0-3 y-range (user-requested) so the legend clears the points;
+        # consistent across observables, independent of config defaults; unity line stays visible.
+        self.y_min, self.y_max = 0.0, 3.0
 
         c = ROOT.TCanvas("c", "c", 600, 450)
         c.SetRightMargin(0.05)
@@ -1168,9 +1478,142 @@ class PlotResults(common_base.CommonBase):
         text = f"{centrality} {self.suffix} {pt_suffix}"
         text_latex.DrawLatex(x, 0.8, text)
 
-        hname = f"h_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}"
+        # For migrated observables use the unique encoder-based name (self.hname, set in
+        # get_histogram) so per-grooming / per-axis variants don't collide on the legacy suffix
+        # (e.g. axis_alice's two WTA_SD variants share `_R{R}_WTA_SD`). Legacy path unchanged.
+        if getattr(self, "_is_migrated_obs", False) and self.hname:
+            hname = self.hname
+        else:
+            hname = f"h_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}"
         c.SaveAs(str(self.output_dir / f"{hname}{self.file_format}"))
         c.Close()
+
+    # -------------------------------------------------------------------------------------------
+    # Save a log-x/log-y twin of a (non-ratio) distribution canvas.
+    #
+    # For each distribution/spectrum plot we additionally emit a "<name>_logxy.pdf" with log x (and
+    # log y) on the upper distribution pad and log x on the ratio pad. This is purely a second view;
+    # the pad log-flags are restored afterwards so the normal save (if it happens after) is unchanged.
+    # NOT used for R_AA ratios (y ~ 0-2 with y-min often 0 -> degenerate log-y).
+    # -------------------------------------------------------------------------------------------
+    def _save_logxy_twin(
+        self, canvas, base_name, dist_pad=None, ratio_pad=None, blank_histo=None, log_ymin=None, log_ymax=None
+    ):
+        # Remember current log state so we can restore it (callers may reuse the canvas/pads).
+        saved = [(p, p.GetLogx(), p.GetLogy()) for p in (dist_pad, ratio_pad) if p is not None]
+        # The main plot may be on a LINEAR y-range (so its y_min can be 0, which is invalid for
+        # log-y). When a positive log-range is supplied, swap the blank histo onto it for the twin
+        # so the curve isn't clipped/degenerate; restore afterwards.
+        saved_range = None
+        if blank_histo is not None and log_ymin and log_ymax and log_ymin > 0:
+            saved_range = (blank_histo.GetMinimum(), blank_histo.GetMaximum())
+            blank_histo.SetMinimum(log_ymin)
+            blank_histo.SetMaximum(log_ymax)
+        # Only use log-x where the x-range is strictly positive; observables whose x starts at 0
+        # (e.g. groomed mass m_g, z_g) would render an empty log-x plot, so fall back to log-y only.
+        can_logx = blank_histo is not None and blank_histo.GetXaxis().GetXmin() > 0
+        try:
+            if dist_pad is not None:
+                if can_logx:
+                    dist_pad.SetLogx()
+                dist_pad.SetLogy()
+            if ratio_pad is not None and can_logx:
+                ratio_pad.SetLogx()
+            canvas.Update()
+            canvas.SaveAs(str(self.output_dir / f"{base_name}_logxy{self.file_format}"))
+        finally:
+            for p, logx, logy in saved:
+                p.SetLogx(logx)
+                p.SetLogy(logy)
+            if saved_range is not None:
+                blank_histo.SetMinimum(saved_range[0])
+                blank_histo.SetMaximum(saved_range[1])
+            canvas.Update()
+
+    # -------------------------------------------------------------------------------------------
+    # Content-driven y-axis range for the upper (distribution) panel.
+    #
+    # The new YAML schema rarely sets y_min/y_max/logy, so the old per-arm defaults ([0, 1.99]
+    # linear) left many distributions invisible (curve pinned at the axis). Instead we derive the
+    # range from the actual drawn content (JETSCAPE histograms + data graph, including errors) and
+    # auto-pick log vs linear from the dynamic range. Explicit config ranges still win.
+    # -------------------------------------------------------------------------------------------
+    def _content_extrema(self, objs):
+        """(vmin, vpos_min, vmax) over the drawn content of TH1/TGraph objects incl. errors; Nones if empty."""
+        vmin = vposmin = vmax = None
+        for o in objs:
+            if not o:
+                continue
+            if isinstance(o, ROOT.TH1):
+                for i in range(1, o.GetNbinsX() + 1):
+                    c = o.GetBinContent(i)
+                    e = o.GetBinError(i)
+                    if c == 0 and e == 0:
+                        continue
+                    hi, lo = c + e, c - e
+                    vmax = hi if vmax is None else max(vmax, hi)
+                    vmin = lo if vmin is None else min(vmin, lo)
+                    if c > 0:
+                        vposmin = c if vposmin is None else min(vposmin, c)
+            else:  # TGraph / TGraphErrors / TGraphAsymmErrors
+                y = o.GetY()
+                for i in range(o.GetN()):
+                    yi = y[i]
+                    ehi = max(o.GetErrorYhigh(i), 0.0)  # -1 for a plain TGraph -> 0
+                    elo = max(o.GetErrorYlow(i), 0.0)
+                    hi, lo = yi + ehi, yi - elo
+                    vmax = hi if vmax is None else max(vmax, hi)
+                    vmin = lo if vmin is None else min(vmin, lo)
+                    if yi > 0:
+                        vposmin = yi if vposmin is None else min(vposmin, yi)
+        return vmin, vposmin, vmax
+
+    def _log_yrange(self, vposmin, vmax):
+        """Log-scale (y_min, y_max) with span-adaptive top headroom. Steeply-falling pT spectra span
+        many decades and need far more headroom to clear the title/legend than O(1)-shape
+        distributions, so scale the top factor by the dynamic range; ~half a decade at the bottom."""
+        span = (vmax / vposmin) if (vposmin and vposmin > 0) else 1.0
+        top = 1.0e4 if span >= 1.0e4 else 50.0  # pT spectra (>=4 decades) -> x1e4; others -> x50
+        return vposmin / 3.0, vmax * top
+
+    def _auto_y_range(self, vmin, vposmin, vmax, prefer_log=None):
+        """Return (y_min, y_max, use_log) for the given content extrema (with headroom for the legend)."""
+        if vmax is None or vmax <= 0:
+            return 0.0, 1.0, bool(prefer_log)
+        if vposmin is None:
+            vposmin = vmax
+        span = (vmax / vposmin) if vposmin > 0 else 1.0
+        # >~2 decades of dynamic range -> log (unless the config forces a choice via prefer_log).
+        use_log = prefer_log if prefer_log is not None else (span >= 100.0 and (vmin is None or vmin >= 0))
+        if use_log:
+            y_lo, y_hi = self._log_yrange(vposmin, vmax)
+            return y_lo, y_hi, True
+        y_lo = 0.0 if (vmin is None or vmin >= 0) else vmin - 0.1 * abs(vmax)
+        return y_lo, vmax * 1.4, False
+
+    def _area_norm_scale(self, h, g):
+        """Factor to scale MC hist h so its integral matches data graph g over the bins both
+        populate (sum of value x bin-width over matched bins). None if not computable."""
+        mc_int = data_int = 0.0
+        for i in range(g.GetN()):
+            gx, gy, _yl, _yu = self.plot_utils.get_gx_gy(g, i)
+            if gy == 0.0:
+                continue
+            b = h.FindBin(gx)
+            if b < 1 or b > h.GetNbinsX():
+                continue
+            if not (h.GetXaxis().GetBinLowEdge(b) <= gx <= h.GetXaxis().GetBinUpEdge(b)):
+                continue
+            mc_y = h.GetBinContent(b)
+            if mc_y == 0.0:
+                continue  # below the MC kinematic cut (e.g. pT < 5 GeV) -> exclude; integrate only
+                # over the common range where BOTH MC and data have content.
+            w = h.GetXaxis().GetBinWidth(b)
+            mc_int += mc_y * w
+            data_int += gy * w
+        if mc_int > 0.0 and data_int > 0.0:
+            return data_int / mc_int
+        return None
 
     # -------------------------------------------------------------------------------------------
     # Plot distributions in upper panel, and ratio in lower panel
@@ -1205,6 +1648,56 @@ class PlotResults(common_base.CommonBase):
         self.plot_utils.setup_legend(legend_ratio, 0.07, sep=-0.1)
 
         self.bins = np.array(self.observable_settings["jetscape_distribution"].GetXaxis().GetXbins())
+
+        # Display-only area normalization (e.g. pt_ch_atlas): rescale a CLONE of the pp MC so its
+        # integral matches the data over the common measured range, for a shape comparison. The
+        # ORIGINAL is persisted to final_results.root (so R_AA stays absolute); only the drawn
+        # histogram and the MC/data ratio in this plot use the scaled clone.
+        jetscape_original = self.observable_settings["jetscape_distribution"]
+        self._area_normalized = False
+        if getattr(self, "area_normalize", False) and self.observable_settings.get("data_distribution"):
+            scale = self._area_norm_scale(jetscape_original, self.observable_settings["data_distribution"])
+            if scale and scale > 0:
+                disp = jetscape_original.Clone(f"{jetscape_original.GetName()}_areanorm")
+                disp.SetDirectory(0)
+                disp.Scale(scale)
+                self.observable_settings["jetscape_distribution"] = disp
+                self.observable_settings["ratio"] = self.plot_utils.divide_histogram_by_tgraph(
+                    disp, self.observable_settings["data_distribution"], include_tgraph_uncertainties=False
+                )
+                self._area_normalized = True
+            else:
+                logger.warning(
+                    f"area_normalize requested for {observable_type}_{observable} but no overlapping "
+                    f"MC/data range (scale={scale}) -- drawing un-normalized."
+                )
+        elif getattr(self, "area_normalize", False):
+            logger.warning(
+                f"area_normalize requested for {observable_type}_{observable} but no data graph -- not applied."
+            )
+
+        # Auto-range the upper panel from the drawn content (unless the config set y_min/y_max
+        # explicitly). Also compute a guaranteed-positive log range for the _logxy twin.
+        dist_objs = [self.observable_settings.get("data_distribution")]
+        dist_objs += [
+            v
+            for k, v in self.observable_settings.items()
+            if k.startswith("jetscape_distribution") and "raa_denom" not in k and "holes" not in k
+        ]
+        dist_objs = [o for o in dist_objs if o]
+        _vmin, _vposmin, _vmax = self._content_extrema(dist_objs)
+        if not getattr(self, "y_range_explicit", False) and _vmax and _vmax > 0:
+            self.y_min, self.y_max, _auto_log = self._auto_y_range(
+                _vmin, _vposmin, _vmax, prefer_log=(self.logy if getattr(self, "logy_explicit", False) else None)
+            )
+            if not getattr(self, "logy_explicit", False) and _auto_log:
+                self.logy = True
+                pad1.SetLogy()
+        if _vposmin and _vmax and _vposmin > 0:
+            log_ymin, log_ymax = self._log_yrange(_vposmin, _vmax)
+        else:
+            log_ymin = log_ymax = None
+
         myBlankHisto = ROOT.TH1F("myBlankHisto", "Blank Histogram", 1, self.bins[0], self.bins[-1])
         myBlankHisto.SetNdivisions(505)
         myBlankHisto.SetXTitle(self.xtitle)
@@ -1259,7 +1752,15 @@ class PlotResults(common_base.CommonBase):
             legend.AddEntry(self.observable_settings["data_distribution"], "Data", "PE")
 
         # Draw JETSCAPE
-        self.output_dict[f"jetscape_distribution_{label}"] = self.observable_settings["jetscape_distribution"]
+        # Persist the ORIGINAL (unscaled) MC -- even when area-normalized for display -- so the AA
+        # R_AA division (which may fall back to this hist) stays on the absolute normalization.
+        self.output_dict[f"jetscape_distribution_{label}"] = jetscape_original
+        # Persist the R_AA-denominator companion (pp run only) into final_results.root so the AA
+        # plot_RAA run can divide by it (it is scaled/normalized identically; only the binning is the
+        # AA `ratio` binning). Not drawn here -- it's an internal histogram for the ratio, not a pp curve.
+        h_raa_denom = self.observable_settings.get("jetscape_distribution_raa_denom")
+        if h_raa_denom:
+            self.output_dict[f"jetscape_distribution_raa_denom_{label}"] = h_raa_denom
         if self.observable_settings["jetscape_distribution"].GetNbinsX() > 1:
             self.observable_settings["jetscape_distribution"].SetFillColor(self.jetscape_color[0])
             self.observable_settings["jetscape_distribution"].SetFillColorAlpha(
@@ -1332,6 +1833,9 @@ class PlotResults(common_base.CommonBase):
         text = f"{centrality} {self.suffix} {pt_suffix}"
         text_latex.DrawLatex(x, 0.73, text)
 
+        if getattr(self, "_area_normalized", False):
+            text_latex.DrawLatex(x, 0.63, "MC area-normalized to data")
+
         if self.skip_pp:
             text = "skip data plot -- no pp data in HEPData"
             text_latex.DrawLatex(x, 0.53, text)
@@ -1342,6 +1846,10 @@ class PlotResults(common_base.CommonBase):
             text_latex.DrawLatex(x, 0.93, text)
 
         c.SaveAs(str(self.output_dir / f"{self.hname}{self.file_format}"))
+        # Also emit a log-x/log-y twin of this distribution plot (NOT for R_AA ratios).
+        self._save_logxy_twin(
+            c, self.hname, dist_pad=pad1, ratio_pad=pad2, blank_histo=myBlankHisto, log_ymin=log_ymin, log_ymax=log_ymax
+        )
         c.Close()
 
     # -------------------------------------------------------------------------------------------

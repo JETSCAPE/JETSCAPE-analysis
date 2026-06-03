@@ -11,7 +11,9 @@ Output follows the JetScape data-file format specification v1.0 (Note 1423):
     <xmin> <xmax> <y> <stat_lo> <stat_hi> ...
 
 Only AA/ratio (RAA) blocks are written.  One output file per (centrality, jet_R) combination.
-Filename convention: Data_{exp}_{system}_{measurement}_{cent}_{year}.dat
+Each table is written twice, with identical content, under two filename conventions:
+  1. legacy:     Data_{exp}_{system}_{measurement}_{cent}_{year}.dat
+  2. structured: Data__{sqrts}__{system}__{class}__{obs}_{exp}__{jet_cfg}__{cent}.dat
 
 .. codeauthor:: auto-generated
 """
@@ -20,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +40,13 @@ _MEASUREMENT_TAG: dict[str, str] = {
     "hadron/pt_pi": "RAAPi",
     "hadron/pt_pi0": "RAAPi0",
     "inclusive_jet/pt": "RAAJet",
+}
+
+# Shortened labels used in the structured filename convention:
+#   Data__{sqrts}__{system}__{class_label}__{observable}_{exp}__{jet_cfg}__{cent}.dat
+# For most classes this is identity; trigger-composite classes collapse to their trigger side.
+_OBSERVABLE_CLASS_LABEL: dict[str, str] = {
+    "dijet_trigger_jet": "dijet",
 }
 
 
@@ -58,9 +68,105 @@ def _measurement_tag(obs: observable.Observable, combo: dict[str, Any]) -> str:
     key = f"{obs.observable_class}/{obs.internal_name_without_experiment}"
     base = _MEASUREMENT_TAG.get(key, obs.internal_name_without_experiment.upper())
     jet_r = combo.get("jet_R")
+    R_value: float | None
     if isinstance(jet_r, observable.JetRSpec):
-        base = f"{base}R{int(round(jet_r.R * 10)):02d}"
+        R_value = jet_r.R
+    elif isinstance(jet_r, (int, float)):
+        R_value = float(jet_r)
+    elif isinstance(jet_r, str):
+        try:
+            R_value = float(jet_r)
+        except ValueError:
+            R_value = None
+    else:
+        R_value = None
+    if R_value is not None:
+        base = f"{base}R{round(R_value * 10):02d}"
+    # Append pt-bin index when the observable has multiple pT bins (jet.pt or trigger.pt
+    # declaring more than two edges). Keeps legacy names unique for e.g. pt_y_atlas (4 pT bins).
+    pt_sel = _find_pt_selection(combo)
+    if pt_sel is not None:
+        idx = _pt_bin_index(obs, pt_sel)
+        if idx is not None:
+            base = f"{base}pt{idx}"
     return base
+
+
+def _observable_class_label(obs_class: str) -> str:
+    """Short label for the observable class used in the structured filename."""
+    return _OBSERVABLE_CLASS_LABEL.get(obs_class, obs_class)
+
+
+def _pt_bin_edges_for_obs(obs: observable.Observable) -> list[float] | None:
+    """Return the ordered pt-bin edge list for this observable, or None.
+
+    Trigger observables carry their pt binning under ``trigger:``; inclusive jet/chjet
+    observables carry it under ``jet:``. The returned list is raw bin edges
+    (n edges → n-1 bins); an entry of ``None`` caps the last bin as open.
+    """
+    for section in ("trigger", "jet"):
+        sec = obs.config.get(section)
+        if isinstance(sec, dict):
+            pt = sec.get("pt")
+            if isinstance(pt, list) and len(pt) >= 2:
+                return [float(v) if v is not None else float("inf") for v in pt]
+    return None
+
+
+def _pt_bin_index(obs: observable.Observable, pt_spec: observable.PtSpec) -> int | None:
+    """Zero-based index of ``pt_spec`` among the yaml-declared pt bins, or None if not multi-bin."""
+    edges = _pt_bin_edges_for_obs(obs)
+    if edges is None or len(edges) <= 2:
+        return None
+    lo = float(pt_spec.low)
+    hi = float("inf") if pt_spec.high is None else float(pt_spec.high)
+    for i in range(len(edges) - 1):
+        if abs(edges[i] - lo) < 1e-9 and abs(edges[i + 1] - hi) < 1e-9:
+            return i
+    return None
+
+
+def _fmt_R(R: float) -> str:
+    """Format jet-R as ``R0.4`` style (single-decimal, trailing zero kept)."""
+    return f"R{R:.1f}"
+
+
+def _jet_config_tag(obs: observable.Observable, params: dict[str, Any]) -> str:
+    """Build the ``R{R}[_pt{i}]`` slot of the structured filename.
+
+    Returns an empty string for classes that have no jet-R (e.g. ``hadron``), which
+    produces the ``____`` (empty middle field) seen in hadron filenames.
+    """
+    jet_r = _find_jet_r(params)
+    if jet_r is None:
+        return ""
+    R_value = jet_r.R if isinstance(jet_r, observable.JetRSpec) else float(jet_r)
+    tag = _fmt_R(R_value)
+    pt_sel = _find_pt_selection(params)
+    if pt_sel is not None:
+        idx = _pt_bin_index(obs, pt_sel)
+        if idx is not None:
+            tag = f"{tag}_pt{idx}"
+    return tag
+
+
+def _centrality_tag_new(cent: observable.CentralitySpec) -> str:
+    return f"{_fmt_int(cent.low)}-{_fmt_int(cent.high)}"
+
+
+def _new_filename(obs: observable.Observable, params: dict[str, Any], cent: observable.CentralitySpec) -> str:
+    """Structured-convention filename:
+
+    ``Data__{sqrts}__{system}__{class}__{obs}_{exp}__{jet_cfg}__{cent}.dat``
+
+    The ``{obs}_{exp}`` field is the yaml observable key verbatim (e.g. ``pt_ch_alice``,
+    ``Dpt_atlas``, ``xj_atlas``). The jet_cfg slot is empty for hadron observables.
+    """
+    system = "PbPb" if obs.sqrt_s in (2760, 5020) else "AuAu"
+    class_label = _observable_class_label(obs.observable_class)
+    jet_cfg = _jet_config_tag(obs, params)
+    cent_tag = _centrality_tag_new(cent)
+    return f"Data__{obs.sqrt_s}__{system}__{class_label}__{obs.name}__{jet_cfg}__{cent_tag}.dat"
 
 
 _INSPIRE_YEAR_CACHE: dict[int, str] = {}
@@ -91,7 +197,7 @@ def _year_from_inspire(inspire_hep_id: int) -> str:
             year = earliest.split("-")[0]
             _INSPIRE_YEAR_CACHE[inspire_hep_id] = year
             return year
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug(f"Inspire API lookup failed for ins{inspire_hep_id}: {exc}")
     _INSPIRE_YEAR_CACHE[inspire_hep_id] = "unknown"
     return "unknown"
@@ -112,7 +218,7 @@ def _year_from_hepdata(hd_info: hepdata_utils.HEPDataInfo, base_data_dir: Path) 
                 date = m["dateupdated"]
                 # Format "24/04/2015 07:16:36" → "2015"
                 return date.split()[0].split("/")[-1]
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
     return _year_from_inspire(hd_info.identifier.inspire_hep_id)
 
@@ -181,6 +287,20 @@ def _find_pt_range(combo: dict[str, Any]) -> observable.PtSpec | None:
     return None
 
 
+def _find_pt_selection(combo: dict[str, Any]) -> observable.PtSpec | None:
+    """Return the PtSpec identifying the jet-pT bin for structured-filename indexing.
+
+    Accepts either ``pt`` or ``jet_pt`` — the substructure observables use ``jet_pt`` to
+    tag which dependent-variable index to pull (the independent axis isn't pT).
+    """
+    for key in ("pt", "jet_pt"):
+        v = combo.get(key)
+        if v is None:
+            continue
+        return _decode_pt_range(v) if isinstance(v, str) else v
+    return None
+
+
 def _systematic_column_prefix(canonical: str) -> str:
     """Return the column-name prefix for a systematic source.
 
@@ -199,12 +319,7 @@ def _expand_ratio_entries(obs: observable.Observable) -> list[dict[str, Any]]:
     unresolved key mismatch for ``jet_R`` (registered as ``R``). Returning raw
     dicts lets us decode parameter values by hand in the writer.
     """
-    ratio_cfg = (
-        obs.config.get("data", {})
-        .get("AA", {})
-        .get("hepdata", {})
-        .get("ratio")
-    )
+    ratio_cfg = obs.config.get("data", {}).get("AA", {}).get("hepdata", {}).get("ratio")
     if not ratio_cfg:
         return []
     tables = ratio_cfg.get("tables", [])
@@ -216,9 +331,7 @@ def _expand_ratio_entries(obs: observable.Observable) -> list[dict[str, Any]]:
             continue
         # Skip unfilled blocks (systematics_names still empty) — nothing to write.
         if not e.get("systematics_names") and not e.get("additional_systematics"):
-            logger.debug(
-                f"Skipping unfilled ratio entry for {obs.observable_str} (empty systematics_names)"
-            )
+            logger.debug(f"Skipping unfilled ratio entry for {obs.observable_str} (empty systematics_names)")
             continue
         entries.append(e)
     return entries
@@ -228,7 +341,7 @@ def _format_number(x: float) -> str:
     return f"{x:.6g}"
 
 
-def write_data_table(
+def write_data_table(  # noqa: C901
     obs: observable.Observable,
     entry: dict[str, Any],
     hd_info: hepdata_utils.HEPDataInfo,
@@ -248,9 +361,7 @@ def write_data_table(
     # Locate the HEPData YAML file
     table_rel_filename = hd_info.tables_to_filenames.get(table_name)
     if table_rel_filename is None:
-        logger.warning(
-            f"{obs.observable_str}: '{table_name}' not in hepdata record {hd_info.identifier}; skipping"
-        )
+        logger.warning(f"{obs.observable_str}: '{table_name}' not in hepdata record {hd_info.identifier}; skipping")
         return None
     yaml_path = Path(base_data_dir) / "data" / hd_info.directory / table_rel_filename
     with yaml_path.open() as f:
@@ -259,17 +370,14 @@ def write_data_table(
     # Independent variable → bin edges (prefer xmin/xmax, fall back to x)
     ind = hd["independent_variables"][0]
     has_bin_edges = all(
-        ("low" in b and "high" in b and b.get("low") is not None and b.get("high") is not None)
-        for b in ind["values"]
+        ("low" in b and "high" in b and b.get("low") is not None and b.get("high") is not None) for b in ind["values"]
     )
 
     # Dependent variable (select by index, 1-based per HEPData convention)
     try:
         dv = hd["dependent_variables"][int(table_index) - 1]
     except (IndexError, ValueError):
-        logger.warning(
-            f"{obs.observable_str}: table_index={table_index} out of range for {table_name}; skipping"
-        )
+        logger.warning(f"{obs.observable_str}: table_index={table_index} out of range for {table_name}; skipping")
         return None
 
     # Build systematic columns in config order: skip "stat" (written separately), use canonical names.
@@ -289,14 +397,7 @@ def write_data_table(
         return None
     exp = obs.experiment
     system = _system_tag(obs.sqrt_s)
-    # _measurement_tag needs JetRSpec (if any) — build a decoded combo
-    decoded_combo: dict[str, Any] = {}
-    for k, v in params.items():
-        if "jet_r" in str(k).lower() or str(k) == "R":
-            jr = _decode_jet_r(v) if isinstance(v, str) else v
-            if jr is not None:
-                decoded_combo[k] = jr
-    measurement = _measurement_tag(obs, decoded_combo)
+    measurement = _measurement_tag(obs, params)
     cent_tag = _centrality_tag(cent)
     year = _year_from_hepdata(hd_info, base_data_dir)
 
@@ -344,7 +445,10 @@ def write_data_table(
         for ind_entry, v in zip(ind["values"], dv["values"], strict=False):
             y_raw = v.get("value")
             # Skip HEPData "missing" sentinels like "-", "", None
-            if y_raw is None or (isinstance(y_raw, str) and not y_raw.replace(".", "").replace("-", "").replace("e", "").replace("+", "").strip()):
+            if y_raw is None or (
+                isinstance(y_raw, str)
+                and not y_raw.replace(".", "").replace("-", "").replace("e", "").replace("+", "").strip()
+            ):
                 continue
             try:
                 y = float(y_raw)
@@ -382,7 +486,7 @@ def write_data_table(
                     lo, hi = 0.0, 0.0
                 row += [_format_number(lo), _format_number(hi)]
 
-            # Additional systematics (global, constant across bins) — frac × |y|
+            # Additional systematics (global, constant across bins) - frac * |y|
             for _, frac in additional_cols:
                 abs_err = abs(y) * float(frac)
                 row += [_format_number(abs_err), _format_number(abs_err)]
@@ -391,6 +495,14 @@ def write_data_table(
             n_written += 1
 
     logger.info(f"Wrote {n_written} rows to {out_path}")
+
+    # Also emit a second copy under the structured filename convention:
+    #   Data__{sqrts}__{system}__{class}__{obs}_{exp}__{jet_cfg}__{cent}.dat
+    new_fn = _new_filename(obs, params, cent)
+    new_path = out_dir / new_fn
+    shutil.copy2(out_path, new_path)
+    logger.info(f"Also wrote structured-name copy to {new_path}")
+
     return out_path
 
 

@@ -1403,7 +1403,11 @@ class Observable:
                 raise KeyError(msg) from e
 
         if parameters_to_encode:
-            logger.warning(f"Provided {parameters_to_encode=}, but they're not needed to encode the name")
+            # Downgraded from warning to debug: this fires per-jet for observables where
+            # the caller passes a parameter that turns out not to be essential (e.g. a
+            # grooming_setting for an observable with only one configured setting). Benign,
+            # but at warning level it floods the analyzer log.
+            logger.debug(f"Provided {parameters_to_encode=}, but they're not needed to encode the name")
 
         # Aiming for something like:
         # f"inclusive_chjet_ktg_alice_R{jetR}_zcut{zcut}_beta{beta}{jet_collection_label}"

@@ -13,14 +13,21 @@ from typing import Any, Final
 from urllib.parse import parse_qs, urlparse
 
 import attrs
-import requests
-import ruamel.yaml
 
 logger = logging.getLogger(__name__)
 
-_here = Path(__file__).parent
-BASE_DATA_DIR = _here.parent.parent / "data" / "hard-sector-data-curation"
 DEFAULT_DATABASE_NAME: Final[Path] = Path("hepdata_database.yaml")
+_here = Path(__file__).parent
+# Prefer the in-tree submodule location (once pulled from upstream);
+# fall back to the sibling checkout used before the submodule migration.
+# NOTE: We require the database file to actually be present, not just the
+# directory — an uninitialized git submodule leaves an empty placeholder dir
+# that would otherwise shadow a populated sibling clone.
+_SUBMODULE_DATA_DIR = _here.parent.parent / "data" / "hard-sector-data-curation"
+_SIBLING_DATA_DIR = _here.parent.parent.parent / "hard-sector-data-curation"
+BASE_DATA_DIR = (
+    _SUBMODULE_DATA_DIR if (_SUBMODULE_DATA_DIR / DEFAULT_DATABASE_NAME).exists() else _SIBLING_DATA_DIR
+)
 
 URLParams = dict[str, Any]
 
@@ -156,6 +163,8 @@ def read_database(
         base_data_dir = BASE_DATA_DIR
     base_data_dir = Path(base_data_dir)
 
+    import ruamel.yaml  # noqa: PLC0415
+
     y = ruamel.yaml.YAML()
     database_filename = base_data_dir / database_filename
     with database_filename.open() as f:
@@ -199,6 +208,8 @@ def write_info_to_database(
     # NOTE: From here, we're working entirely with **ENCODED VALUES**. That is to say, dicts
 
     # Need to read the database first so we can update it.
+    import ruamel.yaml  # noqa: PLC0415
+
     y = ruamel.yaml.YAML()
     y.width = 120
     with database_filename.open() as f:
@@ -332,6 +343,11 @@ def download_files_from_hepdata(
     Returns:
         Path to downloaded file, version extracted from HEPData.
     """
+    # Lazy import: `requests` is only needed to download from HEPData, and is not
+    # part of the histogramming/plotting runtime (e.g. the analysis container).
+    # Keeping it local lets read_database() / BASE_DATA_DIR be imported there.
+    import requests  # noqa: PLC0415
+
     # Validation
     # First, check the paths
     output_file_path = Path(output_file_path)
@@ -413,6 +429,8 @@ def read_metadata_from_hepdata_files(hepdata_dir: Path) -> tuple[int, dict[str, 
     hepdata_dir = Path(hepdata_dir)
 
     # Setup
+    import ruamel.yaml  # noqa: PLC0415
+
     y = ruamel.yaml.YAML()
 
     # Load the metadata from the submission file

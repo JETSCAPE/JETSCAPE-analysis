@@ -849,7 +849,7 @@ def calculate_groomed_jet(
     jet: Any,
     jet_R: float,
     jet_collection_label: str = "",
-) -> tuple[Any, observable.SoftDropSpec | observable.DynamicalGroomingSpec]:
+) -> tuple[Any, observable.SoftDropSpec | observable.DynamicalGroomingSpec, Any]:
     """Calculate groomed jet from existing jet.
 
     Args:
@@ -858,7 +858,14 @@ def calculate_groomed_jet(
         jet_R: Jet R.
         jet_collection_label: Label of the jet collection type.
     Returns:
-        Splitting properties of the splitting identified by the grooming method, grooming method spec
+        Splitting properties of the splitting identified by the grooming method, grooming method
+        spec, and the GroomerShop itself.
+
+    IMPORTANT: the returned GroomerShop owns the C/A reclustering ClusterSequence that the
+    groomed jet's constituents point into. The caller MUST keep it alive for as long as it
+    accesses groomed-jet constituents (e.g. fjext.lambda_beta_kappa on the groomed pair) —
+    otherwise the ClusterSequence is freed and constituent access dereferences dangling memory
+    (segfault). Scalar splitting properties (.kt()/.Delta()/.z()/.pair().m()) are unaffected.
     """
     # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering
     jet_def = fj.JetDefinition(fj.cambridge_algorithm, jet_R)
@@ -879,4 +886,4 @@ def calculate_groomed_jet(
             msg = f"Unrecognized grooming method spec: {grooming_setting}"
             raise ValueError(msg)
 
-    return jet_groomed_lund, grooming_method_spec
+    return jet_groomed_lund, grooming_method_spec, gshop

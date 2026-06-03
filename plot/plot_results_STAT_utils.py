@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ctypes
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,42 @@ from jetscape_analysis.base import common_base
 ROOT.gROOT.SetBatch(True)
 
 logger = logging.getLogger(__name__)
+
+# One-shot guards so recurring data-quality warnings (e.g. swapped HEPData bin edges, seen on
+# every bin-read) are logged once per process rather than once per call.
+_warned_once: set[str] = set()
+
+
+def _warn_once(key: str, message: str) -> None:
+    if key not in _warned_once:
+        _warned_once.add(key)
+        logger.warning(message)
+
+# Jet/substructure observables whose ANALYZER fill is migrated to the observable encoder
+# (obs.encode_name_for_storing_in_file). For these, the histogrammer and plotter must derive the
+# storage column / histogram name from the same encoder rather than hand-building a legacy
+# f-string, otherwise the lookup misses and the observable silently produces no histogram (Step 4;
+# OBSERVABLE_EDGE_CASES C5). Keyed (observable_type, observable). Everything not listed here
+# (e.g. charge_cms, plain RAA/Dz/...) stays on the legacy f-string path, matching its analyzer.
+# Lives here (shared utils) so the histogrammer and plotter use a single source of truth and can
+# never drift on membership.
+# NOTE: mass_alice and angularity_alice are intentionally NOT here. Each conflates an ungroomed
+# quantity (jet.m() / lambda(jet), written by a legacy f-string fill) with a groomed one
+# (m_g / lambda(groomed pair), written by the encoder). Splitting them into distinct observables
+# (mass_alice + mg_alice; angularity_alice + angularity_groomed_alice) is Step 5. Until then they
+# stay on the legacy path (histogramming the ungroomed quantity, as before -- no regression).
+ENCODER_MIGRATED_JET_OBSERVABLES = {
+    ("inclusive_chjet", "ktg_alice"),
+    ("inclusive_chjet", "zg_alice"),
+    ("inclusive_chjet", "tg_alice"),
+    ("inclusive_chjet", "axis_alice"),
+    ("inclusive_jet", "mg_cms"),
+    ("inclusive_jet", "zg_cms"),
+    ("inclusive_jet", "rg_atlas"),
+    ("inclusive_jet", "axis_cms"),
+    # Step 4.5: jet charge, parametrized by kappa (data block keyed by jet_charge: kappa_X).
+    ("inclusive_jet", "charge_cms"),
+}
 
 
 def available_hepdata_files_in_block(block: dict[str, Any]) -> list[str]:
@@ -50,7 +87,8 @@ class PlotUtils(common_base.CommonBase):
     # Get bin array specified in config block
     # ---------------------------------------------------------------
     def bins_from_config(
-        self, block, sqrts, observable_type, observable, centrality, centrality_index, suffix=""
+        self, block, sqrts, observable_type, observable, centrality, centrality_index, suffix="", is_AA=False, pt_suffix="",
+        data_block_params=None,
     ) -> npt.NDarray[np.int32] | npt.NDArray[np.int64]:
         if "bins" in block:
             logger.info(f"  Histogram with custom binning found for {observable} {centrality} {suffix}")
@@ -58,6 +96,13 @@ class PlotUtils(common_base.CommonBase):
         if "hepdata" in block:
             logger.info(f"  Histogram with hepdata binning found for {observable} {centrality} {suffix}")
             return self.bins_from_hepdata(block, sqrts, observable_type, observable, centrality_index, suffix)
+        if "data" in block:
+            logger.info(f"  Histogram with data-block (HEPData YAML) binning found for {observable} {centrality} {suffix}")
+            # is_AA selects the measured artifact (AA->ratio, pp->spectra), which
+            # determines the binning the histogram must match.
+            return self.bins_from_data_block(
+                block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix, data_block_params
+            )
         logger.warning(f"\tNo binning found for {observable} {centrality} {suffix}")
         return np.array([])
 
@@ -84,6 +129,7 @@ class PlotUtils(common_base.CommonBase):
             dir_key = "hepdata_AA_dir"
         else:
             logger.info(f"hepdata_AA_dir{suffix} not found!")
+            return np.array([])
 
         # Check for hist names in config
         if f"hepdata_AA_hname{suffix}" in block:
@@ -129,6 +175,200 @@ class PlotUtils(common_base.CommonBase):
             bins = np.insert(bins, 0, 0.0, axis=0)
 
         f.Close()
+
+        return bins
+
+    # ---------------------------------------------------------------
+    # Turn a HEPData independent-variable `values` list into a binning.
+    # Returns (edges, centers, exl, exh) as float64 arrays, or None if unusable.
+    # Handles both {low, high} per-bin tables and center-only {value} tables; for
+    # the latter, edges are synthesized as midpoints and `centers` are the bin
+    # centers (NOT the raw values), so a histogram binned with `edges` has bin
+    # centers that coincide with the graph x-points — keeping the two aligned.
+    # ---------------------------------------------------------------
+    @staticmethod
+    def _axis_from_independent_values(values):
+        if not values or not all(isinstance(v, dict) for v in values):
+            return None
+        if all("low" in v and "high" in v for v in values):
+            lo = np.array([float(v["low"]) for v in values], dtype=np.float64)
+            hi = np.array([float(v["high"]) for v in values], dtype=np.float64)
+            # Some curated HEPData tables store the bin boundaries with low/high swapped
+            # (low > high per bin -- e.g. charge_cms Tables 1/8/9 and their AA ratio tables).
+            # Normalize lower/upper = min/max so each bin is well-ordered; a well-formed
+            # (low < high) table is unaffected. Warn rather than silently absorb, so the
+            # underlying data bug stays visible for curation.
+            if np.any(lo > hi):
+                _warn_once(
+                    "swapped_bins",
+                    "\tHEPData bin has low > high (swapped); normalizing via min/max -- flag for curation.",
+                )
+            lows = np.minimum(lo, hi)
+            highs = np.maximum(lo, hi)
+            edges = np.append(lows, highs[-1])
+            # The synthesized edges are monotonic only if the rows are in ascending bin order
+            # (the min/max above fixes a per-bin swap, not reversed/overlapping rows). Guard
+            # rather than hand a non-increasing array to ROOT TH1F (which errors + books a
+            # broken axis); None is handled by callers (bins_from_data_block -> empty -> skip).
+            if not np.all(np.diff(edges) > 0):
+                logger.warning("\tHEPData independent-variable edges are not monotonically increasing; skipping binning.")
+                return None
+            centers = 0.5 * (lows + highs)
+            return edges, centers, centers - lows, highs - centers
+        if all("value" in v for v in values):
+            raw = np.array([float(v["value"]) for v in values], dtype=np.float64)
+            # Can't infer a bin width from a single center, and non-increasing
+            # centers would synthesize non-monotonic edges that break ROOT TH1F.
+            if raw.size < 2 or not np.all(np.diff(raw) > 0):
+                return None
+            mids = 0.5 * (raw[1:] + raw[:-1])
+            first = 2 * raw[0] - mids[0]
+            last = 2 * raw[-1] - mids[-1]
+            edges = np.concatenate(([first], mids, [last]))
+            centers = 0.5 * (edges[1:] + edges[:-1])
+            return edges, centers, centers - edges[:-1], edges[1:] - centers
+        return None
+
+    # ---------------------------------------------------------------
+    # Resolve the HEPData YAML table for a new-schema `data:` block.
+    #
+    # Raymond's migration replaced the old top-level `hepdata:` ROOT-file lookup
+    # with a `data:` block that points at the hard-sector-data-curation HEPData
+    # YAML files. This shared resolver (used by both bins_from_data_block and
+    # tgraph_from_data_block) selects the table matching the requested
+    # (centrality, jet_R, jet_pt) and returns the parsed per-table YAML dict plus
+    # the matched expanded config entry (which carries table, index, parameters,
+    # additional_systematics). Returns (None, None) on any failure.
+    #
+    # Artifact selection mirrors the measured quantity being compared against,
+    # matching the old hepdata_{AA,pp}_dir keys:
+    #   - AA -> the `ratio` block (the measured R_AA)
+    #   - pp -> the `spectra` block (the measured pp spectrum)
+    # with a fallback to the other artifact when the preferred one is absent.
+    # This matters for binning too: e.g. pt_ch_alice R_AA is 39 bins (ratio)
+    # vs 61 bins (AA spectrum) — the histogram must match the measurement.
+    # ---------------------------------------------------------------
+    def _resolve_data_hepdata_table(
+        self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix="", data_block_params=None
+    ):
+        # Lazy imports: keep ROOT-only callers free of the data_curation deps.
+        from jetscape_analysis.data_curation import data as data_mod  # noqa: PLC0415
+        from jetscape_analysis.data_curation import hepdata_utils  # noqa: PLC0415
+
+        # Read (and cache) the HEPData record database. We parse it with pyyaml
+        # directly rather than hepdata_utils.read_database(), which depends on
+        # ruamel.yaml — not installed in the analysis container. BASE_DATA_DIR
+        # auto-falls back to the sibling clone when the submodule isn't initialized.
+        if getattr(self, "_hepdata_database", None) is None:
+            db_path = hepdata_utils.BASE_DATA_DIR / hepdata_utils.DEFAULT_DATABASE_NAME
+            with open(db_path) as f:
+                self._hepdata_database = yaml.safe_load(f) or {}
+        infos = self._hepdata_database.get(f"{sqrts}/{observable_type}/{observable}")
+        if not infos:
+            logger.warning(f"\tNo HEPData database entry for {observable}; cannot resolve data table")
+            return None, None
+
+        system = "AA" if is_AA else "pp"
+        hepdata = block.get("data", {}).get(system, {}).get("hepdata", {})
+        artifact = hepdata.get("ratio") if is_AA else hepdata.get("spectra")
+        if not artifact:
+            artifact = hepdata.get("spectra") if is_AA else hepdata.get("ratio")
+        if not artifact or "tables" not in artifact:
+            logger.warning(f"\tNo data artifact (spectra/ratio) for {observable} {system}")
+            return None, None
+
+        # Expand the `tables` (with their nested `combinations`) into one flat
+        # config per (table, parameters) — same helper data_curation uses.
+        expanded = data_mod.expand_parameter_combinations_into_individual_configs(artifact["tables"])
+
+        # Build the desired parameter selection. centrality arrives as a
+        # [low, high] list -> the YAML uses "low_high". jet_R and jet_pt are
+        # encoded in the suffix/pt_suffix (e.g. "_R0.4", "_pt2").
+        combined = f"{suffix or ''}{pt_suffix or ''}"
+        desired = {}
+        if isinstance(centrality, (list, tuple)) and len(centrality) == 2:
+            desired["centrality"] = f"{int(centrality[0])}_{int(centrality[1])}"
+        m = re.search(r"_R([0-9.]+)", combined)
+        if m:
+            desired["jet_R"] = f"{float(m.group(1)):g}"
+        mp = re.search(r"_pt(\d+)", combined)
+        if mp and isinstance(block.get("jet", {}).get("pt"), list):
+            i = int(mp.group(1))
+            pt_edges = block["jet"]["pt"]
+            if i + 1 < len(pt_edges):
+                desired["jet_pt"] = f"{pt_edges[i]}_{pt_edges[i + 1]}"
+
+        # Sub-observable parameters (jet_grooming_settings, jet_axis, ...) the caller has already
+        # encoded in the data-block convention (GroomingSettingsSpec/JetAxisDifferenceSpec encoding,
+        # which carries the "SD_"/"DyG_" prefix -- distinct from the analyzer's storage encoding).
+        # Without these, observables with one HEPData table per grooming/axis variant would all match
+        # the first table (centrality/jet_R/jet_pt only) and so share the wrong bin edges. Entries
+        # that don't constrain a key still impose no condition (see _matches).
+        if data_block_params:
+            desired.update(data_block_params)
+
+        def _matches(entry_params):
+            # An entry matches if every parameter it constrains that we also
+            # know about agrees. Entries that don't constrain a key impose no
+            # condition on it.
+            for k, v in entry_params.items():
+                if k in desired:
+                    a = f"{float(v):g}" if k == "jet_R" else str(v)
+                    if a != desired[k]:
+                        return False
+            return True
+
+        entry = next((e for e in expanded if e.get("table") and _matches(e.get("parameters", {}))), None)
+        if entry is None:
+            logger.warning(f"\tNo matching data table for {observable} {centrality} {combined} (desired={desired})")
+            return None, None
+
+        # Resolve the HEPData record for this table. Match on inspire_hep_id from
+        # the artifact `record`; if there's a single record, just use it.
+        record_id = artifact.get("record", {}).get("inspire_hep_id")
+        info = next((i for i in infos if i.get("inspire_hep_id") == record_id), infos[0])
+        rel_filename = info.get("tables_to_filenames", {}).get(entry["table"])
+        if rel_filename is None:
+            logger.warning(f"\t'{entry['table']}' not in HEPData record ins{info.get('inspire_hep_id')} for {observable}")
+            return None, None
+        yaml_path = hepdata_utils.BASE_DATA_DIR / "data" / info["directory"] / rel_filename
+        if not yaml_path.exists():
+            logger.warning(f"\tHEPData YAML missing: {yaml_path}")
+            return None, None
+        with yaml_path.open() as f:
+            hd = yaml.safe_load(f)
+        return hd, entry
+
+    # ---------------------------------------------------------------
+    # Get bin array from the new-schema `data:` block (HEPData YAML).
+    # Reads the bin edges from independent_variables[0] of the table that the
+    # measured quantity uses (AA->ratio, pp->spectra; see _resolve_data_hepdata_table).
+    # ---------------------------------------------------------------
+    def bins_from_data_block(
+        self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix="", data_block_params=None
+    ):
+        hd, _entry = self._resolve_data_hepdata_table(
+            block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix, data_block_params
+        )
+        if hd is None:
+            return np.array([])
+
+        # Bin edges come from the first independent variable.
+        indep = (hd or {}).get("independent_variables") or []
+        axis = self._axis_from_independent_values(indep[0].get("values") if indep else None)
+        if axis is None:
+            logger.warning(f"\t{observable}: cannot determine bin edges from independent variable")
+            return np.array([])
+        bins = axis[0]
+
+        # Preserve the special cases from the old ROOT path:
+        # - zg/tg_alice: drop the leading "untagged" bin so it becomes underflow.
+        if observable in ["zg_alice", "tg_alice"]:
+            bins = bins[1:]
+        # - pt_y_atlas: HEPData omits the 0<|y|<0.3 bin (it's the ratio denominator);
+        #   re-insert it.
+        if observable == "pt_y_atlas":
+            bins = np.insert(bins, 0, 0.0, axis=0)
 
         return bins
 
@@ -272,6 +512,109 @@ class PlotUtils(common_base.CommonBase):
         return g  # noqa: RET504
 
     # ---------------------------------------------------------------
+    # Get tgraph from the new-schema `data:` block (HEPData YAML).
+    #
+    # Counterpart to bins_from_data_block, but for the measured-data overlay:
+    # resolves the relevant HEPData table for this observable and builds a
+    # TGraphAsymmErrors from its dependent-variable values + uncertainties.
+    #   - pp  -> the `spectra` block (the measured pp spectrum)
+    #   - AA  -> the `ratio` block (the measured R_AA, which is what the AA
+    #            plot overlays); falls back to spectra if no ratio block.
+    # The y-error is the quadrature sum of every per-bin error source plus any
+    # `additional_systematics` (the plot draws a single combined band, matching
+    # what the old HEPData ROOT graphs encoded).
+    # ---------------------------------------------------------------
+    def tgraph_from_data_block(
+        self, block, is_AA, sqrts, observable_type, observable, centrality, suffix="", pt_suffix="", data_block_params=None
+    ):
+        # Lazy import for the error-parsing helpers (reused from build_tables).
+        from jetscape_analysis.data_curation import build_tables  # noqa: PLC0415
+
+        # data_block_params selects the per-grooming / per-axis HEPData table for migrated
+        # observables (same mechanism as the binning path; OBSERVABLE_EDGE_CASES A9).
+        hd, match = self._resolve_data_hepdata_table(
+            block, is_AA, sqrts, observable_type, observable, centrality, suffix, pt_suffix, data_block_params
+        )
+        if hd is None:
+            return None
+
+        # The dependent-variable index selects which measurement column to read
+        # (1-based per HEPData convention; index 0 would silently pick the last block).
+        try:
+            index = int(match.get("index", 1))
+        except (TypeError, ValueError):
+            index = 0
+        if index < 1:
+            logger.warning(f"\tInvalid table index {match.get('index')!r} for {observable} {match.get('table')}")
+            return None
+
+        indep = (hd or {}).get("independent_variables") or []
+        ind_values = indep[0].get("values") if indep else None
+        try:
+            dep_values = hd["dependent_variables"][index - 1]["values"]
+        except (KeyError, IndexError, TypeError):
+            logger.warning(f"\tdependent_variables[{index - 1}] not found for {observable}")
+            return None
+        axis = self._axis_from_independent_values(ind_values)
+        if axis is None or not dep_values:
+            logger.warning(f"\tEmpty/unusable values for {observable}")
+            return None
+        _edges, centers, exls, exhs = axis
+
+        # Build the point arrays. x = bin centers (shared with the histogram
+        # binning), x-errors = half bin widths, y from the dependent variable,
+        # y-errors = quadrature sum of all sources.
+        additional_syst = match.get("additional_systematics") or {}
+        x, exl, exh, y, eyl, eyh = [], [], [], [], [], []
+        for i, dv in enumerate(dep_values):
+            if i >= len(centers):
+                break
+            val = dv.get("value")
+            if val is None or (isinstance(val, str) and val.strip() in ("", "-")):
+                continue
+            try:
+                yv = float(val)
+            except (TypeError, ValueError):
+                continue
+            var_lo = var_hi = 0.0
+            for err in dv.get("errors", []) or []:
+                elo, ehi = build_tables._parse_error(err, yv)
+                var_lo += elo * elo
+                var_hi += ehi * ehi
+            for frac in additional_syst.values():
+                a = abs(yv) * float(frac)
+                var_lo += a * a
+                var_hi += a * a
+            x.append(float(centers[i]))
+            exl.append(float(exls[i]))
+            exh.append(float(exhs[i]))
+            y.append(yv)
+            eyl.append(var_lo**0.5)
+            eyh.append(var_hi**0.5)
+
+        if not x:
+            logger.warning(f"\tNo valid data points for {observable} {centrality} {suffix}")
+            return None
+
+        # Preserve the special cases from the old ROOT path (mirror bins_from_data_block):
+        # drop the leading "untagged" point for zg/tg_alice.
+        if observable in ["zg_alice", "tg_alice"]:
+            x, exl, exh, y, eyl, eyh = (a[1:] for a in (x, exl, exh, y, eyl, eyh))
+            if not x:
+                return None
+
+        n = len(x)
+        return ROOT.TGraphAsymmErrors(
+            n,
+            np.array(x, dtype=np.float64),
+            np.array(y, dtype=np.float64),
+            np.array(exl, dtype=np.float64),
+            np.array(exh, dtype=np.float64),
+            np.array(eyl, dtype=np.float64),
+            np.array(eyh, dtype=np.float64),
+        )
+
+    # ---------------------------------------------------------------
     # Truncate data tgraph to histogram binning range
     # ---------------------------------------------------------------
     def truncate_tgraph(self, g, h, is_AA=False):
@@ -342,32 +685,33 @@ class PlotUtils(common_base.CommonBase):
     # Divide a histogram by a tgraph, point-by-point
     # ---------------------------------------------------------------
     def divide_histogram_by_tgraph(self, h, g, include_tgraph_uncertainties=True):
-        # Truncate tgraph to range of histogram bins
-        g_truncated = self.truncate_tgraph(g, h)
-        if not g_truncated:
-            return None
+        # Build the ratio point-by-point over the DATA graph's points, matching each to the
+        # histogram bin that contains it (h.FindBin). This is robust to a data graph that has fewer
+        # points than the histogram has bins -- e.g. when the measured spectrum leaves some pT bins
+        # unpublished ('-'), so the graph has gaps. (The previous index-aligned approach via
+        # truncate_tgraph bailed on the whole ratio at the first such mismatch.) We emit a ratio
+        # point only where the graph point falls inside a histogram bin that has nonzero content.
+        g_new = ROOT.TGraphAsymmErrors()
+        g_new.SetName(f"{g.GetName()}_divided")
 
-        # Clone tgraph, in order to return a new one
-        g_new = g_truncated.Clone(f"{g_truncated.GetName()}_divided")
+        n_new = 0
+        for i in range(g.GetN()):
+            gx, gy, yErrLow, yErrUp = self.get_gx_gy(g, i)
+            if gy == 0.0:
+                continue  # no measured value here (e.g. an unpublished '-' bin)
 
-        nBins = h.GetNbinsX()
-        for bin in range(1, nBins + 1):
-            # Get histogram (x,y)
-            h_x = h.GetBinCenter(bin)
+            bin = h.FindBin(gx)
+            if bin < 1 or bin > h.GetNbinsX():
+                continue  # graph point outside the histogram range
+            # Guard against mis-association: the graph x must lie within the matched bin.
+            if not (h.GetXaxis().GetBinLowEdge(bin) <= gx <= h.GetXaxis().GetBinUpEdge(bin)):
+                logger.warning(f"graph x: {gx} not inside its matched hist bin {bin} -- skipping point")
+                continue
+
             h_y = h.GetBinContent(bin)
             h_error = h.GetBinError(bin)
-
-            # Get TGraph (x,y) and errors
-            gx, gy, yErrLow, yErrUp = self.get_gx_gy(g_truncated, bin - 1)
-
-            # logger.debug(f'h_x: {h_x}')
-            # logger.debug(f'gx: {gx}')
-            # logger.debug(f'h_y: {h_y}')
-            # logger.debug(f'gy: {gy}')
-
-            if not np.isclose(h_x, gx):
-                logger.warning(f"hist x: {h_x}, graph x: {gx} -- will not plot ratio")
-                return None
+            if h_y == 0.0:
+                continue  # nothing to divide (empty MC bin)
 
             new_content = h_y / gy
 
@@ -383,10 +727,13 @@ class PlotUtils(common_base.CommonBase):
                 new_error_low = (yErrLow / gy) * new_content
                 new_error_up = (yErrUp / gy) * new_content
 
-            g_new.SetPoint(bin - 1, h_x, new_content)
-            g_new.SetPointError(bin - 1, 0, 0, new_error_low, new_error_up)
+            # Place the ratio point at the histogram bin center (matches the MC band's x and the
+            # pre-rewrite behavior) rather than the raw data x, so the lower panel stays aligned.
+            g_new.SetPoint(n_new, h.GetXaxis().GetBinCenter(bin), new_content)
+            g_new.SetPointError(n_new, 0, 0, new_error_low, new_error_up)
+            n_new += 1
 
-        return g_new
+        return g_new if n_new > 0 else None
 
     # ---------------------------------------------------------------
     # Get points from tgraph by index
