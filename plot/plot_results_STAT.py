@@ -311,7 +311,10 @@ class PlotResults(common_base.CommonBase):
                         for subobservable_label, axis_entry, charge_value, angularity_spec in subobservable_label_list:
                             # Set normalization
                             self_normalize = False
-                            for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj"]:
+                            # "axis" -> jet-axis-difference observables (axis_alice/axis_cms) report a
+                            # self-normalized 1/sigma_inc dN/dDeltaR distribution, so the MC must be
+                            # self-normalized too (without it the raw MC sits ~0 against the data scale).
+                            for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj", "axis"]:
                                 if x in observable:
                                     self_normalize = True
 
