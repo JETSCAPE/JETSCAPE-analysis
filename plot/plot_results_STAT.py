@@ -66,6 +66,7 @@ class PlotResults(common_base.CommonBase):
         self._encoder_pt_bin = None
         self._encoder_axis_entry = None
         self._encoder_charge = None
+        self._encoder_angularity = None
 
         # Default to the same directory as the input_file if an output_dir is not provided.
         if not output_dir:
@@ -272,19 +273,29 @@ class PlotResults(common_base.CommonBase):
                         if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
-                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value),
-                        # mirroring the histogrammer: the label feeds the (jet_R/pt-only) suffix used
-                        # for plot labels/filenames; axis_entry feeds the encoder for migrated axis
-                        # observables (the bare `type` label can't distinguish the grooming variant);
-                        # charge_value (kappa) feeds the encoder for charge_cms. Keys are mutually
-                        # exclusive in the YAML. (zr_alice's `subjet_R` is deferred -- no branch here.)
-                        subobservable_label_list = [("", None, None)]
+                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value,
+                        # angularity_spec), mirroring the histogrammer: the label feeds the (jet_R/pt-only)
+                        # suffix used for plot labels/filenames; axis_entry feeds the encoder for migrated
+                        # axis observables (the bare `type` label can't distinguish the grooming variant);
+                        # charge_value (kappa) feeds the encoder for charge_cms; angularity_spec (alpha)
+                        # feeds it for the angularity observables. Keys are mutually exclusive in the YAML.
+                        # (zr_alice's `subjet_R` is deferred -- no branch here.)
+                        subobservable_label_list = [("", None, None, None)]
                         if "axis" in block["jet"]:
                             subobservable_label_list = [
-                                (f"_{axis_block['type']}", axis_block, None) for axis_block in block["jet"]["axis"]
+                                (f"_{axis_block['type']}", axis_block, None, None) for axis_block in block["jet"]["axis"]
                             ]
                         if "charge" in block["jet"]:
-                            subobservable_label_list = [(f"_k{kappa}", None, kappa) for kappa in block["jet"]["charge"]]
+                            subobservable_label_list = [
+                                (f"_k{kappa}", None, kappa, None) for kappa in block["jet"]["charge"]
+                            ]
+                        # Step 5: angularity (alpha) sub-observable -- one AngularitySpec per alpha, feeding
+                        # the encoder name + per-alpha data-block overlay table selection (jet_angularity).
+                        if "angularity" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_alpha{a['alpha']}", None, None, observable_module.AngularitySpec(alpha=a["alpha"]))
+                                for a in block["jet"]["angularity"]
+                            ]
 
                         # Whether the histogram name comes from the observable encoder (the analyzer +
                         # histogrammer use encoder names for these) or the legacy hand-built f-string.
@@ -297,7 +308,7 @@ class PlotResults(common_base.CommonBase):
                         # histogrammer: axis_alice passes jet_axis, axis_cms does not).
                         axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
 
-                        for subobservable_label, axis_entry, charge_value in subobservable_label_list:
+                        for subobservable_label, axis_entry, charge_value, angularity_spec in subobservable_label_list:
                             # Set normalization
                             self_normalize = False
                             for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj"]:
@@ -341,6 +352,9 @@ class PlotResults(common_base.CommonBase):
                                                 grooming_setting
                                             ).encode()
                                         }
+                                        # Step 5: per-alpha overlay table selection for angularity observables.
+                                        if angularity_spec is not None:
+                                            data_block_params["jet_angularity"] = angularity_spec.encode()
                                     # Stash the encoder context so get_histogram rebuilds the migrated
                                     # histogram name from the same encoder the histogrammer used.
                                     self._is_migrated_obs = is_migrated
@@ -349,6 +363,7 @@ class PlotResults(common_base.CommonBase):
                                     self._encoder_pt_bin = pt_bin
                                     self._encoder_axis_entry = None
                                     self._encoder_charge = None
+                                    self._encoder_angularity = angularity_spec
 
                                     # Initialize observable configuration
                                     self.init_observable(
@@ -399,6 +414,7 @@ class PlotResults(common_base.CommonBase):
                                 self._encoder_pt_bin = pt_bin
                                 self._encoder_axis_entry = axis_entry if axis_is_essential else None
                                 self._encoder_charge = charge_value
+                                self._encoder_angularity = angularity_spec
 
                                 # Initialize observable configuration
                                 self.init_observable(
@@ -783,6 +799,7 @@ class PlotResults(common_base.CommonBase):
         pt_bin=None,
         axis_entry=None,
         charge=None,
+        angularity=None,
     ):
         obs = self.observables_info[f"{self.sqrts}_{observable_type}_{observable}"]
         kwargs = {"jet_R": observable_module.JetRSpec(jet_R)}
@@ -807,6 +824,12 @@ class PlotResults(common_base.CommonBase):
         # the same JetChargeSpec encoding (kappa_X). Independent of grooming/axis (none coexist today).
         if charge is not None:
             kwargs["jet_charge"] = observable_module.JetChargeSpec(charge)
+
+        # Step 5: angularity observables are parametrized by alpha (jet_angularity, essential). The
+        # analyzer/histogrammer encode it as jet_angularity=AngularitySpec(alpha) (-> alpha_X_kappa_1.0);
+        # `angularity` is an AngularitySpec already. Keep lockstep with HistogramResults._encoder_column_name.
+        if angularity is not None:
+            kwargs["jet_angularity"] = angularity
 
         return obs.encode_name_for_storing_in_file(tag=jet_collection_label, **kwargs)
 
@@ -841,6 +864,7 @@ class PlotResults(common_base.CommonBase):
                     pt_bin=self._encoder_pt_bin,
                     axis_entry=self._encoder_axis_entry,
                     charge=self._encoder_charge,
+                    angularity=self._encoder_angularity,
                 )
                 self.hname = f"h_{column_name}_{centrality}"
             else:

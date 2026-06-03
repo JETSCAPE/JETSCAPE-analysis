@@ -701,6 +701,7 @@ class HistogramResults(common_base.CommonBase):
         pt_bin=None,
         axis_entry=None,
         charge=None,
+        angularity=None,
     ):
         obs = self.observables_info[f"{self.sqrts}_{observable_type}_{observable}"]
         kwargs = {"jet_R": observable_module.JetRSpec(jet_R)}
@@ -730,6 +731,12 @@ class HistogramResults(common_base.CommonBase):
         # the same JetChargeSpec encoding (kappa_X). Independent of grooming/axis (none coexist today).
         if charge is not None:
             kwargs["jet_charge"] = observable_module.JetChargeSpec(charge)
+
+        # Step 5: angularity_alice / angularity_groomed_alice are parametrized by alpha (jet_angularity,
+        # essential). The analyzer encodes it as jet_angularity=AngularitySpec(alpha); the data block keys
+        # its tables with the same encoding (alpha_X_kappa_1.0). `angularity` is an AngularitySpec already.
+        if angularity is not None:
+            kwargs["jet_angularity"] = angularity
 
         return obs.encode_name_for_storing_in_file(tag=jet_collection_label, **kwargs)
 
@@ -765,19 +772,29 @@ class HistogramResults(common_base.CommonBase):
                         if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
-                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value):
-                        # the label feeds the (jet_R/pt-only) binning suffix; axis_entry feeds the
-                        # encoder for migrated axis observables (the bare `type` label can't
-                        # distinguish the grooming variant); charge_value (kappa) feeds the encoder
-                        # for charge_cms. The keys are mutually exclusive in the YAML.
+                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value,
+                        # angularity_spec): the label feeds the (jet_R/pt-only) binning suffix; axis_entry
+                        # feeds the encoder for migrated axis observables (the bare `type` label can't
+                        # distinguish the grooming variant); charge_value (kappa) feeds the encoder for
+                        # charge_cms; angularity_spec (alpha) feeds it for the angularity observables. The
+                        # keys are mutually exclusive in the YAML.
                         # (zr_alice's `subjet_R` is deferred -- no branch here; uncurated data, A5.)
-                        subobservable_label_list = [("", None, None)]
+                        subobservable_label_list = [("", None, None, None)]
                         if "axis" in block["jet"]:
                             subobservable_label_list = [
-                                (f"_{axis_block['type']}", axis_block, None) for axis_block in block["jet"]["axis"]
+                                (f"_{axis_block['type']}", axis_block, None, None) for axis_block in block["jet"]["axis"]
                             ]
                         if "charge" in block["jet"]:
-                            subobservable_label_list = [(f"_k{kappa}", None, kappa) for kappa in block["jet"]["charge"]]
+                            subobservable_label_list = [
+                                (f"_k{kappa}", None, kappa, None) for kappa in block["jet"]["charge"]
+                            ]
+                        # Step 5: angularity (alpha) sub-observable -- one AngularitySpec per alpha, feeding
+                        # the encoder name + per-alpha data-block table selection (jet_angularity key).
+                        if "angularity" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_alpha{a['alpha']}", None, None, observable_module.AngularitySpec(alpha=a["alpha"]))
+                                for a in block["jet"]["angularity"]
+                            ]
 
                         # Whether the histogram name comes from the observable encoder (the analyzer
                         # writes encoder names for these) or the legacy hand-built f-string.
@@ -790,7 +807,7 @@ class HistogramResults(common_base.CommonBase):
                         # it (mirrors the analyzer: axis_alice passes jet_axis, axis_cms does not).
                         axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
 
-                        for subobservable_label, axis_entry, charge_value in subobservable_label_list:
+                        for subobservable_label, axis_entry, charge_value, angularity_spec in subobservable_label_list:
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
                                     # New YAML schema mixes methods (soft_drop + dynamical_grooming).
@@ -815,6 +832,10 @@ class HistogramResults(common_base.CommonBase):
                                                 grooming_setting
                                             ).encode()
                                         }
+                                        # Step 5: angularity observables have one table per (grooming, alpha)
+                                        # -> add the per-alpha key so the right table is selected.
+                                        if angularity_spec is not None:
+                                            data_block_params["jet_angularity"] = angularity_spec.encode()
                                     bins = self.plot_utils.bins_from_config(
                                         block,
                                         self.sqrts,
@@ -842,6 +863,7 @@ class HistogramResults(common_base.CommonBase):
                                             grooming_setting=grooming_setting,
                                             pt_bin=pt_bin,
                                             charge=charge_value,
+                                            angularity=angularity_spec,
                                         )
                                         self.histogram_observable(
                                             column_name=encoder_name,
@@ -940,6 +962,7 @@ class HistogramResults(common_base.CommonBase):
                                         pt_bin=pt_bin,
                                         axis_entry=axis_entry if axis_is_essential else None,
                                         charge=charge_value,
+                                        angularity=angularity_spec,
                                     )
                                     self.histogram_observable(
                                         column_name=encoder_name,

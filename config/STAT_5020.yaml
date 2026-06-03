@@ -1809,9 +1809,8 @@ inclusive_chjet:
     urls:
       inspire_hep: https://inspirehep.net/literature/2845788
       hepdata: https://www.hepdata.net/record/ins2845788
-      # pp (reported in a separate paper)
-      #hepdata: https://www.hepdata.net/record/ins1891385
 
+    # Step 5: ungroomed angularity (lambda of the ungroomed jet). Groomed counterpart = angularity_groomed_alice below.
     centrality: [[0, 10]]
     jet:
       R: [0.2]
@@ -1824,84 +1823,6 @@ inclusive_chjet:
         - { "alpha": 3 }
       grooming_settings:
         - { type: "soft_drop", z_cut: 0., beta: 0 } # Ungroomed
-        - { type: "soft_drop", z_cut: 0.2, beta: 0 } # Groomed
-
-    ## Angularities for pp were already in the previous paper.
-    #hepdata_pp: "HEPData-ins1891385-v1-root.root"
-    #hepdata_AA: "HEPData-ins2845788-v1-root.root"
-
-    #xtitle: "#it{#lambda}_{#alpha}^{#kappa=1}"
-
-    ## Ungroomed
-    #hepdata_pp_dir_R0.2_alpha_1_pt0: "Table 41"
-    #hepdata_pp_dir_R0.2_alpha_1_pt1: "Table 49"
-    #hepdata_pp_dir_R0.2_alpha_1_pt2: "Table 57"
-    #hepdata_pp_dir_R0.2_alpha_1.5_pt0: "Table 42"
-    #hepdata_pp_dir_R0.2_alpha_1.5_pt1: "Table 50"
-    #hepdata_pp_dir_R0.2_alpha_1.5_pt2: "Table 58"
-    #hepdata_pp_dir_R0.2_alpha_2_pt0: "Table 43"
-    #hepdata_pp_dir_R0.2_alpha_2_pt1: "Table 51"
-    #hepdata_pp_dir_R0.2_alpha_2_pt2: "Table 59"
-    #hepdata_pp_dir_R0.2_alpha_3_pt0: "Table 44"
-    #hepdata_pp_dir_R0.2_alpha_3_pt1: "Table 52"
-    #hepdata_pp_dir_R0.2_alpha_3_pt2: "Table 60"
-    ## Groomed
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_1_pt0: "Table 45"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_1_pt1: "Table 53"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_1_pt2: "Table 61"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_1.5_pt0: "Table 46"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_1.5_pt1: "Table 54"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_1.5_pt2: "Table 62"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_2_pt0: "Table 47"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_2_pt1: "Table 55"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_2_pt2: "Table 63"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_3_pt0: "Table 48"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_3_pt1: "Table 56"
-    #hepdata_pp_dir_R0.2_zcut0.2_beta0_alpha_3_pt2: "Table 64"
-    #hepdata_pp_gname: "Graph1D_y1"
-    #ytitle_pp: "#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}"
-    #y_min_pp: 1e-3
-    #y_max_pp: 0.3
-
-    ## Ungroomed
-    #hepdata_AA_dir_R0.2_alpha_1_pt0: "Table 1"
-    #hepdata_AA_dir_R0.2_alpha_1_pt1: "Table 9"
-    #hepdata_AA_dir_R0.2_alpha_1_pt2: "Table 17"
-    #hepdata_AA_dir_R0.2_alpha_1_pt3: "Table 25"
-    #hepdata_AA_dir_R0.2_alpha_1.5_pt0: "Table 2"
-    #hepdata_AA_dir_R0.2_alpha_1.5_pt1: "Table 10"
-    #hepdata_AA_dir_R0.2_alpha_1.5_pt2: "Table 18"
-    #hepdata_AA_dir_R0.2_alpha_1.5_pt3: "Table 26"
-    #hepdata_AA_dir_R0.2_alpha_2_pt0: "Table 3"
-    #hepdata_AA_dir_R0.2_alpha_2_pt1: "Table 11"
-    #hepdata_AA_dir_R0.2_alpha_2_pt2: "Table 19"
-    #hepdata_AA_dir_R0.2_alpha_2_pt3: "Table 27"
-    #hepdata_AA_dir_R0.2_alpha_3_pt0: "Table 4"
-    #hepdata_AA_dir_R0.2_alpha_3_pt1: "Table 12"
-    #hepdata_AA_dir_R0.2_alpha_3_pt2: "Table 20"
-    #hepdata_AA_dir_R0.2_alpha_3_pt3: "Table 28"
-    ## Groomed
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_1_pt0: "Table 5"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_1_pt1: "Table 13"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_1_pt2: "Table 21"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_1_pt3: "Table 29"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_1.5_pt0: "Table 6"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_1.5_pt1: "Table 14"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_1.5_pt2: "Table 22"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_1.5_pt3: "Table 30"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_2_pt0: "Table 7"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_2_pt1: "Table 15"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_2_pt2: "Table 23"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_2_pt3: "Table 31"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_3_pt0: "Table 8"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_3_pt1: "Table 16"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_3_pt2: "Table 24"
-    #hepdata_AA_dir_R0.2_zcut0.2_beta0_alpha_3_pt3: "Table 32"
-    #hepdata_AA_gname: "Graph1D_y1"
-    #hepdata_AA_hname: "Hist1D_y1"
-    #ytitle_AA: "#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}"
-    #y_min_AA: 0.
-    #y_max_AA: 30.
 
     data:
       pp:
@@ -1922,7 +1843,6 @@ inclusive_chjet:
                 additional_systematics: {}
                 index: "1"
                 combinations:
-                  # Groomed
                   - parameters:
                       {
                         jet_pt: 40.0_60.0,
@@ -1951,36 +1871,6 @@ inclusive_chjet:
                         jet_angularity: alpha_3_kappa_1.0,
                       }
                     table: Table 44
-                  # Groomed
-                  - parameters:
-                      {
-                        jet_pt: 40.0_60.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_1_kappa_1.0,
-                      }
-                    table: Table 45
-                  - parameters:
-                      {
-                        jet_pt: 40.0_60.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_1.5_kappa_1.0,
-                      }
-                    table: Table 46
-                  - parameters:
-                      {
-                        jet_pt: 40.0_60.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_2_kappa_1.0,
-                      }
-                    table: Table 47
-                  - parameters:
-                      {
-                        jet_pt: 40.0_60.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_3_kappa_1.0,
-                      }
-                    table: Table 48
-                  # Groomed
                   - parameters:
                       {
                         jet_pt: 60.0_80.0,
@@ -2009,36 +1899,6 @@ inclusive_chjet:
                         jet_angularity: alpha_3_kappa_1.0,
                       }
                     table: Table 52
-                  # Groomed
-                  - parameters:
-                      {
-                        jet_pt: 60.0_80.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_1_kappa_1.0,
-                      }
-                    table: Table 53
-                  - parameters:
-                      {
-                        jet_pt: 60.0_80.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_1.5_kappa_1.0,
-                      }
-                    table: Table 54
-                  - parameters:
-                      {
-                        jet_pt: 60.0_80.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_2_kappa_1.0,
-                      }
-                    table: Table 55
-                  - parameters:
-                      {
-                        jet_pt: 60.0_80.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_3_kappa_1.0,
-                      }
-                    table: Table 56
-                  # Ungroomed
                   - parameters:
                       {
                         jet_pt: 80.0_100.0,
@@ -2067,35 +1927,6 @@ inclusive_chjet:
                         jet_angularity: alpha_3_kappa_1.0,
                       }
                     table: Table 60
-                  # Groomed
-                  - parameters:
-                      {
-                        jet_pt: 80.0_100.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_1_kappa_1.0,
-                      }
-                    table: Table 61
-                  - parameters:
-                      {
-                        jet_pt: 80.0_100.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_1.5_kappa_1.0,
-                      }
-                    table: Table 62
-                  - parameters:
-                      {
-                        jet_pt: 80.0_100.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_2_kappa_1.0,
-                      }
-                    table: Table 63
-                  - parameters:
-                      {
-                        jet_pt: 80.0_100.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_3_kappa_1.0,
-                      }
-                    table: Table 64
                 # 100-150 GeV was not measured in pp
       AA:
         hepdata:
@@ -2112,7 +1943,7 @@ inclusive_chjet:
               - parameters:
                   {
                     jet_pt: [100.0_150.0, 40.0_60.0, 60.0_80.0, 80.0_100.0],
-                    jet_grooming_settings: [SD_z_cut_000_beta_0, SD_z_cut_020_beta_0],
+                    jet_grooming_settings: [SD_z_cut_000_beta_0],
                     jet_angularity: [alpha_1.5_kappa_1.0, alpha_1_kappa_1.0, alpha_2_kappa_1.0, alpha_3_kappa_1.0],
                   }
                 systematics_names: {}
@@ -2162,34 +1993,6 @@ inclusive_chjet:
                     table: Table 4
                   - parameters:
                       {
-                        jet_pt: 40.0_60.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_1_kappa_1.0,
-                      }
-                    table: Table 5
-                  - parameters:
-                      {
-                        jet_pt: 40.0_60.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_1.5_kappa_1.0,
-                      }
-                    table: Table 6
-                  - parameters:
-                      {
-                        jet_pt: 40.0_60.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_2_kappa_1.0,
-                      }
-                    table: Table 7
-                  - parameters:
-                      {
-                        jet_pt: 40.0_60.0,
-                        jet_grooming_settings: SD_z_cut_020_beta_0,
-                        jet_angularity: alpha_3_kappa_1.0,
-                      }
-                    table: Table 8
-                  - parameters:
-                      {
                         jet_pt: 60.0_80.0,
                         jet_grooming_settings: SD_z_cut_000_beta_0,
                         jet_angularity: alpha_1_kappa_1.0,
@@ -2216,6 +2019,250 @@ inclusive_chjet:
                         jet_angularity: alpha_3_kappa_1.0,
                       }
                     table: Table 12
+                  - parameters:
+                      {
+                        jet_pt: 80.0_100.0,
+                        jet_grooming_settings: SD_z_cut_000_beta_0,
+                        jet_angularity: alpha_1_kappa_1.0,
+                      }
+                    table: Table 17
+                  - parameters:
+                      {
+                        jet_pt: 80.0_100.0,
+                        jet_grooming_settings: SD_z_cut_000_beta_0,
+                        jet_angularity: alpha_1.5_kappa_1.0,
+                      }
+                    table: Table 18
+                  - parameters:
+                      {
+                        jet_pt: 80.0_100.0,
+                        jet_grooming_settings: SD_z_cut_000_beta_0,
+                        jet_angularity: alpha_2_kappa_1.0,
+                      }
+                    table: Table 19
+                  - parameters:
+                      {
+                        jet_pt: 80.0_100.0,
+                        jet_grooming_settings: SD_z_cut_000_beta_0,
+                        jet_angularity: alpha_3_kappa_1.0,
+                      }
+                    table: Table 20
+                  - parameters:
+                      {
+                        jet_pt: 100.0_150.0,
+                        jet_grooming_settings: SD_z_cut_000_beta_0,
+                        jet_angularity: alpha_1_kappa_1.0,
+                      }
+                    table: Table 25
+                  - parameters:
+                      {
+                        jet_pt: 100.0_150.0,
+                        jet_grooming_settings: SD_z_cut_000_beta_0,
+                        jet_angularity: alpha_1.5_kappa_1.0,
+                      }
+                    table: Table 26
+                  - parameters:
+                      {
+                        jet_pt: 100.0_150.0,
+                        jet_grooming_settings: SD_z_cut_000_beta_0,
+                        jet_angularity: alpha_2_kappa_1.0,
+                      }
+                    table: Table 27
+                  - parameters:
+                      {
+                        jet_pt: 100.0_150.0,
+                        jet_grooming_settings: SD_z_cut_000_beta_0,
+                        jet_angularity: alpha_3_kappa_1.0,
+                      }
+                    table: Table 28
+
+  angularity_groomed_alice:
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2845788
+      hepdata: https://www.hepdata.net/record/ins2845788
+
+    # Step 5: groomed angularity (lambda of the SD-groomed jet). Split out of angularity_alice.
+    centrality: [[0, 10]]
+    jet:
+      R: [0.2]
+      pt: [40., 60., 80., 100., 150.]
+      eta_R: 0.9
+      angularity:
+        - { "alpha": 1 }
+        - { "alpha": 1.5 }
+        - { "alpha": 2 }
+        - { "alpha": 3 }
+      grooming_settings:
+        - { type: "soft_drop", z_cut: 0.2, beta: 0 } # Groomed
+
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 1891385
+            version: 1
+          spectra:
+            quantity: angularity
+            x_axis:
+              label: "#it{#lambda}_{#alpha}^{#kappa=1}"
+            y_axis:
+              label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}"
+              range: ["1e-3", 0.3]
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                index: "1"
+                combinations:
+                  - parameters:
+                      {
+                        jet_pt: 40.0_60.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_1_kappa_1.0,
+                      }
+                    table: Table 45
+                  - parameters:
+                      {
+                        jet_pt: 40.0_60.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_1.5_kappa_1.0,
+                      }
+                    table: Table 46
+                  - parameters:
+                      {
+                        jet_pt: 40.0_60.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_2_kappa_1.0,
+                      }
+                    table: Table 47
+                  - parameters:
+                      {
+                        jet_pt: 40.0_60.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_3_kappa_1.0,
+                      }
+                    table: Table 48
+                  - parameters:
+                      {
+                        jet_pt: 60.0_80.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_1_kappa_1.0,
+                      }
+                    table: Table 53
+                  - parameters:
+                      {
+                        jet_pt: 60.0_80.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_1.5_kappa_1.0,
+                      }
+                    table: Table 54
+                  - parameters:
+                      {
+                        jet_pt: 60.0_80.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_2_kappa_1.0,
+                      }
+                    table: Table 55
+                  - parameters:
+                      {
+                        jet_pt: 60.0_80.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_3_kappa_1.0,
+                      }
+                    table: Table 56
+                  - parameters:
+                      {
+                        jet_pt: 80.0_100.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_1_kappa_1.0,
+                      }
+                    table: Table 61
+                  - parameters:
+                      {
+                        jet_pt: 80.0_100.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_1.5_kappa_1.0,
+                      }
+                    table: Table 62
+                  - parameters:
+                      {
+                        jet_pt: 80.0_100.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_2_kappa_1.0,
+                      }
+                    table: Table 63
+                  - parameters:
+                      {
+                        jet_pt: 80.0_100.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_3_kappa_1.0,
+                      }
+                    table: Table 64
+                # 100-150 GeV was not measured in pp
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 2845788
+            version: 1
+          spectra:
+            quantity: angularity
+            x_axis:
+              label: "#it{#lambda}_{#alpha}^{#kappa=1}"
+            y_axis:
+              label: ""
+            tables:
+              - parameters:
+                  {
+                    jet_pt: [100.0_150.0, 40.0_60.0, 60.0_80.0, 80.0_100.0],
+                    jet_grooming_settings: [SD_z_cut_020_beta_0],
+                    jet_angularity: [alpha_1.5_kappa_1.0, alpha_1_kappa_1.0, alpha_2_kappa_1.0, alpha_3_kappa_1.0],
+                  }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+          ratio:
+            quantity: angularity
+            x_axis:
+              label: "#it{#lambda}_{#alpha}^{#kappa=1}"
+            y_axis:
+              label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}"
+              range: [0.0, 30.0]
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                index: "1"
+                combinations:
+                  - parameters:
+                      {
+                        jet_pt: 40.0_60.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_1_kappa_1.0,
+                      }
+                    table: Table 5
+                  - parameters:
+                      {
+                        jet_pt: 40.0_60.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_1.5_kappa_1.0,
+                      }
+                    table: Table 6
+                  - parameters:
+                      {
+                        jet_pt: 40.0_60.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_2_kappa_1.0,
+                      }
+                    table: Table 7
+                  - parameters:
+                      {
+                        jet_pt: 40.0_60.0,
+                        jet_grooming_settings: SD_z_cut_020_beta_0,
+                        jet_angularity: alpha_3_kappa_1.0,
+                      }
+                    table: Table 8
                   - parameters:
                       {
                         jet_pt: 60.0_80.0,
@@ -2247,34 +2294,6 @@ inclusive_chjet:
                   - parameters:
                       {
                         jet_pt: 80.0_100.0,
-                        jet_grooming_settings: SD_z_cut_000_beta_0,
-                        jet_angularity: alpha_1_kappa_1.0,
-                      }
-                    table: Table 17
-                  - parameters:
-                      {
-                        jet_pt: 80.0_100.0,
-                        jet_grooming_settings: SD_z_cut_000_beta_0,
-                        jet_angularity: alpha_1.5_kappa_1.0,
-                      }
-                    table: Table 18
-                  - parameters:
-                      {
-                        jet_pt: 80.0_100.0,
-                        jet_grooming_settings: SD_z_cut_000_beta_0,
-                        jet_angularity: alpha_2_kappa_1.0,
-                      }
-                    table: Table 19
-                  - parameters:
-                      {
-                        jet_pt: 80.0_100.0,
-                        jet_grooming_settings: SD_z_cut_000_beta_0,
-                        jet_angularity: alpha_3_kappa_1.0,
-                      }
-                    table: Table 20
-                  - parameters:
-                      {
-                        jet_pt: 80.0_100.0,
                         jet_grooming_settings: SD_z_cut_020_beta_0,
                         jet_angularity: alpha_1_kappa_1.0,
                       }
@@ -2300,34 +2319,6 @@ inclusive_chjet:
                         jet_angularity: alpha_3_kappa_1.0,
                       }
                     table: Table 24
-                  - parameters:
-                      {
-                        jet_pt: 100.0_150.0,
-                        jet_grooming_settings: SD_z_cut_000_beta_0,
-                        jet_angularity: alpha_1_kappa_1.0,
-                      }
-                    table: Table 25
-                  - parameters:
-                      {
-                        jet_pt: 100.0_150.0,
-                        jet_grooming_settings: SD_z_cut_000_beta_0,
-                        jet_angularity: alpha_1.5_kappa_1.0,
-                      }
-                    table: Table 26
-                  - parameters:
-                      {
-                        jet_pt: 100.0_150.0,
-                        jet_grooming_settings: SD_z_cut_000_beta_0,
-                        jet_angularity: alpha_2_kappa_1.0,
-                      }
-                    table: Table 27
-                  - parameters:
-                      {
-                        jet_pt: 100.0_150.0,
-                        jet_grooming_settings: SD_z_cut_000_beta_0,
-                        jet_angularity: alpha_3_kappa_1.0,
-                      }
-                    table: Table 28
                   - parameters:
                       {
                         jet_pt: 100.0_150.0,
@@ -2357,9 +2348,8 @@ inclusive_chjet:
                       }
                     table: Table 32
 
-  # ALICE, jet mass
-  # NOTE: Includes both groomed and ungroomed mass
-  # NOTE: Ratios are not reported, so we will need to calculate them ourselves.
+  # ALICE, jet mass (Step 5 split: mass_alice = ungroomed jet.m(); mg_alice = groomed m_g, below).
+  # NOTE: Ratios are not reported in HEPData, so they are computed from the spectra.
   mass_alice:
     enabled: true
     urls:
@@ -2373,13 +2363,10 @@ inclusive_chjet:
       eta_R: 0.9
       grooming_settings:
         - { type: "soft_drop", z_cut: 0., beta: 0 } # Ungroomed
-        - { type: "soft_drop", z_cut: 0.2, beta: 0 } # Groomed
 
+    # Step 5: ungroomed jet mass (jet.m()) only. The groomed counterpart (m_g) was
+    # split out into the separate observable `mg_alice` below.
     #hepdata: "HEPData-ins2845788-v1-root.root"
-
-    ## NOTE: This label will be incorrect in the groomed case.
-    ##       However, it's quite convenient to treat them together, and the observable name will make it clear,
-    ##       so we will keep it as is.
     #xtitle: "#it{m}_{jet}  #left[GeV^{2}/#it{c}#right]"
 
     #hepdata_pp_dir_R0.2_pt0: "Table 33"
@@ -2430,25 +2417,13 @@ inclusive_chjet:
                   - parameters: { jet_pt: 40.0_60.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
                     table: Table 33
                     index: "1"
-                  - parameters: { jet_pt: 40.0_60.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
-                    table: Table 34
-                    index: "1"
                   - parameters: { jet_pt: 60.0_80.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
                     table: Table 35
-                    index: "1"
-                  - parameters: { jet_pt: 60.0_80.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
-                    table: Table 36
                     index: "1"
                   - parameters: { jet_pt: 80.0_100.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
                     table: Table 37
                     index: "1"
-                  - parameters: { jet_pt: 80.0_100.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
-                    table: Table 38
-                    index: "1"
                   - parameters: { jet_pt: 100.0_150.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
-                    table: ""
-                    index: ""
-                  - parameters: { jet_pt: 100.0_150.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
                     table: ""
                     index: ""
       AA:
@@ -2466,7 +2441,7 @@ inclusive_chjet:
               - parameters:
                   {
                     jet_pt: [100.0_150.0, 40.0_60.0, 60.0_80.0, 80.0_100.0],
-                    jet_grooming_settings: [SD_z_cut_000_beta_0, SD_z_cut_020_beta_0],
+                    jet_grooming_settings: [SD_z_cut_000_beta_0],
                   }
                 systematics_names: {}
                 additional_systematics: {}
@@ -2487,18 +2462,100 @@ inclusive_chjet:
                 combinations:
                   - parameters: { jet_pt: 40.0_60.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
                     table: Table 39
-                  - parameters: { jet_pt: 40.0_60.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
-                    table: Table 40
                   - parameters: { jet_pt: 60.0_80.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
                     table: Table 41
-                  - parameters: { jet_pt: 60.0_80.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
-                    table: Table 42
                   - parameters: { jet_pt: 80.0_100.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
                     table: Table 43
-                  - parameters: { jet_pt: 80.0_100.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
-                    table: Table 44
                   - parameters: { jet_pt: 100.0_150.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
                     table: Table 45
+
+  # ALICE groomed jet mass m_g (Step 5: split out of mass_alice). SD z_cut=0.2 groomed branch.
+  mg_alice:
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2845788
+      hepdata: https://www.hepdata.net/record/ins2845788
+
+    centrality: [[0, 10]]
+    jet:
+      R: [0.2]
+      pt: [40., 60., 80., 100., 150.]
+      eta_R: 0.9
+      grooming_settings:
+        - { type: "soft_drop", z_cut: 0.2, beta: 0 } # Groomed
+
+    #xtitle: "#it{m}_{g}  #left[GeV^{2}/#it{c}#right]"
+
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 2845788
+            version: 1
+          spectra:
+            quantity: mass
+            x_axis:
+              label: "#it{m}_{g}  #left[GeV^{2}/#it{c}#right]"
+            y_axis:
+              label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{m}_{g}} #left[(GeV^{2}/#it{c})^{-2}#right]"
+              range: [0.0, 1.0]
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                combinations:
+                  - parameters: { jet_pt: 40.0_60.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
+                    table: Table 34
+                    index: "1"
+                  - parameters: { jet_pt: 60.0_80.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
+                    table: Table 36
+                    index: "1"
+                  - parameters: { jet_pt: 80.0_100.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
+                    table: Table 38
+                    index: "1"
+                  - parameters: { jet_pt: 100.0_150.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
+                    table: ""
+                    index: ""
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 2845788
+            version: 1
+          spectra:
+            quantity: mass
+            x_axis:
+              label: "#it{m}_{g}  #left[GeV^{2}/#it{c}#right]"
+            y_axis:
+              label: ""
+            tables:
+              - parameters:
+                  {
+                    jet_pt: [100.0_150.0, 40.0_60.0, 60.0_80.0, 80.0_100.0],
+                    jet_grooming_settings: [SD_z_cut_020_beta_0],
+                  }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+          ratio:
+            quantity: mass
+            x_axis:
+              label: "#it{m}_{g}  #left[GeV^{2}/#it{c}#right]"
+            y_axis:
+              label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{m}_{g}} #left[(GeV^{2}/#it{c})^{-2}#right]"
+              range: [0.0, 1.0]
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                index: "1"
+                combinations:
+                  - parameters: { jet_pt: 40.0_60.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
+                    table: Table 40
+                  - parameters: { jet_pt: 60.0_80.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
+                    table: Table 42
+                  - parameters: { jet_pt: 80.0_100.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
+                    table: Table 44
                   - parameters: { jet_pt: 100.0_150.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
                     table: Table 46
 

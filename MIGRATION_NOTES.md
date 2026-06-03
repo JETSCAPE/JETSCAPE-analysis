@@ -408,6 +408,48 @@ source in the curation track (log in its `CURATION_NOTES.md`); the plotter only 
 (C9); stays off until its HEPData is filled. `angularity_alice` (alpha) — the ungroomed/groomed split
 (C7) is **Step 5**; not touched here.
 
+## Step 5 — ungroomed/groomed split DONE (2026-06-03)
+
+The two ALICE charged-jet substructure observables that conflated an ungroomed and a groomed quantity
+under one key (edge case C7) are **split into four observables, all on the observable encoder**:
+
+- `mass_alice` → **`mass_alice`** (ungroomed `jet.m()`) + **`mg_alice`** (groomed `m_g`).
+- `angularity_alice` → **`angularity_alice`** (ungroomed λ) + **`angularity_groomed_alice`** (groomed λ),
+  each parametrized by the **alpha** sub-observable (α = 1, 1.5, 2, 3).
+
+**`double_ratio` was NOT added** (user decision 2026-06-03): mass/angularity are self-normalized
+distributions that don't need it, and `pt_y_atlas`'s double-ratio already works via the
+`ratio`+self-normalize path (B12). Tracked for a possible later cleanup with Step 7, not Step 5.
+
+**Changes (6 files):**
+- `config/STAT_5020.yaml`: split each block into two; each new block declares a SINGLE `grooming_settings`
+  entry and partitions its `data:` combinations by grooming (mass pp 33/35/37 vs 34/36/38; AA ratio
+  39/41/43/45 vs 40/42/44/46; angularity pp 41–64 and AA ratio 1–32 split ungroomed/groomed). New
+  `mg_alice` / `angularity_groomed_alice` blocks added. Stale "includes both groomed and ungroomed"
+  comments fixed.
+- `jetscape_analysis/analysis/analyze_events_STAT.py`: ungroomed mass + angularity fills migrated from
+  legacy 2D `[jet_pt, value]` f-strings to **1D-per-pt-bin encoder** fills (`jet_pt_spec` computed locally
+  in the ungroomed method); groomed fills renamed to `mg_alice` / `angularity_groomed_alice`. `_unsubtracted`
+  companions dropped (no regression, C8 precedent). Kappa standardized to `1.0` float (F5 latent-bug fix).
+- `plot/histogram_results_STAT.py` + `plot/plot_results_STAT.py` (lockstep): **alpha sub-observable loop** —
+  sub-observable tuple widened 3→4 `(label, axis_entry, charge_value, angularity_spec)`, a new `"angularity"`
+  branch, an `angularity=` arg on both `_encoder_column_name` helpers, and per-alpha `data_block_params`
+  (`jet_angularity`). Plotter stashes `_encoder_angularity` for `get_histogram`.
+- `plot/plot_results_STAT_utils.py`: all four added to `ENCODER_MIGRATED_JET_OBSERVABLES`.
+- (curation repo) `hepdata_database.yaml`: `mg_alice` / `angularity_groomed_alice` registry aliases reusing
+  the sibling HEPData records (no new files); logged in `CURATION_NOTES.md`.
+
+**Verified e2e (pp small sample, analyzer→histogrammer→plotter, exit 0):** mass_alice 3 + mg_alice 3
+non-empty keys (per-grooming binnings differ 13/10/5 vs 16/11/6); angularity_alice 24 + angularity_groomed_alice
+24 (4 α × 3 pt × {distribution + `_raa_denom`}, per-alpha overlays differ); data overlays resolve per
+pt/grooming/alpha; **0** "no matching table" / TAxis / "cannot divide" errors; Step-4/4.5 migrated set
+(mg_cms 30, charge_cms 9, ktg_alice 2, …) unchanged. Encoder names byte-consistent analyzer↔histogrammer
+(incl. `kappa_1.0`). Edge-case mechanics documented in `OBSERVABLE_EDGE_CASES.md` section F.
+
+**AA arm pp-verified only:** all four are `centrality: [[0,10]]`; the PbPb small sample (~10–11%) gives
+empty AA MC, so the AA R_AA arm is exercised for code-path correctness but not numerically — full AA
+validation rides with **Step 7** (needs a 0–10% sample).
+
 ## Remaining steps (next sessions) — updated 2026-06-03
 
 > Fuller orchestration plan + history live in the project memory
@@ -416,8 +458,8 @@ source in the curation track (log in its `CURATION_NOTES.md`); the plotter only 
 > dir may not auto-recall it — read it explicitly, or rely on this section (kept in sync).
 
 Steps 1–4 + render-path fixes E1/E2/E3 + the AA R_AA binning fix + plotter cosmetics + **Step 4.5
-`charge_cms`** are **DONE** (see the dated sections above; commits `05e25b7` … `1fb6379` on
-`dev-aggregation`, plus the in-progress Step 4.5 change).
+`charge_cms`** + **Step 5 (ungroomed/groomed split — mass_alice/mg_alice + angularity_alice/
+angularity_groomed_alice)** are **DONE** (see the dated sections above). **NEXT = Step 6.**
 
 **Step 4.5 — parametrized-observable migration.** Wire the observables the analyzer *computes* but the
 histogrammer/plotter don't yet iterate (root cause: sub-observable loops keyed on the pre-migration
@@ -428,9 +470,8 @@ names; see "Step 4.5 — DONE" above and edge case C9):
 - `inclusive_chjet/angularity_alice` — by **alpha** — **deferred to Step 5** (needs the ungroomed/groomed
   split, C7).
 
-**Step 5 — ungroomed/groomed split + double_ratio.** Split `mass_alice` → `mass_alice` + `mg_alice`,
-and `angularity_alice` → `angularity_groomed_alice` (separate ungroomed `jet.m()`/`λ` from groomed
-`m_g`/`λ(groomed)`). Add a `double_ratio` artifact type alongside `spectra`/`ratio` for jet R_AA.
+**Step 5 — ungroomed/groomed split — ✅ DONE (2026-06-03).** See the "Step 5 — ungroomed/groomed split
+DONE" section above. `double_ratio` intentionally NOT added (not needed; user decision).
 
 **Step 6 — drop legacy YAML keys.** Strip `hepdata_*_dir`/`_hname`/`_gname`/dangling `bins:` from
 MIXED entries; **first = `axis_alice`** (only enabled observable still on the legacy ROOT path →

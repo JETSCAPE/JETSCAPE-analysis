@@ -40,11 +40,11 @@ def _warn_once(key: str, message: str) -> None:
 # (e.g. charge_cms, plain RAA/Dz/...) stays on the legacy f-string path, matching its analyzer.
 # Lives here (shared utils) so the histogrammer and plotter use a single source of truth and can
 # never drift on membership.
-# NOTE: mass_alice and angularity_alice are intentionally NOT here. Each conflates an ungroomed
-# quantity (jet.m() / lambda(jet), written by a legacy f-string fill) with a groomed one
-# (m_g / lambda(groomed pair), written by the encoder). Splitting them into distinct observables
-# (mass_alice + mg_alice; angularity_alice + angularity_groomed_alice) is Step 5. Until then they
-# stay on the legacy path (histogramming the ungroomed quantity, as before -- no regression).
+# NOTE: Step 5 split the two ALICE observables that conflated an ungroomed quantity with a groomed one
+# (each previously had a legacy f-string fill for jet.m()/lambda(jet) AND an encoder fill for
+# m_g/lambda(groomed)). mass_alice -> mass_alice (ungroomed) + mg_alice (groomed); angularity_alice ->
+# angularity_alice (ungroomed) + angularity_groomed_alice (groomed, parametrized by the alpha
+# sub-observable loop). All four are now fully on the encoder, listed below.
 ENCODER_MIGRATED_JET_OBSERVABLES = {
     ("inclusive_chjet", "ktg_alice"),
     ("inclusive_chjet", "zg_alice"),
@@ -56,6 +56,13 @@ ENCODER_MIGRATED_JET_OBSERVABLES = {
     ("inclusive_jet", "axis_cms"),
     # Step 4.5: jet charge, parametrized by kappa (data block keyed by jet_charge: kappa_X).
     ("inclusive_jet", "charge_cms"),
+    # Step 5: ALICE jet mass, split into ungroomed (mass_alice, jet.m()) + groomed (mg_alice, m_g).
+    ("inclusive_chjet", "mass_alice"),
+    ("inclusive_chjet", "mg_alice"),
+    # Step 5: ALICE jet angularity, split into ungroomed + groomed, each parametrized by alpha
+    # (data block keyed by jet_angularity: alpha_X_kappa_1.0).
+    ("inclusive_chjet", "angularity_alice"),
+    ("inclusive_chjet", "angularity_groomed_alice"),
 }
 
 
