@@ -439,8 +439,41 @@ then STAT_200 (both still MIXED/OLD).
 
 End state: every observable on one path (`data:` + new encoder + `obs.essential_parameters()`).
 
+**Step 7 — PbPb (AA) R_AA coverage verification across ALL centralities, case-by-case.** All
+migration testing so far has used a SINGLE PbPb chunk at one narrow centrality, so the AA/R_AA arm
+of every observable is essentially unverified across its real centrality range. This step verifies,
+per observable × per configured centrality bin, that the AA MC fills, the R_AA renders, and the
+per-centrality `ratio` HEPData overlay matches — distinct from the code-migration steps 1–6.
+
+*Why it's not covered yet (centrality mechanics):* precomputed-hydro sample files are FIXED ~1%-wide
+centralities (file 0 = cent 10–11%, … file 29 = 39–40%), and the histogrammer fills a bin `[a,b]`
+only on FULL CONTAINMENT (`event_cmin ≥ a AND event_cmax ≤ b`; `histogram_results_STAT.py`
+`centrality_accepted`). So the one chunk used in e2e (cent 10–11%) only fills `[10,20]`/`[10,30]`.
+Of the 24 enabled STAT_5020 R_AA observables: **12 got ZERO AA stats** (their bins are `[0,10]`
+and/or `[30,50]`, neither containing 10–11% — `pt_y_atlas`, `IAA_pt_alice`, `dphi_alice`,
+`inclusive_chjet/{angularity,axis,mass,zr,ktg,tg,zg,pt}_alice`, `inclusive_jet/pt_alice`); **12 got
+PARTIAL** (only `[10,20]`/`[10,30]`); and 8 bins (`[0,5] [0,10] [5,10] [20,30] [30,40] [30,50]
+[40,50] [50,80]`) were never exercised. Even the full 30-file sample only spans 10–40%, so sub-10%
+and >40% bins stay empty.
+
+*Step 7 worklist:*
+1. Re-run with the FULL 30-file sample (not one chunk) → exercises `[10,20]`/`[20,30]`/`[30,40]`/`[10,30]`
+   for the 12 partial-coverage observables (CMS/ATLAS jet + hadron). Cheap; do first.
+2. Acquire/generate PbPb samples for the MISSING regions — especially **0–10%** (unblocks the 12
+   zero-coverage ALICE substructure/h+jet observables **and `pt_y_atlas`**) and **40–80%**
+   (`axis_cms` `[50,80]`, hadron `[40,50]`, CMS `[30,50]`). *Cleaner long-term:* switch to
+   **event-based** (`real_time_hydro`) samples spanning 0–100% — one event set fills every bin via
+   per-event centrality filtering, instead of stitching fixed-centrality files.
+3. Case-by-case per observable × centrality: confirm AA MC fills, `plot_RAA` renders, and the
+   per-centrality `ratio` table overlays/aligns. **Motivating case: `pt_y_atlas` AA double-ratio**
+   (`[0,10]`-only; its R_AA(|y|)/R_AA(0) vs `raa_doubleRatio` is the actual physics result, never
+   filled by the 10–11% sample — see B12).
+4. Then repeat for **STAT_2760** (18 enabled AA observables, MIXED) and **STAT_200** (AuAu 200 GeV,
+   ~6–7 enabled AA observables, MIXED, incl. γ-trigger) — after their Step-6 sweep.
+
 **Side-items (not blocking):** `ktg_alice` DyG variant still not histogrammed (C6); v2/flow +
-γ-trigger analyzers not implemented (by-design-off); 2760 / 200 not yet audited.
+γ-trigger analyzers not implemented (by-design-off). 2760 / 200 audited for Step 7 (centralities +
+MIXED schema state recorded above); full per-observable migration audit still pending their sweep.
 
 ## Diagnostic snippets
 
