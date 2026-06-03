@@ -459,7 +459,8 @@ validation rides with **Step 7** (needs a 0–10% sample).
 
 Steps 1–4 + render-path fixes E1/E2/E3 + the AA R_AA binning fix + plotter cosmetics + **Step 4.5
 `charge_cms`** + **Step 5 (ungroomed/groomed split — mass_alice/mg_alice + angularity_alice/
-angularity_groomed_alice)** are **DONE** (see the dated sections above). **NEXT = Step 6.**
+angularity_groomed_alice)** + **Step 6 (STAT_5020)** are **DONE** (see the dated sections above).
+**NEXT = Step 6 STAT_2760, then STAT_200 sweeps.**
 
 **Step 4.5 — parametrized-observable migration.** Wire the observables the analyzer *computes* but the
 histogrammer/plotter don't yet iterate (root cause: sub-observable loops keyed on the pre-migration
@@ -473,10 +474,26 @@ names; see "Step 4.5 — DONE" above and edge case C9):
 **Step 5 — ungroomed/groomed split — ✅ DONE (2026-06-03).** See the "Step 5 — ungroomed/groomed split
 DONE" section above. `double_ratio` intentionally NOT added (not needed; user decision).
 
-**Step 6 — drop legacy YAML keys.** Strip `hepdata_*_dir`/`_hname`/`_gname`/dangling `bins:` from
-MIXED entries; **first = `axis_alice`** (only enabled observable still on the legacy ROOT path →
-excluded from whole-config renders). Decide the canonical bin-edges source. Then sweep STAT_2760,
-then STAT_200 (both still MIXED/OLD).
+**Step 6 — drop legacy YAML keys.**
+
+**STAT_5020 — ✅ DONE + COMMITTED 2026-06-03 (`c83481f`).** Every observable (enabled + disabled) is
+off the legacy ROOT overlay path — **zero** active `hepdata_*` / `HEPData-*.root` keys remain.
+- `axis_alice` (enabled): stripped `hepdata_pp`/`hepdata_AA` + per-variant `hepdata_*_dir`/`_gname`;
+  the `data:` block (pp.spectra + AA.ratio) already carried the equivalent table mappings. It was the
+  last enabled observable on the legacy path, so whole-config renders no longer exclude it.
+- Self-norm fix (`plot_results_STAT.py`): added `"axis"` to the self-normalize substring trigger —
+  the jet-axis-difference MC (`1/σ_inc dN/dΔR`) was not self-normalized and sat ~0 vs data. Latent
+  bug surfaced only now that axis_alice finally renders.
+- Disabled `xj_gamma_atlas` / `xj_gamma_cms` / `gamma_trigger_jet/pt_atlas`: stripped legacy keys;
+  their (uncurated, empty-table) `data:` skeletons remain. `rg_atlas` left as-is (uncurated, *not* a
+  MIXED entry — only a dummy `bins:` placeholder).
+- Verified e2e (pp, plotter-only on cached histograms): exit 0, 339 PDFs incl. 12 `axis_alice` with
+  MC+data overlaid; all HEPData cached locally (no web fetch). NB: `axis_alice` AA arm needs a
+  `[0,10]`-contained hydro file (current 10–11% sample fails the `[0,10]` full-containment bin) → Step 7.
+
+**NEXT — STAT_2760, then STAT_200** (both still MIXED/OLD). The migrated analyzer/histogrammer/plotter
+**code is energy-agnostic and already done**, so these are config-side sweeps (legacy→`data:` schema
+per observable) + any missing HEPData curation — NOT a from-Step-1 code redo.
 
 End state: every observable on one path (`data:` + new encoder + `obs.essential_parameters()`).
 
