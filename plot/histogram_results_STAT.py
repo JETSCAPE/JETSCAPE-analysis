@@ -903,6 +903,18 @@ class HistogramResults(common_base.CommonBase):
                                     data_block_params = {
                                         "jet_charge": observable_module.JetChargeSpec(charge_value).encode()
                                     }
+                                # pt_y_atlas is the ATLAS |y| double-ratio R_AA(|y|)/R_AA(|y|<0.3) -- the
+                                # rapidity-dependence of the PbPb jet suppression. Its only |y|-binned
+                                # HEPData (raa_doubleRatio) is in the AA `ratio` block; the pp `spectra` is
+                                # an inclusive pT spectrum (ppCrossX, a DIFFERENT axis). Force the MC onto
+                                # the |y| (ratio) edges in BOTH arms so the analyzer's |y| fill lands on |y|
+                                # bins (else it collapses into the first pT bin). Each arm is then self-
+                                # normalized to its own |y|<0.3 bin (post_process_histogram); plot_RAA then
+                                # divides the AA self-ratio by the pp self-ratio to form R_AA(|y|)/R_AA(0).
+                                # Because the pp main hist is already on the |y| (ratio) binning,
+                                # maybe_book_raa_denom's equality guard skips the _raa_denom and plot_RAA
+                                # uses the pp main hist directly as the (binning-matched) denominator.
+                                bins_is_AA = self.is_AA or observable == "pt_y_atlas"
                                 bins = self.plot_utils.bins_from_config(
                                     block,
                                     self.sqrts,
@@ -911,7 +923,7 @@ class HistogramResults(common_base.CommonBase):
                                     centrality,
                                     centrality_index,
                                     suffix=f"{self.suffix}{pt_suffix}",
-                                    is_AA=self.is_AA,
+                                    is_AA=bins_is_AA,
                                     data_block_params=data_block_params,
                                 )
 
@@ -1270,10 +1282,11 @@ class HistogramResults(common_base.CommonBase):
         if ratio_bins is None or len(ratio_bins) < 2:
             return
         ratio_bins = np.asarray(ratio_bins)
-        # Some non-standard "ratio" tables (e.g. pt_y_atlas, a rapidity double-ratio that gets
-        # post-processed differently downstream) yield non-monotonic edges that would book an
-        # invalid TAxis. Such observables aren't the simple-spectrum R_AA this denominator targets,
-        # so skip them and let plot_RAA fall back to the spectra histogram.
+        # Defensive: a malformed ratio table with non-monotonic edges would book an invalid TAxis.
+        # Skip and let plot_RAA fall back to the spectra histogram. (pt_y_atlas is NOT caught here --
+        # its |y| ratio edges are monotonic post-B11. It is skipped instead by the spectra==ratio
+        # equality guard below: its main hist is forced onto the |y| ratio binning, so its
+        # spectra-binning already equals its ratio-binning.)
         if not np.all(np.diff(ratio_bins) > 0):
             return
         if spectra_bins is not None and np.array_equal(ratio_bins, np.asarray(spectra_bins)):

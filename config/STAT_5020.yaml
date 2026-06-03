@@ -2945,6 +2945,16 @@ inclusive_jet:
       pt: [158., 200., 251., 316., 562.]
       rapidity: 2.8
 
+    # pt_y_atlas is the ATLAS |y| double-ratio R_AA(|y|)/R_AA(|y|<0.3) -- the rapidity-
+    # dependence of the PbPb jet suppression. Each arm is first self-normalized to its own
+    # |y|<0.3 bin (post_process_histogram in plot_results_STAT.py), then plot_RAA forms AA/pp,
+    # i.e. (AA self-ratio)/(pp self-ratio). There is NO pp |y| HEPData table to overlay: the
+    # only |y| table (raa_doubleRatio) is PbPb, and the pp HEPData is a pT spectrum (ppCrossX,
+    # a different axis). So the pp PLOT has no data -- skip_pp suppresses the pp data overlay
+    # and prints "skip data plot -- no pp data in HEPData". (The pp MC self-ratio is still
+    # persisted; it is the R_AA denominator for the AA arm.) The data comparison is the AA arm.
+    skip_pp: true
+
     #hepdata: "HEPData-ins1673184-v1-root.root"
 
     #xtitle: "|#it{y}|"

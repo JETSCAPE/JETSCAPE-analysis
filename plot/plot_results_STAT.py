@@ -488,10 +488,15 @@ class PlotResults(common_base.CommonBase):
                 suffix=self.suffix,
                 pt_suffix=pt_suffix,
             )
-        elif "data" in block:
+        elif "data" in block and not (self.skip_pp and not self.is_AA):
             # New-schema `data:` block -> read the measured points from the HEPData YAML.
             # Note: pass `centrality` (the [low, high] list), not centrality_index — the
             # exact table+index is matched by centrality/jet_R/jet_pt value.
+            # skip_pp marks an observable with no pp measurement (e.g. pt_y_atlas, a PbPb
+            # |y| self-ratio whose only |y| HEPData table is PbPb). For the pp arm we then
+            # load NO data overlay -- otherwise an off-axis/unrelated table (the pp pT
+            # spectrum) would draw a misleading "Data" legend contradicting the
+            # "skip data plot -- no pp data in HEPData" annotation.
             self.observable_settings["data_distribution"] = self.plot_utils.tgraph_from_data_block(
                 block,
                 self.is_AA,
