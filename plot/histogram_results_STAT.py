@@ -422,6 +422,8 @@ class HistogramResults(common_base.CommonBase):
         logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
             for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
@@ -778,22 +780,32 @@ class HistogramResults(common_base.CommonBase):
                         # distinguish the grooming variant); charge_value (kappa) feeds the encoder for
                         # charge_cms; angularity_spec (alpha) feeds it for the angularity observables. The
                         # keys are mutually exclusive in the YAML.
-                        # (zr_alice's `subjet_R` is deferred -- no branch here; uncurated data, A5.)
-                        subobservable_label_list = [("", None, None, None)]
+                        # Tuple is (subobservable_label, axis_entry, charge_value, angularity_spec,
+                        # subjet_spec). Step 6 added the 5th slot for zr_alice's subjet_R.
+                        subobservable_label_list = [("", None, None, None, None)]
                         if "axis" in block["jet"]:
                             subobservable_label_list = [
-                                (f"_{axis_block['type']}", axis_block, None, None) for axis_block in block["jet"]["axis"]
+                                (f"_{axis_block['type']}", axis_block, None, None, None) for axis_block in block["jet"]["axis"]
                             ]
                         if "charge" in block["jet"]:
                             subobservable_label_list = [
-                                (f"_k{kappa}", None, kappa, None) for kappa in block["jet"]["charge"]
+                                (f"_k{kappa}", None, kappa, None, None) for kappa in block["jet"]["charge"]
                             ]
                         # Step 5: angularity (alpha) sub-observable -- one AngularitySpec per alpha, feeding
                         # the encoder name + per-alpha data-block table selection (jet_angularity key).
                         if "angularity" in block["jet"]:
                             subobservable_label_list = [
-                                (f"_alpha{a['alpha']}", None, None, observable_module.AngularitySpec(alpha=a["alpha"]))
+                                (f"_alpha{a['alpha']}", None, None, observable_module.AngularitySpec(alpha=a["alpha"]), None)
                                 for a in block["jet"]["angularity"]
+                            ]
+                        # Step 6: subjet_R (zr_alice) sub-observable -- one SubjetRSpec per subjet R. It
+                        # feeds the `_r{r}` legacy suffix (matching the analyzer column ..._R{R}_r{r}) and
+                        # the per-r data-block table selection (jet_subjet_R key). zr_alice stays on the
+                        # legacy f-string name path (NOT the encoder), so no _encoder context is needed.
+                        if "subjet_R" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_r{r}", None, None, None, observable_module.SubjetRSpec(r=r))
+                                for r in block["jet"]["subjet_R"]
                             ]
 
                         # Whether the histogram name comes from the observable encoder (the analyzer
@@ -807,7 +819,7 @@ class HistogramResults(common_base.CommonBase):
                         # it (mirrors the analyzer: axis_alice passes jet_axis, axis_cms does not).
                         axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
 
-                        for subobservable_label, axis_entry, charge_value, angularity_spec in subobservable_label_list:
+                        for subobservable_label, axis_entry, charge_value, angularity_spec, subjet_spec in subobservable_label_list:
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
                                     # New YAML schema mixes methods (soft_drop + dynamical_grooming).
@@ -925,6 +937,12 @@ class HistogramResults(common_base.CommonBase):
                                     data_block_params = {
                                         "jet_charge": observable_module.JetChargeSpec(charge_value).encode()
                                     }
+                                # Step 6: zr_alice has one HEPData table per subjet R; select it by the
+                                # jet_subjet_R key (SubjetRSpec encoding, "r_{r}"). NOT gated on is_migrated
+                                # -- zr_alice is on the legacy name path but its binning still resolves
+                                # through the per-r data-block table.
+                                if subjet_spec is not None:
+                                    data_block_params = {"jet_subjet_R": subjet_spec.encode()}
                                 # pt_y_atlas is the ATLAS |y| double-ratio R_AA(|y|)/R_AA(|y|<0.3) -- the
                                 # rapidity-dependence of the PbPb jet suppression. Its only |y|-binned
                                 # HEPData (raa_doubleRatio) is in the AA `ratio` block; the pp `spectra` is
@@ -1007,6 +1025,9 @@ class HistogramResults(common_base.CommonBase):
                                         )
                                     # pp: book the R_AA-denominator (inclusive_jet pt/Dz/Dpt RAA)
                                     # on the AA `ratio` binning when it differs from the spectra binning.
+                                    # Forward data_block_params so per-sub-observable legacy observables
+                                    # (zr_alice's subjet_R) resolve the denom on the RIGHT per-r ratio
+                                    # table; it is None for every other legacy observable (no-op).
                                     self.maybe_book_raa_denom(
                                         observable_type=observable_type,
                                         observable=observable,
@@ -1018,6 +1039,7 @@ class HistogramResults(common_base.CommonBase):
                                         pt_bin=pt_bin,
                                         block=block,
                                         suffix=f"{self.suffix}{pt_suffix}",
+                                        data_block_params=data_block_params,
                                     )
 
     # -------------------------------------------------------------------------------------------
@@ -1179,6 +1201,96 @@ class HistogramResults(common_base.CommonBase):
                             column_name = f"{observable_type}_star_trigger_pt{jet_collection_label}"
                             bins = np.array(block["trigger_range"])
                             self.histogram_observable(column_name=column_name, bins=bins, centrality=centrality)
+
+                # Semi-inclusive recoil background subtraction (ALICE h+jet): assemble the
+                # Delta_recoil distribution per jet R from the per-trigger-class yields booked
+                # above. Done here (not the analyzer) because it combines two histograms.
+                if self.sqrts in [2760, 5020]:
+                    self._build_semi_inclusive_delta_recoil(
+                        observable_type, observable, block, centrality, jet_collection_label
+                    )
+
+    # -------------------------------------------------------------------------------------------
+    # Semi-inclusive recoil subtraction: Delta_recoil = high/N_high - c_ref * low/N_low (per jet R)
+    # -------------------------------------------------------------------------------------------
+    def _build_semi_inclusive_delta_recoil(
+        self, observable_type, observable, block, centrality, jet_collection_label=""
+    ):
+        """Assemble the background-subtracted semi-inclusive recoil distribution.
+
+        The analyzer/histogrammer produce per-trigger-class recoil yields (lowTrigger / highTrigger).
+        The physical observable is Delta_recoil = (1/N_trig^high) dN/dx|_high - c_ref * (1/N_trig^low)
+        dN/dx|_low, which cancels the trigger-uncorrelated (combinatorial) background. c_ref corrects
+        the slightly different underlying-event level between the two trigger classes (=1 for pp;
+        per-R values for Pb-Pb). The result is named so the existing plot path picks it up. Ports the
+        recipe from the legacy plot_results_TG3.py.
+        """
+        if "low_trigger_range" not in block or "high_trigger_range" not in block:
+            return
+
+        def _get(name):
+            return next((h for h in self.output_list if h.GetName() == name), None)
+
+        # N_trig per class from the trigger-pt histogram. The trigger selection is identical for all
+        # hadron_trigger_chjet observables, and the analyzer stores the trigger-pt column only once
+        # (under whichever observable owns it, e.g. IAA_pt_alice -- dphi reuses the same triggers), so
+        # fall back to a pattern search for the shared trigger-pt histogram at this centrality.
+        h_trig = _get(
+            f"h_{observable_type}_{observable}_trigger_pt{jet_collection_label}{observable}_{centrality}"
+        )
+        if h_trig is None:
+            h_trig = next(
+                (
+                    h
+                    for h in self.output_list
+                    if f"_trigger_pt{jet_collection_label}" in h.GetName()
+                    and h.GetName().endswith(f"_{centrality}")
+                ),
+                None,
+            )
+        if h_trig is None:
+            return
+        low_r = block["low_trigger_range"]
+        high_r = block["high_trigger_range"]
+        n_low = h_trig.GetBinContent(h_trig.FindBin(0.5 * (low_r[0] + low_r[1])))
+        n_high = h_trig.GetBinContent(h_trig.FindBin(0.5 * (high_r[0] + high_r[1])))
+        if n_low <= 0 or n_high <= 0:
+            return
+
+        # IAA is a single pt-integrated recoil spectrum (no pt suffix); dphi is differential in
+        # recoil-jet pt, with one _pt{i} sub-bin per jet-pt window. Build a Delta_recoil per
+        # (jet R, pt sub-bin).
+        if "dphi" in observable and isinstance(block.get("jet", {}).get("pt"), list):
+            pt_suffixes = [f"_pt{i}" for i in range(len(block["jet"]["pt"]) - 1)]
+        else:
+            pt_suffixes = [""]
+        for R_index, jet_R in enumerate(block["jet"]["R"]):
+            # c_ref: 1.0 for pp; the per-R underlying-event correction for Pb-Pb (list in config).
+            c_ref = 1.0
+            if self.is_AA and isinstance(block.get("c_ref"), list):
+                c_ref = block["c_ref"][R_index]
+            for pt_suffix in pt_suffixes:
+                h_high = _get(
+                    f"h_{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}_{centrality}{pt_suffix}"
+                )
+                h_low = _get(
+                    f"h_{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}_{centrality}{pt_suffix}"
+                )
+                if h_high is None or h_low is None:
+                    continue
+                # Name to match the plot path's get_histogram lookup
+                # (h_<type>_<obs>_R<R><coll>_<cent><pt_suffix>). NOTE: TH1::Clone sets the name but
+                # keeps the source title; get_histogram matches on the TITLE, so set it to the name.
+                delta_name = (
+                    f"h_{observable_type}_{observable}_R{jet_R}{jet_collection_label}_{centrality}{pt_suffix}"
+                )
+                h_delta = h_high.Clone(delta_name)
+                h_delta.SetTitle(delta_name)
+                h_delta.Scale(1.0 / n_high, "width")
+                h_low_norm = h_low.Clone(f"{h_low.GetName()}_tmpnorm")
+                h_low_norm.Scale(1.0 / n_low, "width")
+                h_delta.Add(h_low_norm, -1.0 * c_ref)
+                self.output_list.append(h_delta)
 
     # -------------------------------------------------------------------------------------------
     # Histogram a single observable

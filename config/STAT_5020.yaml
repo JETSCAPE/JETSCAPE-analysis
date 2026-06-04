@@ -57,7 +57,10 @@ pt_ref: 10.
 
 # General jet finding parameters
 jet_R: [0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
-min_jet_pt: 20.
+# Lowered 20 -> 7 (2026-06-04): the semi-inclusive recoil observables (IAA_pt_alice floor 5,
+# dphi_alice floor 10) need recoil jets below 20 GeV to reach the lowest HEPData bins; the
+# previous 20 GeV floor left those bins empty. Other jet observables cut higher, so unaffected.
+min_jet_pt: 7.
 max_jet_y: 3.
 
 # If AA, set different options for hole subtraction treatment
@@ -1489,6 +1492,9 @@ inclusive_chjet:
       eta_R: 0.9
       subjet_R: [0.1, 0.2]
 
+    # Step 6 curation (2026-06-04): leading-subjet z_r, self-normalized (the AA-comparison
+    # normalization). subjet_R 0.1 vs 0.2 are SEPARATE HEPData tables (ins2070434), one column each
+    # (index 1). pp.spectra = Tables 5/8; AA.spectra = Tables 6/9; AA.ratio (PbPb/pp) = Tables 7/10.
     data:
       pp:
         hepdata:
@@ -1498,15 +1504,12 @@ inclusive_chjet:
           spectra:
             quantity: zr
             x_axis:
-              label: ""
+              label: "#it{z}_{r}"
             y_axis:
-              label: ""
+              label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{z}_{r}}"
             tables:
-              - parameters: { jet_subjet_R: [r_0.1, r_0.2] }
-                systematics_names: {}
-                additional_systematics: {}
-                table: ""
-                index: ""
+              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: {}, additional_systematics: {}, table: Table 5, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: {}, additional_systematics: {}, table: Table 8, index: "1" }
       AA:
         hepdata:
           record:
@@ -1515,27 +1518,21 @@ inclusive_chjet:
           spectra:
             quantity: zr
             x_axis:
-              label: ""
+              label: "#it{z}_{r}"
             y_axis:
-              label: ""
+              label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{z}_{r}}"
             tables:
-              - parameters: { jet_subjet_R: [r_0.1, r_0.2] }
-                systematics_names: {}
-                additional_systematics: {}
-                table: ""
-                index: ""
+              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: {}, additional_systematics: {}, table: Table 6, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: {}, additional_systematics: {}, table: Table 9, index: "1" }
           ratio:
             quantity: zr
             x_axis:
-              label: ""
+              label: "#it{z}_{r}"
             y_axis:
-              label: ""
+              label: "PbPb / pp"
             tables:
-              - parameters: { jet_subjet_R: [r_0.1, r_0.2] }
-                systematics_names: {}
-                additional_systematics: {}
-                table: ""
-                index: ""
+              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: {}, additional_systematics: {}, table: Table 7, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: {}, additional_systematics: {}, table: Table 10, index: "1" }
 
   # ALICE, jet-axis difference
   # Two sets of figures:
@@ -4901,14 +4898,22 @@ hadron_trigger_chjet:
             x_axis:
               label: "#it{p}_{T,jet} (GeV/#it{c})"
             y_axis:
-              label: I_{AA}(#it{p}_{T,jet})
-              range: [0.3, 3.0]
+              # pp arm is the Delta_recoil(pT) distribution, not I_AA (Step 6 curation 2026-06-03).
+              label: "#Delta_{recoil} #left[(GeV/#it{c})^{-1}#right]"
+              log: true
             tables:
-              - parameters: { jet_R: ["0.2", "0.4", "0.5"] }
+              # Table 1 (hepDeltaRecoilpp): pp Delta_recoil(pT), one column per jet R.
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 1
+                combinations:
+                  - parameters: { jet_R: "0.2" }
+                    index: "1"
+                  - parameters: { jet_R: "0.4" }
+                    index: "2"
+                  - parameters: { jet_R: "0.5" }
+                    index: "3"
       AA:
         hepdata:
           record:
@@ -4919,27 +4924,41 @@ hadron_trigger_chjet:
             x_axis:
               label: "#it{p}_{T,jet} (GeV/#it{c})"
             y_axis:
-              label: ""
+              label: "#Delta_{recoil} #left[(GeV/#it{c})^{-1}#right]"
               log: true
             tables:
-              - parameters: { jet_R: ["0.2", "0.4", "0.5"] }
+              # Table 2 (hepDeltaRecoilPbPb): Pb-Pb Delta_recoil(pT), one column per jet R.
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 2
+                combinations:
+                  - parameters: { jet_R: "0.2" }
+                    index: "1"
+                  - parameters: { jet_R: "0.4" }
+                    index: "2"
+                  - parameters: { jet_R: "0.5" }
+                    index: "3"
           ratio:
             quantity: IAA_pt
             x_axis:
               label: "#it{p}_{T,jet} (GeV/#it{c})"
             y_axis:
-              label: ""
-              log: true
+              label: "#it{I}_{AA}(#it{p}_{T,jet})"
+              range: [0.3, 3.0]
             tables:
-              - parameters: { jet_R: ["0.2", "0.4", "0.5"] }
+              # Table 3 (hepIAA): I_AA(pT) = PbPb/pp, one column per jet R.
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 3
+                combinations:
+                  - parameters: { jet_R: "0.2" }
+                    index: "1"
+                  - parameters: { jet_R: "0.4" }
+                    index: "2"
+                  - parameters: { jet_R: "0.5" }
+                    index: "3"
 
   # PRL Fig 3 [Fig 2 contains these data for R=0.4 only]
   # IAA vs delta_phi
@@ -4961,9 +4980,15 @@ hadron_trigger_chjet:
       eta: 0.9
     jet:
       R: [0.2, 0.4, 0.5]
-      pt: [10., 50.]
+      # Step 6 curation (2026-06-03): Delta_recoil(Dphi) is differential in recoil-jet pt, so split
+      # the single [10,50] window into the data's jet-pt sub-bins (HEPData columns 1-3 of Tables 4-6).
+      pt: [10., 20., 30., 50.]
       eta_R: 0.9
-    c_ref: "TODO: see Fig 5 of PRC"
+    # c_ref per jet R (R=0.2/0.4/0.5). The differential (Dphi) analysis c_ref lives only in Fig 5
+    # of the PRC (ins2693247) and is NOT in HEPData, so we reuse the integrated-analysis values
+    # (same as IAA_pt_alice) for every pt bin (user decision 2026-06-04). Only used on the AA arm
+    # (pp uses c_ref=1); revisit if the per-pt-bin differential c_ref ever becomes available.
+    c_ref: [0.90, 0.82, 0.82]
 
     #hepdata: "HEPData-ins2693336-v1-root.root"
 
@@ -4978,6 +5003,9 @@ hadron_trigger_chjet:
     # RJE 2025/08: Now that we have the HEPdata, the binning is not necessary.
     # bins: [1.57, 2.07, 2.42, 2.61, 2.76, 2.89, 3.02, 3.14]
 
+    # Step 6 curation (2026-06-03): per-(jet_R, jet_pt) Delta_recoil(Dphi). Each jet R is a separate
+    # HEPData table; within it, columns 1/2/3 are the 10-20 / 20-30 / 30-50 GeV recoil-jet pt bins.
+    # pp.spectra = Tables 4/5/6; AA.spectra = Tables 7/8/9; AA.ratio (I_AA) = Tables 10/11/12.
     data:
       pp:
         hepdata:
@@ -4987,16 +5015,35 @@ hadron_trigger_chjet:
           spectra:
             quantity: dphi
             x_axis:
-              label: "#it{p}_{T,jet} (GeV/#it{c})"
+              label: "#Delta#it{#varphi}"
             y_axis:
-              label: I_{AA}(#Delta#varphi)
-              range: [0.1, 9.0]
+              label: "#Delta_{recoil} (rad^{-1})"
+              log: true
             tables:
-              - parameters: { jet_R: ["0.2", "0.4", "0.5"] }
+              - parameters: { jet_R: "0.2" }
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 4
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
+              - parameters: { jet_R: "0.4" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: Table 5
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
+              - parameters: { jet_R: "0.5" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: Table 6
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
       AA:
         hepdata:
           record:
@@ -5005,29 +5052,67 @@ hadron_trigger_chjet:
           spectra:
             quantity: dphi
             x_axis:
-              label: "#it{p}_{T,jet} (GeV/#it{c})"
+              label: "#Delta#it{#varphi}"
             y_axis:
-              label: ""
+              label: "#Delta_{recoil} (rad^{-1})"
               log: true
             tables:
-              - parameters: { jet_R: ["0.2", "0.4", "0.5"] }
+              - parameters: { jet_R: "0.2" }
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 7
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
+              - parameters: { jet_R: "0.4" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: Table 8
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
+              - parameters: { jet_R: "0.5" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: Table 9
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
           ratio:
             quantity: dphi
             x_axis:
-              label: "#it{p}_{T,jet} (GeV/#it{c})"
+              label: "#Delta#it{#varphi}"
             y_axis:
-              label: ""
-              log: true
+              label: "#it{I}_{AA}(#Delta#it{#varphi})"
+              range: [0.1, 9.0]
             tables:
-              - parameters: { jet_R: ["0.2", "0.4", "0.5"] }
+              - parameters: { jet_R: "0.2" }
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 10
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
+              - parameters: { jet_R: "0.4" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: Table 11
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
+              - parameters: { jet_R: "0.5" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: Table 12
+                combinations:
+                  - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
+                  - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
+                  - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
 
 #------------------------------------------------------------------
 # dijet triggered jet observables

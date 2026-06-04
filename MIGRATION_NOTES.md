@@ -491,6 +491,41 @@ off the legacy ROOT overlay path — **zero** active `hepdata_*` / `HEPData-*.ro
   MC+data overlaid; all HEPData cached locally (no web fetch). NB: `axis_alice` AA arm needs a
   `[0,10]`-contained hydro file (current 10–11% sample fails the `[0,10]` full-containment bin) → Step 7.
 
+**STAT_5020 — ALICE curation observables (IAA / dphi / zr_alice) — pp-DONE+VALIDATED 2026-06-04 (uncommitted batch).**
+These were the deferred "curation+wiring" half of Step 6 (axis_alice above was the wiring-only half).
+
+- **`IAA_pt_alice` + `dphi_alice` (semi-inclusive h+jet recoil).** The observable is the trigger-
+  background-subtracted recoil distribution Δ_recoil = (1/N_trig^high)·high − c_ref·(1/N_trig^low)·low.
+  The analyzer produces only per-trigger-class yields (`_lowTrigger`/`_highTrigger`); **nothing
+  assembled Δ_recoil** and the plot path for `hadron_trigger_chjet` was never even called. Added:
+  (1) `histogram_results_STAT.py:_build_semi_inclusive_delta_recoil` — builds Δ_recoil per (R[,pt-bin])
+  from the booked high/low + the trigger-pt (N_trig) histogram; dphi reuses the IAA-owned trigger-pt
+  hist (same triggers). (2) wired `plot_hadron_trigger_chjet_observables` into `plot_results()` (it
+  existed but was never invoked) + a pt-bin loop for dphi. (3) **per-trigger normalization:** the
+  1/N_trig ratio cancels the standard xsec/weight_sum scaling, so `_scale_one_histogram` SKIPS the
+  standard chain for `hadron_trigger_chjet` (else it double-normalizes ~1e3). (4) curation: IAA
+  data: block → Tables 1/2/3 (pp/AA/I_AA, ins2693336, R via index); dphi → per-(R,pt) Tables 4-6 /
+  7-9 / 10-12. (5) `c_ref` per R (AA only; pp=1): IAA `[0.90,0.82,0.82]` (Fig-5 *integrated*), dphi
+  reuses the same (the differential Fig-5 values are not in HEPData — see edge case A10).
+  Verified pp (ratio≈1 where populated). **`min_jet_pt: 20 → 7`** (config) so recoil jets reach the
+  data's lowest pt bins — needs the slow re-analysis to take effect (the 20 GeV floor left the lowest
+  bins empty; this is the ONLY observables that need jets <20 GeV).
+- **`zr_alice` (leading-subjet z_r, subjet_R 0.1/0.2).** Was doubly-blocked (C9 loop key-mismatch + A5
+  uncurated). Fixed WITHOUT touching the analyzer (its `_R{R}_r{r}` columns already exist): added a
+  **`subjet_R` sub-observable branch** (widened the jet sub-observable tuple 4→5; legacy name path,
+  not encoder) in both the histogrammer and plotter, threading `data_block_params={jet_subjet_R: r_X}`
+  (NOT gated on is_migrated) for the per-r binning + overlay; added `"zr"` to the self-normalize
+  trigger; curated the data: block → Tables 5/8 (pp), 6/9 (AA), 7/10 (PbPb/pp ratio). Verified pp
+  (ratio≈1).
+- **Adversarial review (2026-06-04) — fixed:** (a) the `hadron_trigger_chjet` scale-skip wrongly
+  swallowed `nsubjettiness_alice`'s (STAT_2760) self-normalization → guarded with `and not
+  self_normalize`. (b) zr_alice's legacy `maybe_book_raa_denom` call omitted `data_block_params`, so
+  the r=0.2 R_AA denominator silently resolved to the r=0.1 ratio table → forwarded the param.
+  **Deferred (pending large-sample validation):** review flagged the dphi/IAA Δ_recoil *spectra* may
+  be missing a recoil-jet-pt-window / Δφ-acceptance factor (double-differential `(GeV/c·rad)^-1`
+  units), but the pp render shows ratio≈1 (a 10× dphi error would be obvious), so NOT applied — the
+  large-sample run is the decisive test (factor cancels in the I_AA ratio regardless). See edge cases.
+
 **NEXT — STAT_2760, then STAT_200** (both still MIXED/OLD). The migrated analyzer/histogrammer/plotter
 **code is energy-agnostic and already done**, so these are config-side sweeps (legacy→`data:` schema
 per observable) + any missing HEPData curation — NOT a from-Step-1 code redo.
