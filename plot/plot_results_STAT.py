@@ -881,10 +881,15 @@ class PlotResults(common_base.CommonBase):
     def get_histogram(self, observable_type, observable, centrality, collection_label="", pt_suffix=""):
         keys = [key.ReadObj().GetTitle() for key in self.input_file.GetListOfKeys()]
 
-        # In the case of semi-inclusive measurements construct difference of histograms
-        if "semi_inclusive" in observable_type:
+        # In the case of semi-inclusive recoil measurements, construct Delta_recoil from the
+        # (aggregated) per-trigger-class yields. This MUST happen here, post-aggregation -- the
+        # per-trigger normalization is non-linear (1/N_trig), so doing it per-file in the
+        # histogrammer and then hadd-summing over-counts by n_files. observable_type is
+        # "hadron_trigger_chjet" (IAA_pt_alice/dphi_alice) on 5020/2760; the legacy 2760/200
+        # "semi_inclusive_*" naming is also routed here for back-compat.
+        if "semi_inclusive" in observable_type or observable_type == "hadron_trigger_chjet":
             self.construct_semi_inclusive_histogram(
-                keys, observable_type, observable, centrality, collection_label=collection_label
+                keys, observable_type, observable, centrality, collection_label=collection_label, pt_suffix=pt_suffix
             )
 
         # For all other histograms, get the histogram directly
@@ -936,7 +941,70 @@ class PlotResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Construct semi-inclusive observables from difference of histograms
     # -------------------------------------------------------------------------------------------
-    def construct_semi_inclusive_histogram(self, keys, observable_type, observable, centrality, collection_label=""):
+    def construct_semi_inclusive_histogram(self, keys, observable_type, observable, centrality, collection_label="", pt_suffix=""):
+        # Semi-inclusive recoil (hadron_trigger_chjet: IAA_pt_alice / dphi_alice). Build Delta_recoil
+        # from the AGGREGATED raw per-trigger-class yields and the AGGREGATED trigger-pt (N_trig)
+        # counts: Delta_recoil = high/N_trig^high - c_ref * low/N_trig^low (each width-normalized).
+        # The per-trigger normalization is done ONCE here, post-aggregation, so it is correct after
+        # hadd-ing N files -- doing it per-file in the histogrammer then summing over-counts by n_files.
+        if observable_type == "hadron_trigger_chjet":
+            block = self.config[observable_type][observable]
+            hname_high = f"h_{observable_type}_{observable}_R{self.jet_R}_highTrigger{collection_label}_{centrality}{pt_suffix}"
+            hname_low = f"h_{observable_type}_{observable}_R{self.jet_R}_lowTrigger{collection_label}_{centrality}{pt_suffix}"
+            # The analyzer stores the trigger-pt histogram once (under whichever observable owns it,
+            # e.g. IAA_pt_alice); the trigger selection is shared, so find it by pattern.
+            hname_ntrig = next(
+                (k for k in keys if f"_trigger_pt{collection_label}" in k and k.endswith(f"_{centrality}")), None
+            )
+            self.hname = f"h_{observable_type}_{observable}_R{self.jet_R}{collection_label}_{centrality}{pt_suffix}"
+            self.observable_settings[f"jetscape_distribution_raa_denom{collection_label}"] = None
+            if hname_high in keys and hname_low in keys and hname_ntrig:
+                h_high = self.input_file.Get(hname_high)
+                h_high.SetDirectory(0)
+                h_low = self.input_file.Get(hname_low)
+                h_low.SetDirectory(0)
+                h_ntrig = self.input_file.Get(hname_ntrig)
+                h_ntrig.SetDirectory(0)
+                trig = block.get("trigger", {})
+                low_r = trig.get("low_range", block.get("low_trigger_range"))
+                high_r = trig.get("high_range", block.get("high_trigger_range"))
+                n_low = h_ntrig.GetBinContent(h_ntrig.FindBin(0.5 * (low_r[0] + low_r[1])))
+                n_high = h_ntrig.GetBinContent(h_ntrig.FindBin(0.5 * (high_r[0] + high_r[1])))
+                if n_low > 0 and n_high > 0:
+                    c_ref = 1.0  # pp; per-R underlying-event correction for Pb-Pb
+                    if self.is_AA and isinstance(block.get("c_ref"), list):
+                        R_index = next(
+                            (i for i, r in enumerate(block["jet"]["R"]) if np.isclose(r, self.jet_R)), 0
+                        )
+                        c_ref = block["c_ref"][R_index]
+                    h_delta = h_high.Clone(self.hname)
+                    h_delta.SetTitle(self.hname)
+                    h_delta.SetDirectory(0)
+                    h_delta.Scale(1.0 / n_high, "width")
+                    h_low_n = h_low.Clone(f"{hname_low}_tmpnorm")
+                    h_low_n.SetDirectory(0)
+                    h_low_n.Scale(1.0 / n_low, "width")
+                    h_delta.Add(h_low_n, -1.0 * c_ref)
+                    # dphi only: the HEPData Delta_recoil(Dphi) is DOUBLE-differential -- per rad AND
+                    # per recoil-jet-pt (GeV/c x rad)^-1. The MC histogram is binned in Dphi but
+                    # INTEGRATED over the jet-pt window of this sub-bin, so divide by that window width
+                    # to match the data (else it is high by the window, e.g. x10 for the 20-30 GeV bin;
+                    # confirmed at full stats 2026-06-04). IAA's pt-spectrum data is Dphi-integrated, so
+                    # it needs no analogous factor (it already matches at ratio ~1).
+                    if "dphi" in observable and pt_suffix and isinstance(block.get("jet", {}).get("pt"), list):
+                        pt_index = int(pt_suffix.replace("_pt", ""))
+                        pt_edges = block["jet"]["pt"]
+                        if pt_index + 1 < len(pt_edges):
+                            pt_window = pt_edges[pt_index + 1] - pt_edges[pt_index]
+                            if pt_window > 0:
+                                h_delta.Scale(1.0 / pt_window)
+                    self.observable_settings[f"jetscape_distribution{collection_label}"] = h_delta
+                else:
+                    self.observable_settings[f"jetscape_distribution{collection_label}"] = None
+            else:
+                self.observable_settings[f"jetscape_distribution{collection_label}"] = None
+            return
+
         if self.sqrts == 2760:  # Delta recoil
             hname_low_trigger = (
                 f"h_{observable_type}_{observable}_R{self.jet_R}_lowTrigger{collection_label}_{centrality}"

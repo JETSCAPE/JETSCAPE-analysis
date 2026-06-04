@@ -1202,95 +1202,12 @@ class HistogramResults(common_base.CommonBase):
                             bins = np.array(block["trigger_range"])
                             self.histogram_observable(column_name=column_name, bins=bins, centrality=centrality)
 
-                # Semi-inclusive recoil background subtraction (ALICE h+jet): assemble the
-                # Delta_recoil distribution per jet R from the per-trigger-class yields booked
-                # above. Done here (not the analyzer) because it combines two histograms.
-                if self.sqrts in [2760, 5020]:
-                    self._build_semi_inclusive_delta_recoil(
-                        observable_type, observable, block, centrality, jet_collection_label
-                    )
-
-    # -------------------------------------------------------------------------------------------
-    # Semi-inclusive recoil subtraction: Delta_recoil = high/N_high - c_ref * low/N_low (per jet R)
-    # -------------------------------------------------------------------------------------------
-    def _build_semi_inclusive_delta_recoil(
-        self, observable_type, observable, block, centrality, jet_collection_label=""
-    ):
-        """Assemble the background-subtracted semi-inclusive recoil distribution.
-
-        The analyzer/histogrammer produce per-trigger-class recoil yields (lowTrigger / highTrigger).
-        The physical observable is Delta_recoil = (1/N_trig^high) dN/dx|_high - c_ref * (1/N_trig^low)
-        dN/dx|_low, which cancels the trigger-uncorrelated (combinatorial) background. c_ref corrects
-        the slightly different underlying-event level between the two trigger classes (=1 for pp;
-        per-R values for Pb-Pb). The result is named so the existing plot path picks it up. Ports the
-        recipe from the legacy plot_results_TG3.py.
-        """
-        if "low_trigger_range" not in block or "high_trigger_range" not in block:
-            return
-
-        def _get(name):
-            return next((h for h in self.output_list if h.GetName() == name), None)
-
-        # N_trig per class from the trigger-pt histogram. The trigger selection is identical for all
-        # hadron_trigger_chjet observables, and the analyzer stores the trigger-pt column only once
-        # (under whichever observable owns it, e.g. IAA_pt_alice -- dphi reuses the same triggers), so
-        # fall back to a pattern search for the shared trigger-pt histogram at this centrality.
-        h_trig = _get(
-            f"h_{observable_type}_{observable}_trigger_pt{jet_collection_label}{observable}_{centrality}"
-        )
-        if h_trig is None:
-            h_trig = next(
-                (
-                    h
-                    for h in self.output_list
-                    if f"_trigger_pt{jet_collection_label}" in h.GetName()
-                    and h.GetName().endswith(f"_{centrality}")
-                ),
-                None,
-            )
-        if h_trig is None:
-            return
-        low_r = block["low_trigger_range"]
-        high_r = block["high_trigger_range"]
-        n_low = h_trig.GetBinContent(h_trig.FindBin(0.5 * (low_r[0] + low_r[1])))
-        n_high = h_trig.GetBinContent(h_trig.FindBin(0.5 * (high_r[0] + high_r[1])))
-        if n_low <= 0 or n_high <= 0:
-            return
-
-        # IAA is a single pt-integrated recoil spectrum (no pt suffix); dphi is differential in
-        # recoil-jet pt, with one _pt{i} sub-bin per jet-pt window. Build a Delta_recoil per
-        # (jet R, pt sub-bin).
-        if "dphi" in observable and isinstance(block.get("jet", {}).get("pt"), list):
-            pt_suffixes = [f"_pt{i}" for i in range(len(block["jet"]["pt"]) - 1)]
-        else:
-            pt_suffixes = [""]
-        for R_index, jet_R in enumerate(block["jet"]["R"]):
-            # c_ref: 1.0 for pp; the per-R underlying-event correction for Pb-Pb (list in config).
-            c_ref = 1.0
-            if self.is_AA and isinstance(block.get("c_ref"), list):
-                c_ref = block["c_ref"][R_index]
-            for pt_suffix in pt_suffixes:
-                h_high = _get(
-                    f"h_{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}_{centrality}{pt_suffix}"
-                )
-                h_low = _get(
-                    f"h_{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}_{centrality}{pt_suffix}"
-                )
-                if h_high is None or h_low is None:
-                    continue
-                # Name to match the plot path's get_histogram lookup
-                # (h_<type>_<obs>_R<R><coll>_<cent><pt_suffix>). NOTE: TH1::Clone sets the name but
-                # keeps the source title; get_histogram matches on the TITLE, so set it to the name.
-                delta_name = (
-                    f"h_{observable_type}_{observable}_R{jet_R}{jet_collection_label}_{centrality}{pt_suffix}"
-                )
-                h_delta = h_high.Clone(delta_name)
-                h_delta.SetTitle(delta_name)
-                h_delta.Scale(1.0 / n_high, "width")
-                h_low_norm = h_low.Clone(f"{h_low.GetName()}_tmpnorm")
-                h_low_norm.Scale(1.0 / n_low, "width")
-                h_delta.Add(h_low_norm, -1.0 * c_ref)
-                self.output_list.append(h_delta)
+                # Semi-inclusive recoil: the histogrammer only books the RAW per-trigger-class yields
+                # (lowTrigger/highTrigger) + the trigger-pt (N_trig) histogram above. The Delta_recoil
+                # subtraction + per-trigger normalization are deferred to the plotter
+                # (construct_semi_inclusive_histogram), which runs AFTER aggregation -- the 1/N_trig
+                # normalization is non-linear, so doing it here per-file and then hadd-summing N files
+                # would over-count by n_files (verified on the 30-file large sample, 2026-06-04).
 
     # -------------------------------------------------------------------------------------------
     # Histogram a single observable

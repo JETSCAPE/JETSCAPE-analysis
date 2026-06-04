@@ -676,12 +676,14 @@ class PlotUtils(common_base.CommonBase):
                 # logger.debug(f'gx: {gx}')
 
             if not np.isclose(h_x, gx):
+                # The histogram bin has no matching data-graph point -- e.g. the MC histogram extends
+                # past the HEPData x-range (graph x reads 0 once exhausted), as for inclusive_jet/pt_cms
+                # at high pt. Skip this observable's overlay/ratio gracefully and warn, rather than
+                # crashing. Previously the AA arm RAISED here, aborting the entire R_AA render on the
+                # first such observable (the rest of the AA R_AA plots never got produced).
                 _msg = f"hist x: {h_x}, graph x: {gx}"
-                if is_AA:
-                    raise ValueError(_msg)
-                else:  # noqa: RET506
-                    logger.warning(_msg)
-                    return None
+                logger.warning(f"truncate_tgraph: {_msg} (skipping overlay/ratio for {h.GetName()}, is_AA={is_AA})")
+                return None
 
             g_new.SetPoint(bin - 1, gx, gy)
             g_new.SetPointError(bin - 1, 0, 0, yErrLow, yErrUp)

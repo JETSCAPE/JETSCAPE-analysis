@@ -57,10 +57,12 @@ pt_ref: 10.
 
 # General jet finding parameters
 jet_R: [0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
-# Lowered 20 -> 7 (2026-06-04): the semi-inclusive recoil observables (IAA_pt_alice floor 5,
-# dphi_alice floor 10) need recoil jets below 20 GeV to reach the lowest HEPData bins; the
-# previous 20 GeV floor left those bins empty. Other jet observables cut higher, so unaffected.
-min_jet_pt: 7.
+# Lowered 20 -> 5 (2026-06-04): the semi-inclusive recoil observables (IAA_pt_alice jet.pt floor 5,
+# dphi_alice floor 10) need recoil jets below 20 GeV to reach the lowest HEPData bins (IAA's lowest
+# jet-pt data bin is [7,10]); 5 gives a threshold-safety margin below 7. Other jet observables cut
+# higher, so unaffected. NB: [5,7]/[20,50] in the IAA/dphi `trigger` block are trigger-HADRON pt,
+# a different quantity from this jet-finding floor.
+min_jet_pt: 5.
 max_jet_y: 3.
 
 # If AA, set different options for hole subtraction treatment

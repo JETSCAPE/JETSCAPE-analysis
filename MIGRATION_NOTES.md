@@ -521,10 +521,18 @@ These were the deferred "curation+wiring" half of Step 6 (axis_alice above was t
   swallowed `nsubjettiness_alice`'s (STAT_2760) self-normalization → guarded with `and not
   self_normalize`. (b) zr_alice's legacy `maybe_book_raa_denom` call omitted `data_block_params`, so
   the r=0.2 R_AA denominator silently resolved to the r=0.1 ratio table → forwarded the param.
-  **Deferred (pending large-sample validation):** review flagged the dphi/IAA Δ_recoil *spectra* may
-  be missing a recoil-jet-pt-window / Δφ-acceptance factor (double-differential `(GeV/c·rad)^-1`
-  units), but the pp render shows ratio≈1 (a 10× dphi error would be obvious), so NOT applied — the
-  large-sample run is the decisive test (factor cancels in the I_AA ratio regardless). See edge cases.
+- **Large-sample validation + fixes (2026-06-04, 30 pp + 30 PbPb via Condor, `min_jet_pt: 20→5`).**
+  The decisive test exposed (and we fixed) two real bugs the small sample masked:
+  (1) **Δ_recoil multi-file aggregation** — the per-trigger (1/N_trig) normalization was done per-file
+  in the histogrammer, so `hadd`-summing N files over-counted by **n_files** (IAA was ×30 high).
+  **Fix:** moved the Δ_recoil build to the **plotter** (`construct_semi_inclusive_histogram`,
+  post-aggregation); the histogrammer now books only the raw high/low/N_trig. (2) **dphi pt-window**
+  — dphi HEPData is double-differential `(GeV/c·rad)^-1`; the MC is integrated over the jet-pt
+  sub-bin, so divide by that window width (×10 for 20-30 GeV). IAA needs NO such factor (its data is
+  Δφ-integrated; ratio≈1 as-is). After both fixes, IAA + dphi ratio≈1 at full stats, low-pt bins fill
+  (`min_jet_pt: 5` → IAA down to 7 GeV). Also fixed `truncate_tgraph` to skip (not raise) on an AA
+  hist/graph x-mismatch, so the **Step 7 R_AA** render completes (72 PDFs, 10-40% centrality, physical
+  suppression for hadron + jet R_AA). See OBSERVABLE_EDGE_CASES G1/G4/G6. Plots: `~/e2e_render_0604`.
 
 **NEXT — STAT_2760, then STAT_200** (both still MIXED/OLD). The migrated analyzer/histogrammer/plotter
 **code is energy-agnostic and already done**, so these are config-side sweeps (legacy→`data:` schema
