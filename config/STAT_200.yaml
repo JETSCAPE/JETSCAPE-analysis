@@ -152,7 +152,7 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, "$p_T$-Corr": correlated }
                 additional_systematics: {}
                 table: Figure 5
                 combinations:
@@ -176,7 +176,8 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # PHENIX type-A/B/C: Uncorr (point-to-point, incl. stat) / Corr / Global normalization
+                systematics_names: { "$p_{T}$ Uncorr": uncorrelated, "$p_{T}$ Corr": correlated, Global: norm }
                 additional_systematics: {}
                 table: Figure 11
                 combinations:
@@ -243,7 +244,9 @@ hadron:
               range: ["2e-10", "2e2"]
             tables:
               - parameters: { centrality: ["0_5", "10_20", "20_30", "30_40"] }
-                systematics_names: {}
+                # STAR 2003: HEPData publishes only a single combined "sys + stat" column (no split available);
+                # mapped to stat -> treated uncorrelated bin-to-bin (diagonal), avoids imposing false full correlation
+                systematics_names: { "sys + stat": stat }
                 additional_systematics: {}
                 table: Table 1
                 index: "8"
@@ -262,7 +265,9 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # STAR 2003: HEPData publishes only a single combined "sys + stat" column (no split available);
+                # mapped to stat -> treated uncorrelated bin-to-bin (diagonal), avoids imposing false full correlation
+                systematics_names: { "sys + stat": stat }
                 additional_systematics: {}
                 table: Table 1
                 combinations:
@@ -283,7 +288,9 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # STAR 2003: HEPData publishes only a single combined "sys + stat" column (no split available);
+                # mapped to stat -> treated uncorrelated bin-to-bin (diagonal), avoids imposing false full correlation
+                systematics_names: { "sys + stat": stat }
                 additional_systematics: {}
                 table: Table 3
                 combinations:
@@ -531,7 +538,8 @@ inclusive_chjet:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # STAR correlated/shape two-component prescription (shape = integral-preserving pivot, published separately from correlated)
+                systematics_names: { statistical: stat, correlated: correlated, shape: shape }
                 additional_systematics: {}
                 table: Table 1
                 combinations:
@@ -550,8 +558,9 @@ inclusive_chjet:
               range: [0.0, 2.0]
               log: true
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10" }
+                # STAR correlated/shape two-component prescription (shape = integral-preserving pivot, published separately from correlated)
+                systematics_names: { statistical: stat, correlated: correlated, shape: shape }
                 additional_systematics: {}
                 table: Table 10
                 combinations:
@@ -655,8 +664,8 @@ hadron_trigger_chjet:
               label: "#it{R}_{AA}"
               log: true
             tables:
-              - parameters: { jet_R: ["0.2", "0.5"] }
-                systematics_names: {}
+              - parameters: { jet_R: ["0.2", "0.5"], centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 38
                 index: "1"
@@ -715,7 +724,7 @@ hadron_trigger_chjet:
               range: [0.0, 1.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 42
                 index: "1"
@@ -749,8 +758,8 @@ hadron_trigger_chjet:
               range: [0.0, 2.0]
               log: true
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 39
                 index: "1"
