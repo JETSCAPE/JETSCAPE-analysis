@@ -64,6 +64,22 @@ def _fmt_int(x: float) -> str:
     return f"{int(x)}" if float(x).is_integer() else f"{x}"
 
 
+# Substructure discriminators that split an observable into multiple per-combination files but
+# aren't captured by centrality/jet_R/pt. Fixed order keeps the appended tag deterministic.
+_DISCRIMINATOR_KEYS: tuple[str, ...] = ("jet_subjet_R", "jet_grooming_settings", "jet_angularity", "jet_charge")
+
+
+def _discriminator_tag(params: dict[str, Any]) -> str:
+    """Compact, deterministic tag of the substructure discriminators present in ``params``.
+
+    Grooming setting, angularity (alpha/kappa), jet charge (kappa) and subjet R each split an
+    observable into several per-combination tables; without them e.g. the three ``jet_charge``
+    kappa values of ``charge_cms`` collapse to one filename and silently overwrite each other.
+    """
+    parts = [str(params[k]) for k in _DISCRIMINATOR_KEYS if params.get(k) is not None]
+    return "_".join(parts)
+
+
 def _measurement_tag(obs: observable.Observable, combo: dict[str, Any]) -> str:
     key = f"{obs.observable_class}/{obs.internal_name_without_experiment}"
     base = _MEASUREMENT_TAG.get(key, obs.internal_name_without_experiment.upper())
@@ -89,6 +105,9 @@ def _measurement_tag(obs: observable.Observable, combo: dict[str, Any]) -> str:
         idx = _pt_bin_index(obs, pt_sel)
         if idx is not None:
             base = f"{base}pt{idx}"
+    disc = _discriminator_tag(combo)
+    if disc:
+        base = f"{base}_{disc}"
     return base
 
 
@@ -153,6 +172,9 @@ def _jet_config_tag(obs: observable.Observable, params: dict[str, Any]) -> str:
         idx = _pt_bin_index(obs, pt_sel)
         if idx is not None:
             tag = f"{tag}_pt{idx}" if tag else f"pt{idx}"
+    disc = _discriminator_tag(params)
+    if disc:
+        tag = f"{tag}_{disc}" if tag else disc
     return tag
 
 
