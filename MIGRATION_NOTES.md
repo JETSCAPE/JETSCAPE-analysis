@@ -572,9 +572,10 @@ and >40% bins stay empty.
 4. Then repeat for **STAT_2760** (18 enabled AA observables, MIXED) and **STAT_200** (AuAu 200 GeV,
    ~6–7 enabled AA observables, MIXED, incl. γ-trigger) — after their Step-6 sweep.
 
-**Side-items (not blocking):** `ktg_alice` DyG variant still not histogrammed (C6); v2/flow +
-γ-trigger analyzers not implemented (by-design-off). 2760 / 200 audited for Step 7 (centralities +
-MIXED schema state recorded above); full per-observable migration audit still pending their sweep.
+**Side-items (not blocking):** `ktg_alice` DyG variant — DONE (2026-06-08, C6): histogrammer + plotter
+loops now process dynamical_grooming for migrated observables + pp DyG data-block key fixed; validated
+e2e on the pp sample. v2/flow + γ-trigger analyzers not implemented (by-design-off). 2760 / 200 swept
+(2026-06-08, committed) — full render-validation still pending PbPb samples (Step 7).
 
 ## Diagnostic snippets
 

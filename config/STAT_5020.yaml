@@ -2606,7 +2606,7 @@ inclusive_chjet:
                 combinations:
                   - parameters: { "jet_grooming_settings": "SD_z_cut_020_beta_0" }
                     table: "Table 4"
-                  - parameters: { "jet_dynamical_grooming": "DyG_a_1.0" }
+                  - parameters: { "jet_grooming_settings": "DyG_a_1.0" }
                     table: "Table 1"
               # # Equivalent to:
               # - parameters: {"pt": ["60_80"], "centrality": ["0_10"], "soft_drop": "z_cut_020_beta_0"}

@@ -335,9 +335,12 @@ class PlotResults(common_base.CommonBase):
 
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
-                                    # New YAML schema mixes methods (soft_drop + dynamical_grooming).
-                                    # Legacy plot naming below only knows SoftDrop, so skip other methods.
-                                    if grooming_setting.get("type", "soft_drop") != "soft_drop":
+                                    # New YAML schema mixes grooming methods (soft_drop + dynamical_grooming).
+                                    # Dynamical Grooming (DyG) is supported only on the encoder path
+                                    # (migrated observables); non-soft-drop on a non-migrated observable has
+                                    # no legacy name -> skip. Kept in lockstep with the histogrammer loop.
+                                    grooming_type = grooming_setting.get("type", "soft_drop")
+                                    if grooming_type != "soft_drop" and not is_migrated:
                                         continue
                                     # Custom skip
                                     if observable in ["zg_alice", "tg_alice"]:
@@ -347,14 +350,17 @@ class PlotResults(common_base.CommonBase):
                                             continue
 
                                     logger.info(f"      grooming_setting = {grooming_setting}")
-                                    zcut = grooming_setting["z_cut"]
-                                    beta = grooming_setting["beta"]
-
-                                    # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
-                                    if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
-                                        self.suffix = f"_R{self.jet_R}{subobservable_label}"
+                                    if grooming_type == "soft_drop":
+                                        zcut = grooming_setting["z_cut"]
+                                        beta = grooming_setting["beta"]
+                                        # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
+                                        if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
+                                            self.suffix = f"_R{self.jet_R}{subobservable_label}"
+                                        else:
+                                            self.suffix = f"_R{self.jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
                                     else:
-                                        self.suffix = f"_R{self.jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
+                                        # Dynamical grooming (migrated path only, gated above)
+                                        self.suffix = f"_R{self.jet_R}_a{grooming_setting['a']}{subobservable_label}"
 
                                     if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                                         continue
