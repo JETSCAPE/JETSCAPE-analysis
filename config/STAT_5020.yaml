@@ -1300,7 +1300,7 @@ inclusive_chjet:
               range: [0.0, 7.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1326,7 +1326,7 @@ inclusive_chjet:
               range: [0.0, 7.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1347,7 +1347,7 @@ inclusive_chjet:
               range: [0.0, 2.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1510,8 +1510,8 @@ inclusive_chjet:
             y_axis:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{z}_{r}}"
             tables:
-              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: {}, additional_systematics: {}, table: Table 5, index: "1" }
-              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: {}, additional_systematics: {}, table: Table 8, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 5, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 8, index: "1" }
       AA:
         hepdata:
           record:
@@ -1524,8 +1524,8 @@ inclusive_chjet:
             y_axis:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{z}_{r}}"
             tables:
-              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: {}, additional_systematics: {}, table: Table 6, index: "1" }
-              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: {}, additional_systematics: {}, table: Table 9, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 6, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 9, index: "1" }
           ratio:
             quantity: zr
             x_axis:
@@ -1533,8 +1533,8 @@ inclusive_chjet:
             y_axis:
               label: "PbPb / pp"
             tables:
-              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: {}, additional_systematics: {}, table: Table 7, index: "1" }
-              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: {}, additional_systematics: {}, table: Table 10, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 7, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 10, index: "1" }
 
   # ALICE, jet-axis difference
   # Two sets of figures:
@@ -1591,7 +1591,7 @@ inclusive_chjet:
               range: [0, 35]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, syst: sys }
                 additional_systematics: {}
                 combinations:
                   - parameters: { jet_pt: 40.0_60.0, jet_R: "0.2", jet_axis: WTA_Standard }
@@ -1697,7 +1697,7 @@ inclusive_chjet:
               range: [0, 35]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, syst: sys }
                 additional_systematics: {}
                 combinations:
                   - parameters: { jet_pt: 40.0_60.0, jet_R: "0.2", jet_axis: WTA_Standard }
@@ -1811,7 +1811,7 @@ inclusive_chjet:
               range: ["1e-3", 0.3]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,unfolding": unfolding, "sys,generator": generator, "sys,trkeff": tracking_efficiency, "sys,random_mass": random_mass, "sys,subtraction1": subtraction, "sys,thermal_closure": thermal_closure }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1930,8 +1930,8 @@ inclusive_chjet:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}"
               range: [0.0, 30.0]
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, "sys,unfolding": unfolding, "sys,generator": generator, "sys,trkeff": tracking_efficiency, "sys,random_mass": random_mass, "sys,subtraction1": subtraction, "sys,thermal_closure": thermal_closure }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2083,7 +2083,7 @@ inclusive_chjet:
               range: ["1e-3", 0.3]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,unfolding": unfolding, "sys,generator": generator, "sys,trkeff": tracking_efficiency, "sys,random_mass": random_mass, "sys,subtraction1": subtraction, "sys,thermal_closure": thermal_closure }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2202,8 +2202,8 @@ inclusive_chjet:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{#lambda}_{#alpha}^{#kappa=1}}"
               range: [0.0, 30.0]
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, "sys,unfolding": unfolding, "sys,generator": generator, "sys,trkeff": tracking_efficiency, "sys,random_mass": random_mass, "sys,subtraction1": subtraction, "sys,thermal_closure": thermal_closure }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2383,7 +2383,7 @@ inclusive_chjet:
               range: [0.0, 1.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,unfolding": unfolding, "sys,generator": generator, "sys,trkeff": tracking_efficiency, "sys,random_mass": random_mass }
                 additional_systematics: {}
                 combinations:
                   - parameters: { jet_pt: 40.0_60.0, jet_grooming_settings: SD_z_cut_000_beta_0 }
@@ -2427,8 +2427,8 @@ inclusive_chjet:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{m}} #left[(GeV^{2}/#it{c})^{-2}#right]"
               range: [0.0, 1.0]
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, "sys,unfolding": unfolding, "sys,generator": generator, "sys,trkeff": tracking_efficiency, "sys,random_mass": random_mass, "sys,subtraction1": subtraction, "sys,thermal_closure": thermal_closure }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2473,7 +2473,7 @@ inclusive_chjet:
               range: [0.0, 1.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,unfolding": unfolding, "sys,generator": generator, "sys,trkeff": tracking_efficiency, "sys,random_mass": random_mass }
                 additional_systematics: {}
                 combinations:
                   - parameters: { jet_pt: 40.0_60.0, jet_grooming_settings: SD_z_cut_020_beta_0 }
@@ -2517,8 +2517,8 @@ inclusive_chjet:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{m}_{g}} #left[(GeV^{2}/#it{c})^{-2}#right]"
               range: [0.0, 1.0]
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, "sys,unfolding": unfolding, "sys,generator": generator, "sys,trkeff": tracking_efficiency, "sys,random_mass": random_mass, "sys,subtraction1": subtraction, "sys,thermal_closure": thermal_closure }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2600,7 +2600,7 @@ inclusive_chjet:
               log: True
             tables:
               - parameters: { "centrality": ["0_10", "30_50"], "jet_R": [0.2], "jet_pt": ["60_80"] }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,trk_eff": tracking_efficiency, "sys,gen": generator, "sys,unfold": unfolding }
                 additional_systematics: {}
                 index: 1
                 combinations:
@@ -3867,7 +3867,7 @@ inclusive_jet:
               range: [0.0, 2.5]
             tables:
               - parameters: { centrality: ["0_10", "10_30", "30_50"] }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "5"
                 combinations:
@@ -3891,7 +3891,7 @@ inclusive_jet:
               range: [0, 2.5]
             tables:
               - parameters: { centrality: "0_10" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -3902,7 +3902,7 @@ inclusive_jet:
                   - parameters: { jet_charge: kappa_0.7 }
                     table: Table 9
               - parameters: { centrality: "10_30" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "2"
                 combinations:
@@ -3913,7 +3913,7 @@ inclusive_jet:
                   - parameters: { jet_charge: kappa_0.7 }
                     table: Table 9
               - parameters: { centrality: "30_50" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "3"
                 combinations:
@@ -3932,7 +3932,7 @@ inclusive_jet:
               range: [0, 2.5]
             tables:
               - parameters: { centrality: "0_10" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -3943,7 +3943,7 @@ inclusive_jet:
                   - parameters: { jet_charge: kappa_0.7 }
                     table: Table 9
               - parameters: { centrality: "10_30" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "2"
                 combinations:
@@ -3954,7 +3954,7 @@ inclusive_jet:
                   - parameters: { jet_charge: kappa_0.7 }
                     table: Table 9
               - parameters: { centrality: "30_50" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "3"
                 combinations:
@@ -4083,7 +4083,7 @@ inclusive_jet:
                     centrality: ["0_10", "10_30", "30_50"],
                     jet_pt: [140.0_160.0, 160.0_180.0, 180.0_200.0, 200.0_300.0],
                   }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -4105,7 +4105,7 @@ inclusive_jet:
               range: [0.0, 25.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 combinations:
                   - parameters: { centrality: "0_10", jet_pt: 140.0_160.0, jet_grooming_settings: SD_z_cut_010_beta_0 }
@@ -4201,7 +4201,7 @@ inclusive_jet:
               range: [0.0, 7.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 combinations:
                   - parameters: { centrality: "0_10", jet_pt: 140.0_160.0, jet_grooming_settings: SD_z_cut_010_beta_0 }
@@ -4353,7 +4353,7 @@ inclusive_jet:
               range: [0.0, 15]
             tables:
               - parameters: { centrality: ["0_10", "10_30", "30_50"] }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 combinations:
                   - parameters: { jet_pt: 140.0_160.0 }
@@ -4388,7 +4388,7 @@ inclusive_jet:
               range: [0.0, 15]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 combinations:
                   - parameters: { centrality: "0_10", jet_pt: 140.0_160.0 }
@@ -4454,7 +4454,7 @@ inclusive_jet:
               range: [0.0, 2.0]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 combinations:
                   - parameters: { centrality: "0_10", jet_pt: 140.0_160.0 }
@@ -4597,7 +4597,7 @@ inclusive_jet:
               label: $\frac{1}{N} \frac{dN}{d\Delta j}$
             tables:
               - parameters: { centrality: "0_10" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,correlated": correlated, "sys,uncorelated": uncorrelated }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -4610,7 +4610,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 230.0_300.0 }
                     table: Table 4
               - parameters: { centrality: "10_30" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,correlated": correlated, "sys,uncorelated": uncorrelated }
                 additional_systematics: {}
                 index: "2"
                 combinations:
@@ -4623,7 +4623,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 230.0_300.0 }
                     table: Table 4
               - parameters: { centrality: "30_50" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,correlated": correlated, "sys,uncorelated": uncorrelated }
                 additional_systematics: {}
                 index: "3"
                 combinations:
@@ -4636,7 +4636,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 230.0_300.0 }
                     table: Table 4
               - parameters: { centrality: "50_80" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,correlated": correlated, "sys,uncorelated": uncorrelated }
                 additional_systematics: {}
                 index: "4"
                 combinations:
@@ -4656,7 +4656,7 @@ inclusive_jet:
               label: $\frac{1}{N} \frac{dN}{d\Delta j}$
             tables:
               - parameters: { centrality: "0_10" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,correlated": correlated, "sys,uncorelated": uncorrelated }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -4669,7 +4669,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 230.0_300.0 }
                     table: Table 4
               - parameters: { centrality: "10_30" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,correlated": correlated, "sys,uncorelated": uncorrelated }
                 additional_systematics: {}
                 index: "2"
                 combinations:
@@ -4682,7 +4682,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 230.0_300.0 }
                     table: Table 4
               - parameters: { centrality: "30_50" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,correlated": correlated, "sys,uncorelated": uncorrelated }
                 additional_systematics: {}
                 index: "3"
                 combinations:
@@ -4695,7 +4695,7 @@ inclusive_jet:
                   - parameters: { jet_pt: 230.0_300.0 }
                     table: Table 4
               - parameters: { centrality: "50_80" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,correlated": correlated, "sys,uncorelated": uncorrelated }
                 additional_systematics: {}
                 index: "4"
                 combinations:
@@ -4906,7 +4906,7 @@ hadron_trigger_chjet:
             tables:
               # Table 1 (hepDeltaRecoilpp): pp Delta_recoil(pT), one column per jet R.
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 1
                 combinations:
@@ -4931,7 +4931,7 @@ hadron_trigger_chjet:
             tables:
               # Table 2 (hepDeltaRecoilPbPb): Pb-Pb Delta_recoil(pT), one column per jet R.
               - parameters: {}
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 2
                 combinations:
@@ -4950,8 +4950,8 @@ hadron_trigger_chjet:
               range: [0.3, 3.0]
             tables:
               # Table 3 (hepIAA): I_AA(pT) = PbPb/pp, one column per jet R.
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 3
                 combinations:
@@ -5023,7 +5023,7 @@ hadron_trigger_chjet:
               log: true
             tables:
               - parameters: { jet_R: "0.2" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 4
                 combinations:
@@ -5031,7 +5031,7 @@ hadron_trigger_chjet:
                   - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
                   - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
               - parameters: { jet_R: "0.4" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 5
                 combinations:
@@ -5039,7 +5039,7 @@ hadron_trigger_chjet:
                   - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
                   - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
               - parameters: { jet_R: "0.5" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 6
                 combinations:
@@ -5060,7 +5060,7 @@ hadron_trigger_chjet:
               log: true
             tables:
               - parameters: { jet_R: "0.2" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 7
                 combinations:
@@ -5068,7 +5068,7 @@ hadron_trigger_chjet:
                   - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
                   - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
               - parameters: { jet_R: "0.4" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 8
                 combinations:
@@ -5076,7 +5076,7 @@ hadron_trigger_chjet:
                   - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
                   - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
               - parameters: { jet_R: "0.5" }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 9
                 combinations:
@@ -5091,24 +5091,24 @@ hadron_trigger_chjet:
               label: "#it{I}_{AA}(#Delta#it{#varphi})"
               range: [0.1, 9.0]
             tables:
-              - parameters: { jet_R: "0.2" }
-                systematics_names: {}
+              - parameters: { jet_R: "0.2", centrality: "0_10" }
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 10
                 combinations:
                   - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
                   - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
                   - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
-              - parameters: { jet_R: "0.4" }
-                systematics_names: {}
+              - parameters: { jet_R: "0.4", centrality: "0_10" }
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 11
                 combinations:
                   - { parameters: { jet_pt: "10.0_20.0" }, index: "1" }
                   - { parameters: { jet_pt: "20.0_30.0" }, index: "2" }
                   - { parameters: { jet_pt: "30.0_50.0" }, index: "3" }
-              - parameters: { jet_R: "0.5" }
-                systematics_names: {}
+              - parameters: { jet_R: "0.5", centrality: "0_10" }
+                systematics_names: { stat: stat, "sys (uncorr)": uncorrelated, "sys (corr)": correlated }
                 additional_systematics: {}
                 table: Table 12
                 combinations:
