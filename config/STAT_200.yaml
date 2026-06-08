@@ -92,30 +92,30 @@ hadron:
       pt: [5., 20.]
       eta: 0.35
 
-    hepdata: "HEPData-ins1127262-v2-root.root"
+    #hepdata: "HEPData-ins1127262-v2-root.root"
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    ytitle_pp: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
-    y_min_pp: 2e-12
-    y_max_pp: 1e-4
+    #ytitle_pp: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
+    #y_min_pp: 2e-12
+    #y_max_pp: 1e-4
     scale_by: "1/pt"
     skip_pp: true
 
-    hepdata_AA_dir: "Figure 11"
-    hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
-    hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4", "Hist1D_y5"]
-    ytitle_AA: "#it{R}_{AA}"
-    y_min_AA: 0.
-    y_max_AA: 2.
+    #hepdata_AA_dir: "Figure 11"
+    #hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
+    #hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4", "Hist1D_y5"]
+    #ytitle_AA: "#it{R}_{AA}"
+    #y_min_AA: 0.
+    #y_max_AA: 2.
 
-    hepdata_AA_distribution_dir: "Figure 5"
-    hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
-    hepdata_AA_distribution_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4", "Hist1D_y5"]
-    ytitle_AA_distribution: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
-    y_min_AA_distribution: 2e-10
-    y_max_AA_distribution: 2e2
+    #hepdata_AA_distribution_dir: "Figure 5"
+    #hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
+    #hepdata_AA_distribution_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4", "Hist1D_y5"]
+    #ytitle_AA_distribution: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
+    #y_min_AA_distribution: 2e-10
+    #y_max_AA_distribution: 2e2
 
     # HEPData v2
     data:
@@ -203,29 +203,29 @@ hadron:
       pt: [5., 12.]
       eta: 0.5
 
-    hepdata: "HEPData-ins619063-v1-root.root"
+    #hepdata: "HEPData-ins619063-v1-root.root"
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    hepdata_pp_dir: "Table 1"
-    hepdata_pp_gname: "Graph1D_y8"
-    ytitle_pp: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
-    y_min_pp: 2e-10
-    y_max_pp: 2e2
+    #hepdata_pp_dir: "Table 1"
+    #hepdata_pp_gname: "Graph1D_y8"
+    #ytitle_pp: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
+    #y_min_pp: 2e-10
+    #y_max_pp: 2e2
     scale_by: "1/pt"
 
-    hepdata_AA_dir: "Table 3"
-    hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
-    hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    ytitle_AA: "#it{R}_{AA}"
+    #hepdata_AA_dir: "Table 3"
+    #hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    #hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    #ytitle_AA: "#it{R}_{AA}"
 
-    hepdata_AA_distribution_dir: "Table 1"
-    hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
-    hepdata_AA_distribution_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
-    ytitle_AA_distribution: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
-    y_min_AA_distribution: 2e-10
-    y_max_AA_distribution: 2e2
+    #hepdata_AA_distribution_dir: "Table 1"
+    #hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    #hepdata_AA_distribution_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    #ytitle_AA_distribution: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
+    #y_min_AA_distribution: 2e-10
+    #y_max_AA_distribution: 2e2
 
     # HEPData v2
     data:
@@ -461,40 +461,40 @@ inclusive_chjet:
       pt: [5., 30.]
       eta_R: 1.0
 
-    hepdata: "HEPData-ins1798665-v1-root.root"
+    #hepdata: "HEPData-ins1798665-v1-root.root"
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right"
-    y_min_pp: 2e-8
-    y_max_pp: 1e-1
+    #ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right"
+    #y_min_pp: 2e-8
+    #y_max_pp: 1e-1
     skip_pp: true
 
-    hepdata_AA_dir: "Table 10"
-    hepdata_AA_dir_R0.2: "Table 10"
-    hepdata_AA_dir_R0.3: "Table 10"
-    hepdata_AA_dir_R0.4: "Table 10"
-    hepdata_AA_gname_R0.2: ["Graph1D_y1"]
-    hepdata_AA_hname_R0.2: ["Hist1D_y1"]
-    hepdata_AA_gname_R0.3: ["Graph1D_y2"]
-    hepdata_AA_hname_R0.3: ["Hist1D_y2"]
-    hepdata_AA_gname_R0.4: ["Graph1D_y3"]
-    hepdata_AA_hname_R0.4: ["Hist1D_y3"]
-    ytitle_AA: "#it{R}_{AA}"
-    y_min_AA: 0.
-    y_max_AA: 2.
+    #hepdata_AA_dir: "Table 10"
+    #hepdata_AA_dir_R0.2: "Table 10"
+    #hepdata_AA_dir_R0.3: "Table 10"
+    #hepdata_AA_dir_R0.4: "Table 10"
+    #hepdata_AA_gname_R0.2: ["Graph1D_y1"]
+    #hepdata_AA_hname_R0.2: ["Hist1D_y1"]
+    #hepdata_AA_gname_R0.3: ["Graph1D_y2"]
+    #hepdata_AA_hname_R0.3: ["Hist1D_y2"]
+    #hepdata_AA_gname_R0.4: ["Graph1D_y3"]
+    #hepdata_AA_hname_R0.4: ["Hist1D_y3"]
+    #ytitle_AA: "#it{R}_{AA}"
+    #y_min_AA: 0.
+    #y_max_AA: 2.
 
-    hepdata_AA_distribution_dir: "Table 1"
-    hepdata_AA_distribution_gname_R0.2: ["Graph1D_y1"]
-    hepdata_AA_distribution_hname_R0.2: ["Hist1D_y1"]
-    hepdata_AA_distribution_gname_R0.3: ["Graph1D_y2"]
-    hepdata_AA_distribution_hname_R0.3: ["Hist1D_y2"]
-    hepdata_AA_distribution_gname_R0.4: ["Graph1D_y3"]
-    hepdata_AA_distribution_hname_R0.4: ["Hist1D_y3"]
-    ytitle_AA_distribution: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]"
-    y_min_AA_distribution: 2e-8
-    y_max_AA_distribution: 1e-1
+    #hepdata_AA_distribution_dir: "Table 1"
+    #hepdata_AA_distribution_gname_R0.2: ["Graph1D_y1"]
+    #hepdata_AA_distribution_hname_R0.2: ["Hist1D_y1"]
+    #hepdata_AA_distribution_gname_R0.3: ["Graph1D_y2"]
+    #hepdata_AA_distribution_hname_R0.3: ["Hist1D_y2"]
+    #hepdata_AA_distribution_gname_R0.4: ["Graph1D_y3"]
+    #hepdata_AA_distribution_hname_R0.4: ["Hist1D_y3"]
+    #ytitle_AA_distribution: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]"
+    #y_min_AA_distribution: 2e-8
+    #y_max_AA_distribution: 1e-1
 
     # HEPData v2
     data:
@@ -583,21 +583,21 @@ hadron_trigger_chjet:
       pt: [5., 30.]
       eta_R: 1.
 
-    hepdata: "HEPData-ins1512115-v1-root.root"
+    #hepdata: "HEPData-ins1512115-v1-root.root"
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    ytitle_pp: "I_{AA}"
-    y_min_pp: 2e-5
-    y_max_pp: 2.
+    #ytitle_pp: "I_{AA}"
+    #y_min_pp: 2e-5
+    #y_max_pp: 2.
     skip_pp: true
 
-    hepdata_AA_dir: "Table 38"
-    hepdata_AA_dir_R02_R05: "Table 38"
-    hepdata_AA_gname: ["Graph1D_y1"]
-    hepdata_AA_hname: ["Hist1D_y1"]
-    ytitle_AA: "#it{R}_{AA}"
+    #hepdata_AA_dir: "Table 38"
+    #hepdata_AA_dir_R02_R05: "Table 38"
+    #hepdata_AA_gname: ["Graph1D_y1"]
+    #hepdata_AA_hname: ["Hist1D_y1"]
+    #ytitle_AA: "#it{R}_{AA}"
 
     # HEPData v2
     data:
@@ -679,25 +679,25 @@ hadron_trigger_chjet:
       pt: [9., 13.]
       eta_R: 1.
 
-    hepdata: "HEPData-ins1512115-v1-root.root"
+    #hepdata: "HEPData-ins1512115-v1-root.root"
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    hepdata_pp_dir: "Table 42"
-    hepdata_pp_gname: "Graph1D_y1"
-    ytitle_pp: "#Phi(#Delta#it{#varphi})"
-    y_min_pp: 0.
-    y_max_pp: 1.
+    #hepdata_pp_dir: "Table 42"
+    #hepdata_pp_gname: "Graph1D_y1"
+    #ytitle_pp: "#Phi(#Delta#it{#varphi})"
+    #y_min_pp: 0.
+    #y_max_pp: 1.
 
     # prettier-ignore
     bins: [1.57079633, 1.69646003, 1.82212374, 1.94778745, 2.07345115, 2.19911486, 2.32477856, 2.45044227, 2.57610598, 2.70176968, 2.82743339, 2.95309709, 3.0787608, 3.20442451, 3.33008821, 3.45575192, 3.58141563, 3.70707933, 3.83274304, 3.95840674, 4.08407045, 4.20973416, 4.33539786, 4.46106157, 4.58672527, 4.71238898]
-    hepdata_AA_dir: "Table 39"
-    hepdata_AA_gname: ["Graph1D_y1"]
-    hepdata_AA_hname: ["Hist1D_y1"]
-    ytitle_AA: "#it{R}_{AA}"
-    y_min_AA: 0.
-    y_max_AA: 2.
+    #hepdata_AA_dir: "Table 39"
+    #hepdata_AA_gname: ["Graph1D_y1"]
+    #hepdata_AA_hname: ["Hist1D_y1"]
+    #ytitle_AA: "#it{R}_{AA}"
+    #y_min_AA: 0.
+    #y_max_AA: 2.
 
     # HEPData v2
     data:
@@ -794,14 +794,14 @@ pion_trigger_chjet:
       eta_R: 1.0 # eta_R denotes considering R in fiducial acceptance
     dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
 
-    hepdata: "HEPData-ins2693040-v1-root.root"
+    #hepdata: "HEPData-ins2693040-v1-root.root"
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    ytitle_pp: "I_{AA}"
-    y_min_pp: 0.1
-    y_max_pp: 1.2
+    #ytitle_pp: "I_{AA}"
+    #y_min_pp: 0.1
+    #y_max_pp: 1.2
     skip_pp: true
 
     # HEPData v2
@@ -900,14 +900,14 @@ pion_trigger_chjet:
       pt: [10., 15., 20.]
       eta_R: 1.0
 
-    hepdata: "HEPData-ins2919952-v1-root.root"
+    #hepdata: "HEPData-ins2919952-v1-root.root"
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    ytitle_pp: "I_{AA}(#Delta#varphi)"
-    y_min_pp: 1.e-2
-    y_max_pp: 50.
+    #ytitle_pp: "I_{AA}(#Delta#varphi)"
+    #y_min_pp: 1.e-2
+    #y_max_pp: 50.
     skip_pp: true
 
     # bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
@@ -989,7 +989,7 @@ gamma_trigger_hadron:
   # Direct photon selected by subtracting pi_zero from total.
   # Not sure if it is unfolded or not.
   IAA_pt_phenix:
-    enabled: true
+    enabled: false # gamma-trigger analyzer not ready; disabled to match STAT_5020 (all gamma/z/v2 off)
     urls:
       inspire_hep: https://inspirehep.net/literature/1798493
       hepdata: https://www.hepdata.net/record/ins1798493
@@ -1009,18 +1009,18 @@ gamma_trigger_hadron:
       pt: [5., 7.]
       eta: 0.35
 
-    hepdata: "HEPData-ins1798493-v1-root.root"
+    #hepdata: "HEPData-ins1798493-v1-root.root"
 
-    xtitle: "#zeta"
-    logy: true
+    #xtitle: "#zeta"
+    #logy: true
 
-    ytitle_pp: "I_{AA}"
+    #ytitle_pp: "I_{AA}"
     skip_pp: true
 
-    hepdata_AA_dir: "Figure 4b"
-    hepdata_AA_gname: ["Graph1D_y1"]
-    hepdata_AA_hname: ["Hist1D_y1"]
-    ytitle_AA: "I_{AA}"
+    #hepdata_AA_dir: "Figure 4b"
+    #hepdata_AA_gname: ["Graph1D_y1"]
+    #hepdata_AA_hname: ["Hist1D_y1"]
+    #ytitle_AA: "I_{AA}"
 
     # HEPData v2
     data:
@@ -1108,14 +1108,14 @@ gamma_trigger_chjet:
       eta_R: 1.0 # value gives eta that one still has to subtract R from
     dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
 
-    hepdata: "HEPData-ins2693040-v1-root.root"
+    #hepdata: "HEPData-ins2693040-v1-root.root"
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    ytitle_pp: "I_{AA}"
-    y_min_pp: 0.1
-    y_max_pp: 1.2
+    #ytitle_pp: "I_{AA}"
+    #y_min_pp: 0.1
+    #y_max_pp: 1.2
     skip_pp: true
 
     # HEPData v2
@@ -1217,12 +1217,12 @@ gamma_trigger_chjet:
       pt: [10., 15., 20.]
       eta_R: 1.0
 
-    xtitle: "#it{p}_{T} (GeV/#it{c})"
-    logy: true
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    ytitle_pp: "I_{AA}(#Delta#varphi)"
-    y_min_pp: 1.e-2
-    y_max_pp: 50.
+    #ytitle_pp: "I_{AA}(#Delta#varphi)"
+    #y_min_pp: 1.e-2
+    #y_max_pp: 50.
     skip_pp: true
 
     bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
