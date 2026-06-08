@@ -884,7 +884,7 @@ inclusive_chjet:
               log: true
             tables:
               - parameters: { centrality: "0_10", pt: 30.0_110.0, jet_R: ["0.2", "0.3"] }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 30
                 index: "1"
@@ -947,7 +947,7 @@ inclusive_chjet:
               range: ["1e-3", 0.3]
             tables:
               - parameters: { centrality: "0_10", jet_R: "0.4" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -983,7 +983,7 @@ inclusive_chjet:
               range: [0.0, 2.0]
             tables:
               - parameters: { centrality: "0_10", jet_R: "0.4" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -1045,8 +1045,8 @@ inclusive_chjet:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{g}} #left[(GeV/c)^{-1}#right]"
               range: [0.0, 30.0]
             tables:
-              - parameters: { centrality: "0_10", jet_R: "0.2", pt: 40.0_60.0 }
-                systematics_names: {}
+              - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 1
                 index: "1"
@@ -1062,7 +1062,7 @@ inclusive_chjet:
             y_axis:
               label: ""
             tables:
-              - parameters: { centrality: "0_10", jet_R: "0.2", pt: 40.0_60.0 }
+              - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -1075,8 +1075,8 @@ inclusive_chjet:
               label: "#it{R}_{AA}"
               range: [0.0, 2.0]
             tables:
-              - parameters: { centrality: "0_10", jet_R: "0.2", pt: 40.0_60.0 }
-                systematics_names: {}
+              - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 11
                 index: "1"
@@ -1126,8 +1126,8 @@ inclusive_chjet:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{p}_{T}d} #left[(GeV/c)^{-2}#right]"
               range: [0.0, 5.0]
             tables:
-              - parameters: { centrality: "0_10", jet_R: "0.2", pt: 40.0_60.0 }
-                systematics_names: {}
+              - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 13
                 index: "1"
@@ -1143,7 +1143,7 @@ inclusive_chjet:
             y_axis:
               label: ""
             tables:
-              - parameters: { centrality: "0_10", jet_R: "0.2", pt: 40.0_60.0 }
+              - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -1156,8 +1156,8 @@ inclusive_chjet:
               label: "#it{R}_{AA}"
               range: [0.0, 2.0]
             tables:
-              - parameters: { centrality: "0_10", jet_R: "0.2", pt: 40.0_60.0 }
-                systematics_names: {}
+              - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 14
                 index: "1"
@@ -1716,8 +1716,8 @@ inclusive_jet:
               range: ["2e-3", "1e4"]
             tables:
               - parameters:
-                  { jet_R: "0.4", centrality: ["0_10", "20_30", "30_40"], pt: [100.0_126.0, 126.0_158.0, 158.0_398.0] }
-                systematics_names: {}
+                  { jet_R: "0.4", centrality: ["0_10", "20_30", "30_40"], jet_pt: [100.0_126.0, 126.0_158.0, 158.0_398.0] }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 5
                 index: "1"
@@ -1735,8 +1735,8 @@ inclusive_jet:
               range: ["2e-3", "1e4"]
               log: true
             tables:
-              - parameters: { jet_R: "0.4", pt: [100.0_126.0, 126.0_158.0, 158.0_398.0] }
-                systematics_names: {}
+              - parameters: { jet_R: "0.4", jet_pt: [100.0_126.0, 126.0_158.0, 158.0_398.0] }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 5
                 combinations:
@@ -1756,27 +1756,27 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { jet_R: "0.4" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
-                  - parameters: { centrality: "0_10", pt: 100.0_126.0 }
+                  - parameters: { centrality: "0_10", jet_pt: 100.0_126.0 }
                     table: Table 61
-                  - parameters: { centrality: "0_10", pt: 126.0_158.0 }
+                  - parameters: { centrality: "0_10", jet_pt: 126.0_158.0 }
                     table: Table 65
-                  - parameters: { centrality: "0_10", pt: 158.0_398.0 }
+                  - parameters: { centrality: "0_10", jet_pt: 158.0_398.0 }
                     table: Table 69
-                  - parameters: { centrality: "20_30", pt: 100.0_126.0 }
+                  - parameters: { centrality: "20_30", jet_pt: 100.0_126.0 }
                     table: Table 62
-                  - parameters: { centrality: "20_30", pt: 126.0_158.0 }
+                  - parameters: { centrality: "20_30", jet_pt: 126.0_158.0 }
                     table: Table 66
-                  - parameters: { centrality: "20_30", pt: 158.0_398.0 }
+                  - parameters: { centrality: "20_30", jet_pt: 158.0_398.0 }
                     table: Table 70
-                  - parameters: { centrality: "30_40", pt: 100.0_126.0 }
+                  - parameters: { centrality: "30_40", jet_pt: 100.0_126.0 }
                     table: Table 63
-                  - parameters: { centrality: "30_40", pt: 126.0_158.0 }
+                  - parameters: { centrality: "30_40", jet_pt: 126.0_158.0 }
                     table: Table 67
-                  - parameters: { centrality: "30_40", pt: 158.0_398.0 }
+                  - parameters: { centrality: "30_40", jet_pt: 158.0_398.0 }
                     table: Table 71
 
   # ATLAS D(pt)
@@ -1836,8 +1836,8 @@ inclusive_jet:
               range: ["2e-4", "1e2"]
             tables:
               - parameters:
-                  { jet_R: "0.4", centrality: ["0_10", "20_30", "30_40"], pt: [100.0_126.0, 126.0_158.0, 158.0_398.0] }
-                systematics_names: {}
+                  { jet_R: "0.4", centrality: ["0_10", "20_30", "30_40"], jet_pt: [100.0_126.0, 126.0_158.0, 158.0_398.0] }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 1
                 index: "1"
@@ -1855,8 +1855,8 @@ inclusive_jet:
               range: ["2e-4", "1e2"]
               log: true
             tables:
-              - parameters: { jet_R: "0.4", pt: [100.0_126.0, 126.0_158.0, 158.0_398.0] }
-                systematics_names: {}
+              - parameters: { jet_R: "0.4", jet_pt: [100.0_126.0, 126.0_158.0, 158.0_398.0] }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 1
                 combinations:
@@ -1876,27 +1876,27 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { jet_R: "0.4" }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
-                  - parameters: { centrality: "0_10", pt: 100.0_126.0 }
+                  - parameters: { centrality: "0_10", jet_pt: 100.0_126.0 }
                     table: Table 45
-                  - parameters: { centrality: "0_10", pt: 126.0_158.0 }
+                  - parameters: { centrality: "0_10", jet_pt: 126.0_158.0 }
                     table: Table 49
-                  - parameters: { centrality: "0_10", pt: 158.0_398.0 }
+                  - parameters: { centrality: "0_10", jet_pt: 158.0_398.0 }
                     table: Table 53
-                  - parameters: { centrality: "20_30", pt: 100.0_126.0 }
+                  - parameters: { centrality: "20_30", jet_pt: 100.0_126.0 }
                     table: Table 46
-                  - parameters: { centrality: "20_30", pt: 126.0_158.0 }
+                  - parameters: { centrality: "20_30", jet_pt: 126.0_158.0 }
                     table: Table 50
-                  - parameters: { centrality: "20_30", pt: 158.0_398.0 }
+                  - parameters: { centrality: "20_30", jet_pt: 158.0_398.0 }
                     table: Table 54
-                  - parameters: { centrality: "30_40", pt: 100.0_126.0 }
+                  - parameters: { centrality: "30_40", jet_pt: 100.0_126.0 }
                     table: Table 47
-                  - parameters: { centrality: "30_40", pt: 126.0_158.0 }
+                  - parameters: { centrality: "30_40", jet_pt: 126.0_158.0 }
                     table: Table 51
-                  - parameters: { centrality: "30_40", pt: 158.0_398.0 }
+                  - parameters: { centrality: "30_40", jet_pt: 158.0_398.0 }
                     table: Table 55
 
   # CMS D(z)
@@ -2121,7 +2121,7 @@ hadron_trigger_chjet:
               log: true
             tables:
               - parameters: { centrality: "0_10", eta: "0.9", pt: 20.0_100.0 }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2182,7 +2182,7 @@ hadron_trigger_chjet:
               label: "#Phi(#Delta#it{#varphi})"
               range: [0.0, 0.1]
             tables:
-              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", pt: 40.0_60.0 }
+              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", jet_pt: 40.0_60.0 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -2199,7 +2199,7 @@ hadron_trigger_chjet:
             y_axis:
               label: ""
             tables:
-              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", pt: 40.0_60.0 }
+              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", jet_pt: 40.0_60.0 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -2212,8 +2212,8 @@ hadron_trigger_chjet:
               label: "#it{R}_{AA}"
               range: [0.0, 2.0]
             tables:
-              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", pt: 40.0_60.0 }
-                systematics_names: {}
+              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", jet_pt: 40.0_60.0 }
+                systematics_names: { "": sys } # ins1376027 Table 37: single UNLABELED error; mapped to sys to preserve it (build_tables zeroes empty-label stat)
                 additional_systematics: {}
                 table: Table 37
                 index: "1"
@@ -2275,7 +2275,7 @@ hadron_trigger_chjet:
               label: "#frac{1}{#sigma} #frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]"
               range: ["1e-3", 5.0]
             tables:
-              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", pt: 40.0_60.0 }
+              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", jet_pt: 40.0_60.0 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -2292,7 +2292,7 @@ hadron_trigger_chjet:
             y_axis:
               label: ""
             tables:
-              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", pt: 40.0_60.0 }
+              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", jet_pt: 40.0_60.0 }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -2305,10 +2305,10 @@ hadron_trigger_chjet:
               label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[mb/(GeV/c)^{-1}#right]"
               range: [0.0, 2.0]
             tables:
-              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", pt: 40.0_60.0 }
-                systematics_names: {}
+              - parameters: { centrality: "0_10", eta: "0.9", jet_R: "0.4", jet_pt: 40.0_60.0 }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: frac{tau_{2}}{tau_{1}} with CA reclustering in Pb-Pb
+                table: '$\frac{\tau_{2}}{\tau_{1}}$ with CA reclustering in Pb-Pb' # fixed: config name lacked $ and backslashes -> did not resolve
                 index: "1"
 
 #------------------------------------------------------------------
@@ -2518,7 +2518,7 @@ pion_trigger_hadron:
               range: [0, 12.0]
             tables:
               - parameters: { centrality: "0_10", eta: "0.8", pt: [6.0_8.0, 8.0_10.0] }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,uncorrelated": uncorrelated }
                 additional_systematics: {}
                 table: Table 2
                 index: "3"
@@ -2531,7 +2531,7 @@ pion_trigger_hadron:
               range: [0.0, 6.0]
             tables:
               - parameters: { centrality: "0_10", eta: "0.8", pt: [6.0_8.0, 8.0_10.0] }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: Table 4
                 index: "1"
