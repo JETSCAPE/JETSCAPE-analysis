@@ -101,14 +101,17 @@ def _pt_bin_edges_for_obs(obs: observable.Observable) -> list[float] | None:
     """Return the ordered pt-bin edge list for this observable, or None.
 
     Trigger observables carry their pt binning under ``trigger:``; inclusive jet/chjet
-    observables carry it under ``jet:``. The returned list is raw bin edges
-    (n edges → n-1 bins); an entry of ``None`` caps the last bin as open.
+    observables under ``jet:``; pion/hadron-triggered correlations bin in the
+    associated-particle pt under ``hadron:`` (e.g. pi0-hadron IAA). The returned list
+    is raw bin edges (n edges → n-1 bins); an entry of ``None`` caps the last bin open.
+    Only *multi-bin* sections (>2 edges) are returned, so a single-bin ``trigger.pt``
+    doesn't shadow a genuine multi-bin ``hadron.pt``.
     """
-    for section in ("trigger", "jet"):
+    for section in ("trigger", "jet", "hadron"):
         sec = obs.config.get(section)
         if isinstance(sec, dict):
             pt = sec.get("pt")
-            if isinstance(pt, list) and len(pt) >= 2:
+            if isinstance(pt, list) and len(pt) > 2:
                 return [float(v) if v is not None else float("inf") for v in pt]
     return None
 
@@ -134,19 +137,22 @@ def _fmt_R(R: float) -> str:
 def _jet_config_tag(obs: observable.Observable, params: dict[str, Any]) -> str:
     """Build the ``R{R}[_pt{i}]`` slot of the structured filename.
 
-    Returns an empty string for classes that have no jet-R (e.g. ``hadron``), which
-    produces the ``____`` (empty middle field) seen in hadron filenames.
+    Returns an empty string for classes that have neither a jet-R nor a multi-bin pt
+    selection (e.g. plain ``hadron``), producing the ``____`` (empty middle field) seen
+    in hadron filenames. When the observable bins in pt without a jet-R (e.g. the
+    associated-hadron pt of pi0-hadron IAA), the slot is ``pt{i}`` alone so per-pt-bin
+    files don't collide.
     """
     jet_r = _find_jet_r(params)
-    if jet_r is None:
-        return ""
-    R_value = jet_r.R if isinstance(jet_r, observable.JetRSpec) else float(jet_r)
-    tag = _fmt_R(R_value)
+    tag = ""
+    if jet_r is not None:
+        R_value = jet_r.R if isinstance(jet_r, observable.JetRSpec) else float(jet_r)
+        tag = _fmt_R(R_value)
     pt_sel = _find_pt_selection(params)
     if pt_sel is not None:
         idx = _pt_bin_index(obs, pt_sel)
         if idx is not None:
-            tag = f"{tag}_pt{idx}"
+            tag = f"{tag}_pt{idx}" if tag else f"pt{idx}"
     return tag
 
 
