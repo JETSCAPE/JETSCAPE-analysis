@@ -422,6 +422,8 @@ class HistogramResults(common_base.CommonBase):
         logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
             for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
@@ -701,6 +703,7 @@ class HistogramResults(common_base.CommonBase):
         pt_bin=None,
         axis_entry=None,
         charge=None,
+        angularity=None,
     ):
         obs = self.observables_info[f"{self.sqrts}_{observable_type}_{observable}"]
         kwargs = {"jet_R": observable_module.JetRSpec(jet_R)}
@@ -730,6 +733,12 @@ class HistogramResults(common_base.CommonBase):
         # the same JetChargeSpec encoding (kappa_X). Independent of grooming/axis (none coexist today).
         if charge is not None:
             kwargs["jet_charge"] = observable_module.JetChargeSpec(charge)
+
+        # Step 5: angularity_alice / angularity_groomed_alice are parametrized by alpha (jet_angularity,
+        # essential). The analyzer encodes it as jet_angularity=AngularitySpec(alpha); the data block keys
+        # its tables with the same encoding (alpha_X_kappa_1.0). `angularity` is an AngularitySpec already.
+        if angularity is not None:
+            kwargs["jet_angularity"] = angularity
 
         return obs.encode_name_for_storing_in_file(tag=jet_collection_label, **kwargs)
 
@@ -765,19 +774,39 @@ class HistogramResults(common_base.CommonBase):
                         if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
-                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value):
-                        # the label feeds the (jet_R/pt-only) binning suffix; axis_entry feeds the
-                        # encoder for migrated axis observables (the bare `type` label can't
-                        # distinguish the grooming variant); charge_value (kappa) feeds the encoder
-                        # for charge_cms. The keys are mutually exclusive in the YAML.
-                        # (zr_alice's `subjet_R` is deferred -- no branch here; uncurated data, A5.)
-                        subobservable_label_list = [("", None, None)]
+                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value,
+                        # angularity_spec): the label feeds the (jet_R/pt-only) binning suffix; axis_entry
+                        # feeds the encoder for migrated axis observables (the bare `type` label can't
+                        # distinguish the grooming variant); charge_value (kappa) feeds the encoder for
+                        # charge_cms; angularity_spec (alpha) feeds it for the angularity observables. The
+                        # keys are mutually exclusive in the YAML.
+                        # Tuple is (subobservable_label, axis_entry, charge_value, angularity_spec,
+                        # subjet_spec). Step 6 added the 5th slot for zr_alice's subjet_R.
+                        subobservable_label_list = [("", None, None, None, None)]
                         if "axis" in block["jet"]:
                             subobservable_label_list = [
-                                (f"_{axis_block['type']}", axis_block, None) for axis_block in block["jet"]["axis"]
+                                (f"_{axis_block['type']}", axis_block, None, None, None) for axis_block in block["jet"]["axis"]
                             ]
                         if "charge" in block["jet"]:
-                            subobservable_label_list = [(f"_k{kappa}", None, kappa) for kappa in block["jet"]["charge"]]
+                            subobservable_label_list = [
+                                (f"_k{kappa}", None, kappa, None, None) for kappa in block["jet"]["charge"]
+                            ]
+                        # Step 5: angularity (alpha) sub-observable -- one AngularitySpec per alpha, feeding
+                        # the encoder name + per-alpha data-block table selection (jet_angularity key).
+                        if "angularity" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_alpha{a['alpha']}", None, None, observable_module.AngularitySpec(alpha=a["alpha"]), None)
+                                for a in block["jet"]["angularity"]
+                            ]
+                        # Step 6: subjet_R (zr_alice) sub-observable -- one SubjetRSpec per subjet R. It
+                        # feeds the `_r{r}` legacy suffix (matching the analyzer column ..._R{R}_r{r}) and
+                        # the per-r data-block table selection (jet_subjet_R key). zr_alice stays on the
+                        # legacy f-string name path (NOT the encoder), so no _encoder context is needed.
+                        if "subjet_R" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_r{r}", None, None, None, observable_module.SubjetRSpec(r=r))
+                                for r in block["jet"]["subjet_R"]
+                            ]
 
                         # Whether the histogram name comes from the observable encoder (the analyzer
                         # writes encoder names for these) or the legacy hand-built f-string.
@@ -790,21 +819,30 @@ class HistogramResults(common_base.CommonBase):
                         # it (mirrors the analyzer: axis_alice passes jet_axis, axis_cms does not).
                         axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
 
-                        for subobservable_label, axis_entry, charge_value in subobservable_label_list:
+                        for subobservable_label, axis_entry, charge_value, angularity_spec, subjet_spec in subobservable_label_list:
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
-                                    # New YAML schema mixes methods (soft_drop + dynamical_grooming).
-                                    # Legacy histogram naming below only knows SoftDrop, so skip other methods.
-                                    if grooming_setting.get("type", "soft_drop") != "soft_drop":
+                                    # New YAML schema mixes grooming methods (soft_drop + dynamical_grooming).
+                                    # Soft Drop uses the legacy zcut/beta suffix. Dynamical Grooming (DyG) is
+                                    # supported only on the encoder path (migrated observables) -- its column
+                                    # name and per-grooming HEPData table are built from grooming_setting below
+                                    # (convert_to_grooming_method_spec / GroomingSettingsSpec handle DyG), so
+                                    # here it only needs a legacy suffix for the binning-lookup fallback.
+                                    # Non-soft-drop on a non-migrated observable has no legacy name -> skip.
+                                    grooming_type = grooming_setting.get("type", "soft_drop")
+                                    if grooming_type != "soft_drop" and not is_migrated:
                                         continue
-                                    zcut = grooming_setting["z_cut"]
-                                    beta = grooming_setting["beta"]
-
-                                    # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
-                                    if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
-                                        self.suffix = f"_R{jet_R}{subobservable_label}"
+                                    if grooming_type == "soft_drop":
+                                        zcut = grooming_setting["z_cut"]
+                                        beta = grooming_setting["beta"]
+                                        # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
+                                        if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
+                                            self.suffix = f"_R{jet_R}{subobservable_label}"
+                                        else:
+                                            self.suffix = f"_R{jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
                                     else:
-                                        self.suffix = f"_R{jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
+                                        # Dynamical grooming (migrated path only, gated above)
+                                        self.suffix = f"_R{jet_R}_a{grooming_setting['a']}{subobservable_label}"
                                     # For migrated observables, select the per-grooming HEPData table
                                     # (the data block is keyed by jet_grooming_settings in the
                                     # GroomingSettingsSpec encoding, which carries the SD_/DyG_ prefix).
@@ -815,6 +853,10 @@ class HistogramResults(common_base.CommonBase):
                                                 grooming_setting
                                             ).encode()
                                         }
+                                        # Step 5: angularity observables have one table per (grooming, alpha)
+                                        # -> add the per-alpha key so the right table is selected.
+                                        if angularity_spec is not None:
+                                            data_block_params["jet_angularity"] = angularity_spec.encode()
                                     bins = self.plot_utils.bins_from_config(
                                         block,
                                         self.sqrts,
@@ -842,6 +884,7 @@ class HistogramResults(common_base.CommonBase):
                                             grooming_setting=grooming_setting,
                                             pt_bin=pt_bin,
                                             charge=charge_value,
+                                            angularity=angularity_spec,
                                         )
                                         self.histogram_observable(
                                             column_name=encoder_name,
@@ -903,6 +946,12 @@ class HistogramResults(common_base.CommonBase):
                                     data_block_params = {
                                         "jet_charge": observable_module.JetChargeSpec(charge_value).encode()
                                     }
+                                # Step 6: zr_alice has one HEPData table per subjet R; select it by the
+                                # jet_subjet_R key (SubjetRSpec encoding, "r_{r}"). NOT gated on is_migrated
+                                # -- zr_alice is on the legacy name path but its binning still resolves
+                                # through the per-r data-block table.
+                                if subjet_spec is not None:
+                                    data_block_params = {"jet_subjet_R": subjet_spec.encode()}
                                 # pt_y_atlas is the ATLAS |y| double-ratio R_AA(|y|)/R_AA(|y|<0.3) -- the
                                 # rapidity-dependence of the PbPb jet suppression. Its only |y|-binned
                                 # HEPData (raa_doubleRatio) is in the AA `ratio` block; the pp `spectra` is
@@ -940,6 +989,7 @@ class HistogramResults(common_base.CommonBase):
                                         pt_bin=pt_bin,
                                         axis_entry=axis_entry if axis_is_essential else None,
                                         charge=charge_value,
+                                        angularity=angularity_spec,
                                     )
                                     self.histogram_observable(
                                         column_name=encoder_name,
@@ -984,6 +1034,9 @@ class HistogramResults(common_base.CommonBase):
                                         )
                                     # pp: book the R_AA-denominator (inclusive_jet pt/Dz/Dpt RAA)
                                     # on the AA `ratio` binning when it differs from the spectra binning.
+                                    # Forward data_block_params so per-sub-observable legacy observables
+                                    # (zr_alice's subjet_R) resolve the denom on the RIGHT per-r ratio
+                                    # table; it is None for every other legacy observable (no-op).
                                     self.maybe_book_raa_denom(
                                         observable_type=observable_type,
                                         observable=observable,
@@ -995,6 +1048,7 @@ class HistogramResults(common_base.CommonBase):
                                         pt_bin=pt_bin,
                                         block=block,
                                         suffix=f"{self.suffix}{pt_suffix}",
+                                        data_block_params=data_block_params,
                                     )
 
     # -------------------------------------------------------------------------------------------
@@ -1156,6 +1210,13 @@ class HistogramResults(common_base.CommonBase):
                             column_name = f"{observable_type}_star_trigger_pt{jet_collection_label}"
                             bins = np.array(block["trigger_range"])
                             self.histogram_observable(column_name=column_name, bins=bins, centrality=centrality)
+
+                # Semi-inclusive recoil: the histogrammer only books the RAW per-trigger-class yields
+                # (lowTrigger/highTrigger) + the trigger-pt (N_trig) histogram above. The Delta_recoil
+                # subtraction + per-trigger normalization are deferred to the plotter
+                # (construct_semi_inclusive_histogram), which runs AFTER aggregation -- the 1/N_trig
+                # normalization is non-linear, so doing it here per-file and then hadd-summing N files
+                # would over-count by n_files (verified on the 30-file large sample, 2026-06-04).
 
     # -------------------------------------------------------------------------------------------
     # Histogram a single observable

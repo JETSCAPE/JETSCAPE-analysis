@@ -408,7 +408,92 @@ source in the curation track (log in its `CURATION_NOTES.md`); the plotter only 
 (C9); stays off until its HEPData is filled. `angularity_alice` (alpha) — the ungroomed/groomed split
 (C7) is **Step 5**; not touched here.
 
-## Remaining steps (next sessions) — updated 2026-06-03
+## Step 5 — ungroomed/groomed split DONE (2026-06-03)
+
+The two ALICE charged-jet substructure observables that conflated an ungroomed and a groomed quantity
+under one key (edge case C7) are **split into four observables, all on the observable encoder**:
+
+- `mass_alice` → **`mass_alice`** (ungroomed `jet.m()`) + **`mg_alice`** (groomed `m_g`).
+- `angularity_alice` → **`angularity_alice`** (ungroomed λ) + **`angularity_groomed_alice`** (groomed λ),
+  each parametrized by the **alpha** sub-observable (α = 1, 1.5, 2, 3).
+
+**`double_ratio` was NOT added** (user decision 2026-06-03): mass/angularity are self-normalized
+distributions that don't need it, and `pt_y_atlas`'s double-ratio already works via the
+`ratio`+self-normalize path (B12). Tracked for a possible later cleanup with Step 7, not Step 5.
+
+**Changes (6 files):**
+- `config/STAT_5020.yaml`: split each block into two; each new block declares a SINGLE `grooming_settings`
+  entry and partitions its `data:` combinations by grooming (mass pp 33/35/37 vs 34/36/38; AA ratio
+  39/41/43/45 vs 40/42/44/46; angularity pp 41–64 and AA ratio 1–32 split ungroomed/groomed). New
+  `mg_alice` / `angularity_groomed_alice` blocks added. Stale "includes both groomed and ungroomed"
+  comments fixed.
+- `jetscape_analysis/analysis/analyze_events_STAT.py`: ungroomed mass + angularity fills migrated from
+  legacy 2D `[jet_pt, value]` f-strings to **1D-per-pt-bin encoder** fills (`jet_pt_spec` computed locally
+  in the ungroomed method); groomed fills renamed to `mg_alice` / `angularity_groomed_alice`. `_unsubtracted`
+  companions dropped (no regression, C8 precedent). Kappa standardized to `1.0` float (F5 latent-bug fix).
+- `plot/histogram_results_STAT.py` + `plot/plot_results_STAT.py` (lockstep): **alpha sub-observable loop** —
+  sub-observable tuple widened 3→4 `(label, axis_entry, charge_value, angularity_spec)`, a new `"angularity"`
+  branch, an `angularity=` arg on both `_encoder_column_name` helpers, and per-alpha `data_block_params`
+  (`jet_angularity`). Plotter stashes `_encoder_angularity` for `get_histogram`.
+- `plot/plot_results_STAT_utils.py`: all four added to `ENCODER_MIGRATED_JET_OBSERVABLES`.
+- (curation repo) `hepdata_database.yaml`: `mg_alice` / `angularity_groomed_alice` registry aliases reusing
+  the sibling HEPData records (no new files); logged in `CURATION_NOTES.md`.
+
+**Verified e2e (pp small sample, analyzer→histogrammer→plotter, exit 0):** mass_alice 3 + mg_alice 3
+non-empty keys (per-grooming binnings differ 13/10/5 vs 16/11/6); angularity_alice 24 + angularity_groomed_alice
+24 (4 α × 3 pt × {distribution + `_raa_denom`}, per-alpha overlays differ); data overlays resolve per
+pt/grooming/alpha; **0** "no matching table" / TAxis / "cannot divide" errors; Step-4/4.5 migrated set
+(mg_cms 30, charge_cms 9, ktg_alice 2, …) unchanged. Encoder names byte-consistent analyzer↔histogrammer
+(incl. `kappa_1.0`). Edge-case mechanics documented in `OBSERVABLE_EDGE_CASES.md` section F.
+
+**AA arm pp-verified only:** all four are `centrality: [[0,10]]`; the PbPb small sample (~10–11%) gives
+empty AA MC, so the AA R_AA arm is exercised for code-path correctness but not numerically — full AA
+validation rides with **Step 7** (needs a 0–10% sample).
+
+## AA data/MC validation pass — DONE + COMMITTED 2026-06-10 (`d180f12`)
+
+Ran STAT_2760 + STAT_5020 R_AA/substructure through the full render and fixed the AA-canvas
+data/MC comparison bugs that surfaced. Render workflow: re-plot on **lxplus** (the 6 GB VM OOMs on
+the AA plot step) → publish to the single non-versioned site
+https://zhangj.web.cern.ch/jetscape_render/ (inline thumbnail gallery; `publish_render.py`).
+
+Plotter (`plot/plot_results_STAT.py`):
+- **Hadron R_AA** draws only the hole-subtracted (physical) curve, not the overlapping unsubtracted
+  cross-check (was: two legend entries, one visible band, mismatched color).
+- **`skip_AA_ratio`** (self-normalized ALICE substructure: mass/angularity/mg/axis) overlays the
+  self-normalized AA *distribution* vs the measured PbPb distribution instead of dividing by pp.
+- **`AA_difference`** flag for CMS `Dpt_cms` (`Delta_D = D_PbPb − D_pp`, goes negative): subtract the
+  pp reference; reference line at 0; y-range admits negatives.
+- **Non-ratio AA plots** auto-scale y to the data+MC content with legend headroom (was fixed `[0,3]`).
+- **Log-y twin** (`<name>_logxy.pdf`) for every non-negative AA plot.
+
+Data-overlay resolver (`plot/plot_results_STAT_utils.py`):
+- Resolve the HEPData record from the artifact OR the parent `hepdata.record`; **warn** instead of
+  silently using `infos[0]`. The silent fallback was drawing **pp data on the PbPb canvas** for
+  `axis_alice` (the same table name exists in both the pp and PbPb records). Watch this on any
+  multi-record observable.
+- For `skip_AA_ratio`, prefer the `spectra` (distribution) artifact, falling back to whichever block
+  (`spectra`/`ratio`) actually has wired tables — curators put the PbPb distribution in `ratio` for
+  mass/angularity/mg but in `spectra` for axis_alice/charge_cms.
+
+Config: `STAT_5020.yaml` — `skip_AA_ratio` on angularity/angularity_groomed/mass/mg/axis; wired
+`axis_alice` `AA.spectra` to the ins2648610 PbPb distribution tables. `STAT_2760.yaml` — `skip_AA_ratio`
+on mass/g; `AA_difference` on `Dpt_cms`.
+
+**WTA verified correct** (empirically, FastJet in `/root/stat_local_gcc_v5.2.sif`) — the `axis_alice`
+MC/data gap was the pp-overlay bug, not WTA. Known-but-immaterial: the `NegativeEnergyRecombiner` set
+before `set_recombination_scheme(WTA_pt_scheme)` is silently discarded (only touches the
+`_negative_recombiner` band; benign).
+
+**Remaining small items (axis_alice):** align the MC binning to the 12-bin HEPData grid (it has a
+spurious 0.035 split → 13 bins); no HEPData distribution table exists for R0.4 pt40–80 or pt100–140;
+cosmetic cleanup of the dead `set_recombiner` lines (`analyze_events_STAT.py:905/1287/1660/3540`).
+
+**NOT in `d180f12` (200 GeV groundwork, deferred to the next pass):** `analyze_events_STAT.py` has the
+`self.AA`→`self.is_AA` typo fix + a guard on the WIP 200 GeV pion-trigger block; `tables/200/` holds
+untracked 200 GeV AuAu data (`.dat`). Commit these with the 200 GeV work.
+
+## Remaining steps (next sessions) — updated 2026-06-10
 
 > Fuller orchestration plan + history live in the project memory
 > `jetscape_migration_orchestration.md`. **Note:** that file is under the HOME-dir project
@@ -416,8 +501,11 @@ source in the curation track (log in its `CURATION_NOTES.md`); the plotter only 
 > dir may not auto-recall it — read it explicitly, or rely on this section (kept in sync).
 
 Steps 1–4 + render-path fixes E1/E2/E3 + the AA R_AA binning fix + plotter cosmetics + **Step 4.5
-`charge_cms`** are **DONE** (see the dated sections above; commits `05e25b7` … `1fb6379` on
-`dev-aggregation`, plus the in-progress Step 4.5 change).
+`charge_cms`** + **Step 5 (ungroomed/groomed split — mass_alice/mg_alice + angularity_alice/
+angularity_groomed_alice)** + **Step 6 (STAT_5020)** are **DONE** (see the dated sections above). STAT_2760 + STAT_5020
+R_AA/substructure **validated + AA data/MC fixes committed 2026-06-10 (`d180f12`; see the
+"AA data/MC validation pass" section above).**
+**NEXT = STAT_200 (AuAu 200 GeV) data + more validation.**
 
 **Step 4.5 — parametrized-observable migration.** Wire the observables the analyzer *computes* but the
 histogrammer/plotter don't yet iterate (root cause: sub-observable loops keyed on the pre-migration
@@ -428,14 +516,72 @@ names; see "Step 4.5 — DONE" above and edge case C9):
 - `inclusive_chjet/angularity_alice` — by **alpha** — **deferred to Step 5** (needs the ungroomed/groomed
   split, C7).
 
-**Step 5 — ungroomed/groomed split + double_ratio.** Split `mass_alice` → `mass_alice` + `mg_alice`,
-and `angularity_alice` → `angularity_groomed_alice` (separate ungroomed `jet.m()`/`λ` from groomed
-`m_g`/`λ(groomed)`). Add a `double_ratio` artifact type alongside `spectra`/`ratio` for jet R_AA.
+**Step 5 — ungroomed/groomed split — ✅ DONE (2026-06-03).** See the "Step 5 — ungroomed/groomed split
+DONE" section above. `double_ratio` intentionally NOT added (not needed; user decision).
 
-**Step 6 — drop legacy YAML keys.** Strip `hepdata_*_dir`/`_hname`/`_gname`/dangling `bins:` from
-MIXED entries; **first = `axis_alice`** (only enabled observable still on the legacy ROOT path →
-excluded from whole-config renders). Decide the canonical bin-edges source. Then sweep STAT_2760,
-then STAT_200 (both still MIXED/OLD).
+**Step 6 — drop legacy YAML keys.**
+
+**STAT_5020 — ✅ DONE + COMMITTED 2026-06-03 (`c83481f`).** Every observable (enabled + disabled) is
+off the legacy ROOT overlay path — **zero** active `hepdata_*` / `HEPData-*.root` keys remain.
+- `axis_alice` (enabled): stripped `hepdata_pp`/`hepdata_AA` + per-variant `hepdata_*_dir`/`_gname`;
+  the `data:` block (pp.spectra + AA.ratio) already carried the equivalent table mappings. It was the
+  last enabled observable on the legacy path, so whole-config renders no longer exclude it.
+- Self-norm fix (`plot_results_STAT.py`): added `"axis"` to the self-normalize substring trigger —
+  the jet-axis-difference MC (`1/σ_inc dN/dΔR`) was not self-normalized and sat ~0 vs data. Latent
+  bug surfaced only now that axis_alice finally renders.
+- Disabled `xj_gamma_atlas` / `xj_gamma_cms` / `gamma_trigger_jet/pt_atlas`: stripped legacy keys;
+  their (uncurated, empty-table) `data:` skeletons remain. `rg_atlas` left as-is (uncurated, *not* a
+  MIXED entry — only a dummy `bins:` placeholder).
+- Verified e2e (pp, plotter-only on cached histograms): exit 0, 339 PDFs incl. 12 `axis_alice` with
+  MC+data overlaid; all HEPData cached locally (no web fetch). NB: `axis_alice` AA arm needs a
+  `[0,10]`-contained hydro file (current 10–11% sample fails the `[0,10]` full-containment bin) → Step 7.
+
+**STAT_5020 — ALICE curation observables (IAA / dphi / zr_alice) — pp-DONE+VALIDATED 2026-06-04 (uncommitted batch).**
+These were the deferred "curation+wiring" half of Step 6 (axis_alice above was the wiring-only half).
+
+- **`IAA_pt_alice` + `dphi_alice` (semi-inclusive h+jet recoil).** The observable is the trigger-
+  background-subtracted recoil distribution Δ_recoil = (1/N_trig^high)·high − c_ref·(1/N_trig^low)·low.
+  The analyzer produces only per-trigger-class yields (`_lowTrigger`/`_highTrigger`); **nothing
+  assembled Δ_recoil** and the plot path for `hadron_trigger_chjet` was never even called. Added:
+  (1) `histogram_results_STAT.py:_build_semi_inclusive_delta_recoil` — builds Δ_recoil per (R[,pt-bin])
+  from the booked high/low + the trigger-pt (N_trig) histogram; dphi reuses the IAA-owned trigger-pt
+  hist (same triggers). (2) wired `plot_hadron_trigger_chjet_observables` into `plot_results()` (it
+  existed but was never invoked) + a pt-bin loop for dphi. (3) **per-trigger normalization:** the
+  1/N_trig ratio cancels the standard xsec/weight_sum scaling, so `_scale_one_histogram` SKIPS the
+  standard chain for `hadron_trigger_chjet` (else it double-normalizes ~1e3). (4) curation: IAA
+  data: block → Tables 1/2/3 (pp/AA/I_AA, ins2693336, R via index); dphi → per-(R,pt) Tables 4-6 /
+  7-9 / 10-12. (5) `c_ref` per R (AA only; pp=1): IAA `[0.90,0.82,0.82]` (Fig-5 *integrated*), dphi
+  reuses the same (the differential Fig-5 values are not in HEPData — see edge case A10).
+  Verified pp (ratio≈1 where populated). **`min_jet_pt: 20 → 7`** (config) so recoil jets reach the
+  data's lowest pt bins — needs the slow re-analysis to take effect (the 20 GeV floor left the lowest
+  bins empty; this is the ONLY observables that need jets <20 GeV).
+- **`zr_alice` (leading-subjet z_r, subjet_R 0.1/0.2).** Was doubly-blocked (C9 loop key-mismatch + A5
+  uncurated). Fixed WITHOUT touching the analyzer (its `_R{R}_r{r}` columns already exist): added a
+  **`subjet_R` sub-observable branch** (widened the jet sub-observable tuple 4→5; legacy name path,
+  not encoder) in both the histogrammer and plotter, threading `data_block_params={jet_subjet_R: r_X}`
+  (NOT gated on is_migrated) for the per-r binning + overlay; added `"zr"` to the self-normalize
+  trigger; curated the data: block → Tables 5/8 (pp), 6/9 (AA), 7/10 (PbPb/pp ratio). Verified pp
+  (ratio≈1).
+- **Adversarial review (2026-06-04) — fixed:** (a) the `hadron_trigger_chjet` scale-skip wrongly
+  swallowed `nsubjettiness_alice`'s (STAT_2760) self-normalization → guarded with `and not
+  self_normalize`. (b) zr_alice's legacy `maybe_book_raa_denom` call omitted `data_block_params`, so
+  the r=0.2 R_AA denominator silently resolved to the r=0.1 ratio table → forwarded the param.
+- **Large-sample validation + fixes (2026-06-04, 30 pp + 30 PbPb via Condor, `min_jet_pt: 20→5`).**
+  The decisive test exposed (and we fixed) two real bugs the small sample masked:
+  (1) **Δ_recoil multi-file aggregation** — the per-trigger (1/N_trig) normalization was done per-file
+  in the histogrammer, so `hadd`-summing N files over-counted by **n_files** (IAA was ×30 high).
+  **Fix:** moved the Δ_recoil build to the **plotter** (`construct_semi_inclusive_histogram`,
+  post-aggregation); the histogrammer now books only the raw high/low/N_trig. (2) **dphi pt-window**
+  — dphi HEPData is double-differential `(GeV/c·rad)^-1`; the MC is integrated over the jet-pt
+  sub-bin, so divide by that window width (×10 for 20-30 GeV). IAA needs NO such factor (its data is
+  Δφ-integrated; ratio≈1 as-is). After both fixes, IAA + dphi ratio≈1 at full stats, low-pt bins fill
+  (`min_jet_pt: 5` → IAA down to 7 GeV). Also fixed `truncate_tgraph` to skip (not raise) on an AA
+  hist/graph x-mismatch, so the **Step 7 R_AA** render completes (72 PDFs, 10-40% centrality, physical
+  suppression for hadron + jet R_AA). See OBSERVABLE_EDGE_CASES G1/G4/G6. Plots: `~/e2e_render_0604`.
+
+**NEXT — STAT_2760, then STAT_200** (both still MIXED/OLD). The migrated analyzer/histogrammer/plotter
+**code is energy-agnostic and already done**, so these are config-side sweeps (legacy→`data:` schema
+per observable) + any missing HEPData curation — NOT a from-Step-1 code redo.
 
 End state: every observable on one path (`data:` + new encoder + `obs.essential_parameters()`).
 
@@ -471,9 +617,10 @@ and >40% bins stay empty.
 4. Then repeat for **STAT_2760** (18 enabled AA observables, MIXED) and **STAT_200** (AuAu 200 GeV,
    ~6–7 enabled AA observables, MIXED, incl. γ-trigger) — after their Step-6 sweep.
 
-**Side-items (not blocking):** `ktg_alice` DyG variant still not histogrammed (C6); v2/flow +
-γ-trigger analyzers not implemented (by-design-off). 2760 / 200 audited for Step 7 (centralities +
-MIXED schema state recorded above); full per-observable migration audit still pending their sweep.
+**Side-items (not blocking):** `ktg_alice` DyG variant — DONE (2026-06-08, C6): histogrammer + plotter
+loops now process dynamical_grooming for migrated observables + pp DyG data-block key fixed; validated
+e2e on the pp sample. v2/flow + γ-trigger analyzers not implemented (by-design-off). 2760 / 200 swept
+(2026-06-08, committed) — full render-validation still pending PbPb samples (Step 7).
 
 ## Diagnostic snippets
 

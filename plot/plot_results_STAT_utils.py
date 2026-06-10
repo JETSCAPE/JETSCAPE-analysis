@@ -40,11 +40,11 @@ def _warn_once(key: str, message: str) -> None:
 # (e.g. charge_cms, plain RAA/Dz/...) stays on the legacy f-string path, matching its analyzer.
 # Lives here (shared utils) so the histogrammer and plotter use a single source of truth and can
 # never drift on membership.
-# NOTE: mass_alice and angularity_alice are intentionally NOT here. Each conflates an ungroomed
-# quantity (jet.m() / lambda(jet), written by a legacy f-string fill) with a groomed one
-# (m_g / lambda(groomed pair), written by the encoder). Splitting them into distinct observables
-# (mass_alice + mg_alice; angularity_alice + angularity_groomed_alice) is Step 5. Until then they
-# stay on the legacy path (histogramming the ungroomed quantity, as before -- no regression).
+# NOTE: Step 5 split the two ALICE observables that conflated an ungroomed quantity with a groomed one
+# (each previously had a legacy f-string fill for jet.m()/lambda(jet) AND an encoder fill for
+# m_g/lambda(groomed)). mass_alice -> mass_alice (ungroomed) + mg_alice (groomed); angularity_alice ->
+# angularity_alice (ungroomed) + angularity_groomed_alice (groomed, parametrized by the alpha
+# sub-observable loop). All four are now fully on the encoder, listed below.
 ENCODER_MIGRATED_JET_OBSERVABLES = {
     ("inclusive_chjet", "ktg_alice"),
     ("inclusive_chjet", "zg_alice"),
@@ -56,6 +56,13 @@ ENCODER_MIGRATED_JET_OBSERVABLES = {
     ("inclusive_jet", "axis_cms"),
     # Step 4.5: jet charge, parametrized by kappa (data block keyed by jet_charge: kappa_X).
     ("inclusive_jet", "charge_cms"),
+    # Step 5: ALICE jet mass, split into ungroomed (mass_alice, jet.m()) + groomed (mg_alice, m_g).
+    ("inclusive_chjet", "mass_alice"),
+    ("inclusive_chjet", "mg_alice"),
+    # Step 5: ALICE jet angularity, split into ungroomed + groomed, each parametrized by alpha
+    # (data block keyed by jet_angularity: alpha_X_kappa_1.0).
+    ("inclusive_chjet", "angularity_alice"),
+    ("inclusive_chjet", "angularity_groomed_alice"),
 }
 
 
@@ -270,9 +277,22 @@ class PlotUtils(common_base.CommonBase):
 
         system = "AA" if is_AA else "pp"
         hepdata = block.get("data", {}).get(system, {}).get("hepdata", {})
-        artifact = hepdata.get("ratio") if is_AA else hepdata.get("spectra")
-        if not artifact:
-            artifact = hepdata.get("spectra") if is_AA else hepdata.get("ratio")
+        # AA normally overlays the measured ratio (R_AA); pp overlays the spectrum. A self-normalized
+        # DISTRIBUTION observable (skip_AA_ratio) overlays the measured PbPb distribution, NOT the ratio
+        # -- so prefer `spectra` on the AA arm when skip_AA_ratio is set. Fall back to the OTHER artifact
+        # when the preferred one has no WIRED tables: curators stored some distributions in `ratio`
+        # (mass/angularity/mg) and others in `spectra` (axis_alice/charge_cms). A present-but-empty block
+        # is truthy, so a plain `if not artifact` fallback would silently drop the overlay.
+        def _has_wired_tables(art):
+            return bool(art) and any(
+                c.get("table") for t in art.get("tables", []) for c in (t.get("combinations") or [t])
+            )
+
+        prefer_spectra = (not is_AA) or block.get("skip_AA_ratio", False)
+        first, second = ("spectra", "ratio") if prefer_spectra else ("ratio", "spectra")
+        artifact = hepdata.get(first)
+        if not _has_wired_tables(artifact) and _has_wired_tables(hepdata.get(second)):
+            artifact = hepdata.get(second)
         if not artifact or "tables" not in artifact:
             logger.warning(f"\tNo data artifact (spectra/ratio) for {observable} {system}")
             return None, None
@@ -323,10 +343,25 @@ class PlotUtils(common_base.CommonBase):
             logger.warning(f"\tNo matching data table for {observable} {centrality} {combined} (desired={desired})")
             return None, None
 
-        # Resolve the HEPData record for this table. Match on inspire_hep_id from
-        # the artifact `record`; if there's a single record, just use it.
-        record_id = artifact.get("record", {}).get("inspire_hep_id")
-        info = next((i for i in infos if i.get("inspire_hep_id") == record_id), infos[0])
+        # Resolve the HEPData record for this table. Prefer the artifact's own `record`, falling
+        # back to the parent `hepdata.record` (the config commonly sets the inspire id only at the
+        # parent level). When the id is unresolved, a silent infos[0] fallback previously overlaid
+        # the WRONG record -- e.g. the pp distribution on the PbPb canvas, since the same table name
+        # ("Table 2", ...) exists in both the pp and PbPb records -- so warn loudly instead.
+        record_id = artifact.get("record", {}).get("inspire_hep_id") or hepdata.get("record", {}).get("inspire_hep_id")
+        info = next((i for i in infos if i.get("inspire_hep_id") == record_id), None)
+        if info is None:
+            if record_id is not None:
+                logger.warning(
+                    f"\tHEPData record ins{record_id} not among the {len(infos)} candidate(s) for "
+                    f"{observable} {system}; falling back to ins{infos[0].get('inspire_hep_id')}"
+                )
+            elif len(infos) > 1:
+                logger.warning(
+                    f"\tNo HEPData record id resolved for {observable} {system} with {len(infos)} "
+                    f"candidate records; ambiguously using ins{infos[0].get('inspire_hep_id')}"
+                )
+            info = infos[0]
         rel_filename = info.get("tables_to_filenames", {}).get(entry["table"])
         if rel_filename is None:
             logger.warning(f"\t'{entry['table']}' not in HEPData record ins{info.get('inspire_hep_id')} for {observable}")
@@ -669,12 +704,14 @@ class PlotUtils(common_base.CommonBase):
                 # logger.debug(f'gx: {gx}')
 
             if not np.isclose(h_x, gx):
+                # The histogram bin has no matching data-graph point -- e.g. the MC histogram extends
+                # past the HEPData x-range (graph x reads 0 once exhausted), as for inclusive_jet/pt_cms
+                # at high pt. Skip this observable's overlay/ratio gracefully and warn, rather than
+                # crashing. Previously the AA arm RAISED here, aborting the entire R_AA render on the
+                # first such observable (the rest of the AA R_AA plots never got produced).
                 _msg = f"hist x: {h_x}, graph x: {gx}"
-                if is_AA:
-                    raise ValueError(_msg)
-                else:  # noqa: RET506
-                    logger.warning(_msg)
-                    return None
+                logger.warning(f"truncate_tgraph: {_msg} (skipping overlay/ratio for {h.GetName()}, is_AA={is_AA})")
+                return None
 
             g_new.SetPoint(bin - 1, gx, gy)
             g_new.SetPointError(bin - 1, 0, 0, yErrLow, yErrUp)

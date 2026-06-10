@@ -927,14 +927,22 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if self.measure_observable_for_current_event(
             self.inclusive_chjet_observables, observable_name="angularity_alice"
         ):
-            pt_min = self.inclusive_chjet_observables["angularity_alice"]["jet"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["angularity_alice"]["jet"]["pt"][-1]
+            # Step 5: ungroomed angularity (lambda of the ungroomed jet), migrated to the encoder name
+            # + 1D-per-pt-bin per alpha (jet_pt and jet_angularity are essential). The groomed
+            # counterpart is the separate angularity_groomed_alice fill below.
+            obs = self.observables_info[f"{self.sqrts}_inclusive_chjet_angularity_alice"]
+            ang_block = self.inclusive_chjet_observables["angularity_alice"]["jet"]
+            pt_edges = ang_block["pt"]
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_chjet_observables["angularity_alice"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["angularity_alice"]["jet"]["eta_R"] - jetR)
+                jet_pt_spec is not None
+                and jetR in ang_block["R"]
+                and abs(jet.eta()) < (ang_block["eta_R"] - jetR)
             ):
-                for ang_settings in self.inclusive_chjet_observables["angularity_alice"]["jet"]["angularity"]:
+                for ang_settings in ang_block["angularity"]:
                     alpha = ang_settings["alpha"]
                     kappa = 1
                     if jet_collection_label in ["", "_shower_recoil", "_constituent_subtraction"]:
@@ -945,19 +953,23 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                             if hadron.user_index() > 0:
                                 # NOTE: Implicitly uses kappa = 1 here
                                 lambda_alpha += hadron.pt() / jet_pt * np.power(hadron.delta_R(jet) / jetR, alpha)
-                    if jet_collection_label in ["_shower_recoil"]:
-                        self.observable_dict_event[
-                            f"inclusive_chjet_angularity_alice_R{jetR}_alpha{alpha}{jet_collection_label}_unsubtracted"
-                        ].append([jet_pt, lambda_alpha])
                     if jet_collection_label in ["_shower_recoil", "_negative_recombiner"]:
                         for hadron in holes_in_jet:
                             if jet_collection_label in ["_negative_recombiner"] and hadron.user_index() > 0:
                                 continue
                             # NOTE: Implicitly uses kappa = 1 here
                             lambda_alpha -= hadron.pt() / jet_pt * np.power(hadron.delta_R(jet) / jetR, alpha)
+                    # AngularitySpec kappa defaults to 1.0 -> encodes "alpha_{alpha}_kappa_1.0",
+                    # matching the data-block jet_angularity keys (do NOT pass the int kappa=1 used
+                    # for the lambda computation, which would encode "kappa_1" and miss the table).
                     self.observable_dict_event[
-                        f"inclusive_chjet_angularity_alice_R{jetR}_alpha{alpha}{jet_collection_label}"
-                    ].append([jet_pt, lambda_alpha])
+                        obs.encode_name_for_storing_in_file(
+                            jet_R=observable.JetRSpec(jetR),
+                            jet_pt=jet_pt_spec,
+                            jet_angularity=observable.AngularitySpec(alpha=alpha),
+                            tag=jet_collection_label,
+                        )
+                    ].append(lambda_alpha)
 
         # ALICE jet mass
         #   Hole treatment:
@@ -965,28 +977,35 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed
         #    - For constituent_subtraction, no subtraction is needed
         if self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="mass_alice"):
-            pt_min = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"][0]
-            pt_max = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"][-1]
+            # Step 5: ungroomed jet mass (jet.m()), migrated to the encoder name + 1D-per-pt-bin
+            # (jet_pt is essential). The groomed counterpart (m_g) is the separate mg_alice fill below.
+            obs = self.observables_info[f"{self.sqrts}_inclusive_chjet_mass_alice"]
+            mass_block = self.inclusive_chjet_observables["mass_alice"]["jet"]
+            pt_edges = mass_block["pt"]
+            jet_pt_spec = next(
+                (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
+                None,
+            )
             if (
-                jetR in self.inclusive_chjet_observables["mass_alice"]["jet"]["R"]
-                and pt_min < jet_pt < pt_max
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["mass_alice"]["jet"]["eta_R"] - jetR)
+                jet_pt_spec is not None
+                and jetR in mass_block["R"]
+                and abs(jet.eta()) < (mass_block["eta_R"] - jetR)
             ):
                 jet_mass = jet.m()
                 if jet_collection_label in ["_shower_recoil"]:
-                    # NOTE: Since we haven't assigned to `jet_mass` yet, it still contains the unsubtracted mass
-                    self.observable_dict_event[
-                        f"inclusive_chjet_mass_alice_R{jetR}{jet_collection_label}_unsubtracted"
-                    ].append([jet_pt, jet_mass])
                     # Subtract hole four vectors from the original jet, and then take the mass
                     jet_for_mass_calculation = fj.PseudoJet()  # Avoid modifying the original jet.
                     jet_for_mass_calculation.reset(jet)
                     for hadron in holes_in_jet:
                         jet_for_mass_calculation -= hadron
                     jet_mass = jet_for_mass_calculation.m()
-                self.observable_dict_event[f"inclusive_chjet_mass_alice_R{jetR}{jet_collection_label}"].append(
-                    [jet_pt, jet_mass]
-                )
+                self.observable_dict_event[
+                    obs.encode_name_for_storing_in_file(
+                        jet_R=observable.JetRSpec(jetR),
+                        jet_pt=jet_pt_spec,
+                        tag=jet_collection_label,
+                    )
+                ].append(jet_mass)
 
         # ALICE charged jet RAA
         #   Hole treatment (same as with full jets - copied here for convenience):
@@ -1305,22 +1324,24 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(
-                self.inclusive_chjet_observables, observable_name="angularity_alice"
+                self.inclusive_chjet_observables, observable_name="angularity_groomed_alice"
             )
-            and grooming_setting in self.inclusive_chjet_observables["angularity_alice"]["jet"]["grooming_settings"]
+            and grooming_setting
+            in self.inclusive_chjet_observables["angularity_groomed_alice"]["jet"]["grooming_settings"]
         ):
-            obs = self.observables_info[f"{self.sqrts}_{_observable_class}_angularity_alice"]
-            pt_edges = self.inclusive_chjet_observables["angularity_alice"]["jet"]["pt"]
+            obs = self.observables_info[f"{self.sqrts}_{_observable_class}_angularity_groomed_alice"]
+            pt_edges = self.inclusive_chjet_observables["angularity_groomed_alice"]["jet"]["pt"]
             jet_pt_spec = next(
                 (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
                 None,
             )
             if (
                 jet_pt_spec is not None
-                and jetR in self.inclusive_chjet_observables["angularity_alice"]["jet"]["R"]
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["angularity_alice"]["jet"]["eta_R"] - jetR)
+                and jetR in self.inclusive_chjet_observables["angularity_groomed_alice"]["jet"]["R"]
+                and abs(jet.eta())
+                < (self.inclusive_chjet_observables["angularity_groomed_alice"]["jet"]["eta_R"] - jetR)
             ):
-                for ang_settings in self.inclusive_chjet_observables["angularity_alice"]["jet"]["angularity"]:
+                for ang_settings in self.inclusive_chjet_observables["angularity_groomed_alice"]["jet"]["angularity"]:
                     alpha = ang_settings["alpha"]
                     kappa = 1
                     # Untagged jets (grooming found no splitting) have an empty groomed pair;
@@ -1331,11 +1352,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         lambda_alpha = fjext.lambda_beta_kappa(jet, jet_groomed_lund.pair(), alpha, kappa, jetR)
                     else:
                         lambda_alpha = -1.0
+                    # AngularitySpec kappa defaults to 1.0 -> "alpha_{alpha}_kappa_1.0" (matches the
+                    # data-block keys); the int kappa=1 above is only for the lambda computation.
                     self.observable_dict_event[
                         obs.encode_name_for_storing_in_file(
                             **_parameters,
                             jet_pt=jet_pt_spec,
-                            jet_angularity=observable.AngularitySpec(alpha=alpha, kappa=kappa),
+                            jet_angularity=observable.AngularitySpec(alpha=alpha),
                             tag=jet_collection_label,
                         )
                     ].append(lambda_alpha)
@@ -1346,19 +1369,19 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For negative_recombiner case, no subtraction is needed
         #    - For constituent_subtraction, no subtraction is needed
         if (
-            self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="mass_alice")
-            and grooming_setting in self.inclusive_chjet_observables["mass_alice"]["jet"]["grooming_settings"]
+            self.measure_observable_for_current_event(self.inclusive_chjet_observables, observable_name="mg_alice")
+            and grooming_setting in self.inclusive_chjet_observables["mg_alice"]["jet"]["grooming_settings"]
         ):
-            obs = self.observables_info[f"{self.sqrts}_{_observable_class}_mass_alice"]
-            pt_edges = self.inclusive_chjet_observables["mass_alice"]["jet"]["pt"]
+            obs = self.observables_info[f"{self.sqrts}_{_observable_class}_mg_alice"]
+            pt_edges = self.inclusive_chjet_observables["mg_alice"]["jet"]["pt"]
             jet_pt_spec = next(
                 (observable.PtSpec(lo, hi) for lo, hi in zip(pt_edges[:-1], pt_edges[1:]) if lo <= jet_pt < hi),
                 None,
             )
             if (
                 jet_pt_spec is not None
-                and jetR in self.inclusive_chjet_observables["mass_alice"]["jet"]["R"]
-                and abs(jet.eta()) < (self.inclusive_chjet_observables["mass_alice"]["jet"]["eta_R"] - jetR)
+                and jetR in self.inclusive_chjet_observables["mg_alice"]["jet"]["R"]
+                and abs(jet.eta()) < (self.inclusive_chjet_observables["mg_alice"]["jet"]["eta_R"] - jetR)
             ):
                 # Note: untagged jets will return negative value
                 mg = jet_groomed_lund.pair().m()

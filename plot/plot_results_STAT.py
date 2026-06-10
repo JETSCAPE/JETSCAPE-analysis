@@ -66,6 +66,7 @@ class PlotResults(common_base.CommonBase):
         self._encoder_pt_bin = None
         self._encoder_axis_entry = None
         self._encoder_charge = None
+        self._encoder_angularity = None
 
         # Default to the same directory as the input_file if an output_dir is not provided.
         if not output_dir:
@@ -177,6 +178,11 @@ class PlotResults(common_base.CommonBase):
             if "dijet_trigger_jet" in self.config:
                 self.plot_jet_observables(observable_type="dijet_trigger_jet")
 
+            # Semi-inclusive hadron+jet recoil observables (IAA_pt_alice, dphi_alice).
+            # The method existed but was never invoked here, so these never plotted.
+            if "hadron_trigger_chjet" in self.config:
+                self.plot_hadron_trigger_chjet_observables(observable_type="hadron_trigger_chjet")
+
         self.plot_event_qa()
 
         self.write_output_objects()
@@ -272,19 +278,38 @@ class PlotResults(common_base.CommonBase):
                         if len(block["jet"]["pt"]) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
-                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value),
-                        # mirroring the histogrammer: the label feeds the (jet_R/pt-only) suffix used
-                        # for plot labels/filenames; axis_entry feeds the encoder for migrated axis
-                        # observables (the bare `type` label can't distinguish the grooming variant);
-                        # charge_value (kappa) feeds the encoder for charge_cms. Keys are mutually
-                        # exclusive in the YAML. (zr_alice's `subjet_R` is deferred -- no branch here.)
-                        subobservable_label_list = [("", None, None)]
+                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value,
+                        # angularity_spec), mirroring the histogrammer: the label feeds the (jet_R/pt-only)
+                        # suffix used for plot labels/filenames; axis_entry feeds the encoder for migrated
+                        # axis observables (the bare `type` label can't distinguish the grooming variant);
+                        # charge_value (kappa) feeds the encoder for charge_cms; angularity_spec (alpha)
+                        # feeds it for the angularity observables. Keys are mutually exclusive in the YAML.
+                        # Tuple is (subobservable_label, axis_entry, charge_value, angularity_spec,
+                        # subjet_spec). Step 6 added the 5th slot for zr_alice's subjet_R.
+                        subobservable_label_list = [("", None, None, None, None)]
                         if "axis" in block["jet"]:
                             subobservable_label_list = [
-                                (f"_{axis_block['type']}", axis_block, None) for axis_block in block["jet"]["axis"]
+                                (f"_{axis_block['type']}", axis_block, None, None, None) for axis_block in block["jet"]["axis"]
                             ]
                         if "charge" in block["jet"]:
-                            subobservable_label_list = [(f"_k{kappa}", None, kappa) for kappa in block["jet"]["charge"]]
+                            subobservable_label_list = [
+                                (f"_k{kappa}", None, kappa, None, None) for kappa in block["jet"]["charge"]
+                            ]
+                        # Step 5: angularity (alpha) sub-observable -- one AngularitySpec per alpha, feeding
+                        # the encoder name + per-alpha data-block overlay table selection (jet_angularity).
+                        if "angularity" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_alpha{a['alpha']}", None, None, observable_module.AngularitySpec(alpha=a["alpha"]), None)
+                                for a in block["jet"]["angularity"]
+                            ]
+                        # Step 6: subjet_R (zr_alice) -- one SubjetRSpec per subjet R, feeding the `_r{r}`
+                        # legacy suffix (matching the analyzer column) + per-r data-block overlay table
+                        # (jet_subjet_R key). zr_alice stays on the legacy name path (NOT the encoder).
+                        if "subjet_R" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_r{r}", None, None, None, observable_module.SubjetRSpec(r=r))
+                                for r in block["jet"]["subjet_R"]
+                            ]
 
                         # Whether the histogram name comes from the observable encoder (the analyzer +
                         # histogrammer use encoder names for these) or the legacy hand-built f-string.
@@ -297,18 +322,25 @@ class PlotResults(common_base.CommonBase):
                         # histogrammer: axis_alice passes jet_axis, axis_cms does not).
                         axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
 
-                        for subobservable_label, axis_entry, charge_value in subobservable_label_list:
+                        for subobservable_label, axis_entry, charge_value, angularity_spec, subjet_spec in subobservable_label_list:
                             # Set normalization
                             self_normalize = False
-                            for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj"]:
+                            # "axis" -> jet-axis-difference observables (axis_alice/axis_cms) report a
+                            # self-normalized 1/sigma_inc dN/dDeltaR distribution, so the MC must be
+                            # self-normalized too (without it the raw MC sits ~0 against the data scale).
+                            # "zr" -> zr_alice's leading-subjet z_r is also self-normalized (1/sigma).
+                            for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj", "axis", "zr"]:
                                 if x in observable:
                                     self_normalize = True
 
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
-                                    # New YAML schema mixes methods (soft_drop + dynamical_grooming).
-                                    # Legacy plot naming below only knows SoftDrop, so skip other methods.
-                                    if grooming_setting.get("type", "soft_drop") != "soft_drop":
+                                    # New YAML schema mixes grooming methods (soft_drop + dynamical_grooming).
+                                    # Dynamical Grooming (DyG) is supported only on the encoder path
+                                    # (migrated observables); non-soft-drop on a non-migrated observable has
+                                    # no legacy name -> skip. Kept in lockstep with the histogrammer loop.
+                                    grooming_type = grooming_setting.get("type", "soft_drop")
+                                    if grooming_type != "soft_drop" and not is_migrated:
                                         continue
                                     # Custom skip
                                     if observable in ["zg_alice", "tg_alice"]:
@@ -318,14 +350,17 @@ class PlotResults(common_base.CommonBase):
                                             continue
 
                                     logger.info(f"      grooming_setting = {grooming_setting}")
-                                    zcut = grooming_setting["z_cut"]
-                                    beta = grooming_setting["beta"]
-
-                                    # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
-                                    if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
-                                        self.suffix = f"_R{self.jet_R}{subobservable_label}"
+                                    if grooming_type == "soft_drop":
+                                        zcut = grooming_setting["z_cut"]
+                                        beta = grooming_setting["beta"]
+                                        # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
+                                        if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
+                                            self.suffix = f"_R{self.jet_R}{subobservable_label}"
+                                        else:
+                                            self.suffix = f"_R{self.jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
                                     else:
-                                        self.suffix = f"_R{self.jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
+                                        # Dynamical grooming (migrated path only, gated above)
+                                        self.suffix = f"_R{self.jet_R}_a{grooming_setting['a']}{subobservable_label}"
 
                                     if "hepdata" not in block and "custom_data" not in block and "data" not in block:
                                         continue
@@ -341,6 +376,9 @@ class PlotResults(common_base.CommonBase):
                                                 grooming_setting
                                             ).encode()
                                         }
+                                        # Step 5: per-alpha overlay table selection for angularity observables.
+                                        if angularity_spec is not None:
+                                            data_block_params["jet_angularity"] = angularity_spec.encode()
                                     # Stash the encoder context so get_histogram rebuilds the migrated
                                     # histogram name from the same encoder the histogrammer used.
                                     self._is_migrated_obs = is_migrated
@@ -349,6 +387,7 @@ class PlotResults(common_base.CommonBase):
                                     self._encoder_pt_bin = pt_bin
                                     self._encoder_axis_entry = None
                                     self._encoder_charge = None
+                                    self._encoder_angularity = angularity_spec
 
                                     # Initialize observable configuration
                                     self.init_observable(
@@ -390,6 +429,12 @@ class PlotResults(common_base.CommonBase):
                                     data_block_params = {
                                         "jet_charge": observable_module.JetChargeSpec(charge_value).encode()
                                     }
+                                # Step 6: zr_alice -- one HEPData overlay table per subjet R; select it by
+                                # the jet_subjet_R key (SubjetRSpec encoding, "r_{r}"). NOT gated on
+                                # is_migrated (zr_alice is on the legacy name path, but its overlay still
+                                # resolves through the per-r data-block table).
+                                if subjet_spec is not None:
+                                    data_block_params = {"jet_subjet_R": subjet_spec.encode()}
                                 # Stash the encoder context (no grooming in the else branch; pass the
                                 # axis entry only when jet_axis is essential, mirroring the analyzer;
                                 # charge_value is the kappa for charge_cms).
@@ -399,6 +444,7 @@ class PlotResults(common_base.CommonBase):
                                 self._encoder_pt_bin = pt_bin
                                 self._encoder_axis_entry = axis_entry if axis_is_essential else None
                                 self._encoder_charge = charge_value
+                                self._encoder_angularity = angularity_spec
 
                                 # Initialize observable configuration
                                 self.init_observable(
@@ -423,6 +469,8 @@ class PlotResults(common_base.CommonBase):
         logger.info(f"\nPlot {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
             for centrality_index, centrality in enumerate(block["centrality"]):
                 for self.jet_R in block["jet"]["R"]:
                     self.suffix = f"_R{self.jet_R}"
@@ -435,13 +483,27 @@ class PlotResults(common_base.CommonBase):
                         if x in observable:
                             self_normalize = True
 
-                    # Initialize observable configuration
-                    self.init_observable(
-                        observable_type, observable, block, centrality, centrality_index, self_normalize=self_normalize
-                    )
+                    # dphi is differential in recoil-jet pt (one _pt{i} per jet-pt bin -> a separate
+                    # Delta_recoil(Dphi) distribution and overlay table); IAA is pt-integrated.
+                    if "dphi" in observable and isinstance(block.get("jet", {}).get("pt"), list):
+                        pt_suffixes = [f"_pt{i}" for i in range(len(block["jet"]["pt"]) - 1)]
+                    else:
+                        pt_suffixes = [""]
 
-                    # Plot observable
-                    self.plot_observable(observable_type, observable, centrality)
+                    for pt_suffix in pt_suffixes:
+                        # Initialize observable configuration
+                        self.init_observable(
+                            observable_type,
+                            observable,
+                            block,
+                            centrality,
+                            centrality_index,
+                            pt_suffix=pt_suffix,
+                            self_normalize=self_normalize,
+                        )
+
+                        # Plot observable
+                        self.plot_observable(observable_type, observable, centrality, pt_suffix=pt_suffix)
 
     # -------------------------------------------------------------------------------------------
     # Initialize a single observable's config
@@ -653,6 +715,12 @@ class PlotResults(common_base.CommonBase):
         self.skip_pp = block.get("skip_pp", False)
         self.skip_pp_ratio = block.get("skip_pp_ratio", False)
         self.skip_AA_ratio = block.get("skip_AA_ratio", False)
+        # AA_difference: the measured AA modification is the *difference* of the per-jet
+        # distributions (D_PbPb - D_pp), not the ratio -- e.g. CMS Dpt_cms's Delta_D(z),
+        # whose data goes negative. When set, plot_RAA subtracts the pp reference instead of
+        # dividing by it, keeps the config AA y-range (which must admit negatives), and draws
+        # the reference line at 0 instead of 1.
+        self.AA_difference = block.get("AA_difference", False)
         self.scale_by = block.get("scale_by", None)  # noqa: SIM910
 
         # Flag to plot hole histogram (for hadron histograms only)
@@ -783,6 +851,7 @@ class PlotResults(common_base.CommonBase):
         pt_bin=None,
         axis_entry=None,
         charge=None,
+        angularity=None,
     ):
         obs = self.observables_info[f"{self.sqrts}_{observable_type}_{observable}"]
         kwargs = {"jet_R": observable_module.JetRSpec(jet_R)}
@@ -808,6 +877,12 @@ class PlotResults(common_base.CommonBase):
         if charge is not None:
             kwargs["jet_charge"] = observable_module.JetChargeSpec(charge)
 
+        # Step 5: angularity observables are parametrized by alpha (jet_angularity, essential). The
+        # analyzer/histogrammer encode it as jet_angularity=AngularitySpec(alpha) (-> alpha_X_kappa_1.0);
+        # `angularity` is an AngularitySpec already. Keep lockstep with HistogramResults._encoder_column_name.
+        if angularity is not None:
+            kwargs["jet_angularity"] = angularity
+
         return obs.encode_name_for_storing_in_file(tag=jet_collection_label, **kwargs)
 
     # -------------------------------------------------------------------------------------------
@@ -818,10 +893,15 @@ class PlotResults(common_base.CommonBase):
     def get_histogram(self, observable_type, observable, centrality, collection_label="", pt_suffix=""):
         keys = [key.ReadObj().GetTitle() for key in self.input_file.GetListOfKeys()]
 
-        # In the case of semi-inclusive measurements construct difference of histograms
-        if "semi_inclusive" in observable_type:
+        # In the case of semi-inclusive recoil measurements, construct Delta_recoil from the
+        # (aggregated) per-trigger-class yields. This MUST happen here, post-aggregation -- the
+        # per-trigger normalization is non-linear (1/N_trig), so doing it per-file in the
+        # histogrammer and then hadd-summing over-counts by n_files. observable_type is
+        # "hadron_trigger_chjet" (IAA_pt_alice/dphi_alice) on 5020/2760; the legacy 2760/200
+        # "semi_inclusive_*" naming is also routed here for back-compat.
+        if "semi_inclusive" in observable_type or observable_type == "hadron_trigger_chjet":
             self.construct_semi_inclusive_histogram(
-                keys, observable_type, observable, centrality, collection_label=collection_label
+                keys, observable_type, observable, centrality, collection_label=collection_label, pt_suffix=pt_suffix
             )
 
         # For all other histograms, get the histogram directly
@@ -841,6 +921,7 @@ class PlotResults(common_base.CommonBase):
                     pt_bin=self._encoder_pt_bin,
                     axis_entry=self._encoder_axis_entry,
                     charge=self._encoder_charge,
+                    angularity=self._encoder_angularity,
                 )
                 self.hname = f"h_{column_name}_{centrality}"
             else:
@@ -872,7 +953,70 @@ class PlotResults(common_base.CommonBase):
     # -------------------------------------------------------------------------------------------
     # Construct semi-inclusive observables from difference of histograms
     # -------------------------------------------------------------------------------------------
-    def construct_semi_inclusive_histogram(self, keys, observable_type, observable, centrality, collection_label=""):
+    def construct_semi_inclusive_histogram(self, keys, observable_type, observable, centrality, collection_label="", pt_suffix=""):
+        # Semi-inclusive recoil (hadron_trigger_chjet: IAA_pt_alice / dphi_alice). Build Delta_recoil
+        # from the AGGREGATED raw per-trigger-class yields and the AGGREGATED trigger-pt (N_trig)
+        # counts: Delta_recoil = high/N_trig^high - c_ref * low/N_trig^low (each width-normalized).
+        # The per-trigger normalization is done ONCE here, post-aggregation, so it is correct after
+        # hadd-ing N files -- doing it per-file in the histogrammer then summing over-counts by n_files.
+        if observable_type == "hadron_trigger_chjet":
+            block = self.config[observable_type][observable]
+            hname_high = f"h_{observable_type}_{observable}_R{self.jet_R}_highTrigger{collection_label}_{centrality}{pt_suffix}"
+            hname_low = f"h_{observable_type}_{observable}_R{self.jet_R}_lowTrigger{collection_label}_{centrality}{pt_suffix}"
+            # The analyzer stores the trigger-pt histogram once (under whichever observable owns it,
+            # e.g. IAA_pt_alice); the trigger selection is shared, so find it by pattern.
+            hname_ntrig = next(
+                (k for k in keys if f"_trigger_pt{collection_label}" in k and k.endswith(f"_{centrality}")), None
+            )
+            self.hname = f"h_{observable_type}_{observable}_R{self.jet_R}{collection_label}_{centrality}{pt_suffix}"
+            self.observable_settings[f"jetscape_distribution_raa_denom{collection_label}"] = None
+            if hname_high in keys and hname_low in keys and hname_ntrig:
+                h_high = self.input_file.Get(hname_high)
+                h_high.SetDirectory(0)
+                h_low = self.input_file.Get(hname_low)
+                h_low.SetDirectory(0)
+                h_ntrig = self.input_file.Get(hname_ntrig)
+                h_ntrig.SetDirectory(0)
+                trig = block.get("trigger", {})
+                low_r = trig.get("low_range", block.get("low_trigger_range"))
+                high_r = trig.get("high_range", block.get("high_trigger_range"))
+                n_low = h_ntrig.GetBinContent(h_ntrig.FindBin(0.5 * (low_r[0] + low_r[1])))
+                n_high = h_ntrig.GetBinContent(h_ntrig.FindBin(0.5 * (high_r[0] + high_r[1])))
+                if n_low > 0 and n_high > 0:
+                    c_ref = 1.0  # pp; per-R underlying-event correction for Pb-Pb
+                    if self.is_AA and isinstance(block.get("c_ref"), list):
+                        R_index = next(
+                            (i for i, r in enumerate(block["jet"]["R"]) if np.isclose(r, self.jet_R)), 0
+                        )
+                        c_ref = block["c_ref"][R_index]
+                    h_delta = h_high.Clone(self.hname)
+                    h_delta.SetTitle(self.hname)
+                    h_delta.SetDirectory(0)
+                    h_delta.Scale(1.0 / n_high, "width")
+                    h_low_n = h_low.Clone(f"{hname_low}_tmpnorm")
+                    h_low_n.SetDirectory(0)
+                    h_low_n.Scale(1.0 / n_low, "width")
+                    h_delta.Add(h_low_n, -1.0 * c_ref)
+                    # dphi only: the HEPData Delta_recoil(Dphi) is DOUBLE-differential -- per rad AND
+                    # per recoil-jet-pt (GeV/c x rad)^-1. The MC histogram is binned in Dphi but
+                    # INTEGRATED over the jet-pt window of this sub-bin, so divide by that window width
+                    # to match the data (else it is high by the window, e.g. x10 for the 20-30 GeV bin;
+                    # confirmed at full stats 2026-06-04). IAA's pt-spectrum data is Dphi-integrated, so
+                    # it needs no analogous factor (it already matches at ratio ~1).
+                    if "dphi" in observable and pt_suffix and isinstance(block.get("jet", {}).get("pt"), list):
+                        pt_index = int(pt_suffix.replace("_pt", ""))
+                        pt_edges = block["jet"]["pt"]
+                        if pt_index + 1 < len(pt_edges):
+                            pt_window = pt_edges[pt_index + 1] - pt_edges[pt_index]
+                            if pt_window > 0:
+                                h_delta.Scale(1.0 / pt_window)
+                    self.observable_settings[f"jetscape_distribution{collection_label}"] = h_delta
+                else:
+                    self.observable_settings[f"jetscape_distribution{collection_label}"] = None
+            else:
+                self.observable_settings[f"jetscape_distribution{collection_label}"] = None
+            return
+
         if self.sqrts == 2760:  # Delta recoil
             hname_low_trigger = (
                 f"h_{observable_type}_{observable}_R{self.jet_R}_lowTrigger{collection_label}_{centrality}"
@@ -973,6 +1117,16 @@ class PlotResults(common_base.CommonBase):
 
         # (0) No scaling is needed for hadron v2 and jet v2
         if "v2" in observable:
+            return
+
+        # (0b) Semi-inclusive recoil (hadron_trigger_chjet) Delta_recoil observables (IAA_pt_alice,
+        # dphi_alice) are already fully normalized in the histogrammer: the per-trigger ratio
+        # (1/N_trig) cancels the xsec/weight_sum factor, and the bin-width scaling is already applied
+        # (see _build_semi_inclusive_delta_recoil). Applying the standard chain again would
+        # double-normalize, so skip it. But `not self_normalize` lets the self-normalized
+        # hadron_trigger_chjet observable (nsubjettiness_alice, STAT_2760) fall through to the
+        # self-normalization step below (it is not pre-normalized to a per-trigger scale).
+        if observable_type == "hadron_trigger_chjet" and not self_normalize:
             return
 
         # --------------------------------------------------
@@ -1356,6 +1510,11 @@ class PlotResults(common_base.CommonBase):
             key
             for key in self.observable_settings
             if "jetscape_distribution" in key and "holes" not in key and "raa_denom" not in key
+            # For hadron observables (subtract_holes), plot only the hole-subtracted (physical)
+            # R_AA, not the unsubtracted cross-check: the two nearly coincide at the measured pT,
+            # so drawing both leaves a single visible band whose 2nd-entry color clashes with the
+            # primary "JETSCAPE" legend entry. Jets keep all hole-subtraction variations.
+            and not (self.subtract_holes and "unsubtracted" in key)
         ]
         model_display_name = _model_display_name[self.model_name]
         self.jetscape_legend_label = {}
@@ -1388,11 +1547,28 @@ class PlotResults(common_base.CommonBase):
                 h_pp = self.pp_ref_file.Get(h_pp_name)
             for key in keys_to_plot:
                 if self.observable_settings[key] and h_pp:
-                    self.observable_settings[key].Divide(h_pp)
+                    if self.AA_difference:
+                        # Measured quantity is D_PbPb - D_pp (a difference), not a ratio.
+                        self.observable_settings[key].Add(h_pp, -1)
+                    else:
+                        self.observable_settings[key].Divide(h_pp)
 
-        # R_AA ratio: use a fixed 0-3 y-range (user-requested) so the legend clears the points;
-        # consistent across observables, independent of config defaults; unity line stays visible.
-        self.y_min, self.y_max = 0.0, 3.0
+        # Content extrema (data + MC, incl. errors) -- drives non-ratio auto-scaling AND the log twin.
+        _objs = [self.observable_settings.get("data_distribution")] + [
+            self.observable_settings[k] for k in keys_to_plot
+        ]
+        vmin, vposmin, vmax = self._content_extrema([o for o in _objs if o])
+
+        # Y-range. True R_AA ratios keep the fixed user-requested [0, 3] (legend clears the points,
+        # unity line visible). Non-ratio plots -- skip_AA_ratio distribution overlays and AA_difference
+        # (D_PbPb - D_pp, which goes negative) -- auto-scale to the actual drawn content with extra
+        # top headroom so the curves clear the legend/title rather than being squished into [0, 3].
+        if self.skip_AA_ratio or self.AA_difference:
+            y_lo, y_hi, _ = self._auto_y_range(vmin, vposmin, vmax, prefer_log=False)
+            # _auto_y_range gives ~1.4x top headroom; bump to ~2x so the upper-panel legend clears.
+            self.y_min, self.y_max = y_lo, y_lo + (y_hi - y_lo) * 1.45
+        else:
+            self.y_min, self.y_max = 0.0, 3.0
 
         c = ROOT.TCanvas("c", "c", 600, 450)
         c.SetRightMargin(0.05)
@@ -1461,8 +1637,10 @@ class PlotResults(common_base.CommonBase):
 
         legend.Draw()
 
-        if self.y_max > 1 and not self.skip_AA_ratio:
-            line = ROOT.TLine(self.bins[0], 1, self.bins[-1], 1)
+        # Reference line: zero for difference observables (D_PbPb - D_pp), unity for ratios.
+        if not self.skip_AA_ratio and (self.AA_difference or self.y_max > 1):
+            ref_y = 0.0 if self.AA_difference else 1.0
+            line = ROOT.TLine(self.bins[0], ref_y, self.bins[-1], ref_y)
             line.SetLineColor(920 + 2)
             line.SetLineStyle(2)
             line.SetLineWidth(2)
@@ -1486,6 +1664,13 @@ class PlotResults(common_base.CommonBase):
         else:
             hname = f"h_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}"
         c.SaveAs(str(self.output_dir / f"{hname}{self.file_format}"))
+        # Log-y twin ("<name>_logxy.pdf") for non-negative AA plots -- skip AA_difference plots, which
+        # go negative (log undefined). Reuses the distribution log-twin helper (log-x too if x>0).
+        if not self.AA_difference and vposmin and vposmin > 0:
+            self._save_logxy_twin(
+                c, hname, dist_pad=c, blank_histo=myBlankHisto,
+                log_ymin=vposmin / 3.0, log_ymax=vmax * 8.0,
+            )
         c.Close()
 
     # -------------------------------------------------------------------------------------------
