@@ -450,7 +450,50 @@ pt/grooming/alpha; **0** "no matching table" / TAxis / "cannot divide" errors; S
 empty AA MC, so the AA R_AA arm is exercised for code-path correctness but not numerically — full AA
 validation rides with **Step 7** (needs a 0–10% sample).
 
-## Remaining steps (next sessions) — updated 2026-06-03
+## AA data/MC validation pass — DONE + COMMITTED 2026-06-10 (`d180f12`)
+
+Ran STAT_2760 + STAT_5020 R_AA/substructure through the full render and fixed the AA-canvas
+data/MC comparison bugs that surfaced. Render workflow: re-plot on **lxplus** (the 6 GB VM OOMs on
+the AA plot step) → publish to the single non-versioned site
+https://zhangj.web.cern.ch/jetscape_render/ (inline thumbnail gallery; `publish_render.py`).
+
+Plotter (`plot/plot_results_STAT.py`):
+- **Hadron R_AA** draws only the hole-subtracted (physical) curve, not the overlapping unsubtracted
+  cross-check (was: two legend entries, one visible band, mismatched color).
+- **`skip_AA_ratio`** (self-normalized ALICE substructure: mass/angularity/mg/axis) overlays the
+  self-normalized AA *distribution* vs the measured PbPb distribution instead of dividing by pp.
+- **`AA_difference`** flag for CMS `Dpt_cms` (`Delta_D = D_PbPb − D_pp`, goes negative): subtract the
+  pp reference; reference line at 0; y-range admits negatives.
+- **Non-ratio AA plots** auto-scale y to the data+MC content with legend headroom (was fixed `[0,3]`).
+- **Log-y twin** (`<name>_logxy.pdf`) for every non-negative AA plot.
+
+Data-overlay resolver (`plot/plot_results_STAT_utils.py`):
+- Resolve the HEPData record from the artifact OR the parent `hepdata.record`; **warn** instead of
+  silently using `infos[0]`. The silent fallback was drawing **pp data on the PbPb canvas** for
+  `axis_alice` (the same table name exists in both the pp and PbPb records). Watch this on any
+  multi-record observable.
+- For `skip_AA_ratio`, prefer the `spectra` (distribution) artifact, falling back to whichever block
+  (`spectra`/`ratio`) actually has wired tables — curators put the PbPb distribution in `ratio` for
+  mass/angularity/mg but in `spectra` for axis_alice/charge_cms.
+
+Config: `STAT_5020.yaml` — `skip_AA_ratio` on angularity/angularity_groomed/mass/mg/axis; wired
+`axis_alice` `AA.spectra` to the ins2648610 PbPb distribution tables. `STAT_2760.yaml` — `skip_AA_ratio`
+on mass/g; `AA_difference` on `Dpt_cms`.
+
+**WTA verified correct** (empirically, FastJet in `/root/stat_local_gcc_v5.2.sif`) — the `axis_alice`
+MC/data gap was the pp-overlay bug, not WTA. Known-but-immaterial: the `NegativeEnergyRecombiner` set
+before `set_recombination_scheme(WTA_pt_scheme)` is silently discarded (only touches the
+`_negative_recombiner` band; benign).
+
+**Remaining small items (axis_alice):** align the MC binning to the 12-bin HEPData grid (it has a
+spurious 0.035 split → 13 bins); no HEPData distribution table exists for R0.4 pt40–80 or pt100–140;
+cosmetic cleanup of the dead `set_recombiner` lines (`analyze_events_STAT.py:905/1287/1660/3540`).
+
+**NOT in `d180f12` (200 GeV groundwork, deferred to the next pass):** `analyze_events_STAT.py` has the
+`self.AA`→`self.is_AA` typo fix + a guard on the WIP 200 GeV pion-trigger block; `tables/200/` holds
+untracked 200 GeV AuAu data (`.dat`). Commit these with the 200 GeV work.
+
+## Remaining steps (next sessions) — updated 2026-06-10
 
 > Fuller orchestration plan + history live in the project memory
 > `jetscape_migration_orchestration.md`. **Note:** that file is under the HOME-dir project
@@ -459,8 +502,10 @@ validation rides with **Step 7** (needs a 0–10% sample).
 
 Steps 1–4 + render-path fixes E1/E2/E3 + the AA R_AA binning fix + plotter cosmetics + **Step 4.5
 `charge_cms`** + **Step 5 (ungroomed/groomed split — mass_alice/mg_alice + angularity_alice/
-angularity_groomed_alice)** + **Step 6 (STAT_5020)** are **DONE** (see the dated sections above).
-**NEXT = Step 6 STAT_2760, then STAT_200 sweeps.**
+angularity_groomed_alice)** + **Step 6 (STAT_5020)** are **DONE** (see the dated sections above). STAT_2760 + STAT_5020
+R_AA/substructure **validated + AA data/MC fixes committed 2026-06-10 (`d180f12`; see the
+"AA data/MC validation pass" section above).**
+**NEXT = STAT_200 (AuAu 200 GeV) data + more validation.**
 
 **Step 4.5 — parametrized-observable migration.** Wire the observables the analyzer *computes* but the
 histogrammer/plotter don't yet iterate (root cause: sub-observable loops keyed on the pre-migration
