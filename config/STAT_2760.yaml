@@ -895,6 +895,9 @@ inclusive_chjet:
   # Note: PbPb/pPb ratio is missing from HEPData (Fig 8)
   mass_alice:
     enabled: true
+    # self-normalized 1/sigma dsigma/dm distribution -- overlay the AA distribution vs the
+    # measured PbPb distribution; do NOT divide by the pp reference (cf. charge_cms). Step 4.5 follow-up.
+    skip_AA_ratio: True
     urls:
       inspire_hep: https://inspirehep.net/literature/1512107
       # NOTE: (tgraph only...no binning)
@@ -998,6 +1001,9 @@ inclusive_chjet:
   # Note: reference is to PYTHIA, See the hepdata_pp note below
   g_alice:
     enabled: true
+    # self-normalized 1/sigma dsigma/dg distribution -- overlay the AA distribution vs the
+    # measured PbPb distribution; do NOT divide by the pp reference (cf. charge_cms). Step 4.5 follow-up.
+    skip_AA_ratio: True
     urls:
       inspire_hep: https://inspirehep.net/literature/1682990
       hepdata: https://www.hepdata.net/record/ins1682990
@@ -1958,8 +1964,12 @@ inclusive_jet:
     y_max_pp: 2e1
 
     ytitle_AA: "#it{#Delta}_{D(z)}"
-    y_min_AA: 0.
-    y_max_AA: 2.
+    # Delta_D(z) is the fragmentation-function DIFFERENCE D_PbPb - D_pp (the data goes negative),
+    # NOT a ratio -- subtract the pp reference instead of dividing. The y-range must admit the
+    # negative tail (the fixed [0,3] ratio range would clip it). cf. Dz_cms which IS a ratio (R_D(z)).
+    AA_difference: True
+    y_min_AA: -0.1
+    y_max_AA: 0.7
     skip_AA_distribution: True ## PbPb yaml not available
 
   # ATLAS jet v2

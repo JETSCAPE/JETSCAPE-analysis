@@ -1544,6 +1544,9 @@ inclusive_chjet:
   #     - Right: WTA-SD
   axis_alice:
     enabled: true
+    # self-normalized 1/sigma_inc dsigma/dDeltaR distribution -- overlay the AA distribution vs the
+    # measured PbPb distribution; do NOT divide by the pp reference (cf. charge_cms). Step 4.5 follow-up.
+    skip_AA_ratio: True
     urls:
       inspire_hep: https://inspirehep.net/literature/2648610
       hepdata: https://www.hepdata.net/record/ins2648610
@@ -1676,18 +1679,89 @@ inclusive_chjet:
             x_axis:
               label: "#Delta R_{axis}"
             y_axis:
-              label: ""
+              label: "#frac{1}{#sigma_{inc}} #frac{d#sigma}{d#Delta R_{axis}}"
+              range: [0, 35]
+            # PbPb self-normalized deltaR_axis DISTRIBUTION tables (ins2648610). With skip_AA_ratio
+            # set, the AA arm overlays THIS distribution (not the Pb-Pb/pp ratio). HEPData publishes
+            # the distribution only for R=0.2 (pt 40-100) and R=0.4 (pt 80-100); the 100-140 and the
+            # remaining R=0.4 bins have only deltaR/R or ratio tables -> left "" (no overlay).
             tables:
-              - parameters:
-                  {
-                    jet_pt: [100.0_140.0, 40.0_60.0, 60.0_80.0, 80.0_100.0],
-                    jet_R: ["0.2", "0.4"],
-                    jet_axis: [WTA_SD_SD_z_cut_010_beta_0, WTA_SD_SD_z_cut_020_beta_0, WTA_Standard],
-                  }
-                systematics_names: {}
+              - parameters: {}
+                systematics_names: { stat: stat, syst: syst }
                 additional_systematics: {}
-                table: ""
-                index: ""
+                combinations:
+                  - parameters: { jet_pt: 40.0_60.0, jet_R: "0.2", jet_axis: WTA_Standard }
+                    table: Table 1
+                    index: "1"
+                  - parameters: { jet_pt: 40.0_60.0, jet_R: "0.2", jet_axis: WTA_SD_SD_z_cut_020_beta_0 }
+                    table: Table 15
+                    index: "1"
+                  - parameters: { jet_pt: 40.0_60.0, jet_R: "0.2", jet_axis: WTA_SD_SD_z_cut_010_beta_0 }
+                    table: Table 11
+                    index: "1"
+                  - parameters: { jet_pt: 40.0_60.0, jet_R: "0.4", jet_axis: WTA_Standard }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 40.0_60.0, jet_R: "0.4", jet_axis: WTA_SD_SD_z_cut_020_beta_0 }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 40.0_60.0, jet_R: "0.4", jet_axis: WTA_SD_SD_z_cut_010_beta_0 }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 60.0_80.0, jet_R: "0.2", jet_axis: WTA_Standard }
+                    table: Table 3
+                    index: "1"
+                  - parameters: { jet_pt: 60.0_80.0, jet_R: "0.2", jet_axis: WTA_SD_SD_z_cut_020_beta_0 }
+                    table: Table 17
+                    index: "1"
+                  - parameters: { jet_pt: 60.0_80.0, jet_R: "0.2", jet_axis: WTA_SD_SD_z_cut_010_beta_0 }
+                    table: Table 13
+                    index: "1"
+                  - parameters: { jet_pt: 60.0_80.0, jet_R: "0.4", jet_axis: WTA_Standard }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 60.0_80.0, jet_R: "0.4", jet_axis: WTA_SD_SD_z_cut_020_beta_0 }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 60.0_80.0, jet_R: "0.4", jet_axis: WTA_SD_SD_z_cut_010_beta_0 }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 80.0_100.0, jet_R: "0.2", jet_axis: WTA_Standard }
+                    table: Table 19
+                    index: "1"
+                  - parameters: { jet_pt: 80.0_100.0, jet_R: "0.2", jet_axis: WTA_SD_SD_z_cut_020_beta_0 }
+                    table: Table 27
+                    index: "1"
+                  - parameters: { jet_pt: 80.0_100.0, jet_R: "0.2", jet_axis: WTA_SD_SD_z_cut_010_beta_0 }
+                    table: Table 23
+                    index: "1"
+                  - parameters: { jet_pt: 80.0_100.0, jet_R: "0.4", jet_axis: WTA_Standard }
+                    table: Table 21
+                    index: "1"
+                  - parameters: { jet_pt: 80.0_100.0, jet_R: "0.4", jet_axis: WTA_SD_SD_z_cut_020_beta_0 }
+                    table: Table 29
+                    index: "1"
+                  - parameters: { jet_pt: 80.0_100.0, jet_R: "0.4", jet_axis: WTA_SD_SD_z_cut_010_beta_0 }
+                    table: Table 25
+                    index: "1"
+                  - parameters: { jet_pt: 100.0_140.0, jet_R: "0.2", jet_axis: WTA_Standard }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 100.0_140.0, jet_R: "0.2", jet_axis: WTA_SD_SD_z_cut_020_beta_0 }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 100.0_140.0, jet_R: "0.2", jet_axis: WTA_SD_SD_z_cut_010_beta_0 }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 100.0_140.0, jet_R: "0.4", jet_axis: WTA_Standard }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 100.0_140.0, jet_R: "0.4", jet_axis: WTA_SD_SD_z_cut_020_beta_0 }
+                    table: ""
+                    index: ""
+                  - parameters: { jet_pt: 100.0_140.0, jet_R: "0.4", jet_axis: WTA_SD_SD_z_cut_010_beta_0 }
+                    table: ""
+                    index: ""
           ratio:
             quantity: axis
             x_axis:
@@ -1778,6 +1852,9 @@ inclusive_chjet:
   # NOTE: Ratios are not reported, so we will need to calculate them ourselves.
   angularity_alice:
     enabled: true
+    # self-normalized 1/sigma dsigma/dlambda distribution -- overlay the AA distribution vs the
+    # measured PbPb distribution; do NOT divide by the pp reference (cf. charge_cms). Step 4.5 follow-up.
+    skip_AA_ratio: True
     urls:
       inspire_hep: https://inspirehep.net/literature/2845788
       hepdata: https://www.hepdata.net/record/ins2845788
@@ -2050,6 +2127,9 @@ inclusive_chjet:
 
   angularity_groomed_alice:
     enabled: true
+    # self-normalized 1/sigma dsigma/dlambda distribution -- overlay the AA distribution vs the
+    # measured PbPb distribution; do NOT divide by the pp reference (cf. charge_cms). Step 4.5 follow-up.
+    skip_AA_ratio: True
     urls:
       inspire_hep: https://inspirehep.net/literature/2845788
       hepdata: https://www.hepdata.net/record/ins2845788
@@ -2324,6 +2404,9 @@ inclusive_chjet:
   # NOTE: Ratios are not reported in HEPData, so they are computed from the spectra.
   mass_alice:
     enabled: true
+    # self-normalized 1/sigma dsigma/dm distribution -- overlay the AA distribution vs the
+    # measured PbPb distribution; do NOT divide by the pp reference (cf. charge_cms). Step 4.5 follow-up.
+    skip_AA_ratio: True
     urls:
       inspire_hep: https://inspirehep.net/literature/2845788
       hepdata: https://www.hepdata.net/record/ins2845788
@@ -2444,6 +2527,9 @@ inclusive_chjet:
   # ALICE groomed jet mass m_g (Step 5: split out of mass_alice). SD z_cut=0.2 groomed branch.
   mg_alice:
     enabled: true
+    # self-normalized 1/sigma dsigma/dm_g distribution -- overlay the AA distribution vs the
+    # measured PbPb distribution; do NOT divide by the pp reference (cf. charge_cms). Step 4.5 follow-up.
+    skip_AA_ratio: True
     urls:
       inspire_hep: https://inspirehep.net/literature/2845788
       hepdata: https://www.hepdata.net/record/ins2845788

@@ -715,6 +715,12 @@ class PlotResults(common_base.CommonBase):
         self.skip_pp = block.get("skip_pp", False)
         self.skip_pp_ratio = block.get("skip_pp_ratio", False)
         self.skip_AA_ratio = block.get("skip_AA_ratio", False)
+        # AA_difference: the measured AA modification is the *difference* of the per-jet
+        # distributions (D_PbPb - D_pp), not the ratio -- e.g. CMS Dpt_cms's Delta_D(z),
+        # whose data goes negative. When set, plot_RAA subtracts the pp reference instead of
+        # dividing by it, keeps the config AA y-range (which must admit negatives), and draws
+        # the reference line at 0 instead of 1.
+        self.AA_difference = block.get("AA_difference", False)
         self.scale_by = block.get("scale_by", None)  # noqa: SIM910
 
         # Flag to plot hole histogram (for hadron histograms only)
@@ -1504,6 +1510,11 @@ class PlotResults(common_base.CommonBase):
             key
             for key in self.observable_settings
             if "jetscape_distribution" in key and "holes" not in key and "raa_denom" not in key
+            # For hadron observables (subtract_holes), plot only the hole-subtracted (physical)
+            # R_AA, not the unsubtracted cross-check: the two nearly coincide at the measured pT,
+            # so drawing both leaves a single visible band whose 2nd-entry color clashes with the
+            # primary "JETSCAPE" legend entry. Jets keep all hole-subtraction variations.
+            and not (self.subtract_holes and "unsubtracted" in key)
         ]
         model_display_name = _model_display_name[self.model_name]
         self.jetscape_legend_label = {}
@@ -1536,11 +1547,28 @@ class PlotResults(common_base.CommonBase):
                 h_pp = self.pp_ref_file.Get(h_pp_name)
             for key in keys_to_plot:
                 if self.observable_settings[key] and h_pp:
-                    self.observable_settings[key].Divide(h_pp)
+                    if self.AA_difference:
+                        # Measured quantity is D_PbPb - D_pp (a difference), not a ratio.
+                        self.observable_settings[key].Add(h_pp, -1)
+                    else:
+                        self.observable_settings[key].Divide(h_pp)
 
-        # R_AA ratio: use a fixed 0-3 y-range (user-requested) so the legend clears the points;
-        # consistent across observables, independent of config defaults; unity line stays visible.
-        self.y_min, self.y_max = 0.0, 3.0
+        # Content extrema (data + MC, incl. errors) -- drives non-ratio auto-scaling AND the log twin.
+        _objs = [self.observable_settings.get("data_distribution")] + [
+            self.observable_settings[k] for k in keys_to_plot
+        ]
+        vmin, vposmin, vmax = self._content_extrema([o for o in _objs if o])
+
+        # Y-range. True R_AA ratios keep the fixed user-requested [0, 3] (legend clears the points,
+        # unity line visible). Non-ratio plots -- skip_AA_ratio distribution overlays and AA_difference
+        # (D_PbPb - D_pp, which goes negative) -- auto-scale to the actual drawn content with extra
+        # top headroom so the curves clear the legend/title rather than being squished into [0, 3].
+        if self.skip_AA_ratio or self.AA_difference:
+            y_lo, y_hi, _ = self._auto_y_range(vmin, vposmin, vmax, prefer_log=False)
+            # _auto_y_range gives ~1.4x top headroom; bump to ~2x so the upper-panel legend clears.
+            self.y_min, self.y_max = y_lo, y_lo + (y_hi - y_lo) * 1.45
+        else:
+            self.y_min, self.y_max = 0.0, 3.0
 
         c = ROOT.TCanvas("c", "c", 600, 450)
         c.SetRightMargin(0.05)
@@ -1609,8 +1637,10 @@ class PlotResults(common_base.CommonBase):
 
         legend.Draw()
 
-        if self.y_max > 1 and not self.skip_AA_ratio:
-            line = ROOT.TLine(self.bins[0], 1, self.bins[-1], 1)
+        # Reference line: zero for difference observables (D_PbPb - D_pp), unity for ratios.
+        if not self.skip_AA_ratio and (self.AA_difference or self.y_max > 1):
+            ref_y = 0.0 if self.AA_difference else 1.0
+            line = ROOT.TLine(self.bins[0], ref_y, self.bins[-1], ref_y)
             line.SetLineColor(920 + 2)
             line.SetLineStyle(2)
             line.SetLineWidth(2)
@@ -1634,6 +1664,13 @@ class PlotResults(common_base.CommonBase):
         else:
             hname = f"h_{observable_type}_{observable}{self.suffix}_{centrality}{pt_suffix}"
         c.SaveAs(str(self.output_dir / f"{hname}{self.file_format}"))
+        # Log-y twin ("<name>_logxy.pdf") for non-negative AA plots -- skip AA_difference plots, which
+        # go negative (log undefined). Reuses the distribution log-twin helper (log-x too if x>0).
+        if not self.AA_difference and vposmin and vposmin > 0:
+            self._save_logxy_twin(
+                c, hname, dist_pad=c, blank_histo=myBlankHisto,
+                log_ymin=vposmin / 3.0, log_ymax=vmax * 8.0,
+            )
         c.Close()
 
     # -------------------------------------------------------------------------------------------

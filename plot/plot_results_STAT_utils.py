@@ -277,9 +277,22 @@ class PlotUtils(common_base.CommonBase):
 
         system = "AA" if is_AA else "pp"
         hepdata = block.get("data", {}).get(system, {}).get("hepdata", {})
-        artifact = hepdata.get("ratio") if is_AA else hepdata.get("spectra")
-        if not artifact:
-            artifact = hepdata.get("spectra") if is_AA else hepdata.get("ratio")
+        # AA normally overlays the measured ratio (R_AA); pp overlays the spectrum. A self-normalized
+        # DISTRIBUTION observable (skip_AA_ratio) overlays the measured PbPb distribution, NOT the ratio
+        # -- so prefer `spectra` on the AA arm when skip_AA_ratio is set. Fall back to the OTHER artifact
+        # when the preferred one has no WIRED tables: curators stored some distributions in `ratio`
+        # (mass/angularity/mg) and others in `spectra` (axis_alice/charge_cms). A present-but-empty block
+        # is truthy, so a plain `if not artifact` fallback would silently drop the overlay.
+        def _has_wired_tables(art):
+            return bool(art) and any(
+                c.get("table") for t in art.get("tables", []) for c in (t.get("combinations") or [t])
+            )
+
+        prefer_spectra = (not is_AA) or block.get("skip_AA_ratio", False)
+        first, second = ("spectra", "ratio") if prefer_spectra else ("ratio", "spectra")
+        artifact = hepdata.get(first)
+        if not _has_wired_tables(artifact) and _has_wired_tables(hepdata.get(second)):
+            artifact = hepdata.get(second)
         if not artifact or "tables" not in artifact:
             logger.warning(f"\tNo data artifact (spectra/ratio) for {observable} {system}")
             return None, None
@@ -330,10 +343,25 @@ class PlotUtils(common_base.CommonBase):
             logger.warning(f"\tNo matching data table for {observable} {centrality} {combined} (desired={desired})")
             return None, None
 
-        # Resolve the HEPData record for this table. Match on inspire_hep_id from
-        # the artifact `record`; if there's a single record, just use it.
-        record_id = artifact.get("record", {}).get("inspire_hep_id")
-        info = next((i for i in infos if i.get("inspire_hep_id") == record_id), infos[0])
+        # Resolve the HEPData record for this table. Prefer the artifact's own `record`, falling
+        # back to the parent `hepdata.record` (the config commonly sets the inspire id only at the
+        # parent level). When the id is unresolved, a silent infos[0] fallback previously overlaid
+        # the WRONG record -- e.g. the pp distribution on the PbPb canvas, since the same table name
+        # ("Table 2", ...) exists in both the pp and PbPb records -- so warn loudly instead.
+        record_id = artifact.get("record", {}).get("inspire_hep_id") or hepdata.get("record", {}).get("inspire_hep_id")
+        info = next((i for i in infos if i.get("inspire_hep_id") == record_id), None)
+        if info is None:
+            if record_id is not None:
+                logger.warning(
+                    f"\tHEPData record ins{record_id} not among the {len(infos)} candidate(s) for "
+                    f"{observable} {system}; falling back to ins{infos[0].get('inspire_hep_id')}"
+                )
+            elif len(infos) > 1:
+                logger.warning(
+                    f"\tNo HEPData record id resolved for {observable} {system} with {len(infos)} "
+                    f"candidate records; ambiguously using ins{infos[0].get('inspire_hep_id')}"
+                )
+            info = infos[0]
         rel_filename = info.get("tables_to_filenames", {}).get(entry["table"])
         if rel_filename is None:
             logger.warning(f"\t'{entry['table']}' not in HEPData record ins{info.get('inspire_hep_id')} for {observable}")
