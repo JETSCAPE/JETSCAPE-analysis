@@ -1066,13 +1066,16 @@ inclusive_chjet:
             x_axis:
               label: "#it{g}"
             y_axis:
-              label: ""
+              label: "#frac{1}{#it{N}_{jet}} #frac{d#it{N}}{d#it{g}}"
+              range: [0, 35]
+            # PbPb self-normalized g distribution (ins1682990 Table 10). With skip_AA_ratio the AA arm
+            # overlays THIS distribution, NOT the R_AA ratio (Table 11, in the `ratio` block below).
             tables:
               - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 10
+                index: "1"
           ratio:
             quantity: g
             x_axis:
