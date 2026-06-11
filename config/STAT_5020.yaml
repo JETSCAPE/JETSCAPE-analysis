@@ -1142,11 +1142,28 @@ inclusive_chjet:
               label: R_{AA}(#it{p}_{T,jet})
               range: [0.1, 1.5]
             tables:
-              - parameters: { centrality: ["0_10", "30_50"], jet_R: ["0.2", "0.4", "0.6"] }
+              # pp jet spectra: one HEPData table (Figure 3b bottom) with one column per R;
+              # select R via 1-based index (R0.2->1, R0.3->2, R0.4->3, R0.5->4, R0.6->5).
+              - parameters: {}
+                table: "Figure 3b bottom"
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                combinations:
+                  - parameters: { jet_R: "0.2" }
+                    index: "1"
+                    systematics_names:
+                      "Jet production spectra R = 0.2 statistical uncertainty": stat
+                      "Jet production spectra R = 0.2 systematic uncertainty": sys
+                  - parameters: { jet_R: "0.4" }
+                    index: "3"
+                    systematics_names:
+                      "Jet production spectra R = 0.4 statistical uncertainty": stat
+                      "Jet production spectra R = 0.4 systematic uncertainty": sys
+                  - parameters: { jet_R: "0.6" }
+                    index: "5"
+                    systematics_names:
+                      "Jet production spectra R = 0.6 statistical uncertainty": stat
+                      "Jet production spectra R = 0.6 systematic uncertainty": sys
       AA:
         hepdata:
           record:
@@ -4614,6 +4631,9 @@ inclusive_jet:
       eta: 1.6
       axis:
         - { "type": "WTA_Standard" }
+
+    skip_pp: True
+    skip_AA_ratio: True  # no pp HEPData table -> compare the PbPb WTA-axis distribution (MC vs data)
 
     #hepdata: "HEPData-ins2890802-v1-root.root"
 

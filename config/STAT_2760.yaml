@@ -215,6 +215,7 @@ hadron:
     #y_min_pp: 2e-8
     #y_max_pp: 1e-2
     skip_pp: True
+    skip_AA_ratio: True  # no pp reference at 2.76 TeV -> compare the PbPb pion yield (MC vs data)
 
     #hepdata_AA_dir: ["Table 7", "Table 8", "Table 9", "Table 10"]
     #hepdata_AA_gname: "Graph1D_y1"
@@ -319,6 +320,7 @@ hadron:
     #y_min_pp: 2e-8
     #y_max_pp: 1e-2
     skip_pp: True
+    skip_AA_ratio: True  # no pp reference at 2.76 TeV -> compare the PbPb pi0 yield (MC vs data)
 
     #hepdata_AA_dir: ["Table 5", "Table 6"]
     #hepdata_AA_gname: "Graph1D_y1"
@@ -826,6 +828,7 @@ inclusive_chjet:
     #y_min_pp: 2e-8
     #y_max_pp: 1e-2
     skip_pp: True
+    skip_AA_ratio: True  # no pp at 2.76 TeV -> compare the PbPb charged-jet spectrum (MC vs data)
 
     #hepdata_AA_dir: "Table 30"
     #hepdata_AA_gname: "Graph1D_y1"
@@ -869,11 +872,18 @@ inclusive_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: "0_10", pt: 30.0_110.0, jet_R: ["0.2", "0.3"] }
+              # PbPb charged-jet spectrum, 0-10%, leading-track pT>5 (Table 6); R0.2=col1, R0.3=col2.
+              - parameters: { centrality: "0_10", pt: 30.0_110.0 }
+                table: "Table 6"
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                combinations:
+                  - parameters: { jet_R: "0.2" }
+                    index: "1"
+                    systematics_names: { stat: stat, sys: sys }
+                  - parameters: { jet_R: "0.3" }
+                    index: "2"
+                    systematics_names: { stat: stat, sys: sys }
           ratio:
             quantity: pt
             x_axis:
@@ -2077,6 +2087,7 @@ hadron_trigger_chjet:
     #y_min_pp: 2e-5
     #y_max_pp: 2e-1
     skip_pp: True
+    skip_AA_ratio: True  # no pp reference at 2.76 TeV -> compare the PbPb Delta_recoil distribution (MC vs data)
 
     #hepdata_AA_dir_R0.2: "Table 32"
     #hepdata_AA_dir_R0.4: "Table 33"
@@ -2172,6 +2183,7 @@ hadron_trigger_chjet:
     #y_min_pp: 0.
     #y_max_pp: 0.1
     skip_pp: True
+    skip_AA_ratio: True  # no pp reference at 2.76 TeV -> compare the PbPb azimuthal distribution (MC vs data)
 
     #hepdata_AA_dir_R0.4: "Table 37"
     #hepdata_AA_gname: ["Graph1D_y1"]
@@ -2263,6 +2275,7 @@ hadron_trigger_chjet:
     #y_min_pp: 1e-3
     #y_max_pp: 5.
     skip_pp: True
+    skip_AA_ratio: True  # no pp reference at 2.76 TeV -> compare the PbPb tau2/tau1 distribution (MC vs data)
 
     #hepdata_AA_dir: "frac{tau_{2}}{tau_{1}} with CA reclustering in Pb-Pb"
     #hepdata_AA_gname: ["Graph1D_y1"]
@@ -2374,7 +2387,9 @@ pion_trigger_hadron:
   # ALICE pi0-hadron correlations
   # NOTE: We only implement a limited recoil pt range
   pi0_hadron_IAA_pt_alice:
-    enabled: true
+    # Disabled: analyzer is unfinished WIP (gate-name + trigger/hadron schema mismatch -> no output).
+    # Tracked as an "individual case" on the status slide. Distinct from hadron_trigger_chjet/IAA_pt_alice.
+    enabled: false
     urls:
       inspire_hep: https://inspirehep.net/literature/1483164
       hepdata: https://www.hepdata.net/record/ins1483164

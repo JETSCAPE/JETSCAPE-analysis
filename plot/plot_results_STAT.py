@@ -272,10 +272,14 @@ class PlotResults(common_base.CommonBase):
                     continue
 
                 for self.jet_R in block["jet"]["R"]:
-                    # Optional: Loop through pt bins
-                    for pt_bin in range(len(block["jet"]["pt"]) - 1):
+                    # Optional: Loop through pt bins. xj_atlas (dijet) is binned by the LEADING/trigger
+                    # jet pt (mirrors the histogrammer); only 0-10% reports all leading-pt bins.
+                    pt_edges = block["trigger"]["pt"] if observable == "xj_atlas" else block["jet"]["pt"]
+                    for pt_bin in range(len(pt_edges) - 1):
+                        if observable == "xj_atlas" and centrality_index > 0 and pt_bin != 0:
+                            continue
                         pt_suffix = ""
-                        if len(block["jet"]["pt"]) > 2:
+                        if len(pt_edges) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
                         # Optional: subobservable. Each entry is (label, axis_entry, charge_value,
@@ -1531,6 +1535,16 @@ class PlotResults(common_base.CommonBase):
 
         if not self.observable_settings[keys_to_plot[0]]:
             logger.warning(f"Skipping {label} since data is missing")
+            return
+
+        # A self-normalized DISTRIBUTION comparison (skip_AA_ratio) exists only to overlay the
+        # measured PbPb distribution against the MC. When this (jet_R, pt, ...) bin has no published
+        # HEPData distribution -- e.g. axis_alice R=0.4 outside pt 80-100, where ALICE measured no
+        # PbPb distribution -- there is nothing to compare, so skip the plot rather than emit a
+        # data-less MC-only panel. (Genuine R_AA plots, skip_AA_ratio=False, still draw without an
+        # overlay: the MC R_AA is meaningful on its own.)
+        if self.skip_AA_ratio and not self.observable_settings.get("data_distribution"):
+            logger.info(f"Skipping {label}: skip_AA_ratio distribution with no measured PbPb data for this bin")
             return
 
         # Get the pp reference histogram and form the RAA ratios.

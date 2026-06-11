@@ -284,8 +284,13 @@ class PlotUtils(common_base.CommonBase):
         # (mass/angularity/mg) and others in `spectra` (axis_alice/charge_cms). A present-but-empty block
         # is truthy, so a plain `if not artifact` fallback would silently drop the overlay.
         def _has_wired_tables(art):
+            # A table reference may live on the combination OR on the parent entry (with the
+            # combination only narrowing via `index` -- e.g. one multi-column HEPData table per R).
+            # Check both so such spectra aren't mis-judged "unwired" -> wrongly falling back to ratio.
             return bool(art) and any(
-                c.get("table") for t in art.get("tables", []) for c in (t.get("combinations") or [t])
+                (c.get("table") or t.get("table"))
+                for t in art.get("tables", [])
+                for c in (t.get("combinations") or [t])
             )
 
         prefer_spectra = (not is_AA) or block.get("skip_AA_ratio", False)
