@@ -2265,7 +2265,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         #    - For constituent_subtraction, no subtraction is needed
         if (
             self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="xj_atlas")
-            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["R"]
+            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["jet"]["R"]
         ):
             # First, find jets passing kinematic cuts
             jet_candidates = []
@@ -2281,8 +2281,8 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     jet_pt = jet.pt()
 
                 if (
-                    jet_pt > self.dijet_trigger_jet_observables["xj_atlas"]["pt_subleading_min"]
-                    and np.abs(jet.eta()) < self.dijet_trigger_jet_observables["xj_atlas"]["eta"]
+                    jet_pt > self.dijet_trigger_jet_observables["xj_atlas"]["jet"]["pt"][0]
+                    and np.abs(jet.eta()) < self.dijet_trigger_jet_observables["xj_atlas"]["jet"]["eta"]
                 ):
                     jet_candidates.append(jet)
 
@@ -2292,7 +2292,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 del jet_candidates[i_leading_jet]
                 subleading_jet, subleading_jet_pt, _ = self.leading_jet(jet_candidates, fj_hadrons_negative, jetR)
                 if subleading_jet and np.abs(leading_jet.delta_phi_to(subleading_jet)) > 7 * np.pi / 8:
-                    pt_min = self.dijet_trigger_jet_observables["xj_atlas"]["pt"][0]
+                    pt_min = self.dijet_trigger_jet_observables["xj_atlas"]["trigger"]["pt"][0]
                     if leading_jet_pt > pt_min:
                         xj = subleading_jet_pt / leading_jet_pt
                         self.observable_dict_event[f"dijet_trigger_jet_xj_atlas_R{jetR}{jet_collection_label}"].append(
@@ -2320,7 +2320,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # xj
         if (
             self.measure_observable_for_current_event(self.dijet_trigger_jet_observables, observable_name="xj_atlas")
-            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["R"]
+            and jetR in self.dijet_trigger_jet_observables["xj_atlas"]["jet"]["R"]
         ):
             ...
 

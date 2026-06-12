@@ -764,14 +764,18 @@ class HistogramResults(common_base.CommonBase):
                         if np.isclose(jet_R, 0.2) and centrality_index == 1:
                             continue
 
-                    # Optional: Loop through pt bins
-                    for pt_bin in range(len(block["jet"]["pt"]) - 1):
-                        # Custom skip
+                    # Optional: Loop through pt bins. xj_atlas (dijet) is binned by the LEADING/
+                    # trigger jet pt (block["trigger"]["pt"]), not the (subleading) jet pt -- the stored
+                    # value pairs are [leading_jet_pt, xj], so iterate the trigger-pt edges for it.
+                    pt_edges = block["trigger"]["pt"] if observable == "xj_atlas" else block["jet"]["pt"]
+                    for pt_bin in range(len(pt_edges) - 1):
+                        # Custom skip: xj_atlas measures all leading-pt bins only in 0-10%; other
+                        # centralities report only the first (lowest) leading-pt bin.
                         if observable in ["xj_atlas"] and centrality_index > 0 and pt_bin != 0:
                             continue
 
                         pt_suffix = ""
-                        if len(block["jet"]["pt"]) > 2:
+                        if len(pt_edges) > 2:
                             pt_suffix = f"_pt{pt_bin}"
 
                         # Optional: subobservable. Each entry is (label, axis_entry, charge_value,
@@ -1437,9 +1441,26 @@ class HistogramResults(common_base.CommonBase):
             return
 
         # Get pt bin
+        if not pt_suffix:
+            # This generic per-pt 2D path selects the bin from block["jet"]["pt"] via the pt_suffix.
+            # xj_atlas (dijet) reaches here with an EMPTY suffix -- its real binning is the leading/
+            # trigger pt (block["trigger"]["pt"]), which this path doesn't iterate yet. Skip rather
+            # than crash on pt_suffix[-1]; xj needs a dedicated trigger-pt histogram/plot path.
+            logger.warning(
+                f"histogram_2d_observable: empty pt_suffix for {column_name} {centrality} -- "
+                "skipping (xj-style trigger-pt binning not implemented in this path)"
+            )
+            return
         pt_index = int(pt_suffix[-1])
-        pt_min = block["jet"]["pt"][pt_index]
-        pt_max = block["jet"]["pt"][pt_index + 1]
+        # xj_atlas (dijet) bins by the LEADING/trigger jet pt (block["trigger"]["pt"]); the value pairs
+        # are [leading_jet_pt, xj] and the fill below selects value[0] (leading pt) in [pt_min, pt_max].
+        pt_edges = (
+            block["trigger"]["pt"]
+            if (column_name and "dijet_trigger_jet_xj_atlas" in column_name)
+            else block["jet"]["pt"]
+        )
+        pt_min = pt_edges[pt_index]
+        pt_max = pt_edges[pt_index + 1]
 
         # block is everything in config for the observable
         # look at example form axis_alice
