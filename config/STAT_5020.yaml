@@ -133,7 +133,7 @@ hadron:
               range: ["2e-8", "1e4"]
             tables:
               - parameters: { centrality: ["0_5", "10_20", "20_30", "30_40", "40_50", "5_10"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 4
                 index: "1"
@@ -151,7 +151,7 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 2
                 combinations:
@@ -252,7 +252,7 @@ hadron:
               range: ["2e-8", "1e4"]
             tables:
               - parameters: { centrality: ["0_5", "10_20", "20_30", "30_40", "40_50", "5_10"] }
-                systematics_names: {}
+                systematics_names: {"stat.": stat, "syst.": sys}
                 additional_systematics: {}
                 table: Table 2
                 index: "1"
@@ -270,7 +270,11 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                # NOTE: Table 1 also publishes `syst. uncorr.`, which is the bin-uncorrelated
+                #       SUBSET of `syst.` (always smaller), not an independent component.
+                #       Mapping both would double-count, so only the total is taken -- matching
+                #       this observable's AA.ratio block.
+                systematics_names: {"stat.": stat, "syst.": sys}
                 additional_systematics: {}
                 table: Table 1
                 combinations:
@@ -370,7 +374,7 @@ hadron:
               range: ["2e-18", "1e4"]
             tables:
               - parameters: { centrality: ["0_5", "10_30", "30_50", "5_10"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys, "sys,lumi": luminosity}
                 additional_systematics: {}
                 table: Table 7
                 index: "1"
@@ -389,7 +393,7 @@ hadron:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -476,7 +480,21 @@ hadron:
               range: ["2e-14", "1e4"]
             tables:
               - parameters: { centrality: ["0_5", "10_20", "20_30", "30_40", "40_50", "5_10"] }
-                systematics_names: {}
+                # HEPData ins2601282 publishes a rich per-source decomposition for the pp
+                # spectrum too. Same canonical names as the AA.ratio block below; the pp table
+                # carries `material` (absent from the RAA table) and has no momentum-bias/TAA term.
+                systematics_names:
+                  stat: stat
+                  "syst, track selection": track_selection
+                  "syst, track to particle matching": track_particle_matching
+                  "syst, particle composition": particle_composition
+                  "syst, fake and secondary tracks": fake_secondary_tracks
+                  "syst, pT resolution correction": pt_resolution
+                  "syst, eta resolution correction": eta_resolution
+                  "syst, unfolding procedure": unfolding
+                  "syst, track reconstruction efficiency": tracking_efficiency
+                  "syst, material": material
+                  "syst, luminosity": luminosity
                 additional_systematics: {}
                 table: Table 10
                 index: 1
@@ -493,11 +511,38 @@ hadron:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: ["0_5", "10_20", "20_30", "30_40", "40_50", "5_10"] }
-                systematics_names: {}
+              # PbPb charged-hadron spectra (divided by <TAA>): one table per centrality.
+              # All six carry the SAME 12-label decomposition -- the RAA list below, except
+              # the spectra publish `material` where the RAA tables publish `luminosity`.
+              - parameters: {}
+                systematics_names:
+                  stat: stat
+                  "syst, track selection": track_selection
+                  "syst, momentum bias": momentum_bias
+                  "syst, track to particle matching": track_particle_matching
+                  "syst, particle composition": particle_composition
+                  "syst, fake and secondary tracks": fake_secondary_tracks
+                  "syst, pT resolution correction": pt_resolution
+                  "syst, eta resolution correction": eta_resolution
+                  "syst, unfolding procedure": unfolding
+                  "syst, track reconstruction efficiency": tracking_efficiency
+                  "syst, material": material
+                  "syst, TAA": taa
                 additional_systematics: {}
-                table: ""
-                index: ""
+                index: "1"
+                combinations:
+                  - parameters: { centrality: "0_5" }
+                    table: Table 11
+                  - parameters: { centrality: "5_10" }
+                    table: Table 12
+                  - parameters: { centrality: "10_20" }
+                    table: Table 13
+                  - parameters: { centrality: "20_30" }
+                    table: Table 14
+                  - parameters: { centrality: "30_40" }
+                    table: Table 15
+                  - parameters: { centrality: "40_50" }
+                    table: Table 16
           ratio:
             quantity: pt_ch
             x_axis:
@@ -1177,11 +1222,45 @@ inclusive_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { centrality: ["0_10", "30_50"], jet_R: ["0.2", "0.4", "0.6"] }
+              # PbPb charged-jet spectra: one single-column HEPData table per
+              # (centrality, R) -- "Figure 3a top" = 0-10%, "Figure 3b top" = 30-50%.
+              # The error labels embed R, so systematics_names is per-combination
+              # (same convention as the pp block above).
+              - parameters: {}
                 systematics_names: {}
                 additional_systematics: {}
-                table: ""
-                index: ""
+                index: "1"
+                combinations:
+                  - parameters: { centrality: "0_10", jet_R: "0.2" }
+                    table: "Figure 3a top R020"
+                    systematics_names:
+                      "Jet production spectra R = 0.2 statistical uncertainty": stat
+                      "Jet production spectra R = 0.2 systematic uncertainty": sys
+                  - parameters: { centrality: "0_10", jet_R: "0.4" }
+                    table: "Figure 3a top R040"
+                    systematics_names:
+                      "Jet production spectra R = 0.4 statistical uncertainty": stat
+                      "Jet production spectra R = 0.4 systematic uncertainty": sys
+                  - parameters: { centrality: "0_10", jet_R: "0.6" }
+                    table: "Figure 3a top R060"
+                    systematics_names:
+                      "Jet production spectra R = 0.6 statistical uncertainty": stat
+                      "Jet production spectra R = 0.6 systematic uncertainty": sys
+                  - parameters: { centrality: "30_50", jet_R: "0.2" }
+                    table: "Figure 3b top R020"
+                    systematics_names:
+                      "Jet production spectra R = 0.2 statistical uncertainty": stat
+                      "Jet production spectra R = 0.2 systematic uncertainty": sys
+                  - parameters: { centrality: "30_50", jet_R: "0.4" }
+                    table: "Figure 3b top R040"
+                    systematics_names:
+                      "Jet production spectra R = 0.4 statistical uncertainty": stat
+                      "Jet production spectra R = 0.4 systematic uncertainty": sys
+                  - parameters: { centrality: "30_50", jet_R: "0.6" }
+                    table: "Figure 3b top R060"
+                    systematics_names:
+                      "Jet production spectra R = 0.6 statistical uncertainty": stat
+                      "Jet production spectra R = 0.6 systematic uncertainty": sys
           ratio:
             quantity: pt
             x_axis:
@@ -2751,41 +2830,45 @@ inclusive_chjet:
               log: True
             tables:
               - parameters: { "jet_R": [0.2], "jet_pt": ["60_80"] }
-                systematics_names: {}
+                # PbPb tables lump unfolding + background + non-closure into ONE published
+                # column (`sys,unfold,bkg,non_closure`), unlike the pp tables' pure `sys,unfold`.
+                systematics_names: { stat: stat, "sys,trk_eff": tracking_efficiency, "sys,gen": generator,
+                                    "sys,unfold,bkg,non_closure": unfolding_background_non_closure }
                 additional_systematics: {}
                 combinations:
                   - parameters: { "jet_grooming_settings": "SD_z_cut_020_beta_0" }
                     index: 1
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
-                        table: "Table 3"
+                        table: "Table 6"
                       - parameters: { "centrality": ["30_50"] }
-                        table: "Table 2"
+                        table: "Table 5"
                   - parameters: { "jet_grooming_settings": "DyG_a_1.0" }
                     index: 1
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
-                        table: "Table 6"
+                        table: "Table 3"
                       - parameters: { "centrality": ["30_50"] }
-                        table: "Table 5"
+                        table: "Table 2"
               - parameters: { "jet_R": [0.3], "jet_pt": ["60_80"] }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,trk_eff": tracking_efficiency, "sys,gen": generator,
+                                    "sys,unfold,bkg,non_closure": unfolding_background_non_closure }
                 additional_systematics: {}
                 combinations:
                   - parameters: { "jet_grooming_settings": "SD_z_cut_020_beta_0" }
                     index: 1
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
-                        table: "Table 3"
+                        table: "Table 6"
                       - parameters: { "centrality": ["30_50"] }
-                        table: "Table 2"
+                        table: "Table 5"
                   - parameters: { "jet_grooming_settings": "DyG_a_1.0" }
                     index: 1
                     combinations:
                       - parameters: { "centrality": ["0_10"] }
-                        table: "Table 6"
+                        table: "Table 3"
                       - parameters: { "centrality": ["30_50"] }
-                        table: "Table 5"
+                        table: "Table 2"
           ratio:
             quantity: "ktg"
             x_axis:
@@ -2795,7 +2878,8 @@ inclusive_chjet:
               range: [0, 2]
             tables:
               - parameters: { "jet_R": [0.2], "jet_pt": ["60_80"] }
-                systematics_names: {}
+                systematics_names: { stat: stat, "sys,trk_eff": tracking_efficiency, "sys,gen": generator,
+                                    "sys,unfold,bkg,non_closure": unfolding_background_non_closure }
                 additional_systematics: {}
                 combinations:
                   - parameters: { "jet_grooming_settings": "SD_z_cut_020_beta_0" }
@@ -2879,7 +2963,7 @@ inclusive_jet:
               range: ["2e-7", "1e-3"]
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, "sys,correlated": correlated, "sys,shape": unfolding, "sys,lumi": luminosity}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2902,7 +2986,7 @@ inclusive_jet:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, "sys,correlated": correlated, "sys,shape": unfolding, "sys,Taa": taa}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -2995,7 +3079,7 @@ inclusive_jet:
               range: ["2e-7", "1e4"]
             tables:
               - parameters: { centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys, "sys luminosity uncertainty": luminosity}
                 additional_systematics: {}
                 table: Table 4
                 index: "1"
@@ -3014,7 +3098,7 @@ inclusive_jet:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 index: "1"
                 combinations:
@@ -3156,7 +3240,7 @@ inclusive_jet:
               range: ["2e-7", "1e4"]
             tables:
               - parameters: { jet_pt: [158.0_200.0, 200.0_251.0, 251.0_316.0, 316.0_562.0] }
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys, "sys luminosity uncertainty": luminosity}
                 additional_systematics: {}
                 table: Table 4
                 index: "1"
@@ -3175,7 +3259,7 @@ inclusive_jet:
               log: true
             tables:
               - parameters: {}
-                systematics_names: {}
+                systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 27
                 combinations:
@@ -4891,29 +4975,140 @@ inclusive_jet:
   # ATLAS Rg
   # TODO: Update
   rg_atlas:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/2512925
-      hepdata: N/A
+      hepdata: https://www.hepdata.net/record/ins2512925
 
-    centrality: [[0, 10]]
+    # ATLAS soft-drop r_g R_AA (arXiv:2211.11470, PRC 107, 054909).
+    # HEPData (10.17182/hepdata.132904.v2) was published only after this block was
+    # first stubbed out, so the selections below now follow the PUBLISHED binning:
+    #   centrality: 0-10, 10-30, 30-50, 50-80
+    #   jet pt:     158-200, 200-315, 315-501 GeV
+    # The record additionally carries a pp-only 501-1000 GeV bin and an inclusive
+    # "pT > 158 GeV" column (dependent-variable index 1); neither is wired here,
+    # since the pp-only bin has no AA counterpart and the inclusive column is not a
+    # pt bin. Jets: anti-kT R=0.4, C/A recluster, soft drop z_cut=0.2, beta=0.
+    centrality: [[0, 10], [10, 30], [30, 50], [50, 80]]
     jet:
       R: [0.4]
-      pt: [100., 150., 200.]
+      pt: [158., 200., 315., 501.]
+      # FLAGGED: every other ATLAS inclusive-jet observable declares acceptance as
+      # `rapidity` (Dz_atlas 2.1, pt_atlas/pt_y_atlas 2.8); this one uses `eta`,
+      # which the analyzer applies as |eta| < eta - R (i.e. 1.6). The HEPData record
+      # does not state the acceptance, so confirming it needs the paper -- left as-is
+      # rather than changed silently.
       eta: 2.0
       grooming_settings:
         - { type: "soft_drop", "z_cut": 0.2, "beta": 0 }
 
-    # Rg bins
-    bins: [0.0, 1.0]
+    xtitle: "#it{r}_{g}"
 
-    xtitle: "#it{R}_{g}"
-
-    skip_pp: True
-
-    ytitle_AA: "PbPb / pp"
+    ytitle_AA: "#it{R}_{AA}"
     y_min_AA: 0.
     y_max_AA: 2.
+
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 2512925
+            version: 2
+          # Table 2 (Figure 7) = pp cross section vs r_g in bins of pT.
+          # One table, one dependent-variable column per pt bin.
+          spectra:
+            quantity: rg
+            x_axis:
+              label: "#it{r}_{g}"
+            y_axis:
+              label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{r}_{g}}"
+              log: true
+            tables:
+              - parameters: { jet_R: [0.4] }
+                systematics_names: { stat: stat, syst: sys }
+                additional_systematics: {}
+                table: Table 2
+                combinations:
+                  - parameters: { jet_pt: "158.0_200.0" }
+                    index: "2"
+                  - parameters: { jet_pt: "200.0_315.0" }
+                    index: "3"
+                  - parameters: { jet_pt: "315.0_501.0" }
+                    index: "4"
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 2512925
+            version: 2
+          # AA.spectra is DELIBERATELY LEFT BLANK. The published PbPb per-event r_g
+          # yields (Tables 7-10, Figure 9) carry per-pt-bin DISPLAY scale factors --
+          # 158-200 x0.05, 200-315 x0.5, 315-501 x5 -- baked into the values, and the
+          # framework has no mechanism to undo a per-bin multiplicative factor. Wiring
+          # them would draw overlays wrong by those factors. R_AA below is unscaled and
+          # is the measurement, so the AA arm bins from `ratio` as usual.
+          spectra:
+            quantity: rg
+            x_axis:
+              label: "#it{r}_{g}"
+            y_axis:
+              label: "#frac{1}{#LT#it{T}_{AA}#GT} #frac{d^{2}#it{N}}{d#it{p}_{T}d#it{r}_{g}}"
+              log: true
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+          # Tables 15-18 (Figure 11) = R_AA vs r_g in bins of pT, one table per
+          # centrality. Dependent-variable index 1 is the inclusive pT > 158 GeV
+          # column; indices 2-4 are the pt bins wired above.
+          ratio:
+            quantity: rg
+            x_axis:
+              label: "#it{r}_{g}"
+            y_axis:
+              label: "#it{R}_{AA}"
+              range: [0, 2]
+            tables:
+              - parameters: { jet_R: [0.4] }
+                systematics_names: { stat: stat, syst: sys }
+                additional_systematics: {}
+                combinations:
+                  - parameters: { centrality: "0_10" }
+                    table: Table 18
+                    combinations:
+                      - parameters: { jet_pt: "158.0_200.0" }
+                        index: "2"
+                      - parameters: { jet_pt: "200.0_315.0" }
+                        index: "3"
+                      - parameters: { jet_pt: "315.0_501.0" }
+                        index: "4"
+                  - parameters: { centrality: "10_30" }
+                    table: Table 17
+                    combinations:
+                      - parameters: { jet_pt: "158.0_200.0" }
+                        index: "2"
+                      - parameters: { jet_pt: "200.0_315.0" }
+                        index: "3"
+                      - parameters: { jet_pt: "315.0_501.0" }
+                        index: "4"
+                  - parameters: { centrality: "30_50" }
+                    table: Table 16
+                    combinations:
+                      - parameters: { jet_pt: "158.0_200.0" }
+                        index: "2"
+                      - parameters: { jet_pt: "200.0_315.0" }
+                        index: "3"
+                      - parameters: { jet_pt: "315.0_501.0" }
+                        index: "4"
+                  - parameters: { centrality: "50_80" }
+                    table: Table 15
+                    combinations:
+                      - parameters: { jet_pt: "158.0_200.0" }
+                        index: "2"
+                      - parameters: { jet_pt: "200.0_315.0" }
+                        index: "3"
+                      - parameters: { jet_pt: "315.0_501.0" }
+                        index: "4"
 
   # ATLAS d_12
   # TODO: Update

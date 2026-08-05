@@ -65,6 +65,10 @@ is a guard for malformed/partial HEPData or for future/other-√s configs.
 
 | A10 | **Semi-inclusive `Δ_recoil` `c_ref` is a paper constant, NOT in HEPData** — the per-trigger-class underlying-event correction `c_ref` used in the AA recoil subtraction `Δ_recoil = (1/N_trig^high)·high − c_ref·(1/N_trig^low)·low` is reported **only in a paper figure** (Fig 5 of the PRC `ins2693247`), never in a HEPData table, so it cannot be auto-curated and must be hardcoded per jet R in the config. | **`hadron_trigger_chjet/IAA_pt_alice`** (this IS the **integrated** analysis → `c_ref: [0.90, 0.82, 0.82]` for R=0.2/0.4/0.5, the Fig-5 integrated values); **`hadron_trigger_chjet/dphi_alice`** (the **Δφ-differential** analysis → Fig 5's differential `c_ref` is **not in HEPData**, so by user decision 2026-06-04 we **reuse the integrated `[0.90, 0.82, 0.82]` for every jet-pt bin**). | **manual config value**: `_build_semi_inclusive_delta_recoil` reads `block["c_ref"][R_index]` **only on the AA arm** (`is_AA`); **pp uses `c_ref = 1.0`** (negligible underlying-event bias) so **pp renders are unaffected** — this only matters once the AA arm is run. The code applies one `c_ref` per R; a genuinely per-(R, jet-pt) differential `c_ref` (if the values ever surface) would need a code change. Also note `[0.90,0.82,0.82]` vs the legacy/“production” `[0.99,0.96,0.93]` (TG3) discrepancy is unresolved. | config `c_ref:` (per observable); `histogram_results_STAT.py:_build_semi_inclusive_delta_recoil` |
 
+| A11 | **Published AA spectra carry per-bin DISPLAY scale factors** — HEPData sometimes stores values exactly as drawn in the paper figure, with an offset baked into each dependent-variable column so the curves separate visually. Those values are NOT comparable to MC, and the framework has no mechanism to undo a per-bin multiplicative factor. | **`inclusive_jet/rg_atlas`** (enabled 2026-08-06): Tables 7-10 (Figure 9, PbPb per-event r_g yields) label their pt columns `158 < pT < 200 GeV(x0.05)`, `200 < pT < 315 GeV(x0.5)`, `315 < pT < 501 GeV(x5)`. The pp companion (Table 2) has **no** such factors. | **skip (deliberate)**: `AA.spectra` left with `table: ""` plus a comment recording why. The R_AA tables (15-18) are unscaled, so the AA arm bins from `ratio` as normal and nothing is lost — R_AA *is* the measurement. **Check for this whenever wiring an `AA.spectra` block**: grep the dependent-variable qualifiers for `(x` before trusting the values. | config `data.AA.hepdata.spectra` (blank by design) |
+
+| A12 | **Record must also be registered in `hepdata_database.yaml`** — `_resolve_data_hepdata_table` looks up `f"{sqrts}/{observable_type}/{observable}"` in the curation DB *before* touching the config's `data:` block. A missing entry returns `(None, None)` behind a single `No HEPData database entry` warning, so a perfectly-curated `data:` block silently yields no bins and no overlay. | any newly-added record (hit while curating **`rg_atlas`**, 2026-08-06) | **manual step**: add `{sqrts}/{class}/{obs}:` with `directory` / `inspire_hep_id` / `version` / `tables_to_filenames` (HEPData table name → data file). **AND mind which clone is read:** `BASE_DATA_DIR` prefers the **submodule** `JETSCAPE-analysis/data/hard-sector-data-curation/`, falling back to the sibling clone only when the submodule has no DB file. The submodule has been populated since 2026-06-09, so **edits made only to the sibling clone are invisible to the code** — update both. | `hepdata_utils.py:26-30` (BASE_DATA_DIR); `plot_results_STAT_utils.py:273` (DB lookup) |
+
 **Note on A1/A2 ("only spectra available" case):** the fallback means an
 observable that only ships one artifact still gets binned and overlaid from
 whatever it has; nothing special is required of the user.
@@ -120,6 +124,7 @@ Handled in `_axis_from_independent_values` (utils:153) and the per-point loop of
 | D1 | **Degenerate binning** (`bins` is `None`, empty, or a single edge → `TH1F(…, len(bins)-1, …)` with ≤0 bins) | **protect**: `histogram_1d_observable` / `histogram_2d_observable` return early if `len(bins) < 2` | histogram_results_STAT.py:1029, 1062 |
 | D2 | **ROOT `gDirectory` orphaning** — booked histograms were owned by whichever HEPData `TFile` was open (for bin lookups) and got deleted when it closed → dangling/null entries in `output_list` (165 in AA, 55 in pp before the fix). | **protect (root cause fix)**: `ROOT.TH1.AddDirectory(False)` so new histograms aren't tied to a directory; everything is written explicitly | histogram_results_STAT.py:29 |
 | D3 | **Any residual null/non-writable output object** | **protect (defense-in-depth)**: `write_output_objects` skips null entries with a single summary warning instead of crashing the whole file | histogram_results_STAT.py:1154, 1168 |
+| D4 | **Empty `systematics_names` silently drops the observable from `build_tables` output** — `_expand_ratio_entries` skips any entry with both `systematics_names` and `additional_systematics` empty (`Skipping unfilled ratio entry`, debug-level). This is intentional, but the failure mode is easy to misread: an unfilled block does not merely produce *zero-error* columns, it produces **no `.dat` file at all**. Found 2026-08-06 via `inclusive_chjet/ktg_alice`, which had been emitting 0 tables because its `AA.ratio` systematics were `{}` (198 → 202 tables once filled). | **by design, but scan for it**: a gap scan that only counts "unwired tables" misses this class. Count wired-table leaves whose `systematics_names` is empty — and **recurse into nested `combinations`**, since blocks like `ktg_alice` nest grooming → centrality and a single-level scan reports them as unwired. | build_tables.py:361 |
 
 ---
 
@@ -190,3 +195,73 @@ unchanged.
 | G4 | **dphi Δ_recoil needs a recoil-jet-pt-window division (RESOLVED at full stats 2026-06-04)** — the HEPData `dphi` Δ_recoil(Δφ) is **double-differential**, per rad AND per recoil-jet-pt `(GeV/c·rad)^-1`. The MC histogram is binned in Δφ but **integrated over the jet-pt sub-bin window**, so it is high by that window width (e.g. ×10 for the 20-30 GeV bin). The small sample masked it (ratio≈1 within the wide band); the 30-file sample showed it clearly. **Fix:** in `construct_semi_inclusive_histogram`, divide the dphi Δ_recoil by `jet.pt[i+1]-jet.pt[i]`. After the fix, dphi ratio ≈ 1. **IAA needs NO analogous factor** — its pt-spectrum data is Δφ-integrated (per GeV, not per GeV·rad), and it already matches at ratio ≈ 1 (so the review's suggested IAA /1.2 was NOT applied — it would have made a good agreement worse). | **protect**: dphi /pt-window; IAA unchanged. |
 | G5 | **zr_alice subjet_R — legacy-path sub-observable migration (C9 resolved)** — added a `subjet_R` branch to the jet sub-observable loop (tuple widened 4→5) in both histogrammer + plotter, emitting the `_r{r}` legacy suffix (matches the analyzer column `..._R{R}_r{r}`; zr stays OFF the encoder) and threading `data_block_params={jet_subjet_R: r_X}` (NOT gated on `is_migrated`) for the per-r binning + overlay. `"zr"` added to the self-normalize trigger (z_r is 1/σ self-normalized). Curated: Tables 5/8 (pp), 6/9 (AA), 7/10 (PbPb/pp ratio). **Review fix:** the legacy `maybe_book_raa_denom` call omitted `data_block_params`, so the r=0.2 R_AA denom silently resolved to the r=0.1 ratio table → now forwarded (no-op for non-subjet observables, where it is `None`). | **DONE** pp-validated (ratio≈1). |
 | G6 | **AA R_AA crash on hist/graph x-mismatch (FIXED 2026-06-04)** — `truncate_tgraph` aligns the MC histogram bins to the HEPData graph points; when the MC histogram extends past the data x-range (graph x reads 0 once exhausted, e.g. `inclusive_jet/pt_cms` at high pt), it found a mismatch. For the **AA arm it RAISED**, aborting the *entire* R_AA render on the first such observable (only ~24 of 72 R_AA PDFs were produced before the crash). Surfaced by the Step-7 large-sample R_AA run (10-40% centrality). | **protect**: warn + skip that observable's overlay/ratio gracefully (`return None`) for AA too, matching the pp behaviour — the rest of the R_AA plots now complete (72 PDFs). `plot_results_STAT_utils.py:truncate_tgraph`. |
+
+---
+
+## H. STAT_5020 curation completeness pass (2026-08-06)
+
+Goal: make the 5020 config as complete as the available HEPData allows. Three
+findings, all curation-side (no framework code changed).
+
+| # | Item | Detail |
+|---|---|---|
+| H1 | **`systematics_names` was filled only on `AA.ratio` for the April-2026 RAA observables** | 13 wired blocks across `hadron/{pt_ch_alice,pt_pi_alice,pt_ch_cms,pt_ch_atlas}` and `inclusive_jet/{pt_alice,pt_atlas,pt_y_atlas}` had their `pp.spectra` / `AA.spectra` tables wired but `systematics_names: {}`, so every pp and PbPb *spectrum* overlay drew with zero systematic errors. Now filled; all label sets verified uniform across every bin and column, and two cross-checked against raw HEPData (`pt_ch_alice` pp bin 0 → 0.2281; `pt_atlas` pp bin 0 → √(22.24²+0.22²+2.56²) = 22.39, i.e. asymmetric errors + the separate luminosity term both propagate). 2760 and 200 already followed the fuller spectra+ratio+pp convention — 5020 was the outlier. |
+| H2 | **`pt_pi_alice` publishes `syst.` AND `syst. uncorr.` — the latter is a SUBSET** | `syst. uncorr.` is always smaller than `syst.` (e.g. 39.9 vs 146.0): it is the bin-uncorrelated *portion* of the total, not an independent component, so mapping both would double-count in quadrature. Only the total is mapped, matching this observable's own `AA.ratio` block. **If the decomposition is ever wanted for covariance work**, the correct correlated part is `sqrt(syst² − uncorr²)`, which `build_tables` cannot express today — it would need a derived-column mechanism. |
+| H3 | **`ktg_alice` `AA.spectra` had Soft Drop and Dynamical Grooming SWAPPED** | The HEPData descriptions state the grooming explicitly: Figure 1 **right** = Soft Drop (pp Table 4, PbPb 0-10 Table 6, 30-50 Table 5); Figure 1 **left** = Dynamical Grooming (pp Table 1, PbPb 0-10 Table 3, 30-50 Table 2). The config assigned SD→Tables 3/2 and DyG→Tables 6/5, i.e. each grooming overlaid the *other* grooming's PbPb distribution. `pp.spectra` and `AA.ratio` were correct, so only the AA distribution overlay was affected. Fixed; all 10 grooming×centrality×artifact mappings now verify against the record. Its AA systematics were also empty — see **D4**, which is why it had been emitting zero `.dat` tables. |
+
+**New observable enabled: `inclusive_jet/rg_atlas`** (ATLAS soft-drop r_g R_AA,
+ins2512925 / arXiv:2211.11470). HEPData was published after the block was first
+stubbed out, so the config still said `hepdata: N/A`, `enabled: false`. The
+analyzer already supported it (`ENCODER_MIGRATED_JET_OBSERVABLES`), so this was
+purely a data-side task. Wired `pp.spectra` → Table 2 and `AA.ratio` → Tables
+15-18 (4 centralities × 3 pt bins), and updated the selections to the published
+binning — `centrality` `[[0,10]]` → `[[0,10],[10,30],[30,50],[50,80]]`, `jet.pt`
+`[100,150,200]` → `[158,200,315,501]` — plus removed the now-wrong `skip_pp` and
+the stub `bins: [0.0, 1.0]`. See **A11** (why `AA.spectra` is deliberately blank)
+and **A12** (the `hepdata_database.yaml` registration step). Validated: pp/AA bins
+identical (12 bins, so the R_AA divide aligns), R_AA rises monotonically with
+centrality (0-10% ≈ 0.71-0.84 → 50-80% ≈ 0.91-1.00), analyzer and histogrammer
+encoder names agree byte-for-byte, +12 `.dat` tables.
+
+**FLAGGED, not changed — `rg_atlas` acceptance.** Every other ATLAS inclusive-jet
+observable declares acceptance as `rapidity` (`Dz_atlas` 2.1, `pt_atlas` /
+`pt_y_atlas` 2.8); `rg_atlas` alone uses `eta: 2.0`, which the analyzer applies as
+`|eta| < eta - R` (= 1.6). The HEPData record does not state the acceptance, so
+confirming the right value needs the paper. Left as-is pending that check.
+
+### H4. Unwired-slot audit (2026-08-06) — 112 of 121 are genuine HEPData gaps
+
+Every unwired slot in the enabled 5020 config was checked against its record.
+**Read every dependent-variable column, not just the first** — `mg_cms`'s first
+columns all say `CENTRALITY: 0-10`, but dv3-6 of Figure 3a carry 10-30/30-50.
+
+Genuine gaps (nothing to curate): `axis_alice` 45, `zg_cms` 30, `mg_cms` 24,
+`tg_alice` 6, `zg_alice` 3, `axis_cms` 1 (no pp table at all), `mass_alice`/
+`mg_alice` pp 2 (pp jet mass published only to 100 GeV), `rg_atlas` 1 (A11).
+Both CMS substructure records are a **"cross"** in the (centrality × pt) plane —
+the pt dependence published only at 0-10%, the centrality dependence only in one
+pt bin — and the config wiring already traces that cross exactly.
+
+Wired this session: `hadron/pt_ch_atlas` AA.spectra → Tables 11-16, and
+`inclusive_chjet/pt_alice` AA.spectra → "Figure 3a/3b top R0XX" (the June
+straggler). Left as-is deliberately: `mass_alice`, `mg_alice`, `angularity_alice`,
+`angularity_groomed_alice` AA.spectra — under the spectra-as-ratio convention their
+`AA.ratio` already points at the PbPb spectra tables, and with `skip_AA_ratio` the
+resolver falls back spectra→ratio, so wiring them would only duplicate references.
+
+**`zg_alice` {0-10%, R=0.4} is NOT a curation task.** The measurement exists
+(Tables 13-15) but at pt **80-100**, while the config has a single 60-80 bin.
+Recovering it is a multi-file behaviour change, not a table reference:
+1. `analyze_events_STAT.py` hardcodes a single window (`pt[0]`/`pt[1]`) and calls
+   `encode_name_for_storing_in_file(**_parameters, tag=...)` **without** `jet_pt`.
+   A second pt bin makes `jet_pt` essential → that call raises `KeyError`. It needs
+   the per-bin `PtSpec` lookup used by `axis_alice`/`rg_atlas` directly below it.
+2. `tg_alice` is filled in the SAME `if` block, gated entirely on **zg_alice's**
+   config, so widening zg_alice's `pt` also re-bins tg_alice — which has no data at
+   80-100 (theta_g R=0.4 / 0-10% is unpublished at any pt).
+3. `histogram_results_STAT.py:761` hardcodes a skip dropping exactly
+   (R=0.4, cent 0-10) and (R=0.2, cent 30-50) — i.e. the code already encodes this
+   HEPData gap — and it is SHARED by zg_alice and tg_alice. It would have to become
+   pt-bin-aware for zg_alice only.
+4. Column names change for both observables → existing analyzer output invalid,
+   full re-analysis required, for **one** extra data/MC comparison point.
