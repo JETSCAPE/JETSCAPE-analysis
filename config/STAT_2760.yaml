@@ -585,11 +585,28 @@ hadron:
               label: ""
               log: true
             tables:
+              # LEFT BLANK DELIBERATELY -- the PbPb yields exist but are DISPLAY-SCALED.
+              #
+              # Two separate traps here, both verified 2026-08-06:
+              # (1) ins1088823 labels EVERY table `RE: P P --> CHARGED X`, including the PbPb
+              #     yields (Table 3: 0-5/5-10/10-30 as columns 1/2/3; Table 4: 30-50/50-70/
+              #     70-90) and the RAA. The qualifier is wrong; the descriptions are right.
+              #     So "no PbPb in this record" is NOT the reason this block is blank.
+              # (2) Table 3's columns carry per-centrality display factors of 10^0 / 10^3 /
+              #     10^6, as CMS drew them. At the same pt bin the columns read 74.5 / 6.0e4 /
+              #     3.7e7 -- peripheral ABOVE central, which is unphysical. Dividing out the
+              #     offsets leaves the true ratios ~0.8 and ~0.5. The framework cannot undo a
+              #     per-column multiplicative factor (same class as inclusive_jet/rg_atlas at
+              #     5020, see OBSERVABLE_EDGE_CASES A11), so wiring these would draw overlays
+              #     wrong by 10^3 / 10^6.
+              #
+              # Nothing is lost: AA.ratio (Tables 5/6, the measured RAA) is wired and unscaled,
+              # and the AA arm bins from `ratio`.
               - parameters: { pt: 6.0_100.0, eta: "1.0", centrality: ["0_5", "10_30", "5_10"] }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
-                index: "" # AA spectra not available in this HEPData record
+                index: ""
           ratio:
             quantity: pt_ch
             x_axis:
@@ -982,11 +999,19 @@ inclusive_chjet:
             y_axis:
               label: ""
             tables:
-              - parameters: { centrality: "0_10", jet_R: "0.4", pt: [100.0_120.0, 60.0_80.0, 80.0_100.0] }
-                systematics_names: {}
+              # PbPb jet-mass distributions, one table per jet-pt bin -- the Pb-Pb twins of
+              # the pp Tables 1/2/3 above (ins1512107 Tables 4/5/6, all 0-10%, R=0.4).
+              - parameters: { centrality: "0_10", jet_R: "0.4" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: ""
-                index: ""
+                index: "1"
+                combinations:
+                  - parameters: { pt: 60.0_80.0 }
+                    table: Table 4
+                  - parameters: { pt: 80.0_100.0 }
+                    table: Table 5
+                  - parameters: { pt: 100.0_120.0 }
+                    table: Table 6
           ratio:
             quantity: mass
             x_axis:
@@ -1145,10 +1170,15 @@ inclusive_chjet:
               label: "#frac{1}{#sigma} #frac{d#sigma}{d#it{p}_{T}d} #left[(GeV/c)^{-2}#right]"
               range: [0.0, 5.0]
             tables:
+              # Table 4 = p_T D in PP collisions (sqrt(s) = 7 TeV -- ALICE published no 2.76 TeV
+              # pp for this measurement, so the 7 TeV spectrum is the reference; same convention
+              # as g_alice, whose pp.spectra uses Table 1).
+              # NB this previously pointed at Table 13, which is the 0-10% Pb-Pb distribution --
+              # i.e. the pp arm was binning and overlaying PbPb data.
               - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
                 systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: Table 13
+                table: Table 4
                 index: "1"
       AA:
         hepdata:
@@ -1162,11 +1192,13 @@ inclusive_chjet:
             y_axis:
               label: ""
             tables:
+              # Table 13 = p_T D in 0-10% central Pb-Pb (the PbPb twin of pp Table 4),
+              # mirroring g_alice's AA.spectra -> Table 10.
               - parameters: { centrality: "0_10", jet_R: "0.2", jet_pt: 40.0_60.0 }
-                systematics_names: {}
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 13
+                index: "1"
           ratio:
             quantity: ptd
             x_axis:

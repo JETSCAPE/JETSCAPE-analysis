@@ -130,7 +130,15 @@ Handled in `_axis_from_independent_values` (utils:153) and the per-point loop of
 
 ## Open / to-audit
 
-- **`STAT_2760.yaml` and `STAT_200.yaml`** not yet audited for the A/B edge cases — repeat the `data:`-structure scan there.
+- **OPEN DECISION — the 7 TeV pp reference convention (2760).** Some ALICE 2.76 TeV
+  PbPb measurements ship their pp reference at **√s = 7 TeV** (no 2.76 TeV pp was taken).
+  The config currently handles this **two incompatible ways**: `inclusive_chjet/g_alice`
+  and `inclusive_chjet/ptd_alice` wire the 7 TeV pp as `pp.spectra` — so a 7 TeV pp
+  spectrum is overlaid against 2.76 TeV pp MC — while `hadron_trigger_chjet/nsubjettiness_alice`
+  sets `skip_pp` with the note "no pp reference at 2.76 TeV". Both cannot be right.
+  Deciding it one way or the other is a *physics* call, not a curation one; whichever
+  wins should be applied to all three. See section I.
+- **`STAT_2760.yaml`** audited 2026-08-06 (section I). **`STAT_200.yaml`** not yet audited for the A/B edge cases — repeat the `data:`-structure scan there.
 - **A7 (no matching table for a filled MC combination)** — the full per-(observable, centrality, pt) list of skipped combinations hasn't been enumerated exhaustively; representative observables are noted. If a *physics* comparison is expected for one of these, it indicates a missing HEPData table (push to the experiment) rather than a code bug.
 - **C4/C5 (encoder-name migration)** — DONE for BOTH the histogrammer (Step 4 ③, 2026-06-02) and the plotter (Step 4 ④, 2026-06-02, `47583d2`). Every migrated jet/substructure observable is now on one name path end-to-end.
 - **C6 (DyG `ktg_alice`)** — DONE (2026-06-08): histogrammer + plotter loops now process dynamical_grooming for migrated observables + pp DyG data-block key fixed. Validated e2e (pp). See the C6 row above.
@@ -265,3 +273,51 @@ Recovering it is a multi-file behaviour change, not a table reference:
    pt-bin-aware for zg_alice only.
 4. Column names change for both observables → existing analyzer output invalid,
    full re-analysis required, for **one** extra data/MC comparison point.
+
+---
+
+## I. STAT_2760 completeness pass (2026-08-06)
+
+Same audit as section H, applied to 2760. Starting state was much healthier:
+**zero** unfilled systematics anywhere and `AA.ratio` 100% wired (69/69). Only 12
+unwired slots existed. Of those, 3 are genuine gaps, 2 were curated, and 7 turned
+out to be blocked for reasons worth recording.
+
+**Genuine gaps (pp side)** — verified against every column: `hadron/pt_pi_alice`
+(record is PbPb spectra + RAA only), `hadron/pt_pi0_alice` (10 tables, all PbPb),
+`inclusive_chjet/pt_alice` (30 tables, all PbPb). The existing
+`skip_pp` + `skip_AA_ratio` treatment is correct for these.
+
+**Curated:**
+- `inclusive_chjet/mass_alice` AA.spectra -> ins1512107 Tables 4/5/6 (the Pb-Pb
+  twins of pp Tables 1/2/3, one per jet-pt bin). Verified same normalization:
+  every table integrates to ~0.5, so no display offsets.
+- `inclusive_chjet/ptd_alice` -> **pp.spectra was MIS-WIRED to Table 13, which is
+  the 0-10% Pb-Pb distribution** -- the pp arm was binning and overlaying PbPb
+  data. Repointed to Table 4 (pp, sqrt(s)=7 TeV) and wired AA.spectra -> Table 13,
+  matching the g_alice layout in the same record (pp Table 1 / AA Table 10 /
+  ratio Table 11) fixed in c8ae928. Same bug class as the ktg_alice grooming swap.
+
+**BLOCKED, with reasons:**
+- `hadron/pt_ch_cms` AA.spectra — **display-scaled, see the in-config comment.**
+  Two stacked traps: ins1088823 mislabels every table `RE: P P --> CHARGED X`
+  (including the PbPb yields and the RAA), and Table 3's centrality columns carry
+  10^0/10^3/10^6 display factors. Left blank; AA.ratio is wired and unscaled.
+- `hadron_trigger_chjet/IAA_pt_alice` pp — the observable is Delta_recoil, and only
+  **Table 28 (R=0.5)** is unambiguously pp. Tables 30/31 carry `RE:
+  Delta_{recoil}(R=0.4)`/`(R=0.5)` with NO collision system stated, and the config
+  needs R=0.2/0.4/0.5. Identifying the R=0.2 and R=0.4 pp counterparts needs the
+  paper, not the record.
+- `hadron_trigger_chjet/dphi_alice` pp — the azimuthal-correlation tables (22/23/24)
+  are all `PB PB`. Likely a genuine gap; the "6 pp tables" this record offers are
+  pt-differential Delta_recoil, not Delta-phi.
+- `hadron_trigger_chjet/nsubjettiness_alice` pp — the pp data exists but is at
+  **sqrt(s) = 7 TeV** (record comment: pp at 7 TeV, Pb-Pb at 2.76 TeV), which is why
+  the config carries `skip_pp` with the note "no pp reference at 2.76 TeV". That
+  note is accurate. **Convention inconsistency to resolve:** `g_alice` and
+  `ptd_alice` DO wire their 7 TeV pp as the reference against 2.76 TeV MC, while
+  `nsubjettiness_alice` deliberately does not. One of the two conventions is wrong;
+  this is a physics call, not a curation one.
+- The three semi-inclusive `AA.spectra` blocks (IAA/dphi/nsubjettiness) are coupled
+  to the `skip_AA_ratio` decision -- wiring them changes what is plotted, so they
+  are deliberately left for an explicit choice.
