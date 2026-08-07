@@ -250,7 +250,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.fill_pion_trigger_hadron_observables(
                     fj_pion_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+"
                 )
-                if self.AA:
+                if self.is_AA:
                     self.fill_pion_trigger_hadron_observables(
                         fj_pion_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-"
                     )
@@ -275,7 +275,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.fill_photon_hadron_observables(
                     fj_photon_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+"
                 )
-                if self.AA:
+                if self.is_AA:
                     self.fill_photon_hadron_observables(
                         fj_photon_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-"
                     )
@@ -295,7 +295,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.fill_z_trigger_hadron_observables(
                     fj_z_boson_candidates, fj_hadrons_positive, pid_hadrons_positive, status="+"
                 )
-                if self.AA:
+                if self.is_AA:
                     # Although we cannot get a Z boson hole, we can correlate the Z boson with hole particles, so we'll do that here.
                     self.fill_z_trigger_hadron_observables(
                         fj_z_boson_candidates, fj_hadrons_negative, pid_hadrons_negative, status="-"
@@ -2415,7 +2415,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             None
         """
         # TODO(RJE): Remove sqrt_s check once trigger finding is moved behind observable switch
-        if self.sqrts == 200:
+        # NOTE: gate the (WIP) pion-trigger block on the observable actually being enabled, so it
+        #       doesn't run-and-crash for every 200 event when these observables are off.
+        if self.sqrts == 200 and self.pion_trigger_chjet_observables.get("IAA_pt_star", {}).get("enabled", False):
             # Pion-triggered chjet semi-inclusive IAA, dphi
             # NOTE: We're using the IAA as a proxy for a number of the dphi settings!
             #       They're a shared analysis, so this should be a reasonable assumption.
