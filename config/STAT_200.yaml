@@ -101,7 +101,11 @@ hadron:
     #y_min_pp: 2e-12
     #y_max_pp: 1e-4
     scale_by: "1/pt"
+    # ins1127262 carries no p+p pi0 spectrum (Figure 5 is 11 Au+Au centrality columns,
+    # 0-5% ... 80-93% + 0-93%), so there is no pp reference to bin the R_AA denominator
+    # from -> compare the measured Au+Au distribution (Figure 5) instead of forming R_AA.
     skip_pp: true
+    skip_AA_ratio: true
 
     #hepdata_AA_dir: "Figure 11"
     #hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
@@ -476,7 +480,11 @@ inclusive_chjet:
     #ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right"
     #y_min_pp: 2e-8
     #y_max_pp: 1e-1
+    # ins1798665 is Au+Au only (all 12 tables): jet distributions, the pTlead 7/5 ratios,
+    # R_CP, R_AA and the R=0.2/R=0.4 yield ratio. No pp spectrum -> no R_AA denominator,
+    # so compare the measured Au+Au distribution (Table 1) instead.
     skip_pp: true
+    skip_AA_ratio: true
 
     #hepdata_AA_dir: "Table 10"
     #hepdata_AA_dir_R0.2: "Table 10"
@@ -600,7 +608,13 @@ hadron_trigger_chjet:
     #ytitle_pp: "I_{AA}"
     #y_min_pp: 2e-5
     #y_max_pp: 2.
+    # ins1512115 has no measured p+p reference (its only pp entries, Tables 18/20/22/24/41/42,
+    # are tagged SIMULATION: PYTHIA), so no I_AA can be formed. The wired AA.ratio (Table 38)
+    # is the R=0.2/R=0.5 RADIUS ratio, not a Au+Au/pp ratio -- the framework has no
+    # "ratio of two jet-R spectra" mode, so it cannot be reproduced from MC either.
+    # -> compare the measured per-R recoil yields (AA.spectra, Tables 25/34) instead.
     skip_pp: true
+    skip_AA_ratio: true
 
     #hepdata_AA_dir: "Table 38"
     #hepdata_AA_dir_R02_R05: "Table 38"
@@ -643,19 +657,22 @@ hadron_trigger_chjet:
             x_axis:
               label: "#it{p}_{T} (GeV/#it{c})"
             y_axis:
-              label: ""
+              label: "#frac{1}{#it{N}_{trig}} #frac{d^{2}#it{N}}{d#it{p}_{T}d#it{#eta}}"
               log: true
+            # Fully corrected recoil-jet yields Y(pt_jet^ch) in CENTRAL (0-10%) Au+Au.
+            # NB the `RE: P P --> X JET` qualifier on these tables is wrong -- the
+            # description and the CENTRALITY qualifier both say 0-10% Au+Au.
             tables:
-              - parameters: { jet_R: "0.2" }
-                systematics_names: {}
+              - parameters: { jet_R: "0.2", centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: ""
-                index: ""
-              - parameters: { jet_R: "0.5" }
-                systematics_names: {}
+                table: Table 25
+                index: "1"
+              - parameters: { jet_R: "0.5", centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 34
+                index: "1"
           ratio:
             quantity: IAA_pt
             x_axis:
@@ -699,6 +716,16 @@ hadron_trigger_chjet:
     #y_min_pp: 0.
     #y_max_pp: 1.
 
+    # The record publishes no Au+Au/pp ratio for this observable -- Table 39 (wired under
+    # AA.ratio) is the central Au+Au DISTRIBUTION -- so compare distributions on both arms
+    # rather than dividing.
+    skip_AA_ratio: true
+    # CAVEAT: the pp reference (Table 42) is NOT measured data. HEPData tags it
+    # `SIMULATION: PYTHIA` -- "PYTHIA generated pp collisions embedded in central Au+Au
+    # mixed events" -- which is what STAR used as the reference for this measurement.
+    # Kept as wired (user decision 2026-08-07), but it draws under a "Data" legend, so
+    # read the pp panel accordingly. Table 41 is the same quantity without the embedding.
+
     # prettier-ignore
     bins: [1.57079633, 1.69646003, 1.82212374, 1.94778745, 2.07345115, 2.19911486, 2.32477856, 2.45044227, 2.57610598, 2.70176968, 2.82743339, 2.95309709, 3.0787608, 3.20442451, 3.33008821, 3.45575192, 3.58141563, 3.70707933, 3.83274304, 3.95840674, 4.08407045, 4.20973416, 4.33539786, 4.46106157, 4.58672527, 4.71238898]
     #hepdata_AA_dir: "Table 39"
@@ -736,16 +763,23 @@ hadron_trigger_chjet:
           spectra:
             quantity: dphi
             x_axis:
-              label: "#it{p}_{T} (GeV/#it{c})"
+              label: "#Delta#it{#varphi}"
             y_axis:
-              label: ""
-              log: true
+              # Matched to the pp arm above: both arms now draw the same quantity
+              # (skip_AA_ratio), so a log AA panel against a linear pp one would
+              # make them incomparable by eye.
+              label: "#Phi(#Delta#it{#varphi})"
+              range: [0.0, 1.0]
+            # Measured Psi(dphi) for R=0.3 recoil jets, 9-13 GeV/c, central (0-10%) Au+Au.
+            # This is the same table wired under `ratio` below: the record publishes a
+            # DISTRIBUTION, not an Au+Au/pp ratio. It belongs here; the `ratio` copy is
+            # retained only so build_tables keeps emitting the DPHI .dat.
             tables:
-              - parameters: {}
-                systematics_names: {}
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table 39
+                index: "1"
           ratio:
             quantity: dphi
             x_axis:

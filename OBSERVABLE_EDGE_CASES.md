@@ -321,3 +321,82 @@ out to be blocked for reasons worth recording.
 - The three semi-inclusive `AA.spectra` blocks (IAA/dphi/nsubjettiness) are coupled
   to the `skip_AA_ratio` decision -- wiring them changes what is plotted, so they
   are deliberately left for an explicit choice.
+
+## J. STAT_200 completeness pass (2026-08-07)
+
+Same leaf-expansion audit as sections H/I, applied to AuAu 200. Starting state:
+`STAT_200.yaml` had **zero active legacy `hepdata_*` keys** (the Step-6 sweep was
+already done; every remaining occurrence is commented out) and every `AA.ratio`
+block on an enabled observable was wired and filled. The 2026-06-08 curation pass
+had left five blank artifact slots across the six enabled observables.
+
+**The pattern at 200 is the 2760 blank-pp pattern.** Three of the four records
+backing the enabled observables contain **no p+p measurement at all**, verified
+column by column, not by `RE` qualifier:
+
+- `hadron/pt_pi0_phenix` (ins1127262) — Figure 5 is 11 dependent-variable columns,
+  all Au+Au centralities (0-5% ... 80-93%, plus 0-93%). No pp column anywhere in
+  the record.
+- `inclusive_chjet/pt_star` (ins1798665) — all 12 tables are Au+Au: jet
+  distributions, the pTlead 7/5 ratios, R_CP, R_AA, and the R=0.2/R=0.4 yield
+  ratio.
+- `hadron_trigger_chjet/{IAA_pt_star,dphi_star}` (ins1512115) — the only pp
+  entries (Tables 18/20/22/24/41/42) are all tagged `SIMULATION: PYTHIA`.
+
+All three now carry `skip_pp` + `skip_AA_ratio`, so the AA arm compares the
+measured Au+Au **distribution** instead of dividing by an absent pp reference —
+the same treatment the six blank-pp observables received at 2760.
+
+### J1. `IAA_pt_star` AA.ratio holds a RADIUS ratio, not I_AA
+`Table 38` is "Ratio of distributions of Y(pt_jet) for R = 0.2 to R = 0.5 in
+central Au+Au" — a jet-radius ratio, not an Au+Au/pp ratio. The framework has no
+"ratio of two jet-R spectra" mode (same limitation recorded for 2760
+`inclusive_chjet/pt_alice`), so it cannot be reproduced from MC. It is also the
+root cause of the long-standing flag that the `IAA_PTR02` and `IAA_PTR05` `.dat`
+files come out **byte-identical**: one table, expanded over `jet_R: [0.2, 0.5]`.
+
+Fix: wired `AA.spectra` to the per-R fully-corrected central Au+Au recoil yields
+— **Table 25 (R=0.2)** and **Table 34 (R=0.5)**, `{stat, sys}` — so the two radii
+now resolve to genuinely different tables (24 vs 34 bin edges). `AA.ratio` is left
+wired so `build_tables` keeps emitting the `.dat`; note its header says RAA while
+the content is a radius ratio.
+
+Trap repeat: Tables 25/28/31/34 all carry `RE: P P --> X JET` while their
+description and `CENTRALITY: 0.0 TO 10.0` qualifier say central Au+Au. This is the
+section-H "`RE` qualifiers lie" trap; trust the description.
+
+### J2. `dphi_star` had a distribution sitting in the `ratio` slot
+`Table 39` ("Azimuthal distribution of recoil jets Psi(dphi) in central Au+Au") is
+a distribution, but it was wired **only** under `AA.ratio` with `AA.spectra` left
+blank. Under `skip_AA_ratio` the resolver prefers `spectra` and would have fallen
+back to `ratio` anyway, but the slot was wrong. Now wired to `AA.spectra` as well
+(the `ratio` copy retained purely so the DPHI `.dat` keeps being produced).
+
+### J3. `dphi_star`'s pp reference is PYTHIA, not data
+`Table 42` is "PYTHIA generated pp collisions embedded in central Au+Au mixed
+events" (`SIMULATION: PYTHIA`). It is what STAR used as the reference for this
+measurement, so it stays wired (user decision 2026-08-07) — but it renders under
+a "Data" legend, which is misleading if read literally. `Table 41` is the same
+quantity **without** the mixed-event embedding if a cleaner pp comparison is ever
+wanted. Both arms bin identically (26 edges from the config's literal `bins:`), so
+the overlay aligns either way.
+
+### J4. Verified, no regression
+Every enabled observable's pp and AA arm was run through the real
+`PlotUtils.bins_from_config` / `_resolve_data_hepdata_table`: all resolve to a
+table with >1 monotonic bin edge. `build_tables` still writes exactly 15 tables
+(30 files) and the output is byte-identical to the previous `tables/200` —
+`build_tables` only emits `AA/ratio` blocks, so filling `spectra` systematics
+changes the plotter overlay, never the `.dat` set.
+
+### Still open at 200 (not curation)
+- The five **disabled** observables (`pion_trigger_chjet/{IAA_pt_star,dphi_star}`
+  on the newer STAR records ins2693040/ins2919952, and
+  `gamma_trigger_{hadron,chjet}/*`) have entirely blank `data:` blocks. Their
+  analyzers are WIP, so curating them is premature.
+- No AuAu/pp 200 GeV JETSCAPE samples exist locally, so none of this is
+  render-verified yet. The STAT-XSEDE-2021 catalogue does list AuAu 200
+  productions (0-10% and 10-50%, 500-625k events per design point). Note the
+  histogrammer's `elif self.sqrts == 200` branch books the semi-inclusive
+  observables as a single `_R{R}` histogram rather than the low/high-trigger pair
+  the 2760/5020 branch uses for Delta_recoil — worth confirming when samples land.
