@@ -9,6 +9,7 @@ from __future__ import annotations
 # General
 import argparse
 import ctypes
+import itertools
 import logging
 import sys
 from pathlib import Path
@@ -183,6 +184,12 @@ class PlotResults(common_base.CommonBase):
             if "hadron_trigger_chjet" in self.config:
                 self.plot_hadron_trigger_chjet_observables(observable_type="hadron_trigger_chjet")
 
+            # Di-hadron correlations (dihadron_star, 200 GeV). Same story as the line above:
+            # plot_hadron_trigger_hadron_observables was defined but never invoked, so the
+            # histograms were written and then never plotted.
+            if "hadron_trigger_hadron" in self.config:
+                self.plot_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
+
         self.plot_event_qa()
 
         self.write_output_objects()
@@ -240,8 +247,12 @@ class PlotResults(common_base.CommonBase):
                 # STAR dihadron
                 if observable == "dihadron_star":
                     # Initialize observable configuration
-                    pt_trigger_ranges = block["pt_trig"]
-                    pt_associated_ranges = block["pt_assoc"]
+                    # NOTE: bin EDGES under the nested config schema (`trigger.pt` / `hadron.pt`);
+                    #       the flat `pt_trig` / `pt_assoc` keys this used to read exist in no
+                    #       config. Paired here exactly as the analyzer and histogrammer do, so
+                    #       the suffix built below matches the stored histogram names.
+                    pt_trigger_ranges = list(itertools.pairwise(block["trigger"]["pt"]))
+                    pt_associated_ranges = list(itertools.pairwise(block["hadron"]["pt"]))
                     # Loop over trigger and associated ranges
                     for pt_trig_min, pt_trig_max in pt_trigger_ranges:
                         for pt_assoc_min, pt_assoc_max in pt_associated_ranges:
@@ -660,6 +671,11 @@ class PlotResults(common_base.CommonBase):
             self.high_trigger_range = block["high_trigger_range"]
         if "trigger_range" in block:
             self.trigger_range = block["trigger_range"]
+        # The nested config schema carries the single (200 GeV) trigger window as `trigger.pt`;
+        # the flat `trigger_range` key above exists in no config, so without this the 200 GeV
+        # semi-inclusive path raises AttributeError on self.trigger_range.
+        elif isinstance(block.get("trigger"), dict) and "pt" in block["trigger"]:
+            self.trigger_range = block["trigger"]["pt"]
         self.logy = block.get("logy", False)
         # Whether the y-range / logy were set explicitly in the config. If not, the distribution
         # plotter auto-ranges the upper panel from the histogram+data content (see _auto_y_range),
@@ -963,7 +979,14 @@ class PlotResults(common_base.CommonBase):
         # counts: Delta_recoil = high/N_trig^high - c_ref * low/N_trig^low (each width-normalized).
         # The per-trigger normalization is done ONCE here, post-aggregation, so it is correct after
         # hadd-ing N files -- doing it per-file in the histogrammer then summing over-counts by n_files.
-        if observable_type == "hadron_trigger_chjet":
+        # NOTE: 200 GeV is EXCLUDED here and handled by the `elif self.sqrts == 200` branch below.
+        #       STAR's 200 GeV semi-inclusive config has a SINGLE trigger window (`trigger.pt`
+        #       9-30 GeV) rather than the low/high trigger pair this Delta_recoil path subtracts,
+        #       so the analyzer/histogrammer book one `_R{R}` histogram + one trigger-pt histogram.
+        #       Without this guard the branch matched, found no `_highTrigger`/`_lowTrigger` keys,
+        #       set None and hit the unconditional `return` below -- leaving the 200 GeV branch
+        #       unreachable dead code and every 200 GeV semi-inclusive plot silently skipped.
+        if observable_type == "hadron_trigger_chjet" and self.sqrts != 200:
             block = self.config[observable_type][observable]
             hname_high = f"h_{observable_type}_{observable}_R{self.jet_R}_highTrigger{collection_label}_{centrality}{pt_suffix}"
             hname_low = f"h_{observable_type}_{observable}_R{self.jet_R}_lowTrigger{collection_label}_{centrality}{pt_suffix}"
@@ -1053,7 +1076,9 @@ class PlotResults(common_base.CommonBase):
 
         elif self.sqrts == 200:
             hname = f"h_{observable_type}_{observable}_R{self.jet_R}{collection_label}_{centrality}"
-            hname_ntrigger = f"h_{observable_type}_star_trigger_pt{collection_label}_{centrality}"
+            # NOTE: must match the histogrammer, which books the analyzer's column name
+            #       `{observable_type}_hjet_star_trigger_pt{label}` (the `hjet_` was missing).
+            hname_ntrigger = f"h_{observable_type}_hjet_star_trigger_pt{collection_label}_{centrality}"
             self.hname = f"h_{observable_type}_{observable}_R{self.jet_R}{collection_label}_{centrality}"
             if hname in keys and hname_ntrigger in keys:
                 self.observable_settings[f"jetscape_distribution{collection_label}"] = self.input_file.Get(hname)

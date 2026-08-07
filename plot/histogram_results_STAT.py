@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import logging
 import sys
 from pathlib import Path
@@ -642,8 +643,12 @@ class HistogramResults(common_base.CommonBase):
                     dphi_bins = np.array(block["dphi_bins"])
 
                     # Histogram observable
-                    pt_trigger_ranges = block["pt_trig"]
-                    pt_associated_ranges = block["pt_assoc"]
+                    # NOTE: the config carries these as bin EDGES under the nested schema
+                    #       (`trigger.pt` / `hadron.pt`); the flat `pt_trig` / `pt_assoc` keys
+                    #       this used to read do not exist in any config. Pair them up exactly
+                    #       as the analyzer does, so the labels below match the column names.
+                    pt_trigger_ranges = list(itertools.pairwise(block["trigger"]["pt"]))
+                    pt_associated_ranges = list(itertools.pairwise(block["hadron"]["pt"]))
                     # Loop over trigger and associated ranges
                     # NOTE: n_trig will be calculated when histogram observable
                     for i_trig_bin, pt_trig_range in enumerate(pt_trigger_ranges):
@@ -1211,8 +1216,13 @@ class HistogramResults(common_base.CommonBase):
                             )
 
                         if observable == "IAA_pt_star" and np.isclose(jet_R, block["jet"]["R"][0]):
-                            column_name = f"{observable_type}_star_trigger_pt{jet_collection_label}"
-                            bins = np.array(block["trigger_range"])
+                            # NOTE: the analyzer writes this N_trig column as
+                            #       `hadron_trigger_chjet_hjet_star_trigger_pt{label}` -- the `hjet_`
+                            #       was missing here, so the lookup silently never matched.
+                            column_name = f"{observable_type}_hjet_star_trigger_pt{jet_collection_label}"
+                            # NOTE: `trigger_range` exists in no config; the nested schema calls it
+                            #       `trigger.pt`.
+                            bins = np.array(block["trigger"]["pt"])
                             self.histogram_observable(column_name=column_name, bins=bins, centrality=centrality)
 
                 # Semi-inclusive recoil: the histogrammer only books the RAW per-trigger-class yields
@@ -1304,10 +1314,12 @@ class HistogramResults(common_base.CommonBase):
             column_name_suffix = "_holes" if "_holes" in column_name else ""
             column_name = f"{column_name[:start_of_label]}_Ntrig{column_name_suffix}"
             col = self.observables_df[column_name]
-            # We want the same binning for all triggers, so we flatten all of the trigger binning to a flat list
+            # We want the same binning for all triggers, so we use the trigger bin edges directly.
             # NOTE: This assumes that the triggers ranges do not overlap.
             # NOTE: The unique ensures that the binning is valid if the bin edges match up.
-            bins = np.unique(np.array([v for trig_range in block["pt_trig"] for v in trig_range]))  # type: ignore
+            # NOTE: `trigger.pt` is ALREADY the flat edge list under the nested schema, so the
+            #       old flatten-the-pairs comprehension over `pt_trig` is no longer needed.
+            bins = np.unique(np.array(block["trigger"]["pt"]))  # type: ignore
             self.histogram_1d_observable(
                 col,
                 column_name=column_name,
