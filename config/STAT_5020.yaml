@@ -1629,8 +1629,8 @@ inclusive_chjet:
             y_axis:
               label: "PbPb / pp"
             tables:
-              - { parameters: { jet_subjet_R: r_0.1 }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 7, index: "1" }
-              - { parameters: { jet_subjet_R: r_0.2 }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 10, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.1, centrality: "0_10" }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 7, index: "1" }
+              - { parameters: { jet_subjet_R: r_0.2, centrality: "0_10" }, systematics_names: { stat: stat, sys: sys }, additional_systematics: {}, table: Table 10, index: "1" }
 
   # ALICE, jet-axis difference
   # Two sets of figures:
@@ -1866,7 +1866,7 @@ inclusive_chjet:
               label: "#frac{1}{#sigma_{inc}} #frac{d#sigma}{d#Delta R_{axis}}"
               range: [0, 35]
             tables:
-              - parameters: {}
+              - parameters: { centrality: "0_10" }
                 systematics_names: { stat: stat, syst: sys }
                 additional_systematics: {}
                 combinations:
