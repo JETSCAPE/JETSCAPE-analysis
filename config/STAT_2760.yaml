@@ -890,6 +890,10 @@ inclusive_chjet:
               log: true
             tables:
               # PbPb charged-jet spectrum, 0-10%, leading-track pT>5 (Table 6); R0.2=col1, R0.3=col2.
+              # NB ins1263194 publishes this as 10**6 * (1/Ncoll) * (1/Nevt) * d2N/dpT/detarap,
+              # so the MC needs a 1e6/sigma_inel conversion to land in these units -- see
+              # _scale_one_histogram (sqrts 2760, inclusive_chjet/pt_alice). Without it the MC
+              # sat a flat ~1.2e-4 below the data on the published plots.
               - parameters: { centrality: "0_10", pt: 30.0_110.0 }
                 table: "Table 6"
                 systematics_names: {}
