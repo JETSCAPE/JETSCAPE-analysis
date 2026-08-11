@@ -246,11 +246,13 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
             # If there are triggers and defined hadron observables, we can fill the trigger-hadron correlations.
             # If not, we can simply move on.
-            if len(fj_pion_candidates_positive) > 0 and self.gamma_trigger_hadron_observables:
+            # NOTE: this gated on `gamma_trigger_hadron_observables` -- a copy-paste from the
+            #       photon branch below. The pion fill must be gated on the PION config.
+            if len(fj_pion_candidates_positive) > 0 and self.pion_trigger_hadron_observables:
                 self.fill_pion_trigger_hadron_observables(
                     fj_pion_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+"
                 )
-                if self.AA:
+                if self.is_AA:
                     self.fill_pion_trigger_hadron_observables(
                         fj_pion_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-"
                     )
@@ -272,11 +274,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # If there are triggers and defined hadron observables, we can fill the trigger-hadron correlations.
             # If not, we can simply move on.
             if len(fj_photon_candidates_positive) > 0 and self.gamma_trigger_hadron_observables:
-                self.fill_photon_hadron_observables(
+                self.fill_gamma_trigger_hadron_observables(
                     fj_photon_candidates_positive, fj_hadrons_positive, pid_hadrons_positive, status="+"
                 )
-                if self.AA:
-                    self.fill_photon_hadron_observables(
+                if self.is_AA:
+                    self.fill_gamma_trigger_hadron_observables(
                         fj_photon_candidates_positive, fj_hadrons_negative, pid_hadrons_negative, status="-"
                     )
 
@@ -295,7 +297,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 self.fill_z_trigger_hadron_observables(
                     fj_z_boson_candidates, fj_hadrons_positive, pid_hadrons_positive, status="+"
                 )
-                if self.AA:
+                if self.is_AA:
                     # Although we cannot get a Z boson hole, we can correlate the Z boson with hole particles, so we'll do that here.
                     self.fill_z_trigger_hadron_observables(
                         fj_z_boson_candidates, fj_hadrons_negative, pid_hadrons_negative, status="-"
@@ -726,6 +728,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     jetR_list += self.hadron_trigger_chjet_observables["nsubjettiness_alice"]["jet"]["R"]
                 if self.sqrts == 200:
                     jetR_list += self.hadron_trigger_chjet_observables["IAA_pt_star"]["jet"]["R"]
+                    # NOTE: unlike at 2760, the "IAA as a proxy for dphi" shortcut does NOT hold
+                    #       here -- at 200 the R lists are DISJOINT (IAA: 0.2/0.5, dphi: 0.3), so
+                    #       without this the fill is never reached at R=0.3 and dphi_star silently
+                    #       produces no column at all.
+                    jetR_list += self.hadron_trigger_chjet_observables["dphi_star"]["jet"]["R"]
 
                 if jetR in jetR_list:
                     self.fill_hadron_trigger_chjet_observables(
@@ -1848,9 +1855,18 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             trigger_particles = defaultdict(list)
             # Keep track of the associated particles in pt ranges
             associated_particles = defaultdict(list)
-            pt_trigger_ranges = self.hadron_trigger_hadron_observables["dihadron_star"]["trigger"]["pt"]
-            pt_associated_ranges = itertools.pairwise(
-                self.hadron_trigger_hadron_observables["dihadron_star"]["hadron"]["pt"]
+            # Both `trigger.pt` and `hadron.pt` are bin EDGES in the nested config schema
+            # ([8., 15.] -> one 8-15 GeV trigger bin; [4., 6., -1.] -> two associated bins),
+            # so pair them up the same way.
+            # NOTE: materialize as lists. itertools.pairwise returns a ONE-SHOT iterator, and
+            #       both are consumed inside the per-particle loop below -- leaving them lazy
+            #       exhausts them on the first particle that passes the cuts, so every later
+            #       particle would silently find no ranges to fall into.
+            pt_trigger_ranges = list(
+                itertools.pairwise(self.hadron_trigger_hadron_observables["dihadron_star"]["trigger"]["pt"])
+            )
+            pt_associated_ranges = list(
+                itertools.pairwise(self.hadron_trigger_hadron_observables["dihadron_star"]["hadron"]["pt"])
             )
             for particle in fj_particles:
                 # Cuts:
@@ -2415,7 +2431,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             None
         """
         # TODO(RJE): Remove sqrt_s check once trigger finding is moved behind observable switch
-        if self.sqrts == 200:
+        # NOTE: gate the (WIP) pion-trigger block on the observable actually being enabled, so it
+        #       doesn't run-and-crash for every 200 event when these observables are off.
+        if self.sqrts == 200 and self.pion_trigger_chjet_observables.get("IAA_pt_star", {}).get("enabled", False):
             # Pion-triggered chjet semi-inclusive IAA, dphi
             # NOTE: We're using the IAA as a proxy for a number of the dphi settings!
             #       They're a shared analysis, so this should be a reasonable assumption.

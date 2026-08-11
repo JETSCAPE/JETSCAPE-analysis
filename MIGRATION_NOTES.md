@@ -505,7 +505,27 @@ Steps 1–4 + render-path fixes E1/E2/E3 + the AA R_AA binning fix + plotter cos
 angularity_groomed_alice)** + **Step 6 (STAT_5020)** are **DONE** (see the dated sections above). STAT_2760 + STAT_5020
 R_AA/substructure **validated + AA data/MC fixes committed 2026-06-10 (`d180f12`; see the
 "AA data/MC validation pass" section above).**
-**NEXT = STAT_200 (AuAu 200 GeV) data + more validation.**
+
+**STAT_200 — config/curation half DONE + committed 2026-08-07** (`7382de0` config+docs, `9a63ec3`
+analyzer). Two things older notes in this file get wrong: `config/STAT_200.yaml` is **not** "all
+MIXED" — it has **zero active legacy `hepdata_*` keys** (every remaining occurrence is commented
+out, so the Step-6 sweep for 200 already happened in `efbdb5f`/`ab269a2`); and the long-pending
+"uncommitted 200 GeV groundwork" is now in — the `self.AA` → `self.is_AA` change was a genuine bug
+fix, since `self.AA` is assigned nowhere and every AA-arm pion/photon/Z-trigger fill raised
+`AttributeError`. The completeness pass resolved all 5 blank artifact slots across the 6 enabled
+observables (see OBSERVABLE_EDGE_CASES.md **section J**); all 6 now resolve through the real
+`bins_from_config` path, and `tables/200` regenerates byte-identical.
+
+**NEXT = 200 GeV samples.** There are **no AuAu/pp 200 GeV parquets anywhere** — `condor_samples/`
+holds only 2760 and 5020, and `render_lxplus_0610/plots/` has only `2760`/`5020`, so nothing at 200
+is render-verified. The STAT-XSEDE-2021 catalogue lists AuAu 200 productions (0-10% and 10-50%,
+500-625k events per design point, plus a pilot pp 200 run) — pull via OSN, then
+histogram → render → validate, and build the 200 status slide (5020 and 2760 have one; 200 does
+not). Two caveats for that run: the hydro centralities are (0,10) and (10,50), and the
+full-containment rule means `[10,20]`/`[20,30]`/`[30,40]`/`[40,50]` — needed by `pt_pi0_phenix` and
+`pt_ch_star` — will **not** fill from a (10,50) sample; and the histogrammer's
+`elif self.sqrts == 200` branch books the semi-inclusive observables as a single `_R{R}` histogram
+rather than the low/high-trigger pair the 2760/5020 branch uses to build Δ_recoil.
 
 **Step 4.5 — parametrized-observable migration.** Wire the observables the analyzer *computes* but the
 histogrammer/plotter don't yet iterate (root cause: sub-observable loops keyed on the pre-migration

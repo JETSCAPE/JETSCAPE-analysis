@@ -42,6 +42,25 @@ _MEASUREMENT_TAG: dict[str, str] = {
     "inclusive_jet/pt": "RAAJet",
 }
 
+# Override for the "# XY <x> <y>" header's x token, keyed like _MEASUREMENT_TAG.
+# The default derives x from the FIRST token of the observable's internal name, which is wrong
+# whenever the observable is named after the quantity being measured rather than its abscissa:
+# pt_y_atlas is R_AA vs |y| (not pT), D(z)/D(pT) are fragmentation functions vs z / track pT,
+# and the semi-inclusive recoil observables are named IAA_pt / dphi. Consumers parse this line,
+# so a wrong x label silently mislabels the abscissa downstream.
+_X_AXIS_TOKEN: dict[str, str] = {
+    "inclusive_jet/pt_y": "Y",
+    "inclusive_jet/Dz": "Z",
+    "inclusive_jet/Dpt": "PT",
+    "inclusive_chjet/Dz": "Z",
+    "inclusive_chjet/Dpt": "PT",
+    "hadron_trigger_chjet/IAA_pt": "PT",
+    "hadron_trigger_chjet/dphi": "DELTAPHI",
+    "pion_trigger_chjet/IAA_pt": "PT",
+    "pion_trigger_chjet/dphi": "DELTAPHI",
+    "pion_trigger_hadron/pi0_hadron_IAA_pt": "PT",
+}
+
 # Shortened labels used in the structured filename convention:
 #   Data__{sqrts}__{system}__{class_label}__{observable}_{exp}__{jet_cfg}__{cent}.dat
 # For most classes this is identity; trigger-composite classes collapse to their trigger side.
@@ -66,7 +85,15 @@ def _fmt_int(x: float) -> str:
 
 # Substructure discriminators that split an observable into multiple per-combination files but
 # aren't captured by centrality/jet_R/pt. Fixed order keeps the appended tag deterministic.
-_DISCRIMINATOR_KEYS: tuple[str, ...] = ("jet_subjet_R", "jet_grooming_settings", "jet_angularity", "jet_charge")
+_DISCRIMINATOR_KEYS: tuple[str, ...] = (
+    "jet_subjet_R",
+    "jet_grooming_settings",
+    "jet_angularity",
+    "jet_charge",
+    # Synthetic, set by _collapse_shared_columns when one published column IS a ratio between
+    # jet radii rather than a per-radius measurement (e.g. STAR IAA_pt_star Table 38).
+    "jet_R_ratio",
+)
 
 
 def _discriminator_tag(params: dict[str, Any]) -> str:
@@ -362,7 +389,56 @@ def _expand_ratio_entries(obs: observable.Observable) -> list[dict[str, Any]]:
             logger.debug(f"Skipping unfilled ratio entry for {obs.observable_str} (empty systematics_names)")
             continue
         entries.append(e)
-    return entries
+    return _collapse_shared_columns(obs, entries)
+
+
+def _collapse_shared_columns(obs: observable.Observable, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse expanded entries that resolve to the SAME published column.
+
+    Expanding a ratio block over a multi-valued parameter assumes each value selects a
+    different measurement. That is false when the published column is itself a ratio between
+    those values: STAR's ``hadron_trigger_chjet/IAA_pt_star`` wires Table 38, the single
+    R=0.2/R=0.5 recoil-yield ratio, but declares ``jet_R: ["0.2", "0.5"]`` -- so the expansion
+    produced two BYTE-IDENTICAL files (IAA_PTR02 and IAA_PTR05) for one measurement.
+
+    Same (table, index) means literally the same numbers, so such a group is emitted once. The
+    differing radii are preserved in a synthetic ``jet_R_ratio`` discriminator (which both
+    filename conventions append) instead of a bogus single-radius label. Groups that differ in
+    any parameter other than ``jet_R`` are left untouched rather than guessed at.
+    """
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for e in entries:
+        groups.setdefault((str(e.get("table")), str(e.get("index"))), []).append(e)
+
+    collapsed: list[dict[str, Any]] = []
+    for (table_name, _index), group in groups.items():
+        if len(group) == 1:
+            collapsed.append(group[0])
+            continue
+        differing = {
+            k
+            for k in {key for e in group for key in (e.get("parameters") or {})}
+            if len({str((e.get("parameters") or {}).get(k)) for e in group}) > 1
+        }
+        if differing != {"jet_R"}:
+            logger.warning(
+                f"{obs.observable_str}: {len(group)} entries share '{table_name}' and differ in "
+                f"{sorted(differing) or 'nothing'} -- leaving them expanded (duplicate output likely)."
+            )
+            collapsed.extend(group)
+            continue
+        merged = dict(group[0])
+        params = dict(merged.get("parameters") or {})
+        radii = [str((e.get("parameters") or {}).get("jet_R")) for e in group]
+        params.pop("jet_R", None)
+        params["jet_R_ratio"] = "R" + "overR".join(radii)
+        merged["parameters"] = params
+        logger.info(
+            f"{obs.observable_str}: '{table_name}' is one column shared by jet_R {radii} -- "
+            f"emitting a single file tagged {params['jet_R_ratio']} instead of {len(group)} identical ones."
+        )
+        collapsed.append(merged)
+    return collapsed
 
 
 def _format_number(x: float) -> str:
@@ -439,8 +515,12 @@ def write_data_table(  # noqa: C901
 
     # Y-label: for the ratio block it's always RAA
     y_label = "RAA"
-    # X-label: take from observable's internal name (pt → PT, etc.)
-    x_token = obs.internal_name_without_experiment.split("_")[0].upper()
+    # X-label: an explicit override where the observable is named after the measured quantity
+    # rather than its abscissa; otherwise fall back to the first token of the internal name.
+    x_token = _X_AXIS_TOKEN.get(
+        f"{obs.observable_class}/{obs.internal_name_without_experiment}",
+        obs.internal_name_without_experiment.split("_")[0].upper(),
+    )
 
     # Write file
     with out_path.open("w") as f:

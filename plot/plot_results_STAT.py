@@ -9,6 +9,7 @@ from __future__ import annotations
 # General
 import argparse
 import ctypes
+import itertools
 import logging
 import sys
 from pathlib import Path
@@ -36,7 +37,29 @@ _model_display_name = {
 
 
 ################################################################
+def divide_by_bin_center(h, extra_factor: float = 1.0) -> None:
+    """Divide every bin of `h` by (extra_factor * bin center).
+
+    Several spectra are published as an invariant-style yield, e.g. STAR
+    `1/(2 pi p_T) d^2N/dp_T deta` and `(1/N_evts) d^2N/(2 pi p_T dp_T deta)`. The
+    `dp_T` is handled by Scale(1.0, "width"), but the explicit 1/p_T varies bin to bin
+    and so cannot be folded into a global Scale(). Errors are scaled with the content.
+    """
+    for i in range(1, h.GetNbinsX() + 1):
+        center = h.GetBinCenter(i)
+        if center <= 0:
+            continue
+        norm = extra_factor * center
+        h.SetBinContent(i, h.GetBinContent(i) / norm)
+        h.SetBinError(i, h.GetBinError(i) / norm)
+
+
 class PlotResults(common_base.CommonBase):
+    # Observables that must NOT be self-normalized despite matching one of the substring
+    # triggers in plot_jet_observables (see the comment there). Keyed by the yaml observable
+    # key, so it is exact -- unlike the substring list it guards.
+    SELF_NORMALIZE_EXCLUDE = frozenset({"rg_atlas"})
+
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
@@ -183,6 +206,12 @@ class PlotResults(common_base.CommonBase):
             if "hadron_trigger_chjet" in self.config:
                 self.plot_hadron_trigger_chjet_observables(observable_type="hadron_trigger_chjet")
 
+            # Di-hadron correlations (dihadron_star, 200 GeV). Same story as the line above:
+            # plot_hadron_trigger_hadron_observables was defined but never invoked, so the
+            # histograms were written and then never plotted.
+            if "hadron_trigger_hadron" in self.config:
+                self.plot_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
+
         self.plot_event_qa()
 
         self.write_output_objects()
@@ -240,8 +269,12 @@ class PlotResults(common_base.CommonBase):
                 # STAR dihadron
                 if observable == "dihadron_star":
                     # Initialize observable configuration
-                    pt_trigger_ranges = block["pt_trig"]
-                    pt_associated_ranges = block["pt_assoc"]
+                    # NOTE: bin EDGES under the nested config schema (`trigger.pt` / `hadron.pt`);
+                    #       the flat `pt_trig` / `pt_assoc` keys this used to read exist in no
+                    #       config. Paired here exactly as the analyzer and histogrammer do, so
+                    #       the suffix built below matches the stored histogram names.
+                    pt_trigger_ranges = list(itertools.pairwise(block["trigger"]["pt"]))
+                    pt_associated_ranges = list(itertools.pairwise(block["hadron"]["pt"]))
                     # Loop over trigger and associated ranges
                     for pt_trig_min, pt_trig_max in pt_trigger_ranges:
                         for pt_assoc_min, pt_assoc_max in pt_associated_ranges:
@@ -333,9 +366,18 @@ class PlotResults(common_base.CommonBase):
                             # self-normalized 1/sigma_inc dN/dDeltaR distribution, so the MC must be
                             # self-normalized too (without it the raw MC sits ~0 against the data scale).
                             # "zr" -> zr_alice's leading-subjet z_r is also self-normalized (1/sigma).
-                            for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj", "axis", "zr"]:
-                                if x in observable:
-                                    self_normalize = True
+                            # NOTE: these are SUBSTRING matches, so the short entries catch more than
+                            # they name. The bare "g" (girth, g_alice) is load-bearing for the
+                            # angularity_* observables, which is intended -- but it ALSO matches
+                            # "rg_atlas", whose ATLAS measurement (ins2512925 Table 2) is an ABSOLUTE
+                            # double-differential cross section d^2sigma/dpT drg, not a self-normalized
+                            # distribution. Self-normalizing it drove the MC to unit area against
+                            # absolute data (MC/data ran 2.4 / 17 / 357 across the three pt bins,
+                            # simply tracking 1/sigma(pt bin)). Exclude it explicitly.
+                            if observable not in self.SELF_NORMALIZE_EXCLUDE:
+                                for x in ["mass", "g", "ptd", "charge", "mg", "zg", "tg", "ktg", "xj", "axis", "zr"]:
+                                    if x in observable:
+                                        self_normalize = True
 
                             if "grooming_settings" in block["jet"]:
                                 for grooming_setting in block["jet"]["grooming_settings"]:
@@ -660,6 +702,11 @@ class PlotResults(common_base.CommonBase):
             self.high_trigger_range = block["high_trigger_range"]
         if "trigger_range" in block:
             self.trigger_range = block["trigger_range"]
+        # The nested config schema carries the single (200 GeV) trigger window as `trigger.pt`;
+        # the flat `trigger_range` key above exists in no config, so without this the 200 GeV
+        # semi-inclusive path raises AttributeError on self.trigger_range.
+        elif isinstance(block.get("trigger"), dict) and "pt" in block["trigger"]:
+            self.trigger_range = block["trigger"]["pt"]
         self.logy = block.get("logy", False)
         # Whether the y-range / logy were set explicitly in the config. If not, the distribution
         # plotter auto-ranges the upper panel from the histogram+data content (see _auto_y_range),
@@ -963,7 +1010,14 @@ class PlotResults(common_base.CommonBase):
         # counts: Delta_recoil = high/N_trig^high - c_ref * low/N_trig^low (each width-normalized).
         # The per-trigger normalization is done ONCE here, post-aggregation, so it is correct after
         # hadd-ing N files -- doing it per-file in the histogrammer then summing over-counts by n_files.
-        if observable_type == "hadron_trigger_chjet":
+        # NOTE: 200 GeV is EXCLUDED here and handled by the `elif self.sqrts == 200` branch below.
+        #       STAR's 200 GeV semi-inclusive config has a SINGLE trigger window (`trigger.pt`
+        #       9-30 GeV) rather than the low/high trigger pair this Delta_recoil path subtracts,
+        #       so the analyzer/histogrammer book one `_R{R}` histogram + one trigger-pt histogram.
+        #       Without this guard the branch matched, found no `_highTrigger`/`_lowTrigger` keys,
+        #       set None and hit the unconditional `return` below -- leaving the 200 GeV branch
+        #       unreachable dead code and every 200 GeV semi-inclusive plot silently skipped.
+        if observable_type == "hadron_trigger_chjet" and self.sqrts != 200:
             block = self.config[observable_type][observable]
             hname_high = f"h_{observable_type}_{observable}_R{self.jet_R}_highTrigger{collection_label}_{centrality}{pt_suffix}"
             hname_low = f"h_{observable_type}_{observable}_R{self.jet_R}_lowTrigger{collection_label}_{centrality}{pt_suffix}"
@@ -1053,7 +1107,9 @@ class PlotResults(common_base.CommonBase):
 
         elif self.sqrts == 200:
             hname = f"h_{observable_type}_{observable}_R{self.jet_R}{collection_label}_{centrality}"
-            hname_ntrigger = f"h_{observable_type}_star_trigger_pt{collection_label}_{centrality}"
+            # NOTE: must match the histogrammer, which books the analyzer's column name
+            #       `{observable_type}_hjet_star_trigger_pt{label}` (the `hjet_` was missing).
+            hname_ntrigger = f"h_{observable_type}_hjet_star_trigger_pt{collection_label}_{centrality}"
             self.hname = f"h_{observable_type}_{observable}_R{self.jet_R}{collection_label}_{centrality}"
             if hname in keys and hname_ntrigger in keys:
                 self.observable_settings[f"jetscape_distribution{collection_label}"] = self.input_file.Get(hname)
@@ -1130,7 +1186,15 @@ class PlotResults(common_base.CommonBase):
         # double-normalize, so skip it. But `not self_normalize` lets the self-normalized
         # hadron_trigger_chjet observable (nsubjettiness_alice, STAT_2760) fall through to the
         # self-normalization step below (it is not pre-normalized to a per-trigger scale).
-        if observable_type == "hadron_trigger_chjet" and not self_normalize:
+        # sqrts == 200 is EXEMPT from this early return. STAR's semi-inclusive observables are
+        # NOT built as a Delta_recoil pair: the histogrammer books a single raw histogram
+        # (histogram_results_STAT.py, `elif self.sqrts == 200`) and construct_semi_inclusive_histogram
+        # applies only 1/N_trig -- so nothing has divided by the bin width yet. Returning here
+        # skipped that, leaving dN/dp_T and dN/dDeltaphi as raw per-bin counts (dphi_star sat a
+        # factor of its 0.126 rad bin width below the data). Letting 200 fall through also
+        # re-enables the observable-specific block below, which explicitly undoes the step-(1)
+        # xsec/weight_sum factor -- that undo line was unreachable dead code until now.
+        if observable_type == "hadron_trigger_chjet" and not self_normalize and self.sqrts != 200:
             return
 
         # --------------------------------------------------
@@ -1157,14 +1221,17 @@ class PlotResults(common_base.CommonBase):
         if self.sqrts == 200:
             if observable_type == "hadron":
                 if observable == "pt_ch_star":
+                    # ins619063 Table 1 publishes 1/(2 pi p_T) d^2N/dp_T deta, |eta| < 0.5.
+                    # The 1/p_T is per-bin -- see divide_by_bin_center.
                     sigma_inel = 42.0
                     h.Scale(1.0 / (2 * self.eta_cut))
-                    h.Scale(1.0 / (2 * np.pi))
+                    divide_by_bin_center(h, 2 * np.pi)
                     h.Scale(1.0 / sigma_inel)
                 if observable == "pt_pi0_phenix":
+                    # PHENIX publishes an invariant yield, so the same per-bin 1/p_T applies.
                     sigma_inel = 42.0  # Update
                     h.Scale(1.0 / (2 * self.eta_cut))
-                    h.Scale(1.0 / (2 * np.pi))
+                    divide_by_bin_center(h, 2 * np.pi)
                     h.Scale(1.0 / sigma_inel)
             elif observable_type == "hadron_trigger_hadron":
                 if observable == "dihadron_star":
@@ -1189,11 +1256,24 @@ class PlotResults(common_base.CommonBase):
                         logger.warning("N_trig for dihadron_star == 0")
             elif observable_type == "inclusive_chjet":
                 if observable == "pt_star":
+                    # ins1798665 Table 1 publishes
+                    # (1/N_evts) d^2N_jet / (2 pi p_T dp_T deta) in (GeV/c)^-2.
+                    # Without the per-bin 1/(2 pi p_T) the MC/data ratio ran 13 -> 29 across
+                    # the spectrum; with it the ratio is flat to ~15%.
                     h.Scale(1.0 / (2 * self.eta_cut))
+                    divide_by_bin_center(h, 2 * np.pi)
             elif observable_type == "hadron_trigger_chjet":
                 # Note that n_trig histograms should also be scaled by xsec/n_events
                 if observable in ["IAA_pt_star", "dphi_star"]:
+                    # construct_semi_inclusive_histogram already divided by N_trig using
+                    # weighted counts, so the step-(1) xsec/weight_sum factor cancels and is
+                    # undone here. The step-(2) bin-width scaling is kept -- that is the part
+                    # the old early return was silently skipping.
                     h.Scale(1.0 / (xsec / weight_sum))
+                if observable == "IAA_pt_star":
+                    # ins1512115 Tables 25/34 publish 1/N_TRIGS d^2N/dp deta -- per unit eta.
+                    # eta_cut here is the fiducial eta_R - R (0.8 for R=0.2, 0.5 for R=0.5).
+                    h.Scale(1.0 / (2 * self.eta_cut))
 
         if self.sqrts == 2760:
             if observable_type == "hadron":
@@ -1241,6 +1321,16 @@ class PlotResults(common_base.CommonBase):
             elif observable_type == "inclusive_chjet":
                 if observable == "pt_alice":
                     h.Scale(1.0 / (2 * self.eta_cut))
+                    if self.is_AA:
+                        # ins1263194 Table 6 publishes
+                        #   10**6 * (1/Ncoll) * (1/Nevt) * d2N/dpT/detarap,
+                        # while the MC here is a cross section in mb. Since
+                        # (1/Nevt) d2N = T_AA * d2sigma and T_AA = Ncoll/sigma_inel, the Ncoll
+                        # CANCELS and the whole conversion is exactly 1e6/sigma_inel -- no
+                        # centrality-dependent Glauber input needed. Without this the overlay
+                        # sat a flat factor ~1.2e-4 (4 orders of magnitude) below the data.
+                        sigma_inel = 61.8
+                        h.Scale(1.0e6 / sigma_inel)
             elif observable_type == "hadron_trigger_chjet":  # noqa: SIM102
                 # Note that n_trig histograms should also be scaled by xsec/n_events
                 if observable in ["IAA_pt_alice", "dphi_alice"]:
@@ -1264,6 +1354,18 @@ class PlotResults(common_base.CommonBase):
                     h.Scale(1.0e6)  # convert to nb
                     if observable == "pt_atlas":
                         h.Scale(1.0 / (2 * self.y_cut))
+                if observable == "rg_atlas":
+                    # ATLAS publishes an ABSOLUTE double-differential cross section
+                    # d^2sigma/dpT drg in nb (ins2512925 Table 2) -- NOT a self-normalized
+                    # distribution (see SELF_NORMALIZE_EXCLUDE). Step (2) above divided by the
+                    # r_g bin width (the x axis); the pT differential still has to be divided
+                    # out, and mb must be converted to nb as for every other ATLAS
+                    # inclusive-jet observable. Verified against Table 2: MC/data = 1.02 /
+                    # 1.01 / 0.97 for the 158-200 / 200-315 / 315-501 GeV bins.
+                    h.Scale(1.0e6)  # convert to nb
+                    if pt_suffix and getattr(self, "pt", None):
+                        pt_bin = int(pt_suffix.removeprefix("_pt"))
+                        h.Scale(1.0 / (self.pt[pt_bin + 1] - self.pt[pt_bin]))
                 if observable == "pt_cms":
                     h.Scale(1.0 / (2 * self.eta_cut))
                     h.Scale(1.0e6)  # convert to nb
