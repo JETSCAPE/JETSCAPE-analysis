@@ -743,6 +743,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         jet_collection_label=jet_collection_label,
                     )
             if self.pion_trigger_chjet_observables:
+                # NOTE: jetR_list was assigned only inside the sqrts==200 branch but tested
+                #       outside it -- an UnboundLocalError for any other energy that defines a
+                #       pion_trigger_chjet block. Dormant today (only STAT_200 has one).
+                jetR_list = []
                 if self.sqrts == 200:
                     jetR_list = self.pion_trigger_chjet_observables["IAA_pt_star"]["jet"]["R"]
                     # NOTE: No need to repeat to STAR dphi, since the values are the same
@@ -2371,22 +2375,29 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             suffix = "_holes"
 
         # TODO(RJE): Remove sqrt_s check once trigger finding is moved behind observable switch
+        # TODO(RJE): Remove sqrt_s check once trigger finding is moved behind observable switch
+        # NOTE: the gate name must be the yaml observable key. It read "pi0_hadron_alice", which
+        #       matches nothing, and measure_observable_for_current_event does a plain
+        #       `.get(name)` -- so the whole block was skipped SILENTLY, with no error.
         if self.sqrts == 2760 and self.measure_observable_for_current_event(
-            self.pion_trigger_hadron_observables, observable_name="pi0_hadron_alice"
+            self.pion_trigger_hadron_observables, observable_name="pi0_hadron_IAA_pt_alice"
         ):
             # ALICE, pion-hadron correlations
-            pion_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["pt"]
-            pion_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["pion_trigger"]["eta"]
-            recoil_hadron_pt = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"]["pt"]
-            recoil_hadron_eta_cut = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["recoil_hadron"][
-                "eta"
-            ]
-            d_phi = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]["dPhi"]
+            # NOTE: the config nests these as `trigger:` / `hadron:`; the old code read
+            #       `pion_trigger:` / `recoil_hadron:`, which exist in no config.
+            block = self.pion_trigger_hadron_observables["pi0_hadron_IAA_pt_alice"]
+            pion_pt = block["trigger"]["pt"]
+            pion_eta_cut = block["trigger"]["eta"]
+            recoil_hadron_pt = block["hadron"]["pt"]
+            recoil_hadron_eta_cut = block["hadron"]["eta"]
+            d_phi = block["dPhi"]
 
             # get all pions that fulfill analysis cuts
             pions = []
             for trigger in fj_pion_candidates:
-                if pion_pt[0] < trigger.pt < pion_pt[1] and abs(trigger.eta()) < pion_eta_cut:
+                # NOTE: pt is a method on fj::PseudoJet -- `trigger.pt` compared a bound method
+                #       against a float.
+                if pion_pt[0] < trigger.pt() < pion_pt[-1] and abs(trigger.eta()) < pion_eta_cut:
                     pions.append(trigger)
 
             # And then construct the correlation of the trigger pion with the hadrons
@@ -2399,7 +2410,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     pid = pid_hadrons[np.abs(particle.user_index()) - 1]
                     if (
                         abs(particle.eta()) < recoil_hadron_eta_cut
-                        and recoil_hadron_pt[0] < particle.pt() < recoil_hadron_pt[1]
+                        # NOTE: hadron.pt declares EDGES (2760: 6, 8, 10 -> two associated-pt
+                        #       slices). Capping at [1] would keep only 6-8 and leave the 8-10
+                        #       slice permanently empty; the stored (pion_pt, hadron_pt) pair lets
+                        #       the histogrammer slice, so select the full span here.
+                        and recoil_hadron_pt[0] < particle.pt() < recoil_hadron_pt[-1]
                         and abs(particle.delta_R(pion) - np.pi) < d_phi
                         and abs(pid) in [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
                     ):
@@ -2441,12 +2456,21 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # TODO(RJE): Hole subtraction
             # TODO(RJE): Cleanup ratio construction
 
-            pt_IAA = self.pion_trigger_chjet_observables["IAA_pt_star"]
-            pt_dphi = self.pion_trigger_chjet_observables["dphi_star"]["pt"]
+            # NOTE: every lookup below used to read a CLASS-level key (`trigger_range`,
+            #       `pi_zero_eta_cut`, `eta_R`) or a flat per-observable key (`["pt"]`, `["R"]`).
+            #       None of them exist -- the config nests these under each observable as
+            #       `trigger:` / `jet:` -- so enabling the block raised KeyError immediately.
+            iaa_block = self.pion_trigger_chjet_observables["IAA_pt_star"]
+            dphi_block = self.pion_trigger_chjet_observables["dphi_star"]
+            pt_IAA = iaa_block["jet"]["pt"]
+            pt_dphi = dphi_block["jet"]["pt"]
 
-            trigger_range = self.pion_trigger_chjet_observables["trigger_range"]
-            eta_cut_trigger = self.pion_trigger_chjet_observables["pi_zero_eta_cut"]
-            eta_cut_jet_R = self.pion_trigger_chjet_observables["eta_R"]  # assumes same order
+            # The pi0 trigger is selected on E_T. At midrapidity E_T ~ pt for a pi0, and the
+            # config's smearing block maps detector-level E_T 11-15 onto particle-level 9-22,
+            # so the particle-level analyzer selects on the full `trigger.Et` range.
+            trigger_range = iaa_block["trigger"]["Et"]
+            eta_cut_trigger = iaa_block["trigger"]["eta"]
+            eta_cut_jet_R = iaa_block["jet"]["eta_R"]
 
             # pi zero trigger selection
             trigger_array_pi0 = []
@@ -2458,7 +2482,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 trigger = trigger_array_pi0[random.randrange(len(trigger_array_pi0))]
 
                 # Record trigger pt for normalization
-                if jetR == min(self.pion_trigger_chjet_observables["IAA_pt_STAR"]["R"]):
+                if jetR == min(iaa_block["jet"]["R"]):  # NOTE: was "IAA_pt_STAR" (wrong case) and a flat ["R"]
                     self.observable_dict_event[
                         f"pion_trigger_chjet_IAA_pt_star_trigger_pt{jet_collection_label}"
                     ].append(trigger.pt())
@@ -2481,7 +2505,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         ):
                             # IAA
                             if (
-                                jetR in self.pion_trigger_chjet_observables["IAA_pt_star"]["R"]
+                                jetR in iaa_block["jet"]["R"]
                                 and pt_IAA[0] < jet_pt < pt_IAA[1]
                                 and np.abs(jet.delta_phi_to(trigger)) > (np.pi - 0.6)
                             ):
@@ -2495,7 +2519,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
                             # dphi
                             if (
-                                jetR in self.pion_trigger_chjet_observables["dphi_star"]["R"]
+                                jetR in dphi_block["jet"]["R"]
                                 and pt_dphi[0] < jet_pt < pt_dphi[-1]
                             ):
                                 self.observable_dict_event[

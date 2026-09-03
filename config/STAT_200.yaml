@@ -862,12 +862,14 @@ pion_trigger_chjet:
               label: I_{AA}
               range: [0.1, 1.2]
             tables:
-              - parameters: { jet_R: 0.2 }
+              # Deliberately blank: ins2693040 publishes no p+p per-R recoil yields
+              # (Tables 5-8) only -- there are no per-R p+p recoil yields to wire here.
+              - parameters: { jet_R: "0.2" }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
                 index: ""
-              - parameters: { jet_R: 0.5 }
+              - parameters: { jet_R: "0.5" }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -885,12 +887,14 @@ pion_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { jet_R: 0.2 }
+              # Deliberately blank: ins2693040 publishes I_AA and the R=0.2/0.5 radius ratios
+              # (Tables 5-8) only -- there are no per-R Au+Au recoil yields to wire here.
+              - parameters: { jet_R: "0.2" }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
                 index: ""
-              - parameters: { jet_R: 0.5 }
+              - parameters: { jet_R: "0.5" }
                 systematics_names: {}
                 additional_systematics: {}
                 table: ""
@@ -903,16 +907,18 @@ pion_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { jet_R: 0.2 }
-                systematics_names: {}
+              # pi0+jet I_AA, E_T^trig 11-15 GeV, Au+Au 0-15%. Tables 1/2 are the gamma_dir
+              - parameters: { jet_R: "0.2", centrality: "0_15" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: ""
-                index: ""
-              - parameters: { jet_R: 0.5 }
-                systematics_names: {}
+                table: Table3
+                index: "1"
+              # counterpart at E_T 15-20 GeV -- do not wire them here.
+              - parameters: { jet_R: "0.5", centrality: "0_15" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
-                table: ""
-                index: ""
+                table: Table4
+                index: "1"
 
   # STAR, pion-triggered IAA(dPhi)
   # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
@@ -951,7 +957,8 @@ pion_trigger_chjet:
     #ytitle_pp: "I_{AA}(#Delta#varphi)"
     #y_min_pp: 1.e-2
     #y_max_pp: 50.
-    skip_pp: true
+    # NOTE: unlike IAA_pt_star, this record DOES publish p+p Yield(dphi) (Tables 1-4),
+    # so the pp arm has a real measured reference.
 
     # bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
 
@@ -970,16 +977,29 @@ pion_trigger_chjet:
               label: I_{AA}(#Delta#varphi)
               range: [0.01, 50.0]
             tables:
-              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.2 }
-                systematics_names: {}
+              # pi0+jet p+p Yield(dphi). Tables 5/6 are gamma+jet.
+              - parameters: { jet_R: "0.2" }
+                systematics_names: { stat: stat, sys_corr: correlated, sys_uncorr: uncorrelated }
                 additional_systematics: {}
                 table: ""
-                index: ""
-              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.5 }
-                systematics_names: {}
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table1
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table2
+                    index: "1"
+              - parameters: { jet_R: "0.5" }
+                systematics_names: { stat: stat, sys_corr: correlated, sys_uncorr: uncorrelated }
                 additional_systematics: {}
                 table: ""
-                index: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table3
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table4
+                    index: "1"
       AA:
         hepdata:
           record:
@@ -993,16 +1013,29 @@ pion_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.2 }
-                systematics_names: {}
+              # pi0+jet Au+Au Yield(dphi). Tables 11/12 are gamma+jet.
+              - parameters: { jet_R: "0.2", centrality: "0_15" }
+                systematics_names: { stat: stat, sys_corr: correlated, sys_uncorr: uncorrelated }
                 additional_systematics: {}
                 table: ""
-                index: ""
-              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.5 }
-                systematics_names: {}
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table8
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table10
+                    index: "1"
+              - parameters: { jet_R: "0.5", centrality: "0_15" }
+                systematics_names: { stat: stat, sys_corr: correlated, sys_uncorr: uncorrelated }
                 additional_systematics: {}
                 table: ""
-                index: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table7
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table9
+                    index: "1"
           ratio:
             quantity: dphi
             x_axis:
@@ -1011,16 +1044,29 @@ pion_trigger_chjet:
               label: ""
               log: true
             tables:
-              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.2 }
-                systematics_names: {}
+              # pi0+jet I_AA(dphi). Tables 13/14 are gamma+jet.
+              - parameters: { jet_R: "0.2", centrality: "0_15" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: ""
-                index: ""
-              - parameters: { jet_pt: [10.0_15.0, 15.0_20.0], jet_R: 0.5 }
-                systematics_names: {}
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table16
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table18
+                    index: "1"
+              - parameters: { jet_R: "0.5", centrality: "0_15" }
+                systematics_names: { stat: stat, sys: sys }
                 additional_systematics: {}
                 table: ""
-                index: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table15
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table17
+                    index: "1"
 
 #------------------------------------------------------------------
 # gamma triggered hadron observables
