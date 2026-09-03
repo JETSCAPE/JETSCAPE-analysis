@@ -2423,9 +2423,9 @@ pion_trigger_hadron:
   # ALICE pi0-hadron correlations
   # NOTE: We only implement a limited recoil pt range
   pi0_hadron_IAA_pt_alice:
-    # Disabled: analyzer is unfinished WIP (gate-name + trigger/hadron schema mismatch -> no output).
-    # Tracked as an "individual case" on the status slide. Distinct from hadron_trigger_chjet/IAA_pt_alice.
-    enabled: false
+    # Re-enabled 2026-08-13: the analyzer fill was silently dead (gate name +
+    # trigger/hadron schema mismatch + trigger.pt vs .pt()). Fixed in analyze_events_STAT.
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/1483164
       hepdata: https://www.hepdata.net/record/ins1483164
