@@ -294,6 +294,12 @@ hadron:
               - parameters: {}
                 # STAR 2003: HEPData publishes only a single combined "sys + stat" column (no split available);
                 # mapped to stat -> treated uncorrelated bin-to-bin (diagonal), avoids imposing false full correlation
+                # Table 3 also carries, per centrality, a qualifier band on the normalization,
+                # e.g. 0-5%: "Bands: <Nbin>[1.0+0.16-0.16]" (10-20: +0.17-0.17, 20-30: +0.18-0.20,
+                # 30-40: +0.20-0.22). Per the paper that band is <N_bin> combined in quadrature with
+                # the +-14% pp-reference uncertainty and the record does not publish the two parts
+                # separately, so no R_AA-only normalization can be curated from it. Deliberately left
+                # empty and documented rather than back-computed (audit decision 2026-09-14).
                 systematics_names: { "sys + stat": stat }
                 additional_systematics: {}
                 table: Table 3
@@ -568,8 +574,14 @@ inclusive_chjet:
             tables:
               - parameters: { centrality: "0_10" }
                 # STAR correlated/shape two-component prescription (shape = integral-preserving pivot, published separately from correlated)
+                # Table 10's description adds, in prose only: "the systematic uncertainty for the T_AA
+                # normalization (7%) and PYTHIA reference (22%, 20%, 18% for R = 0.2, 0.3 and 0.4)
+                # have to be added." The 7% T_AA normalization is an R_AA uncertainty and is encoded
+                # below as `taa` (same for all R). The PYTHIA pp-reference band is deliberately NOT
+                # curated: these tables carry R_AA uncertainties only, and a pp-reference uncertainty
+                # is out of scope (audit decision 2026-09-14). Quoted verbatim from submission.yaml.
                 systematics_names: { statistical: stat, correlated: correlated, shape: shape }
-                additional_systematics: {}
+                additional_systematics: { taa: 0.07 }
                 table: Table 10
                 combinations:
                   - parameters: { jet_R: "0.2" }

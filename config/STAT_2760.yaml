@@ -175,22 +175,36 @@ hadron:
               log: true
             tables:
               - parameters: { pt: 5.0_50.0, eta: "0.8" }
+                # HEPData ins1657384 publishes lumped stat + sys per-bin for RAA. Table 7's
+                # description also gives a flat normalization uncertainty per centrality
+                # (constant across pT), stated ONLY in the prose, never as an error label:
+                #   "Additional systematic error for PBPB 0-5 pct data: +2.2 pct -2.2 pct" ...
+                #   5-10: 2.2, 10-20: 2.4, 20-30: 2.7, 30-40: 3.4, 40-50: 3.7 pct.
+                # Encoded as `additional_systematics: {norm: <frac>}` per combination, the same
+                # treatment as the 5.02 TeV sibling (Table 8) in STAT_5020.yaml. Values quoted
+                # verbatim from the HEPData submission.yaml description.
                 systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 table: Table 7
                 combinations:
                   - parameters: { centrality: "0_5" }
                     index: "1"
+                    additional_systematics: { norm: 0.022 }
                   - parameters: { centrality: "5_10" }
                     index: "2"
+                    additional_systematics: { norm: 0.022 }
                   - parameters: { centrality: "10_20" }
                     index: "3"
+                    additional_systematics: { norm: 0.024 }
                   - parameters: { centrality: "20_30" }
                     index: "4"
+                    additional_systematics: { norm: 0.027 }
                   - parameters: { centrality: "30_40" }
                     index: "5"
+                    additional_systematics: { norm: 0.034 }
                   - parameters: { centrality: "40_50" }
                     index: "6"
+                    additional_systematics: { norm: 0.037 }
 
   # ALICE charged pion RAA
   # Figs 22,23
@@ -1665,48 +1679,65 @@ inclusive_jet:
               log: true
             tables:
               - parameters: { pt: 70.0_300.0 }
-                # CMS Fig 9 quotes a combined pp-lumi + TAA "global" box of 18% on RAA,
-                # but the per-centrality TAA is not provided in this HEPData record.
-                # Leaving additional_systematics empty; see paper (ins1487278) for globals.
+                # The per-centrality TAA alone is not in this HEPData record, but each of
+                # Tables 8a-8d states a combined global in its description, e.g. Table 8a:
+                #   "The '5.5%' combined uncertainty on the pp luminosity and PbPb TAA is
+                #    considered as global uncertainty (common to all points), and it is not
+                #    included in the point-to-point uncertainties."
+                # 8b (5-10): 5.9%, 8c (10-30): 6.9%, 8d (30-50): 10% (symmetric). Encoded as
+                # `additional_systematics: {lumi_taa: <frac>}` per combination (same across R
+                # within a centrality). Values quoted verbatim from submission.yaml.
                 systematics_names: {stat: stat, sys: sys}
                 additional_systematics: {}
                 combinations:
                   - parameters: { centrality: "0_5", jet_R: "0.2" }
                     table: Table 8a
                     index: "1"
+                    additional_systematics: { lumi_taa: 0.055 }
                   - parameters: { centrality: "0_5", jet_R: "0.3" }
                     table: Table 8a
                     index: "2"
+                    additional_systematics: { lumi_taa: 0.055 }
                   - parameters: { centrality: "0_5", jet_R: "0.4" }
                     table: Table 8a
                     index: "3"
+                    additional_systematics: { lumi_taa: 0.055 }
                   - parameters: { centrality: "5_10", jet_R: "0.2" }
                     table: Table 8b
                     index: "1"
+                    additional_systematics: { lumi_taa: 0.059 }
                   - parameters: { centrality: "5_10", jet_R: "0.3" }
                     table: Table 8b
                     index: "2"
+                    additional_systematics: { lumi_taa: 0.059 }
                   - parameters: { centrality: "5_10", jet_R: "0.4" }
                     table: Table 8b
                     index: "3"
+                    additional_systematics: { lumi_taa: 0.059 }
                   - parameters: { centrality: "10_30", jet_R: "0.2" }
                     table: Table 8c
                     index: "1"
+                    additional_systematics: { lumi_taa: 0.069 }
                   - parameters: { centrality: "10_30", jet_R: "0.3" }
                     table: Table 8c
                     index: "2"
+                    additional_systematics: { lumi_taa: 0.069 }
                   - parameters: { centrality: "10_30", jet_R: "0.4" }
                     table: Table 8c
                     index: "3"
+                    additional_systematics: { lumi_taa: 0.069 }
                   - parameters: { centrality: "30_50", jet_R: "0.2" }
                     table: Table 8d
                     index: "1"
+                    additional_systematics: { lumi_taa: 0.10 }
                   - parameters: { centrality: "30_50", jet_R: "0.3" }
                     table: Table 8d
                     index: "2"
+                    additional_systematics: { lumi_taa: 0.10 }
                   - parameters: { centrality: "30_50", jet_R: "0.4" }
                     table: Table 8d
                     index: "3"
+                    additional_systematics: { lumi_taa: 0.10 }
 
   # ATLAS D(z)
   # Note: the paper also considers the rapidity dependence, which we omit here for now (Figs 4,5)
