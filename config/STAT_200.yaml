@@ -294,24 +294,30 @@ hadron:
               - parameters: {}
                 # STAR 2003: HEPData publishes only a single combined "sys + stat" column (no split available);
                 # mapped to stat -> treated uncorrelated bin-to-bin (diagonal), avoids imposing false full correlation
-                # Table 3 also carries, per centrality, a qualifier band on the normalization,
-                # e.g. 0-5%: "Bands: <Nbin>[1.0+0.16-0.16]" (10-20: +0.17-0.17, 20-30: +0.18-0.20,
-                # 30-40: +0.20-0.22). Per the paper that band is <N_bin> combined in quadrature with
-                # the +-14% pp-reference uncertainty and the record does not publish the two parts
-                # separately, so no R_AA-only normalization can be curated from it. Deliberately left
-                # empty and documented rather than back-computed (audit decision 2026-09-14).
+                # Table 3 also publishes, per centrality, a normalization band on R_AA in the
+                # dependent-variable QUALIFIER (no error label, no % sign), e.g. 0-5%:
+                #   "Bands: <Nbin>[1.0+0.16-0.16]"   10-20: [1.0+0.17-0.17]
+                #   20-30: [1.0+0.18-0.20]           30-40: [1.0+0.20-0.22]
+                # It is the <N_bin> uncertainty combined with the pp-reference uncertainty, i.e. the
+                # normalization uncertainty of the published R_AA, encoded below as `norm` with the
+                # published asymmetry as [low, high] = [minus, plus]. Quoted verbatim from
+                # Figure3withBins.yaml qualifiers. (Absent from the STAT 2023 inputs as well.)
                 systematics_names: { "sys + stat": stat }
                 additional_systematics: {}
                 table: Table 3
                 combinations:
                   - parameters: { centrality: "0_5" }
                     index: "1"
+                    additional_systematics: { norm: 0.16 }
                   - parameters: { centrality: "10_20" }
                     index: "2"
+                    additional_systematics: { norm: 0.17 }
                   - parameters: { centrality: "20_30" }
                     index: "3"
+                    additional_systematics: { norm: [0.20, 0.18] }
                   - parameters: { centrality: "30_40" }
                     index: "4"
+                    additional_systematics: { norm: [0.22, 0.20] }
 
 #------------------------------------------------------------------
 # Hadron triggered hadron correlations
@@ -574,22 +580,26 @@ inclusive_chjet:
             tables:
               - parameters: { centrality: "0_10" }
                 # STAR correlated/shape two-component prescription (shape = integral-preserving pivot, published separately from correlated)
-                # Table 10's description adds, in prose only: "the systematic uncertainty for the T_AA
-                # normalization (7%) and PYTHIA reference (22%, 20%, 18% for R = 0.2, 0.3 and 0.4)
-                # have to be added." The 7% T_AA normalization is an R_AA uncertainty and is encoded
-                # below as `taa` (same for all R). The PYTHIA pp-reference band is deliberately NOT
-                # curated: these tables carry R_AA uncertainties only, and a pp-reference uncertainty
-                # is out of scope (audit decision 2026-09-14). Quoted verbatim from submission.yaml.
+                # Table 10's description adds, in prose only: "In addition, the systematic uncertainty
+                # for the T_AA normalization (7%) and PYTHIA reference (22%, 20%, 18% for R = 0.2, 0.3
+                # and 0.4) have to be added." Both are uncertainties of the published R_AA (STAR's pp
+                # reference is PYTHIA, so its uncertainty is not folded into the per-bin systematics),
+                # encoded per combination as `taa` (same for all R) and `reference` (per R). Quoted
+                # verbatim from submission.yaml. NOTE: a combination-level additional_systematics dict
+                # replaces the entry-level one, so both sources are listed in every combination.
                 systematics_names: { statistical: stat, correlated: correlated, shape: shape }
-                additional_systematics: { taa: 0.07 }
+                additional_systematics: {}
                 table: Table 10
                 combinations:
                   - parameters: { jet_R: "0.2" }
                     index: "1"
+                    additional_systematics: { taa: 0.07, reference: 0.22 }
                   - parameters: { jet_R: "0.3" }
                     index: "2"
+                    additional_systematics: { taa: 0.07, reference: 0.20 }
                   - parameters: { jet_R: "0.4" }
                     index: "3"
+                    additional_systematics: { taa: 0.07, reference: 0.18 }
 
 #------------------------------------------------------------------
 # Hadron triggered charged-particle jet observables

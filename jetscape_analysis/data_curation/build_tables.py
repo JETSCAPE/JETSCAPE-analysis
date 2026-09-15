@@ -406,6 +406,21 @@ def _effective_pt_window(obs: observable.Observable, params: dict[str, Any]) -> 
     return _analyzer_pt_window(obs)
 
 
+def _additional_fractions(name: str, value: Any) -> tuple[float, float]:
+    """Normalise an ``additional_systematics`` value to ``(low_frac, high_frac)``.
+
+    A scalar is symmetric. A two-element list is ``[low, high]`` = ``[minus, plus]`` (HEPData
+    asymerror orientation), e.g. STAR ins619063's ``Bands: <Nbin>[1.0+0.18-0.20]`` is ``[0.20, 0.18]``.
+    """
+    if isinstance(value, (list, tuple)):
+        if len(value) != 2:
+            msg = f"additional_systematics '{name}': expected a scalar or [low, high], got {value!r}"
+            raise ValueError(msg)
+        return abs(float(value[0])), abs(float(value[1]))
+    frac = abs(float(value))
+    return frac, frac
+
+
 def _systematic_column_prefix(canonical: str) -> str:
     """Return the column-name prefix for a systematic source.
 
@@ -509,7 +524,7 @@ def write_data_table(  # noqa: C901
     table_name: str = entry["table"]
     table_index: str = str(entry["index"])
     systematics_names: dict[str, str] = entry.get("systematics_names") or {}
-    additional_syst: dict[str, float] = entry.get("additional_systematics") or {}
+    additional_syst: dict[str, float | list[float]] = entry.get("additional_systematics") or {}
     params: dict[str, Any] = entry.get("parameters") or {}
 
     # Locate the HEPData YAML file
@@ -542,7 +557,11 @@ def write_data_table(  # noqa: C901
             stat_label = hep_label
             continue
         per_bin_syst_cols.append((hep_label, canonical))
-    additional_cols: list[tuple[str, float]] = list(additional_syst.items())
+    # Each value is a symmetric fraction, or a ``[low, high]`` pair of fractions (= [minus, plus],
+    # the same orientation as HEPData asymerror and as the ``,low`` / ``,high`` output columns).
+    additional_cols: list[tuple[str, tuple[float, float]]] = [
+        (name, _additional_fractions(name, value)) for name, value in additional_syst.items()
+    ]
 
     # Determine filename components
     cent = _find_centrality(params)
@@ -644,10 +663,9 @@ def write_data_table(  # noqa: C901
                     lo, hi = 0.0, 0.0
                 row += [_format_number(lo), _format_number(hi)]
 
-            # Additional systematics (global, constant across bins) - frac * |y|
-            for _, frac in additional_cols:
-                abs_err = abs(y) * float(frac)
-                row += [_format_number(abs_err), _format_number(abs_err)]
+            # Additional systematics (global, constant across bins) - frac * |y|, per side
+            for _, (frac_lo, frac_hi) in additional_cols:
+                row += [_format_number(abs(y) * frac_lo), _format_number(abs(y) * frac_hi)]
 
             f.write(" ".join(row) + "\n")
             n_written += 1
