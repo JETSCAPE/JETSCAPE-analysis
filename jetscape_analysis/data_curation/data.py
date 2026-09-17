@@ -167,7 +167,7 @@ class HEPDataEntry:
     table: str
     table_index: int
     systematics_names: dict[str, str]
-    additional_systematics_values: dict[str, float]
+    additional_systematics_values: dict[str, float | list[float]]  # scalar = symmetric fraction; [low, high] = asymmetric
 
     @classmethod
     def from_flat_config(cls, entry: Config) -> HEPDataEntry:

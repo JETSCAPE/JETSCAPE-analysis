@@ -11,6 +11,12 @@ Output follows the JetScape data-file format specification v1.0 (Note 1423):
     <xmin> <xmax> <y> <stat_lo> <stat_hi> ...
 
 Only AA/ratio (RAA) blocks are written.  One output file per (centrality, jet_R) combination.
+
+Rows: for pT-differential R_AA observables (hadron/pt_*, inclusive_jet/pt, inclusive_chjet/pt) only the HEPData
+bins overlapping the analyzer's pT window are written -- an explicit ``pt`` combination parameter if present,
+otherwise the observable's own ``hadron.pt`` / ``jet.pt`` window. This is the same row set the prediction tables
+carry (their leading empty bins are stripped and they have no x columns), and downstream consumers align data to
+prediction rows positionally, so the curated table must carry the same rows at every energy.
 Each table is written twice, with identical content, under two filename conventions:
   1. legacy:     Data_{exp}_{system}_{measurement}_{cent}_{year}.dat
   2. structured: Data__{sqrts}__{system}__{class}__{obs}_{exp}__{jet_cfg}__{cent}.dat
@@ -90,6 +96,9 @@ _DISCRIMINATOR_KEYS: tuple[str, ...] = (
     "jet_grooming_settings",
     "jet_angularity",
     "jet_charge",
+    # Jet-axis definition (WTA / SD-groomed variants): without it the three axis_alice variants of one
+    # (R, pt) cell resolve to one filename and silently overwrite each other (last write wins).
+    "jet_axis",
     # Synthetic, set by _collapse_shared_columns when one published column IS a ratio between
     # jet radii rather than a per-radius measurement (e.g. STAR IAA_pt_star Table 38).
     "jet_R_ratio",
@@ -356,6 +365,62 @@ def _find_pt_selection(combo: dict[str, Any]) -> observable.PtSpec | None:
     return None
 
 
+# pT-differential R_AA observables whose HEPData independent variable IS the analyzer's pT axis, keyed like
+# _MEASUREMENT_TAG, mapped to the config section that declares the analyzer window (``<section>.pt: [lo, hi]``).
+# Everything else (substructure, fragmentation, semi-inclusive) is never windowed by this fallback.
+_PT_WINDOW_SECTION: dict[str, str] = {
+    "hadron/pt_ch": "hadron",
+    "hadron/pt_pi": "hadron",
+    "hadron/pt_pi0": "hadron",
+    "inclusive_jet/pt": "jet",
+    "inclusive_chjet/pt": "jet",
+}
+
+
+def _analyzer_pt_window(obs: observable.Observable) -> observable.PtSpec | None:
+    """The analyzer's pT fill window for a pT-differential R_AA observable, or None."""
+    section = _PT_WINDOW_SECTION.get(f"{obs.observable_class}/{obs.internal_name_without_experiment}")
+    if section is None:
+        return None
+    block = obs.config.get(section)
+    if not isinstance(block, dict):
+        return None
+    pt = block.get("pt")
+    if not (isinstance(pt, list) and len(pt) == 2):
+        return None
+    return observable.PtSpec(low=float(pt[0]), high=None if pt[1] is None else float(pt[1]))
+
+
+def _effective_pt_window(obs: observable.Observable, params: dict[str, Any]) -> observable.PtSpec | None:
+    """Row window for a ratio entry: an explicit ``pt`` combination parameter wins; otherwise, for
+    pT-differential R_AA observables, the analyzer window (see _PT_WINDOW_SECTION).
+
+    Rationale: prediction tables carry exactly the HEPData bins overlapping the analyzer window (the
+    aggregation writer strips leading empty bins and writes no x columns) and consumers align data rows to
+    prediction rows positionally. Before this fallback the 2.76 TeV hadron configs windowed explicitly
+    (7 of 39 ALICE bins) while their 5.02 TeV siblings did not (all 39), from the same HEPData record.
+    """
+    explicit = _find_pt_range(params)
+    if explicit is not None:
+        return explicit
+    return _analyzer_pt_window(obs)
+
+
+def _additional_fractions(name: str, value: Any) -> tuple[float, float]:
+    """Normalise an ``additional_systematics`` value to ``(low_frac, high_frac)``.
+
+    A scalar is symmetric. A two-element list is ``[low, high]`` = ``[minus, plus]`` (HEPData
+    asymerror orientation), e.g. STAR ins619063's ``Bands: <Nbin>[1.0+0.18-0.20]`` is ``[0.20, 0.18]``.
+    """
+    if isinstance(value, (list, tuple)):
+        if len(value) != 2:
+            msg = f"additional_systematics '{name}': expected a scalar or [low, high], got {value!r}"
+            raise ValueError(msg)
+        return abs(float(value[0])), abs(float(value[1]))
+    frac = abs(float(value))
+    return frac, frac
+
+
 def _systematic_column_prefix(canonical: str) -> str:
     """Return the column-name prefix for a systematic source.
 
@@ -459,7 +524,7 @@ def write_data_table(  # noqa: C901
     table_name: str = entry["table"]
     table_index: str = str(entry["index"])
     systematics_names: dict[str, str] = entry.get("systematics_names") or {}
-    additional_syst: dict[str, float] = entry.get("additional_systematics") or {}
+    additional_syst: dict[str, float | list[float]] = entry.get("additional_systematics") or {}
     params: dict[str, Any] = entry.get("parameters") or {}
 
     # Locate the HEPData YAML file
@@ -492,7 +557,11 @@ def write_data_table(  # noqa: C901
             stat_label = hep_label
             continue
         per_bin_syst_cols.append((hep_label, canonical))
-    additional_cols: list[tuple[str, float]] = list(additional_syst.items())
+    # Each value is a symmetric fraction, or a ``[low, high]`` pair of fractions (= [minus, plus],
+    # the same orientation as HEPData asymerror and as the ``,low`` / ``,high`` output columns).
+    additional_cols: list[tuple[str, tuple[float, float]]] = [
+        (name, _additional_fractions(name, value)) for name, value in additional_syst.items()
+    ]
 
     # Determine filename components
     cent = _find_centrality(params)
@@ -545,8 +614,8 @@ def write_data_table(  # noqa: C901
             header_cols += [f"{prefix},low", f"{prefix},high"]
         f.write("# Label " + " ".join(header_cols) + "\n")
 
-        # pT range filter (if the config entry specifies one)
-        pt_range = _find_pt_range(params)
+        # Row window: explicit `pt` combination parameter, else the analyzer window for pT-differential R_AA
+        pt_range = _effective_pt_window(obs, params)
 
         # Rows
         n_written = 0
@@ -594,10 +663,9 @@ def write_data_table(  # noqa: C901
                     lo, hi = 0.0, 0.0
                 row += [_format_number(lo), _format_number(hi)]
 
-            # Additional systematics (global, constant across bins) - frac * |y|
-            for _, frac in additional_cols:
-                abs_err = abs(y) * float(frac)
-                row += [_format_number(abs_err), _format_number(abs_err)]
+            # Additional systematics (global, constant across bins) - frac * |y|, per side
+            for _, (frac_lo, frac_hi) in additional_cols:
+                row += [_format_number(abs(y) * frac_lo), _format_number(abs(y) * frac_hi)]
 
             f.write(" ".join(row) + "\n")
             n_written += 1
