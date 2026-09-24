@@ -301,7 +301,15 @@ hadron:
               - parameters: {}
                 # HEPData ins1759506 uses literal labels "stat." / "syst." (with trailing period).
                 systematics_names: {"stat.": stat, "syst.": sys}
-                additional_systematics: {}
+                # pp reference normalization: the paper (arXiv:1910.07678, PRC 101 044907)
+                # normalizes the pp spectra to inelastic events with the factor 0.757 whose
+                # uncertainty is 2.51 %; the R_AA figures show the total normalization as a
+                # separate box at R_AA = 1, so it is not in the sys column.  (sigma_INEL
+                # cancels between <T_AA> and the pp per-event yield and is NOT added.)
+                # STILL MISSING: the per-centrality <T_AA> uncertainty. This paper quotes no
+                # <T_AA> values at all (it cites a Glauber calculation); the ALICE 5.02 TeV
+                # centrality tables would be needed. Left out rather than guessed.
+                additional_systematics: { norm: 0.0251 }
                 table: Table 15
                 combinations:
                   - parameters: { centrality: "0_5" }
@@ -1278,35 +1286,53 @@ inclusive_chjet:
             tables:
               - parameters: {}
                 systematics_names: {}
-                additional_systematics: {}
+                # Normalization uncertainties are NOT in the published sys column; the paper
+                # (arXiv:2303.00592, PLB 849 (2024) 138412) prints them separately as the
+                # "Norm." labels of Fig. 3 and as the grey "T_AA normalization uncertainty"
+                # band at R_AA = 1 in Figs. 4-6.  Verified numerically: the record's own
+                # R_AA sys equals quadrature(PbPb sys, pp sys) with NO global term (median
+                # deviation 0.003 %), so nothing global is folded in.
+                # <T_AA> (p. 4): 23.26 +- 0.168, 3.917 +- 0.0645, 0.4188 +- 0.0106 mb^-1 for
+                # 0-10 / 30-50 / 60-80 % -> 0.72 / 1.65 / 2.53 %.  NOTE: the band drawn in the
+                # paper's own Figs. 4-6 measures 2.02 % for 30-50 %, not the 1.65 % implied by
+                # the text; the text value is used here.
+                # pp luminosity 2.1 % ("Norm. 2.1%" on the pp panel of Fig. 3, p. 12), common
+                # to every centrality.
+                additional_systematics: { luminosity: 0.021 }
                 index: "1"
                 combinations:
                   - parameters: { centrality: "0_10", jet_R: "0.2" }
+                    additional_systematics: { luminosity: 0.021, taa: 0.00722 }
                     table: "Figure 4a top ML"
                     systematics_names:
                       {"Raa, R = 0.2, Central, ML, statistical uncertainty": stat,
                        "Raa, R = 0.2, Central, ML, systematic uncertainty": sys}
                   - parameters: { centrality: "0_10", jet_R: "0.4" }
+                    additional_systematics: { luminosity: 0.021, taa: 0.00722 }
                     table: "Figure 4b top ML"
                     systematics_names:
                       {"Raa, R = 0.4, Central, ML, statistical uncertainty": stat,
                        "Raa, R = 0.4, Central, ML, systematic uncertainty": sys}
                   - parameters: { centrality: "0_10", jet_R: "0.6" }
+                    additional_systematics: { luminosity: 0.021, taa: 0.00722 }
                     table: "Figure 4c top ML"
                     systematics_names:
                       {"Raa, R = 0.6, Central, ML, statistical uncertainty": stat,
                        "Raa, R = 0.6, Central, ML, systematic uncertainty": sys}
                   - parameters: { centrality: "30_50", jet_R: "0.2" }
+                    additional_systematics: { luminosity: 0.021, taa: 0.01646 }
                     table: "Figure 4a middle ML"
                     systematics_names:
                       {"Raa, R = 0.2, Semi Central, ML, statistical uncertainty": stat,
                        "Raa, R = 0.2, SemiCentral, ML, systematic uncertainty": sys}
                   - parameters: { centrality: "30_50", jet_R: "0.4" }
+                    additional_systematics: { luminosity: 0.021, taa: 0.01646 }
                     table: "Figure 4b middle ML"
                     systematics_names:
                       {"Raa, R = 0.4, Semi Central, ML, statistical uncertainty": stat,
                        "Raa, R = 0.4, SemiCentral, ML, systematic uncertainty": sys}
                   - parameters: { centrality: "30_50", jet_R: "0.6" }
+                    additional_systematics: { luminosity: 0.021, taa: 0.01646 }
                     table: "Figure 4c middle AB"
                     systematics_names:
                       {"Raa, R = 0.6, Semi Central, AB, statistical uncertainty": stat,
@@ -5071,9 +5097,20 @@ inclusive_jet:
             tables:
               - parameters: { jet_R: [0.4] }
                 systematics_names: { stat: stat, syst: sys }
-                additional_systematics: {}
+                # Normalization uncertainties are NOT in HEPData for this record; the paper
+                # (arXiv:2211.11470, PRC 107 (2023) 054909) states them and says explicitly that
+                # they are not in the published band: the R_AA figure captions (Figs. 10-14) read
+                # "The uncertainties in the pp luminosity (1.6%) and <TAA> are not included, but
+                # are listed in Table 1."  Table 1 (p. 5) gives d<TAA>/<TAA> per centrality:
+                # 0-10% 0.26, 10-30% 1.04, 30-50% 2.73, 50-80% 5.67 %.  The 1.6% is the 2017 pp
+                # integrated-luminosity uncertainty (LUCID-2, p. 12); it is common to all
+                # centralities and so is set on the shared entry below.
+                # NOTE: this analysis uses the 2018 Pb+Pb sample, whose <TAA> uncertainties are
+                # much smaller than the 2015-sample values used by pt_atlas / Dz_atlas (~1.4-2%).
+                additional_systematics: { luminosity: 0.016 }
                 combinations:
                   - parameters: { centrality: "0_10" }
+                    additional_systematics: { luminosity: 0.016, taa: 0.0026 }
                     table: Table 18
                     combinations:
                       - parameters: { jet_pt: "158.0_200.0" }
@@ -5083,6 +5120,7 @@ inclusive_jet:
                       - parameters: { jet_pt: "315.0_501.0" }
                         index: "4"
                   - parameters: { centrality: "10_30" }
+                    additional_systematics: { luminosity: 0.016, taa: 0.0104 }
                     table: Table 17
                     combinations:
                       - parameters: { jet_pt: "158.0_200.0" }
@@ -5092,6 +5130,7 @@ inclusive_jet:
                       - parameters: { jet_pt: "315.0_501.0" }
                         index: "4"
                   - parameters: { centrality: "30_50" }
+                    additional_systematics: { luminosity: 0.016, taa: 0.0273 }
                     table: Table 16
                     combinations:
                       - parameters: { jet_pt: "158.0_200.0" }
@@ -5101,6 +5140,7 @@ inclusive_jet:
                       - parameters: { jet_pt: "315.0_501.0" }
                         index: "4"
                   - parameters: { centrality: "50_80" }
+                    additional_systematics: { luminosity: 0.016, taa: 0.0567 }
                     table: Table 15
                     combinations:
                       - parameters: { jet_pt: "158.0_200.0" }
