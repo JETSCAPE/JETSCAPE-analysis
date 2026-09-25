@@ -541,6 +541,22 @@ def write_data_table(  # noqa: C901
     has_bin_edges = all(
         ("low" in b and "high" in b and b.get("low") is not None and b.get("high") is not None) for b in ind["values"]
     )
+    # Some HEPData records store the bin edges the wrong way round (low > high) -- e.g.
+    # ins1673184 Table 27 (ATLAS jet R_AA vs |y|) has {'low': 0.8, 'high': 0.3}, and the CMS
+    # jet-charge record does the same for every bin. Copying them verbatim produces tables
+    # with xmin > xmax, which silently breaks any consumer that assumes ascending edges.
+    # Normalise here rather than in the configs, since it is a defect of the upload.
+    if has_bin_edges:
+        n_swapped = 0
+        for b in ind["values"]:
+            if float(b["low"]) > float(b["high"]):
+                b["low"], b["high"] = b["high"], b["low"]
+                n_swapped += 1
+        if n_swapped:
+            logger.warning(
+                f"{obs.observable_str} {table_name}: HEPData stores low > high for "
+                f"{n_swapped}/{len(ind['values'])} bins; swapping to get ascending edges."
+            )
 
     # Dependent variable (select by index, 1-based per HEPData convention)
     try:

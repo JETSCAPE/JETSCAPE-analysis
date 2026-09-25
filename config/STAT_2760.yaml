@@ -299,16 +299,31 @@ hadron:
             tables:
               - parameters: { pt: 5.0_20.0, eta: "0.8" }
                 systematics_names: {stat: stat, sys: sys}
+                # <T_AA> uncertainty is NOT in the sys column and must be added per centrality.
+                # This paper (arXiv:1506.07287, PRC 93 034913) quotes no <T_AA> uncertainty of
+                # its own; it cites the ALICE centrality paper (arXiv:1301.4361, PRC 88 044909),
+                # whose Table 1 tabulates <T_AA> +- (sys.) for exactly these classes ->
+                # 0-5 % 3.23, 5-10 % 3.26, 10-20 % 3.13, 20-40 % 3.36 %.
+                # The 1.9 % pp-reference normalization is deliberately NOT added: a quadrature
+                # reconstruction of the published sys from the paper's own Table 2 (pT = 10
+                # GeV/c column, 12 pion+kaon bins, rms residual 0.02 pp) shows a flat
+                # centrality-independent global of 4.63 % = 4.2 % (efficiency) (+) 1.9 % (pp
+                # norm) ALREADY inside it, while the centrality-dependent <T_AA> term is
+                # demonstrably absent (folding it in destroys the reconstruction).
                 additional_systematics: {}
                 index: "1"
                 combinations:
                   - parameters: { centrality: "0_5" }
+                    additional_systematics: { taa: 0.0323 }
                     table: Table 7
                   - parameters: { centrality: "5_10" }
+                    additional_systematics: { taa: 0.0326 }
                     table: Table 8
                   - parameters: { centrality: "10_20" }
+                    additional_systematics: { taa: 0.0313 }
                     table: Table 9
                   - parameters: { centrality: "20_40" }
+                    additional_systematics: { taa: 0.0336 }
                     table: Table 10
 
   # ALICE neutral pion RAA
@@ -401,12 +416,25 @@ hadron:
             tables:
               - parameters: { pt: 5.0_20.0, eta: "0.7" }
                 systematics_names: {stat: stat, sys: sys}
+                # The HEPData table descriptions claim "T_AA uncertainty of 3.25% and
+                # uncertainty of sigma_inel of 3.9% included in systematic uncertainties".
+                # That claim is WRONG. Measuring the paper's own figures (arXiv:1803.05490,
+                # PRC 98 044901, Figs. 4/5/8) shows the per-point boxes equal the HEPData sys
+                # column exactly (ratio 1.00000 for all 30 points, three figures, three axis
+                # scales), while a SEPARATE box is drawn at R_AA = 1 with half-height 7.735 %
+                # (0-10 %) and 8.033 % (20-50 %). Caption p. 11: "The boxes around unity
+                # represent quadratic sum of the uncertainty on <TAA> and on the pp spectrum
+                # normalization uncertainty."  Decomposition: 7.735 = quad(3.25, 7.02) and
+                # 8.033 = quad(3.91, 7.02) -- one common pp-normalization term of 7.02 % plus a
+                # per-class <T_AA> term. Curated as a single 'norm' per class.
                 additional_systematics: {}
                 index: "1"
                 combinations:
                   - parameters: { centrality: "0_10" }
+                    additional_systematics: { norm: 0.07735 }
                     table: Table 5
                   - parameters: { centrality: "20_50" }
+                    additional_systematics: { norm: 0.08033 }
                     table: Table 6
 
   # ATLAS charged hadron RAA
@@ -632,14 +660,26 @@ hadron:
             tables:
               - parameters: { pt: 6.0_100.0, eta: "1.0" }
                 systematics_names: {stat: stat, sys: sys}
-                additional_systematics: {}
+                # Normalization uncertainties are NOT in the HEPData sys column; the paper
+                # (arXiv:1202.2554, EPJC 72 (2012) 1945) shows them separately as a band around
+                # unity: "An additional systematic uncertainty from the TAA normalization is
+                # shown as a grey band around unity" (Sec. 5).  Table 2 (p. 7) lists them as
+                # separate rows, "TAA determination 4.1-18.0" and "Luminosity ... 6.0",
+                # excluded from the "Total for pT spectra" that the sys column carries.
+                # Per-centrality d<TAA>/<TAA> from Table 1 (p. 4): 0-5% 1.06/25.9 = 4.1%,
+                # 5-10% 0.94/20.5 = 4.6%, 10-30% 0.67/11.6 = 5.8% (30-50% would be 9.4%).
+                # The 6.0% pp luminosity is common to all centralities.
+                additional_systematics: { luminosity: 0.06 }
                 table: Table 5
                 combinations:
                   - parameters: { centrality: "0_5" }
+                    additional_systematics: { luminosity: 0.06, taa: 0.041 }
                     index: "1"
                   - parameters: { centrality: "5_10" }
+                    additional_systematics: { luminosity: 0.06, taa: 0.046 }
                     index: "2"
                   - parameters: { centrality: "10_30" }
+                    additional_systematics: { luminosity: 0.06, taa: 0.058 }
                     index: "3"
 
 #------------------------------------------------------------------
