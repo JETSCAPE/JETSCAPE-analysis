@@ -5153,7 +5153,7 @@ inclusive_jet:
   # ATLAS d_12
   # TODO: Update
   d12_atlas:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/2909617
       hepdata: N/A
@@ -5276,7 +5276,7 @@ inclusive_jet:
                 index: "1"
 
   dR12_atlas:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/2909617
       hepdata: N/A
