@@ -63,6 +63,9 @@ ENCODER_MIGRATED_JET_OBSERVABLES = {
     # (data block keyed by jet_angularity: alpha_X_kappa_1.0).
     ("inclusive_chjet", "angularity_alice"),
     ("inclusive_chjet", "angularity_groomed_alice"),
+    # ATLAS large-R (R=0.2 reclustered to R=1.0) jet substructure: a single jet pt bin, so only jet_R is encoded.
+    ("inclusive_jet", "d12_atlas"),
+    ("inclusive_jet", "dR12_atlas"),
 }
 
 

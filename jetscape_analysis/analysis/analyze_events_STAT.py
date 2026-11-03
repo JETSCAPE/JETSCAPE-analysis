@@ -1744,6 +1744,14 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         R_large = block["jet"]["R_reclustered"][0]
         pt_min, pt_max = block["jet"]["pt"][0], block["jet"]["pt"][-1]
         eta_max = block["jet"]["eta"]
+        # Encoder-based storage names. The jet pt range is a single (non-essential) bin, so only jet_R is encoded.
+        column_names = {
+            name: self.observables_info[f"{self.sqrts}_inclusive_jet_{name}"].encode_name_for_storing_in_file(
+                jet_R=observable.JetRSpec(jetR), tag=jet_collection_label
+            )
+            for name, measure in (("d12_atlas", measure_d12), ("dR12_atlas", measure_dR12))
+            if measure
+        }
 
         # Selections fixed by the measurement (arXiv:2504.04805, Sec. 4-5)
         small_R_jet_pt_min = 35.0
@@ -1832,11 +1840,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
             pt_softer, dR12 = splitting
             if measure_d12:
-                self.observable_dict_event[f"inclusive_jet_d12_atlas_R{jetR}{jet_collection_label}"].append(
-                    pt_softer * dR12
-                )
+                self.observable_dict_event[column_names["d12_atlas"]].append(pt_softer * dR12)
             if measure_dR12:
-                self.observable_dict_event[f"inclusive_jet_dR12_atlas_R{jetR}{jet_collection_label}"].append(dR12)
+                self.observable_dict_event[column_names["dR12_atlas"]].append(dR12)
 
     def fill_full_jet_groomed_observables(
         self,
