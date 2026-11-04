@@ -1156,16 +1156,23 @@ def main():  # noqa: C901
             header += f"- Design points for {parameterization} PDF\n"
             parameters = " ".join(df.keys())
             header += f"Parameter {parameters}\n"
-            header += "- Parameter AlphaS: Linear [0.1, 0.5]\n"
-            header += "- Parameter Q0: Linear [1, 10]\n"
-            header += "- Parameter C1: Log [0.006737946999085467, 10]\n"
-            header += "- Parameter C2: Log [0.006737946999085467, 10]\n"
-            header += "- Parameter Tau0: Linear [0.0, 1.5]\n"
-            if parameterization == "binomial":
-                header += "- Parameter A: Linear [-10, 100]\n"
-                header += "- Parameter B: Linear [-10, 100]\n"
-            elif parameterization == "exponential":
-                header += "- Parameter C3: Log [0.049787068367863944, 100]\n"
+            if model_name == "hybrid":
+                # Ranges as recorded (including their open questions) in the design point file,
+                # Lres-E-loss-sandbox-2026-03.dat (raymondEhlers/mammoth, projects/hybrid_model/design_points).
+                # NOTE: These still need to be confirmed by the hybrid model authors.
+                header += "- Parameter L_res: Linear [0, inf], recorded as `value / (pi * T)` ? (transformed from linear [0, 1] by tanh^3(x)?)\n"
+                header += "- Parameter kappa_sc: Linear [0.3, 0.6] ? (transformed from linear [0, 1])\n"
+            else:
+                header += "- Parameter AlphaS: Linear [0.1, 0.5]\n"
+                header += "- Parameter Q0: Linear [1, 10]\n"
+                header += "- Parameter C1: Log [0.006737946999085467, 10]\n"
+                header += "- Parameter C2: Log [0.006737946999085467, 10]\n"
+                header += "- Parameter Tau0: Linear [0.0, 1.5]\n"
+                if parameterization == "binomial":
+                    header += "- Parameter A: Linear [-10, 100]\n"
+                    header += "- Parameter B: Linear [-10, 100]\n"
+                elif parameterization == "exponential":
+                    header += "- Parameter C3: Log [0.049787068367863944, 100]\n"
             indices = " ".join([str(i) for i in df.index])
             header += f"Design point indices (row index): {indices}"
             np.savetxt(filename, df.values, header=header)

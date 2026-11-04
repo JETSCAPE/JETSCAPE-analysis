@@ -4165,7 +4165,7 @@ def main_entry_point() -> None:
         required=False,
         metavar="model_name",
         default="",
-        help="Name of the model which we are analyzing. Default: '', which uses autodetection, using jetscape if it can't be identified.",
+        help="Name of the model which we are analyzing. Default: '', which autodetects the model from the input filename (an error if it can't be identified).",
     )
 
     # Parse the arguments
