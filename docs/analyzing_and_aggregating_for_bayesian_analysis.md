@@ -272,7 +272,7 @@ We'll use a consistent example as we work through the tasks below.
 
 The physics model (sometimes called the forward model) should be run at the specified model parameters. The output of the physics model is an ASCII file containing final state hadrons. To say just a few words on expectations:
 
-- There is functionality built into the JETSCAPE STAT .sif container to handle generation of JETSCAPE events. A bit more info on those containers can be [found here](https://github.com/JETSCAPE/JETSCAPE-analysis/blob/dev-stat-observables/docs/getting_started.md#containers). However, full instructions on using it is beyond the scope of this guide.
+- There is functionality built into the JETSCAPE STAT .sif container to handle generation of JETSCAPE events. A bit more info on those containers can be [found here](getting_started.md#containers). However, full instructions on using it is beyond the scope of this guide.
 - For the hybrid model, we leave this to you to generate.
 
 As noted above, you should generate run_info files when you're running each simulation to track how it was run. The files should be created per the described specification described.
@@ -331,7 +331,7 @@ Next, we need process the parquet files into observables. This happens in two st
 The final output is three files: the observable skim (parquet), the cross section and other event quantities (parquet), and the processed histogram (root). This process is fairly involved, and since this guide is focused on running the analysis, we'll skip over the details.
 
 > [!note]
-> If you want to learn more about implementing observables in jetscape-analysis, see [docs/getting_started.md](https://github.com/JETSCAPE/JETSCAPE-analysis/blob/dev-stat-observables/docs/getting_started.md) in the jetscape-analysis repository. (n.b. you may need to be in the dev-stat-observables branch to find it).
+> If you want to learn more about implementing observables in jetscape-analysis, see [docs/getting_started.md](getting_started.md) in the jetscape-analysis repository.
 
 To run the analysis for a single output, use the container app called `post-processing`. We can see the options by asking for the app help:
 
@@ -370,7 +370,7 @@ Using the slurm job generate script below, you can submit the conversion via: `s
 
 ### Running slurm jobs
 
-Above, we discussed a number of tasks that need to be run through slurm jobs. These tasks are substantially easier to run using the STAT container ([see further details](https://github.com/JETSCAPE/JETSCAPE-analysis/blob/dev-stat-observables/docs/getting_started.md#run-the-analysis)). Nonetheless, you need to configure a number of job scripts for the various tasks. To ease this process, RJE wrote a helper script to generate job scripts for selections of runs and job indices.
+Above, we discussed a number of tasks that need to be run through slurm jobs. These tasks are substantially easier to run using the STAT container ([see further details](getting_started.md#run-the-analysis)). Nonetheless, you need to configure a number of job scripts for the various tasks. To ease this process, RJE wrote a helper script to generate job scripts for selections of runs and job indices.
 
 The slurm job scripts can be generated using this script: [generate_job_scripts.py](https://github.com/raymondEhlers/mammoth/blob/main/projects/hybrid_model/uk_cambridge/generate_job_scripts.py). It requires python 3.10+, but otherwise should not need additional dependencies. It will generate scripts for output conversion and analysis.
 
