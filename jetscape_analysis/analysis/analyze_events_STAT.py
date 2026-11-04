@@ -665,6 +665,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     hadrons_for_jet_finding,
                     hadrons_negative,
                     pid_hadrons_positive,
+                    pid_hadrons_negative,
                     jetR,
                     jet_collection_label=jet_collection_label,
                 )
@@ -1706,6 +1707,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         hadrons_for_jet_finding: PseudoJetVector,
         hadrons_negative: PseudoJetVector,
         pid_hadrons_positive: npt.NDArray[np.int32],
+        pid_hadrons_negative: npt.NDArray[np.int32],
         jetR: float,
         jet_collection_label: str = "",
     ) -> None:
@@ -1726,7 +1728,10 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         Hole treatment:
           - For shower_recoil case, correct the pt only: subtract the holes within R of each R=0.2 jet,
             both for the R=0.2 jet pt cut and (each hole counted once) for the large-R jet pt
-          - For negative_recombiner case, the R=0.2 jet pt already includes the holes; holes are never tracks
+          - For negative_recombiner case, the R=0.2 jet pt already includes the holes. Holes passing the track
+            selection are negative tracks: they are subtracted in the sum pT(tracks) and in the kT reclustering
+            (with the negative recombiner, as for the C/A reclustering of groomed observables), and a net-negative
+            branch is not a prong, so the declustering skips it and follows the other branch
           - For constituent_subtraction case, no subtraction is needed
         """
         measure_d12 = self.measure_observable_for_current_event(
@@ -1778,17 +1783,31 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         if not small_R_jets:
             return
 
-        # Charged particles ("tracks"). Positive status only: holes are never tracks, and the user_index of a
-        # hole indexes pid_hadrons_negative, not pid_hadrons_positive.
+        # Charged particles ("tracks"). Holes are only included (as negative tracks) in the negative_recombiner
+        # case. user_index = +/-(i+1) indexes pid_hadrons_positive for particles, pid_hadrons_negative for holes.
+        negative_recombiner = jet_collection_label in ["_negative_recombiner"]
         acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
         tracks = [
             hadron
             for hadron in hadrons_for_jet_finding
-            if hadron.user_index() > 0
+            if (hadron.user_index() > 0 or negative_recombiner)
             and hadron.pt() > track_pt_min
             and abs(hadron.eta()) < track_eta_max
-            and abs(pid_hadrons_positive[hadron.user_index() - 1]) in acceptable_hadrons
+            and abs(
+                (pid_hadrons_positive if hadron.user_index() > 0 else pid_hadrons_negative)[
+                    abs(hadron.user_index()) - 1
+                ]
+            )
+            in acceptable_hadrons
         ]
+
+        # kT reclustering of the tracks. For negative_recombiner case, the recombiner subtracts the holes. Its
+        # argument (-1) is the user_index given to a net-negative cluster, so that it is subtracted again further
+        # up the tree (the default, 0, would add it).
+        kt_def = fj.JetDefinition(fj.kt_algorithm, kt_R)
+        if negative_recombiner:
+            recombiner = fjext.NegativeEnergyRecombiner(-1)
+            kt_def.set_recombiner(recombiner)
 
         # Recluster the R=0.2 jets with anti-kT R=1.0, with the tracks as ghosts.
         # user_index: -(i+1) for the i-th R=0.2 jet, i for the i-th track.
@@ -1817,19 +1836,28 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 continue
 
             jet_tracks = [tracks[c.user_index()] for c in constituents if c.user_index() >= 0]
-            if len(jet_tracks) < 2 or sum(t.pt() for t in jet_tracks) <= track_to_jet_pt_ratio_min * jet_large_pt:
+            tracks_pt = sum(t.pt() if t.user_index() > 0 else -t.pt() for t in jet_tracks)
+            if len(jet_tracks) < 2 or tracks_pt <= track_to_jet_pt_ratio_min * jet_large_pt:
                 continue
 
             # kT reclustering of the tracks, then Soft Drop declustering along the harder branch.
             # NOTE: the fastjet SWIG binding has no parents(); has_parents() fills the two output PseudoJets.
-            cs_kt = fj.ClusterSequence(jet_tracks, fj.JetDefinition(fj.kt_algorithm, kt_R))
+            cs_kt = fj.ClusterSequence(jet_tracks, kt_def)
             current = fj.sorted_by_pt(cs_kt.inclusive_jets())[0]
+            # NOTE: Only the negative recombiner sets the user_index of a cluster by its sign (the default
+            #       recombiner leaves it at -1), so the sign checks are restricted to negative_recombiner case.
+            if negative_recombiner and current.user_index() < 0:
+                continue
             splitting = None
             while True:
                 parent1 = fj.PseudoJet()
                 parent2 = fj.PseudoJet()
                 if not current.has_parents(parent1, parent2):
                     break
+                # A net-negative branch is not a prong: skip it
+                if negative_recombiner and (parent1.user_index() < 0 or parent2.user_index() < 0):
+                    current = parent2 if parent1.user_index() < 0 else parent1
+                    continue
                 pt1, pt2 = parent1.pt(), parent2.pt()
                 if min(pt1, pt2) / (pt1 + pt2) > z_cut:
                     splitting = (min(pt1, pt2), parent1.delta_R(parent2))
