@@ -661,7 +661,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             # Large-radius jets reclustered from all R=0.2 jets in the event (ATLAS d_12 / dR_12)
             if self.inclusive_jet_observables:
                 self.fill_large_radius_jet_observables(
-                    jets,
+                    jet_def,
                     hadrons_for_jet_finding,
                     hadrons_negative,
                     pid_hadrons_positive,
@@ -1703,7 +1703,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     def fill_large_radius_jet_observables(  # noqa: C901
         self,
-        jets: PseudoJetVector,
+        jet_def: fj.JetDefinition,
         hadrons_for_jet_finding: PseudoJetVector,
         hadrons_negative: PseudoJetVector,
         pid_hadrons_positive: npt.NDArray[np.int32],
@@ -1715,6 +1715,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         This is an event-level fill: a large-radius jet is built from ALL R=0.2 jets in the event, so it
         cannot be measured from one R=0.2 jet at a time.
+          0. As for the measurement's particle-level jets, the R=0.2 jets are found (with jet_def, as the other
+             jets) from all particles except muons and neutrinos, which leave no significant energy in the
+             calorimeter. Muons are still tracks.
           1. R=0.2 jets with pT > 35 GeV and |eta| < 3.0 are reclustered with anti-kT R=1.0. Charged
              particles with pT > 4 GeV are ghost-associated to the large-R jets in the same clustering.
           2. Large-R jets: pT in the configured range, |eta| < 1.3, sum pT(tracks) / pT(jet) > 0.2.
@@ -1726,8 +1729,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
              [jet_pt, value] pairs when there is only one pT bin).
 
         Hole treatment:
-          - For shower_recoil case, correct the pt only: subtract the holes within R of each R=0.2 jet,
-            both for the R=0.2 jet pt cut and (each hole counted once) for the large-R jet pt
+          - For shower_recoil case, correct the pt only: subtract the holes within R of each R=0.2 jet (except
+            muons and neutrinos, as for the jets), both for the R=0.2 jet pt cut and (each hole counted once)
+            for the large-R jet pt
           - For negative_recombiner case, the R=0.2 jet pt already includes the holes. Holes passing the track
             selection are negative tracks: they are subtracted in the sum pT(tracks) and in the kT reclustering
             (with the negative recombiner, as for the C/A reclustering of groomed observables), and a net-negative
@@ -1768,23 +1772,36 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         z_cut = 0.15
         ghost_pt = 1.0e-9  # 1 eV, as in ATLAS
 
-        # R=0.2 jets (pt corrected for holes in the shower_recoil case)
+        def pid(hadron: PseudoJet) -> int:
+            # user_index = +/-(i+1) indexes pid_hadrons_positive for particles, pid_hadrons_negative for holes
+            pids = pid_hadrons_positive if hadron.user_index() > 0 else pid_hadrons_negative
+            return abs(pids[abs(hadron.user_index()) - 1])
+
+        # R=0.2 jets, without muons and neutrinos (pt corrected for holes in the shower_recoil case)
+        muons_and_neutrinos = [12, 13, 14, 16]
+        cs_small_R = fj.ClusterSequence(
+            [hadron for hadron in hadrons_for_jet_finding if pid(hadron) not in muons_and_neutrinos], jet_def
+        )
         small_R_jets = []
         holes_per_small_R_jet = []
-        for jet in jets:
+        for jet in fj.sorted_by_pt(cs_small_R.inclusive_jets()):
             if abs(jet.eta()) >= small_R_jet_eta_max:
                 continue
             holes = set()
             if jet_collection_label in ["_shower_recoil"]:
-                holes = {i for i, hole in enumerate(hadrons_negative) if jet.delta_R(hole) < jetR}
+                holes = {
+                    i
+                    for i, hole in enumerate(hadrons_negative)
+                    if pid(hole) not in muons_and_neutrinos and jet.delta_R(hole) < jetR
+                }
             if jet.pt() - sum(hadrons_negative[i].pt() for i in holes) > small_R_jet_pt_min:
                 small_R_jets.append(jet)
                 holes_per_small_R_jet.append(holes)
         if not small_R_jets:
             return
 
-        # Charged particles ("tracks"). Holes are only included (as negative tracks) in the negative_recombiner
-        # case. user_index = +/-(i+1) indexes pid_hadrons_positive for particles, pid_hadrons_negative for holes.
+        # Charged particles ("tracks"), muons included. Holes are only included (as negative tracks) in the
+        # negative_recombiner case.
         negative_recombiner = jet_collection_label in ["_negative_recombiner"]
         acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
         tracks = [
@@ -1793,12 +1810,7 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
             if (hadron.user_index() > 0 or negative_recombiner)
             and hadron.pt() > track_pt_min
             and abs(hadron.eta()) < track_eta_max
-            and abs(
-                (pid_hadrons_positive if hadron.user_index() > 0 else pid_hadrons_negative)[
-                    abs(hadron.user_index()) - 1
-                ]
-            )
-            in acceptable_hadrons
+            and pid(hadron) in acceptable_hadrons
         ]
 
         # kT reclustering of the tracks. For negative_recombiner case, the recombiner subtracts the holes. Its
