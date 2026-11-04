@@ -269,6 +269,12 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
                 }
                 self.output_event_list.append(stub)
 
+            # Retain source identities even for empty events; covariance sidecars
+            # must align actual events, not just accepted jets or event counts.
+            self.output_event_list[-1].update({
+                key: event[key] for key in ('event_ID', 'vertex_x', 'vertex_y') if key in event
+            })
+
         # Get total cross-section (same for all events at this point), weight sum, and centrality
         self.cross_section_dict['cross_section'] = event['cross_section']
         self.cross_section_dict['cross_section_error'] = event['cross_section_error']
