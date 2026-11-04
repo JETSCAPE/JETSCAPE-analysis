@@ -4183,7 +4183,10 @@ def main_entry_point() -> None:
         raise ValueError(msg)
 
     analysis = AnalyzeJetscapeEvents_STAT(
-        config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir
+        config_file=args.configFile,
+        input_file=args.inputFile,
+        output_dir=args.outputDir,
+        model_name=args.model_name,
     )
     try:
         analysis.analyze_jetscape_events()
