@@ -16,7 +16,15 @@ ENV/
 **/*.stdout
 **/*HTEX.block*
 
-
 .vscode/
 
 .DS_Store
+
+# Linting
+node_modules/
+
+# Data
+skim/
+
+# Claude Code personal per-project settings (not for the team repo)
+.claude/settings.local.json

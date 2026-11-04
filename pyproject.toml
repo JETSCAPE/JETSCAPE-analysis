@@ -24,12 +24,14 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
   "Typing :: Typed",
 ]
 dynamic = ["version"]
 dependencies = [
     "pyyaml >=5.1.2",
+    "ruamel-yaml>=0.19.1",
     "numba >=0.59",
     "h5py >=3.6.0",
     "tqdm >=4.37.0",
@@ -44,18 +46,22 @@ dependencies = [
     "rich>=14.0.0",
     "vector>=1.6.2",
     "polars>=1.31.0",
+    "scipy>=1.15.3",
+    "requests>=2.33.1",
 ]
 
 [project.optional-dependencies]
-covariance = ["scipy >=1.8"]
 dev = [
+    "ipython>=8.39.0",
     "pytest >=6",
     "pytest-cov >=3",
     "pytest-sugar >=1.0.0",
-    "pre-commit >=2.13.0",
+    "pytest-benchmark >=5.1.0",
     "ruff >=0.0.209",
     "mypy >=0.931",
     "pandas-stubs>=2.2.3.250527",
+    "types-PyYAML>=6.0.12.20250516",
+    "streamlit>=1.56.0",
 ]
 
 [project.urls]
@@ -84,7 +90,18 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [[tool.mypy.overrides]]
-module = ["ROOT", "numba", "nox", "scipy.*", "awkward"]
+module = [
+    "awkward",
+    "fastjet",
+    "fjcontrib",
+    "fjext",
+    "nox",
+    "numba",
+    "pyarrow.*",
+    "pyhepmc_ng",
+    "ROOT",
+    "scipy.*",
+]
 ignore_missing_imports = true
 
 [tool.ruff]
@@ -166,3 +183,6 @@ messages_control.disable = [
   "wrong-import-position",
   "logging-fstring-interpolation",  # See above. I use it too much
 ]
+
+[tool.codespell]
+ignore-words-list = "subjet, UE, ptd"

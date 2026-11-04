@@ -2,9 +2,9 @@
 
 This opt-in sidecar reads already reconstructed, per-event scalar observable
 lists. It does not reconstruct an observable, select a collision system, choose
-experimental bins or change event weights. Install the optional `covariance`
-extra for sparse export (`pip install '.[covariance]'`). Collection requires
-NumPy and PyArrow; it does not import ROOT, FastJet or the Bayesian package.
+experimental bins or change event weights. Sparse export uses SciPy, already
+declared by this branch. Collection requires NumPy and PyArrow; it does not
+import ROOT, FastJet or the Bayesian package.
 
 The STAT writer retains `event_ID` and available vertex coordinates on both
 filled and empty-event rows. Old parquet files without identities are rejected;

@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
-
-""" Basic Jetscape analysis code.
+"""Basic Jetscape analysis code.
 
 .. codeauthor:: James Mulligan <james.mulligan@berkeley.edu>, UC Berkeley
-.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
-__all__ = ["analyze_events_base" "analyze_events_base_PHYS" "analyze_events_PHYS" "scale_histograms"]
+__all__ = ["analyze_events_baseanalyze_events_base_PHYSanalyze_events_PHYSscale_histograms"]

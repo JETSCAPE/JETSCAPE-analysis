@@ -1,11 +1,12 @@
+---
 #------------------------------------------------------------------
 # We group observables into blocks according to type of observable
-# for convenience, e.g. {type}: {observable}_{experiment}
+# for convenience, e.g. {observable_class/type}: {observable}_{experiment}
 #
 # For each observable, we include its specific cuts in its block
 #
 # In the analysis code, we will store observables in a dictionary,
-# labeled as: {type}_{observable}_{experiment}_{suffix}
+# labeled as: {observable_class/type}_{observable}_{experiment}_{suffix}
 # For example: hadron_pt_cms
 #              jet_mass_alice_R0.2
 # where the optional suffix is only present when needed.
@@ -61,7 +62,7 @@ max_jet_y: 3.
 
 # If AA, set different options for hole subtraction treatment
 # If pp, defaults will override this: ['']
-jet_collection_labels: ['_shower_recoil', '_negative_recombiner', '_constituent_subtraction']
+jet_collection_labels: ["_shower_recoil", "_negative_recombiner", "_constituent_subtraction"]
 
 # Constituent subtractor, for hole treatment
 constituent_subtractor:
@@ -69,93 +70,304 @@ constituent_subtractor:
   max_eta: 3.
   ghost_area: 0.01
   bge_rho_grid_size: 1.
-thermal_rejection_fraction: 0.33
+
 #------------------------------------------------------------------
+#------------------------------------------------------------------
+
 #------------------------------------------------------------------
 # Hadron spectra
 # Unless otherwise noted: Primary charged particles (w/ mean proper lifetime τ larger than 1 cm/c )
+#------------------------------------------------------------------
 hadron:
-
-  # https://inspirehep.net/literature/1127262
+  # PHENIX pi0 spectra
   # Fig 11
   pt_pi0_phenix:
-    eta_cut: 0.35
-    pt: [5., 20.]
-    centrality: [[0,10], [10,20], [20,30], [30,40], [40,50]]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1127262
+      hepdata: https://www.hepdata.net/record/ins1127262
 
-    hepdata: 'HEPData-ins1127262-v2-root.root'
-    ytitle_pp: '#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]'
-    y_min_pp: 2e-12
-    y_max_pp: 1e-4
-    scale_by: '1/pt'
-    skip_pp: True
+    centrality: [[0, 10], [10, 20], [20, 30], [30, 40], [40, 50]]
+    hadron:
+      pt: [5., 20.]
+      eta: 0.35
 
-    hepdata_AA_dir: 'Figure 11'
-    hepdata_AA_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4', 'Graph1D_y5']
-    hepdata_AA_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4', 'Hist1D_y5']
-    ytitle_AA: '#it{R}_{AA}'
-    y_min_AA: 0.
-    y_max_AA: 2.
+    #hepdata: "HEPData-ins1127262-v2-root.root"
 
-  # https://www.hepdata.net/record/ins619063
-  # Summed yields of pi+-, K+-, p, anti-p
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
+
+    #ytitle_pp: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
+    #y_min_pp: 2e-12
+    #y_max_pp: 1e-4
+    scale_by: "1/pt"
+    # ins1127262 carries no p+p pi0 spectrum (Figure 5 is 11 Au+Au centrality columns,
+    # 0-5% ... 80-93% + 0-93%), so there is no pp reference to bin the R_AA denominator
+    # from -> compare the measured Au+Au distribution (Figure 5) instead of forming R_AA.
+    skip_pp: true
+    skip_AA_ratio: true
+
+    #hepdata_AA_dir: "Figure 11"
+    #hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
+    #hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4", "Hist1D_y5"]
+    #ytitle_AA: "#it{R}_{AA}"
+    #y_min_AA: 0.
+    #y_max_AA: 2.
+
+    #hepdata_AA_distribution_dir: "Figure 5"
+    #hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4", "Graph1D_y5"]
+    #hepdata_AA_distribution_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4", "Hist1D_y5"]
+    #ytitle_AA_distribution: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
+    #y_min_AA_distribution: 2e-10
+    #y_max_AA_distribution: 2e2
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 1127262
+            version: 2
+          spectra:
+            quantity: pt_pi0
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
+              range: ["2e-12", "1e-4"]
+            tables:
+              - parameters: { centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 1127262
+            version: 2
+          spectra:
+            quantity: pt_pi0
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{1}{2#pip_{T}} #frac{d^{2}#it{#sigma}}{d#it{p}_{T}d#it{#eta}} #left[mb GeV^{2}#right]"
+              range: ["2e-10", "2e2"]
+              log: true
+            tables:
+              - parameters: {}
+                systematics_names: { stat: stat, "$p_T$-Corr": correlated }
+                additional_systematics: {}
+                table: Figure 5
+                combinations:
+                  - parameters: { centrality: "0_10" }
+                    index: "1"
+                  - parameters: { centrality: "10_20" }
+                    index: "2"
+                  - parameters: { centrality: "20_30" }
+                    index: "3"
+                  - parameters: { centrality: "30_40" }
+                    index: "4"
+                  - parameters: { centrality: "40_50" }
+                    index: "5"
+          ratio:
+            quantity: pt_pi0
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#it{R}_{AA}"
+              range: [0.0, 2.0]
+              log: true
+            tables:
+              - parameters: {}
+                # PHENIX type-A/B/C: Uncorr (point-to-point, incl. stat) / Corr / Global normalization
+                systematics_names: { "$p_{T}$ Uncorr": uncorrelated, "$p_{T}$ Corr": correlated, Global: norm }
+                additional_systematics: {}
+                table: Figure 11
+                combinations:
+                  - parameters: { centrality: "0_10" }
+                    index: "1"
+                  - parameters: { centrality: "10_20" }
+                    index: "2"
+                  - parameters: { centrality: "20_30" }
+                    index: "3"
+                  - parameters: { centrality: "30_40" }
+                    index: "4"
+                  - parameters: { centrality: "40_50" }
+                    index: "5"
+
+  # STAR summed yields of pi+-, K+-, p, anti-p
   pt_ch_star:
-    eta_cut: 0.5
-    pt: [5., 12.]
-    centrality: [[0,5], [10,20], [20,30], [30,40]]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/619063
+      hepdata: https://www.hepdata.net/record/ins619063
 
-    hepdata: 'HEPData-ins619063-v1-root.root'
-    hepdata_pp_dir: 'Table 1'
-    hepdata_pp_gname: 'Graph1D_y8'
-    ytitle_pp: 'E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]'
-    y_min_pp: 2e-10
-    y_max_pp: 2e2
-    scale_by: '1/pt'
+    centrality: [[0, 5], [10, 20], [20, 30], [30, 40]]
+    hadron:
+      pt: [5., 12.]
+      eta: 0.5
 
-    hepdata_AA_dir: 'Table 3'
-    hepdata_AA_gname: ['Graph1D_y1', 'Graph1D_y2', 'Graph1D_y3', 'Graph1D_y4']
-    hepdata_AA_hname: ['Hist1D_y1', 'Hist1D_y2', 'Hist1D_y3', 'Hist1D_y4']
-    ytitle_AA: '#it{R}_{AA}'
+    #hepdata: "HEPData-ins619063-v1-root.root"
+
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
+
+    #hepdata_pp_dir: "Table 1"
+    #hepdata_pp_gname: "Graph1D_y8"
+    #ytitle_pp: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
+    #y_min_pp: 2e-10
+    #y_max_pp: 2e2
+    scale_by: "1/pt"
+
+    #hepdata_AA_dir: "Table 3"
+    #hepdata_AA_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    #hepdata_AA_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    #ytitle_AA: "#it{R}_{AA}"
+
+    #hepdata_AA_distribution_dir: "Table 1"
+    #hepdata_AA_distribution_gname: ["Graph1D_y1", "Graph1D_y2", "Graph1D_y3", "Graph1D_y4"]
+    #hepdata_AA_distribution_hname: ["Hist1D_y1", "Hist1D_y2", "Hist1D_y3", "Hist1D_y4"]
+    #ytitle_AA_distribution: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
+    #y_min_AA_distribution: 2e-10
+    #y_max_AA_distribution: 2e2
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 619063
+            version: 1
+          spectra:
+            quantity: pt_ch
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
+              range: ["2e-10", "2e2"]
+            tables:
+              - parameters: { centrality: ["0_5", "10_20", "20_30", "30_40"] }
+                # STAR 2003: HEPData publishes only a single combined "sys + stat" column (no split available);
+                # mapped to stat -> treated uncorrelated bin-to-bin (diagonal), avoids imposing false full correlation
+                systematics_names: { "sys + stat": stat }
+                additional_systematics: {}
+                table: Table 1
+                index: "8"
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 619063
+            version: 1
+          spectra:
+            quantity: pt_ch
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "E #frac{d^{3}#it{#sigma}_{ch}}{d^{3}#it{p}} #left[b GeV^{-2}c^{3}#right]"
+              range: ["2e-10", "2e2"]
+              log: true
+            tables:
+              - parameters: {}
+                # STAR 2003: HEPData publishes only a single combined "sys + stat" column (no split available);
+                # mapped to stat -> treated uncorrelated bin-to-bin (diagonal), avoids imposing false full correlation
+                systematics_names: { "sys + stat": stat }
+                additional_systematics: {}
+                table: Table 1
+                combinations:
+                  - parameters: { centrality: "0_5" }
+                    index: "1"
+                  - parameters: { centrality: "10_20" }
+                    index: "2"
+                  - parameters: { centrality: "20_30" }
+                    index: "3"
+                  - parameters: { centrality: "30_40" }
+                    index: "4"
+          ratio:
+            quantity: pt_ch
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#it{R}_{AA}"
+              log: true
+            tables:
+              - parameters: {}
+                # STAR 2003: HEPData publishes only a single combined "sys + stat" column (no split available);
+                # mapped to stat -> treated uncorrelated bin-to-bin (diagonal), avoids imposing false full correlation
+                # Table 3 also publishes, per centrality, a normalization band on R_AA in the
+                # dependent-variable QUALIFIER (no error label, no % sign), e.g. 0-5%:
+                #   "Bands: <Nbin>[1.0+0.16-0.16]"   10-20: [1.0+0.17-0.17]
+                #   20-30: [1.0+0.18-0.20]           30-40: [1.0+0.20-0.22]
+                # It is the <N_bin> uncertainty combined with the pp-reference uncertainty, i.e. the
+                # normalization uncertainty of the published R_AA, encoded below as `norm` with the
+                # published asymmetry as [low, high] = [minus, plus]. Quoted verbatim from
+                # Figure3withBins.yaml qualifiers. (Absent from the STAT 2023 inputs as well.)
+                systematics_names: { "sys + stat": stat }
+                additional_systematics: {}
+                table: Table 3
+                combinations:
+                  - parameters: { centrality: "0_5" }
+                    index: "1"
+                    additional_systematics: { norm: 0.16 }
+                  - parameters: { centrality: "10_20" }
+                    index: "2"
+                    additional_systematics: { norm: 0.17 }
+                  - parameters: { centrality: "20_30" }
+                    index: "3"
+                    additional_systematics: { norm: [0.20, 0.18] }
+                  - parameters: { centrality: "30_40" }
+                    index: "4"
+                    additional_systematics: { norm: [0.22, 0.20] }
 
 #------------------------------------------------------------------
+# Hadron triggered hadron correlations
+# e.g. v2, di-hadron correlations, etc...
 #------------------------------------------------------------------
-# Hadron correlations
-hadron_correlations:
-
-  # https://www.hepdata.net/record/ins715470
-  # Di-hadron correlations -- delta-phi and D(z)
-  # See Fig 3 here: https://arxiv.org/pdf/nucl-th/0701045.pdf
-  # pmj 13/1/22: incomplete. This is a key RHIC paper imho (based on the analysis of Xin-Nian et al., which formed the basis of a lot of developments)
+hadron_trigger_hadron:
+  # STAR di-hadron correlations -- delta-phi and D(z)
   dihadron_star:
-    eta_cut: 1.0
-    pt_trig: [[8., 15.]]
-    pt_assoc: [[4, 6], [6, -1]]
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/715470
+      hepdata: https://www.hepdata.net/record/ins715470
+      # Related theory paper noted by PMJ, see Fig 3 here: https://arxiv.org/pdf/nucl-th/0701045.pdf
+
+    # NOTE: Need to convert from N_part to centrality, which is available in Table 2 in https://inspirehep.net/literature/588808
+    # NOTE: They also report 40-60%, but that goes outside of our centrality range, so we skip it here
+    centrality: [[0, 5], [5, 10], [10, 20], [20, 30], [30, 40]]
+
+    # Trigger hadron
+    trigger:
+      pt: [8., 15.]
+      eta: 1.0
+    # Associated hadron
+    hadron:
+      # NOTE: Each bin is constructed from these bin edges. -1 is interpreted as without upper limit
+      pt: [4., 6., -1.]
+      eta: 1.0
+
     # Yield range are defined relative to 0 and pi
     # NOTE: The paper says 0.63, but I (RE) strongly suspect they're rounding from 0.628.
     #       If we use 0.63, ROOT will include the full next bin, which is for sure too much.
     yield_range: [-0.62, 0.62]
+
+    # Binning and plotting
     # They appear to have 40 bins between [-pi/2, 3pi/2], so generated with `np.linspace(-np.pi/2, 3*np.pi/2, 41)`
+    # prettier-ignore
     dphi_bins: [-1.5707963267948966, -1.413716694115407, -1.2566370614359172, -1.0995574287564276, -0.9424777960769379, -0.7853981633974483, -0.6283185307179586, -0.47123889803846897, -0.3141592653589793, -0.15707963267948966, 0.0, 0.15707963267948966, 0.3141592653589793, 0.47123889803846897, 0.6283185307179586, 0.7853981633974483, 0.9424777960769379, 1.0995574287564276, 1.2566370614359172, 1.413716694115407, 1.5707963267948966, 1.7278759594743862, 1.8849555921538759, 2.0420352248333655, 2.199114857512855, 2.356194490192345, 2.5132741228718345, 2.670353755551324, 2.827433388230814, 2.9845130209103035, 3.141592653589793, 3.2986722862692828, 3.4557519189487724, 3.612831551628262, 3.7699111843077517, 3.9269908169872414, 4.084070449666731, 4.241150082346221, 4.39822971502571, 4.5553093477052, 4.71238898038469]
-    # NOTE: Need to convert from N_part to centrality, which is available in Table 2 in https://inspirehep.net/literature/588808
-    # NOTE: They also report 40-60%, but that goes outside of our centrality range, so we skip it here
-    centrality: [[0,5], [5, 10], [10, 20], [20, 30], [30, 40]]
     # The yield bins are based on a centrality index since plotting as properly labeled centrality isn't
     # worth the additional complexity. The first five bins are the near side, while the latter five are the away side.
-    yield_bins: [0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10.]
+    yield_bins: [0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10.]
     xtitle: "Centrality bin index"
 
-    custom_data: 'custom_data.yaml'
+    custom_data: "custom_data.yaml"
     # We default to enabling skip_pp. In this case, we draw the deltaPhi correlations.
     # If skip_pp is set to false, it will extract the yields and plot them.
     # In the case of AA, we always extract and draw the yields
     # NOTE: The delta phi correlations are always available in the histograms from the skim
     # NOTE: The xtitle is wrong in the case where we draw the deltaPhi correlations. One can tell
     #       by looking at the x range: [-pi/2, 3pi/2] is the correlations, which 0-10 is the yields.
-    skip_pp: True
+    skip_pp: true
     # These ranges are more appropriate for the delta phi correlations
     y_min_pp: 0.01
     y_max_pp: 0.2
@@ -163,223 +375,1014 @@ hadron_correlations:
     # Whereas these are more appropriate for the yields
     y_min_AA: 0.01
     y_max_AA: 0.6
-    logy: True
+    logy: true
 
+    # Custom data v2:
+    # NOTE(RJE): As of 2026 April 15, this is just a prototype of what it should look like. It's not implemented yet.
+    data:
+      pp:
+        custom_data:
+          # These are the dPhi correlations, but need to be labeled as "spectra" just to satisfy the parsing
+          spectra:
+            quantity: dphi
+            x_axis:
+              label: "#Delta #varphi"
+              # They appear to have 40 bins between [-pi/2, 3pi/2], so generated with `np.linspace(-np.pi/2, 3*np.pi/2, 41)`
+              # prettier-ignore
+              bins: [-1.5707963267948966, -1.413716694115407, -1.2566370614359172, -1.0995574287564276, -0.9424777960769379, -0.7853981633974483, -0.6283185307179586, -0.47123889803846897, -0.3141592653589793, -0.15707963267948966, 0.0, 0.15707963267948966, 0.3141592653589793, 0.47123889803846897, 0.6283185307179586, 0.7853981633974483, 0.9424777960769379, 1.0995574287564276, 1.2566370614359172, 1.413716694115407, 1.5707963267948966, 1.7278759594743862, 1.8849555921538759, 2.0420352248333655, 2.199114857512855, 2.356194490192345, 2.5132741228718345, 2.670353755551324, 2.827433388230814, 2.9845130209103035, 3.141592653589793, 3.2986722862692828, 3.4557519189487724, 3.612831551628262, 3.7699111843077517, 3.9269908169872414, 4.084070449666731, 4.241150082346221, 4.39822971502571, 4.5553093477052, 4.71238898038469]
+            y_axis:
+              label: "dN/d(#Delta #varphi)"
+              range: ["0.01", "0.2"]
+            tables:
+              - parameters:
+                  {
+                    centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"],
+                    pt_trigger: 8.0_15.0,
+                    pt_assoc: [4.0_6.0, 6.0_-1.0],
+                    eta: "1.0",
+                  }
+                file: "custom_data.yaml"
+          yields:
+            quantity: yield
+            x_axis:
+              label: "Centrality bin index"
+              # The yield are based on a centrality index since plotting as properly labeled centrality isn't
+              # worth the additional complexity. The first five bins are the near side, while the latter five are the away side.
+              yield_bins: [0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10.]
+            y_axis:
+              label: "Yield"
+              range: ["0.01", "0.6"]
+              log: true
+            tables:
+              - parameters:
+                  {
+                    centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"],
+                    pt_trigger: 8.0_15.0,
+                    pt_assoc: [4.0_6.0, 6.0_-1.0],
+                    eta: "1.0",
+                  }
+                file: "custom_data.yaml"
+      AA:
+        custom_data:
+          # These are the dPhi correlations, but need to be labeled as "spectra" just to satisfy the parsing
+          spectra:
+            quantity: dphi
+            x_axis:
+              label: "#Delta #varphi"
+              # They appear to have 40 bins between [-pi/2, 3pi/2], so generated with `np.linspace(-np.pi/2, 3*np.pi/2, 41)`
+              # prettier-ignore
+              bins: [-1.5707963267948966, -1.413716694115407, -1.2566370614359172, -1.0995574287564276, -0.9424777960769379, -0.7853981633974483, -0.6283185307179586, -0.47123889803846897, -0.3141592653589793, -0.15707963267948966, 0.0, 0.15707963267948966, 0.3141592653589793, 0.47123889803846897, 0.6283185307179586, 0.7853981633974483, 0.9424777960769379, 1.0995574287564276, 1.2566370614359172, 1.413716694115407, 1.5707963267948966, 1.7278759594743862, 1.8849555921538759, 2.0420352248333655, 2.199114857512855, 2.356194490192345, 2.5132741228718345, 2.670353755551324, 2.827433388230814, 2.9845130209103035, 3.141592653589793, 3.2986722862692828, 3.4557519189487724, 3.612831551628262, 3.7699111843077517, 3.9269908169872414, 4.084070449666731, 4.241150082346221, 4.39822971502571, 4.5553093477052, 4.71238898038469]
+            y_axis:
+              label: "dN/d(#Delta #varphi)"
+              range: ["0.01", "0.2"]
+            tables:
+              - parameters:
+                  {
+                    centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"],
+                    pt_trigger: 8.0_15.0,
+                    pt_assoc: [4.0_6.0, 6.0_-1.0],
+                    eta: "1.0",
+                  }
+                file: "custom_data.yaml"
+          yields:
+            quantity: yield
+            x_axis:
+              label: "Centrality bin index"
+              # The yield are based on a centrality index since plotting as properly labeled centrality isn't
+              # worth the additional complexity. The first five bins are the near side, while the latter five are the away side.
+              yield_bins: [0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10.]
+            y_axis:
+              label: "Yield"
+              range: ["0.01", "0.6"]
+              log: true
+            tables:
+              - parameters:
+                  {
+                    centrality: ["0_10", "10_20", "20_30", "30_40", "40_50"],
+                    pt_trigger: 8.0_15.0,
+                    pt_assoc: [4.0_6.0, 6.0_-1.0],
+                    eta: "1.0",
+                  }
+                file: "custom_data.yaml"
 
-#------------------------------------------------------------------
 #------------------------------------------------------------------
 # Inclusive jet observables -- charged jets
+#------------------------------------------------------------------
 inclusive_chjet:
-
-  # https://www.hepdata.net/record/ins1798665
-  # Charged jet RAA and RCP
+  # STAR charged jet RAA and RCP
   # Cuts:
   #   - pT^{ch lead} > 5 GeV
   pt_star:
-    jet_R: [0.2, 0.3, 0.4]
-    eta_cut_R: 1.0
-    pt: [5., 30]
-    centrality: [[0,10]]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1798665
+      hepdata: https://www.hepdata.net/record/ins1798665
 
-    ytitle_pp: '#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]'
-    y_min_pp: 2e-8
-    y_max_pp: 1e-1
-    skip_pp: True
+    centrality: [[0, 10]]
+    jet:
+      R: [0.2, 0.3, 0.4]
+      pt: [5., 30.]
+      eta_R: 1.0
 
-    hepdata: 'HEPData-ins1798665-v1-root.root'
-    hepdata_AA_dir: 'Table 10'
-    hepdata_AA_gname_R0.2: ['Graph1D_y1']
-    hepdata_AA_hname_R0.2: ['Hist1D_y1']
-    hepdata_AA_gname_R0.3: ['Graph1D_y1']
-    hepdata_AA_hname_R0.3: ['Hist1D_y1']
-    hepdata_AA_gname_R0.4: ['Graph1D_y1']
-    hepdata_AA_hname_R0.4: ['Hist1D_y1']
-    ytitle_AA: '#it{R}_{AA}'
-    y_min_AA: 0.
-    y_max_AA: 2.
+    #hepdata: "HEPData-ins1798665-v1-root.root"
+
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
+
+    #ytitle_pp: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right"
+    #y_min_pp: 2e-8
+    #y_max_pp: 1e-1
+    # ins1798665 is Au+Au only (all 12 tables): jet distributions, the pTlead 7/5 ratios,
+    # R_CP, R_AA and the R=0.2/R=0.4 yield ratio. No pp spectrum -> no R_AA denominator,
+    # so compare the measured Au+Au distribution (Table 1) instead.
+    skip_pp: true
+    skip_AA_ratio: true
+
+    #hepdata_AA_dir: "Table 10"
+    #hepdata_AA_dir_R0.2: "Table 10"
+    #hepdata_AA_dir_R0.3: "Table 10"
+    #hepdata_AA_dir_R0.4: "Table 10"
+    #hepdata_AA_gname_R0.2: ["Graph1D_y1"]
+    #hepdata_AA_hname_R0.2: ["Hist1D_y1"]
+    #hepdata_AA_gname_R0.3: ["Graph1D_y2"]
+    #hepdata_AA_hname_R0.3: ["Hist1D_y2"]
+    #hepdata_AA_gname_R0.4: ["Graph1D_y3"]
+    #hepdata_AA_hname_R0.4: ["Hist1D_y3"]
+    #ytitle_AA: "#it{R}_{AA}"
+    #y_min_AA: 0.
+    #y_max_AA: 2.
+
+    #hepdata_AA_distribution_dir: "Table 1"
+    #hepdata_AA_distribution_gname_R0.2: ["Graph1D_y1"]
+    #hepdata_AA_distribution_hname_R0.2: ["Hist1D_y1"]
+    #hepdata_AA_distribution_gname_R0.3: ["Graph1D_y2"]
+    #hepdata_AA_distribution_hname_R0.3: ["Hist1D_y2"]
+    #hepdata_AA_distribution_gname_R0.4: ["Graph1D_y3"]
+    #hepdata_AA_distribution_hname_R0.4: ["Hist1D_y3"]
+    #ytitle_AA_distribution: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]"
+    #y_min_AA_distribution: 2e-8
+    #y_max_AA_distribution: 1e-1
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 1798665
+            version: 1
+          spectra:
+            quantity: pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right"
+              range: ["2e-8", "1e-1"]
+            tables:
+              - parameters: { jet_R: ["0.2", "0.3", "0.4"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 1798665
+            version: 1
+          spectra:
+            quantity: pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{d^{2}#sigma}{d#it{p}_{T}d#it{#eta}} #left[b/(GeV/c)^{-1}#right]"
+              range: ["2e-8", "1e-1"]
+              log: true
+            tables:
+              - parameters: {}
+                # STAR correlated/shape two-component prescription (shape = integral-preserving pivot, published separately from correlated)
+                systematics_names: { statistical: stat, correlated: correlated, shape: shape }
+                additional_systematics: {}
+                table: Table 1
+                combinations:
+                  - parameters: { jet_R: "0.2" }
+                    index: "1"
+                  - parameters: { jet_R: "0.3" }
+                    index: "2"
+                  - parameters: { jet_R: "0.4" }
+                    index: "3"
+          ratio:
+            quantity: pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#it{R}_{AA}"
+              range: [0.0, 2.0]
+              log: true
+            tables:
+              - parameters: { centrality: "0_10" }
+                # STAR correlated/shape two-component prescription (shape = integral-preserving pivot, published separately from correlated)
+                # Table 10's description adds, in prose only: "In addition, the systematic uncertainty
+                # for the T_AA normalization (7%) and PYTHIA reference (22%, 20%, 18% for R = 0.2, 0.3
+                # and 0.4) have to be added." Both are uncertainties of the published R_AA (STAR's pp
+                # reference is PYTHIA, so its uncertainty is not folded into the per-bin systematics),
+                # encoded per combination as `taa` (same for all R) and `reference` (per R). Quoted
+                # verbatim from submission.yaml. NOTE: a combination-level additional_systematics dict
+                # replaces the entry-level one, so both sources are listed in every combination.
+                systematics_names: { statistical: stat, correlated: correlated, shape: shape }
+                additional_systematics: {}
+                table: Table 10
+                combinations:
+                  - parameters: { jet_R: "0.2" }
+                    index: "1"
+                    additional_systematics: { taa: 0.07, reference: 0.22 }
+                  - parameters: { jet_R: "0.3" }
+                    index: "2"
+                    additional_systematics: { taa: 0.07, reference: 0.20 }
+                  - parameters: { jet_R: "0.4" }
+                    index: "3"
+                    additional_systematics: { taa: 0.07, reference: 0.18 }
+
 #------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_chjet:
+# Hadron triggered charged-particle jet observables
+# (e.g. semi-inclusive h-jet)
+#------------------------------------------------------------------
+hadron_trigger_chjet:
+  # Note: no pp reference -- RCP and R02/R05 --, so we include only R02/R05 for now
+  IAA_pt_star:
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1512115
+      hepdata: https://www.hepdata.net/record/ins1512115
 
-  # https://www.hepdata.net/record/ins1512115
-  # Note: no pp reference -- RCP and R02/R05 -- we include only R02/R05 for now
-  # pmj 13/1/22: QA OK other than issues with hepdata that you identify.
-  # pmj 13/1/22: Please formulate your questions about the hepdata entries and I will send them to Alex (I thought they had been fixed ;-( )
+    centrality: [[0, 10]]
+    trigger:
+      pt: [9., 30.]
+      eta: 0.9
+    jet:
+      R: [0.2, 0.5]
+      pt: [5., 30.]
+      eta_R: 1.
 
-  IAA_star:
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.
-    pt: [5., 30.]
-    centrality: [[0,10]]
-    hadron_eta_cut: 0.9
-    trigger_range: [9., 30.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    #hepdata: "HEPData-ins1512115-v1-root.root"
 
-    ytitle_pp: 'I_{AA}'
-    y_min_pp: 2e-5
-    y_max_pp: 2.
-    skip_pp: True
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-    hepdata: 'HEPData-ins1512115-v1-root.root'
-    hepdata_AA_dir: 'Table 38'
-    hepdata_AA_dir_R02_R05: 'Table 38'
-    hepdata_AA_gname: ['Graph1D_y1']
-    hepdata_AA_hname: ['Hist1D_y1']
-    ytitle_AA: '#it{R}_{AA}'
+    #ytitle_pp: "I_{AA}"
+    #y_min_pp: 2e-5
+    #y_max_pp: 2.
+    # ins1512115 has no measured p+p reference (its only pp entries, Tables 18/20/22/24/41/42,
+    # are tagged SIMULATION: PYTHIA), so no I_AA can be formed. The wired AA.ratio (Table 38)
+    # is the R=0.2/R=0.5 RADIUS ratio, not a Au+Au/pp ratio -- the framework has no
+    # "ratio of two jet-R spectra" mode, so it cannot be reproduced from MC either.
+    # -> compare the measured per-R recoil yields (AA.spectra, Tables 25/34) instead.
+    skip_pp: true
+    skip_AA_ratio: true
 
-  # The bin width is constant at 0.1256.  For the most left two data points, there are really missing in HEP
-  # PMJ 1/21/25: data points not recoverable without some effort. 
-  # Since this dataset has been superceded in quality by a more recent STAR publication I judge this not to worth the trouble.
+    #hepdata_AA_dir: "Table 38"
+    #hepdata_AA_dir_R02_R05: "Table 38"
+    #hepdata_AA_gname: ["Graph1D_y1"]
+    #hepdata_AA_hname: ["Hist1D_y1"]
+    #ytitle_AA: "#it{R}_{AA}"
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 1512115
+            version: 1
+          spectra:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: I_{AA}
+              range: ["2e-5", 2.0]
+            tables:
+              - parameters: { jet_R: "0.2" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: "0.5" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 1512115
+            version: 1
+          spectra:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#frac{1}{#it{N}_{trig}} #frac{d^{2}#it{N}}{d#it{p}_{T}d#it{#eta}}"
+              log: true
+            # Fully corrected recoil-jet yields Y(pt_jet^ch) in CENTRAL (0-10%) Au+Au.
+            # NB the `RE: P P --> X JET` qualifier on these tables is wrong -- the
+            # description and the CENTRALITY qualifier both say 0-10% Au+Au.
+            tables:
+              - parameters: { jet_R: "0.2", centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: Table 25
+                index: "1"
+              - parameters: { jet_R: "0.5", centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: Table 34
+                index: "1"
+          ratio:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#it{R}_{AA}"
+              log: true
+            tables:
+              - parameters: { jet_R: ["0.2", "0.5"], centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: Table 38
+                index: "1"
+
+  # The bin width is constant at 0.1256.  For the most left two data points, there are really missing in the HEPdata
+  # PMJ 1/21/25: data points not recoverable without some effort.
+  # Since this dataset has been superseded in quality by a more recent STAR publication I judge this not to worth the trouble.
   dphi_star:
-    jet_R: [0.3]
-    eta_cut_R: 1.
-    pt: [9., 13.]
-    centrality: [[0,10]]
-    hadron_eta_cut: 0.9
-    trigger_range: [9., 30.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    enabled: true
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1512115
+      hepdata: https://www.hepdata.net/record/ins1512115
 
-    hepdata: 'HEPData-ins1512115-v1-root.root'
-    hepdata_pp_dir:  'Table 42'
-    hepdata_pp_gname: 'Graph1D_y1'
-    ytitle_pp: '#Phi(#Delta#it{#varphi})'
-    y_min_pp: 0.
-    y_max_pp: 1.
+    centrality: [[0, 10]]
+    trigger:
+      pt: [9., 30.]
+      eta: 0.9
+    jet:
+      R: [0.3]
+      pt: [9., 13.]
+      eta_R: 1.
 
-    bins: [1.57079633, 1.69646003, 1.82212374, 1.94778745, 2.07345115,
-       2.19911486, 2.32477856, 2.45044227, 2.57610598, 2.70176968,
-       2.82743339, 2.95309709, 3.0787608 , 3.20442451, 3.33008821,
-       3.45575192, 3.58141563, 3.70707933, 3.83274304, 3.95840674,
-       4.08407045, 4.20973416, 4.33539786, 4.46106157, 4.58672527,
-       4.71238898]
-    hepdata_AA_dir: 'Table 39'
-    hepdata_AA_gname: ['Graph1D_y1']
-    hepdata_AA_hname: ['Hist1D_y1']
-    ytitle_AA: '#it{R}_{AA}'
-    y_min_AA: 0.
-    y_max_AA: 2.
+    #hepdata: "HEPData-ins1512115-v1-root.root"
 
-#------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_pizerojet:
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
-  # pmj 1/23/25 PRL (accepted): https://inspirehep.net/literature/2693040
-  # pmj 1/23/25 PRC (in journal review): https://inspirehep.net/literature/2693062
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accomodate
+    #hepdata_pp_dir: "Table 42"
+    #hepdata_pp_gname: "Graph1D_y1"
+    #ytitle_pp: "#Phi(#Delta#it{#varphi})"
+    #y_min_pp: 0.
+    #y_max_pp: 1.
 
-  # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here: 
-  # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
-  IAA_star:
-    jet_R: [0.2, 0.5]
-    eta_cut_R: [0.8, 0.5] # equivalent to 1-R
-    pt: [5., 25.]
-    centrality: [[0,15]]
-    pizero_eta_cut: 1.0
-    trigger_range: [11., 15.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+    # The record publishes no Au+Au/pp ratio for this observable -- Table 39 (wired under
+    # AA.ratio) is the central Au+Au DISTRIBUTION -- so compare distributions on both arms
+    # rather than dividing.
+    skip_AA_ratio: true
+    # CAVEAT: the pp reference (Table 42) is NOT measured data. HEPData tags it
+    # `SIMULATION: PYTHIA` -- "PYTHIA generated pp collisions embedded in central Au+Au
+    # mixed events" -- which is what STAR used as the reference for this measurement.
+    # Kept as wired (user decision 2026-08-07), but it draws under a "Data" legend, so
+    # read the pp panel accordingly. Table 41 is the same quantity without the embedding.
 
-    ytitle_pp: 'I_{AA}'
-    y_min_pp: 0.1
-    y_max_pp: 1.2
-    skip_pp: True
+    # prettier-ignore
+    bins: [1.57079633, 1.69646003, 1.82212374, 1.94778745, 2.07345115, 2.19911486, 2.32477856, 2.45044227, 2.57610598, 2.70176968, 2.82743339, 2.95309709, 3.0787608, 3.20442451, 3.33008821, 3.45575192, 3.58141563, 3.70707933, 3.83274304, 3.95840674, 4.08407045, 4.20973416, 4.33539786, 4.46106157, 4.58672527, 4.71238898]
+    #hepdata_AA_dir: "Table 39"
+    #hepdata_AA_gname: ["Graph1D_y1"]
+    #hepdata_AA_hname: ["Hist1D_y1"]
+    #ytitle_AA: "#it{R}_{AA}"
+    #y_min_AA: 0.
+    #y_max_AA: 2.
 
-    hepdata: "TODO: see above link"
-
-  # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
-  # maybe define a different field?
-  R25_star:
-    jet_R: [0.2, 0.5]
-    eta_cut_R: [0.8, 0.5] # equivalent to 1-R
-    pt: [11., 15.]
-    centrality: [[0,15]]
-    pizero_eta_cut: 1.0
-    # pmj 1/23/25: per discussionn at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
-    # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
-    # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover 
-    # it with the experimentally specified weighting
-    trigger_range_det: [11., 15.]
-    trigger_range_part: [9., 22.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
-
-    hepdata: "TODO: see above link"
-
-#------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_gammajet:
-
-  # pmj 1/23/25 PRL (accepted): https://inspirehep.net/literature/2693040
-  # pmj 1/23/25 PRC (in journal review): https://inspirehep.net/literature/2693062
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accomodate
-
-  # pmj 2/28/25: HEPData tables not yet available. Data for Fig 1 and 2 in PRL can be found here:
-  # https://www.dropbox.com/scl/fo/pw7kr4hb883a61zzsfbxf/ABjRhjM0X3Yae4bH7Hu6tww?rlkey=0d0b9asqhg3w1ru5you9tqcbn&dl=0
-  IAA_star:
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0
-    pt: [5., 20.]
-    centrality: [[0,15]]
-    gamma_eta_cut: 1.0
-    trigger_range: [15., 20.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
-
-    ytitle_pp: 'I_{AA}'
-    y_min_pp: 0.1
-    y_max_pp: 1.2
-    skip_pp: True
-
-    hepdata: "TODO: see above link"
-
-  # pmj 1/21/25: this observable is the ratio of two spectra with different R, so "jet_R:" has a different meaning.
-  # maybe define a different field?
-  R25_star:
-    jet_R: [0.2, 0.5]
-    eta_cut_R: 1.0
-    pt: [5., 20.]
-    centrality: [[0,15]]
-    gamma_eta_cut: 1.0
-    # pmj 1/23/25: per discussionn at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
-    # the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
-    # as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover 
-    # it with the experimentally specified weighting
-    trigger_range_det: [15., 20.]
-    trigger_range_part: [12., 23.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
-
-    hepdata: "TODO: see above link"
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 1512115
+            version: 1
+          spectra:
+            quantity: dphi
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: "#Phi(#Delta#it{#varphi})"
+              range: [0.0, 1.0]
+            tables:
+              - parameters: {}
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: Table 42
+                index: "1"
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 1512115
+            version: 1
+          spectra:
+            quantity: dphi
+            x_axis:
+              label: "#Delta#it{#varphi}"
+            y_axis:
+              # Matched to the pp arm above: both arms now draw the same quantity
+              # (skip_AA_ratio), so a log AA panel against a linear pp one would
+              # make them incomparable by eye.
+              label: "#Phi(#Delta#it{#varphi})"
+              range: [0.0, 1.0]
+            # Measured Psi(dphi) for R=0.3 recoil jets, 9-13 GeV/c, central (0-10%) Au+Au.
+            # This is the same table wired under `ratio` below: the record publishes a
+            # DISTRIBUTION, not an Au+Au/pp ratio. It belongs here; the `ratio` copy is
+            # retained only so build_tables keeps emitting the DPHI .dat.
+            tables:
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: Table 39
+                index: "1"
+          ratio:
+            quantity: dphi
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+              # TODO: This needs custom binning from above, but it's not yet implemented. Use caution with this result!
+              # prettier-ignore
+              #bins: [1.57079633, 1.69646003, 1.82212374, 1.94778745, 2.07345115, 2.19911486, 2.32477856, 2.45044227, 2.57610598, 2.70176968, 2.82743339, 2.95309709, 3.0787608, 3.20442451, 3.33008821, 3.45575192, 3.58141563, 3.70707933, 3.83274304, 3.95840674, 4.08407045, 4.20973416, 4.33539786, 4.46106157, 4.58672527, 4.71238898]
+            y_axis:
+              label: "#it{R}_{AA}"
+              range: [0.0, 2.0]
+              log: true
+            tables:
+              - parameters: { centrality: "0_10" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: Table 39
+                index: "1"
 
 #------------------------------------------------------------------
-# Jet correlation observables
-semi_inclusive_pizero__gamma+jet_acoplanarity:
+# Pion triggered charged-particle jet observables
+# (e.g. semi-inclusive pi_zero-jet)
+#------------------------------------------------------------------
+pion_trigger_chjet:
+  # STAR, pion-triggered I_AA(pt)
+  # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
+  # NOTE(PMJ): Unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # TODO(RJE) July 2025: Based on advice from PMJ, we first implement the main Et ranges with the highest precision.
+  #                      At a later date, we need to consider including the other ranges.
+  IAA_pt_star:
+    enabled: false
+    urls:
+      # PRL
+      inspire_hep: https://inspirehep.net/literature/2693040
+      hepdata: https://www.hepdata.net/record/ins2693040
+      # PRC
+      #inspire_hep: https://inspirehep.net/literature/2693062
 
-  # pmj 2/28/25 same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
-  # Note unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accomodate
+    centrality: [[0, 15]]
+    # pion trigger
+    trigger:
+      eta: 1.0
+      # Matching the particle level range for the input to the smearing calculation
+      Et: [9., 22.]
+      #Et: [11., 15.]
 
-  # pmj 2/28/25: WIP, paper not yet posted to arXiv
-  IAA_star:
-    jet_R: [0.2, 0.5]
-    eta_cut_R: [0.8, 0.5] # equivalent to 1-R
-    ptjet: [10., 20.]
-    centrality: [[0,15]]
-    pizero_eta_cut: 1.0
-    gamma_eta_cut: 1.0
-    trigger_range: [11., 15.]
-    xtitle: '#it{p}_{T} (GeV/#it{c})'
-    logy: True
+      # NOTE(PMJ): 1/23/25; per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+      #            the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
+      #            as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
+      #            it with the experimentally specified weighting
+      smearing:
+        - { detector_level_Et: [11., 15.], particle_level_Et: [9., 22.] }
+    jet:
+      R: [0.2, 0.5]
+      pt: [5., 30.]
+      eta_R: 1.0 # eta_R denotes considering R in fiducial acceptance
+    dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
 
-    ytitle_pp: 'I_{AA}(#Delta#varphi)'
-    y_min_pp: 1.e-2
-    y_max_pp: 50.
-    skip_pp: True
+    #hepdata: "HEPData-ins2693040-v1-root.root"
 
-    bins:
-    bin_centroid: {1.9,2.35,2.65,2.9,3.07}
-    bin_width: {0.3,0.15,0.15,0.1,0.07}
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
 
+    #ytitle_pp: "I_{AA}"
+    #y_min_pp: 0.1
+    #y_max_pp: 1.2
+    skip_pp: true
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 2693040
+            version: 1
+          spectra:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: I_{AA}
+              range: [0.1, 1.2]
+            tables:
+              # Deliberately blank: ins2693040 publishes no p+p per-R recoil yields
+              # (Tables 5-8) only -- there are no per-R p+p recoil yields to wire here.
+              - parameters: { jet_R: "0.2" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: "0.5" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 2693040
+            version: 1
+          spectra:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: ""
+              log: true
+            tables:
+              # Deliberately blank: ins2693040 publishes I_AA and the R=0.2/0.5 radius ratios
+              # (Tables 5-8) only -- there are no per-R Au+Au recoil yields to wire here.
+              - parameters: { jet_R: "0.2" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: "0.5" }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+          ratio:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: ""
+              log: true
+            tables:
+              # pi0+jet I_AA, E_T^trig 11-15 GeV, Au+Au 0-15%. Tables 1/2 are the gamma_dir
+              - parameters: { jet_R: "0.2", centrality: "0_15" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: Table3
+                index: "1"
+              # counterpart at E_T 15-20 GeV -- do not wire them here.
+              - parameters: { jet_R: "0.5", centrality: "0_15" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: Table4
+                index: "1"
+
+  # STAR, pion-triggered IAA(dPhi)
+  # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
+  # NOTE(PMJ): Unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # NOTE: Same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
+  #       but kinematic selections are _not_ the same.
+  # TODO(RJE) July 2025: Based on advice from PMJ, we first implement the main Et ranges with the highest precision.
+  #                      At a later date, we need to consider including the other ranges.
+  dphi_star:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2919952
+      hepdata: https://www.hepdata.net/record/ins2919952
+
+    centrality: [[0, 15]]
+    # pion trigger
+    trigger:
+      eta: 1.0
+      # Matching the particle level range for the input to the smearing calculation
+      Et: [9., 22.]
+      #Et: [11., 15.]
+
+      # See note above for pion_trigger_chjet_IAA_pt_star
+      smearing:
+        - { detector_level_Et: [11., 15.], particle_level_Et: [9., 22.] }
+    jet:
+      R: [0.2, 0.5]
+      pt: [10., 15., 20.]
+      eta_R: 1.0
+
+    #hepdata: "HEPData-ins2919952-v1-root.root"
+
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
+
+    #ytitle_pp: "I_{AA}(#Delta#varphi)"
+    #y_min_pp: 1.e-2
+    #y_max_pp: 50.
+    # NOTE: unlike IAA_pt_star, this record DOES publish p+p Yield(dphi) (Tables 1-4),
+    # so the pp arm has a real measured reference.
+
+    # bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 2919952
+            version: 1
+          spectra:
+            quantity: dphi
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: I_{AA}(#Delta#varphi)
+              range: [0.01, 50.0]
+            tables:
+              # pi0+jet p+p Yield(dphi). Tables 5/6 are gamma+jet.
+              - parameters: { jet_R: "0.2" }
+                systematics_names: { stat: stat, sys_corr: correlated, sys_uncorr: uncorrelated }
+                additional_systematics: {}
+                table: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table1
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table2
+                    index: "1"
+              - parameters: { jet_R: "0.5" }
+                systematics_names: { stat: stat, sys_corr: correlated, sys_uncorr: uncorrelated }
+                additional_systematics: {}
+                table: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table3
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table4
+                    index: "1"
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 2919952
+            version: 1
+          spectra:
+            quantity: dphi
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: ""
+              log: true
+            tables:
+              # pi0+jet Au+Au Yield(dphi). Tables 11/12 are gamma+jet.
+              - parameters: { jet_R: "0.2", centrality: "0_15" }
+                systematics_names: { stat: stat, sys_corr: correlated, sys_uncorr: uncorrelated }
+                additional_systematics: {}
+                table: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table8
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table10
+                    index: "1"
+              - parameters: { jet_R: "0.5", centrality: "0_15" }
+                systematics_names: { stat: stat, sys_corr: correlated, sys_uncorr: uncorrelated }
+                additional_systematics: {}
+                table: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table7
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table9
+                    index: "1"
+          ratio:
+            quantity: dphi
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: ""
+              log: true
+            tables:
+              # pi0+jet I_AA(dphi). Tables 13/14 are gamma+jet.
+              - parameters: { jet_R: "0.2", centrality: "0_15" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table16
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table18
+                    index: "1"
+              - parameters: { jet_R: "0.5", centrality: "0_15" }
+                systematics_names: { stat: stat, sys: sys }
+                additional_systematics: {}
+                table: ""
+                combinations:
+                  - parameters: { jet_pt: 10.0_15.0 }
+                    table: Table15
+                    index: "1"
+                  - parameters: { jet_pt: 15.0_20.0 }
+                    table: Table17
+                    index: "1"
+
+#------------------------------------------------------------------
+# gamma triggered hadron observables
+# (e.g. semi-inclusive gamma-hadron)
+#------------------------------------------------------------------
+gamma_trigger_hadron:
+  # The observable is calculated as a function of zeta.
+  # Multiple choice of the integration over d_phi are provided, the one with |d_phi| between pi/2 and pi is implemented in yaml
+  # Direct photon selected by subtracting pi_zero from total.
+  # Not sure if it is unfolded or not.
+  IAA_pt_phenix:
+    enabled: false # gamma-trigger analyzer not ready; disabled to match STAT_5020 (all gamma/z/v2 off)
+    urls:
+      inspire_hep: https://inspirehep.net/literature/1798493
+      hepdata: https://www.hepdata.net/record/ins1798493
+
+    centrality: [[0, 40]]
+    # Gamma trigger
+    trigger:
+      pt: [5., 9.]
+      eta: 10000.
+      isolation:
+        # NOTE(RJE) 2025/08: These are best guess based on the paper, but needs review by an expert
+        type: "neutral"
+        R: 0.4
+        Et_max_pp: 0.1 # 10% of photon energy.
+        Et_max_AA: 0.1 # 10% of photon energy.
+    hadron:
+      pt: [5., 7.]
+      eta: 0.35
+
+    #hepdata: "HEPData-ins1798493-v1-root.root"
+
+    #xtitle: "#zeta"
+    #logy: true
+
+    #ytitle_pp: "I_{AA}"
+    skip_pp: true
+
+    #hepdata_AA_dir: "Figure 4b"
+    #hepdata_AA_gname: ["Graph1D_y1"]
+    #hepdata_AA_hname: ["Hist1D_y1"]
+    #ytitle_AA: "I_{AA}"
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 1798493
+            version: 1
+          spectra:
+            quantity: IAA_pt
+            x_axis:
+              label: "#zeta"
+            y_axis:
+              label: I_{AA}
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 1798493
+            version: 1
+          spectra:
+            quantity: IAA_pt
+            x_axis:
+              label: "#zeta"
+            y_axis:
+              label: ""
+              log: true
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+          ratio:
+            quantity: IAA_pt
+            x_axis:
+              label: "#zeta"
+            y_axis:
+              label: I_{AA}
+              log: true
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                table: Figure 4b
+                index: "1"
+
+#------------------------------------------------------------------
+# gamma triggered charged-particle jet observables
+# (e.g. semi-inclusive gamma-jet)
+#------------------------------------------------------------------
+gamma_trigger_chjet:
+  # STAR, gamma-triggered IAA(pt)
+  # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
+  # NOTE(PMJ): Unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # TODO(RJE) July 2025: Based on advice from PMJ, we first implement the main Et ranges with the highest precision.
+  #                      At a later date, we need to consider including the other ranges.
+  IAA_pt_star:
+    enabled: false
+    urls:
+      # PRL
+      inspire_hep: https://inspirehep.net/literature/2693040
+      hepdata: https://www.hepdata.net/record/ins2693040
+      # PRC
+      #inspire_hep: https://inspirehep.net/literature/2693062
+
+    centrality: [[0, 15]]
+    # Gamma trigger
+    trigger:
+      eta: 1.0
+      # Matching the particle level range for the input to the smearing calculation
+      Et: [12., 23.]
+      #Et: [15., 20.]
+
+      smearing:
+        - { detector_level_Et: [15., 20.], particle_level_Et: [12., 23.] }
+    jet:
+      R: [0.2, 0.5]
+      pt: [5., 20.]
+      eta_R: 1.0 # value gives eta that one still has to subtract R from
+    dPhi: 3./4. # dPhi > 3/4*pi (for phi 0 to pi)
+
+    #hepdata: "HEPData-ins2693040-v1-root.root"
+
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
+
+    #ytitle_pp: "I_{AA}"
+    #y_min_pp: 0.1
+    #y_max_pp: 1.2
+    skip_pp: true
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 2693040
+            version: 1
+          spectra:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: I_{AA}
+              range: [0.1, 1.2]
+            tables:
+              - parameters: { jet_R: ["0.2"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: ["0.5"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 2693040
+            version: 1
+          spectra:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: ""
+              log: true
+            tables:
+              - parameters: { jet_R: ["0.2"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: ["0.5"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+          ratio:
+            quantity: IAA_pt
+            x_axis:
+              label: "#it{p}_{T} (GeV/#it{c})"
+            y_axis:
+              label: ""
+              log: true
+            tables:
+              - parameters: { jet_R: ["0.2"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+              - parameters: { jet_R: ["0.5"] }
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+
+  # STAR, gamma-triggered IAA(dphi)
+  # Additional includes the R(0.2)/R(0.5) ratio, which we will construct in the post processing.
+  # NOTE(PMJ): Unusual centrality bin [0,15]; can use [0,10] for this simulation if [0,15] is difficult to accommodate
+  # NOTE: Same analysis framework as above PRL (https://inspirehep.net/literature/2693040) and PRC (https://inspirehep.net/literature/2693062)
+  #       but kinematic selections are _not_ the same.
+  # TODO(RJE) July 2025: Based on advice from PMJ, we first implement the main Et ranges with the highest precision.
+  #                      At a later date, we need to consider including the other ranges.
+  dphi_star:
+    enabled: false
+    urls:
+      inspire_hep: https://inspirehep.net/literature/2919952
+      hepdata: https://www.hepdata.net/record/ins2919952
+
+    centrality: [[0, 15]]
+
+    trigger:
+      eta: 1.0
+      # Matching the particle level range for the input to the smearing calculation
+      Et: [9., 22.]
+      #Et: [11., 15.]
+
+      # NOTE(PMJ): 1/23/25; per discussion at today's STAT meeting, the experimental trigger selection is based on ET at the detector level, whereas
+      #            the simulation is based on ET at the particle level. The PRC Section 9 gives a matrix which maps between the two, effectively providing a weight
+      #            as a function of ET_part. Here I specify both the experimental window ("det" level) and the larger simulation window ("part" level) needed to cover
+      #            it with the experimentally specified weighting
+      smearing:
+        - { detector_level_Et: [11., 15.], particle_level_Et: [9., 22.] }
+    jet:
+      R: [0.2, 0.5]
+      pt: [10., 15., 20.]
+      eta_R: 1.0
+
+    #xtitle: "#it{p}_{T} (GeV/#it{c})"
+    #logy: true
+
+    #ytitle_pp: "I_{AA}(#Delta#varphi)"
+    #y_min_pp: 1.e-2
+    #y_max_pp: 50.
+    skip_pp: true
+
+    bins: [1.6, 2.2, 2.5, 2.8, 3.0, 3.15]
+
+    # HEPData v2
+    data:
+      pp:
+        hepdata:
+          record:
+            inspire_hep_id: 2919952
+            version: 1
+          spectra:
+            quantity: ""
+            x_axis:
+              label: ""
+            y_axis:
+              label: ""
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+      AA:
+        hepdata:
+          record:
+            inspire_hep_id: 2919952
+            version: 1
+          spectra:
+            quantity: ""
+            x_axis:
+              label: ""
+            y_axis:
+              label: ""
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""
+          ratio:
+            quantity: ""
+            x_axis:
+              label: ""
+            y_axis:
+              label: ""
+            tables:
+              - parameters: {}
+                systematics_names: {}
+                additional_systematics: {}
+                table: ""
+                index: ""

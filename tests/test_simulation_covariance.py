@@ -336,7 +336,12 @@ def test_writer_keeps_identity_on_empty_and_filled_events():
         for n in ast.walk(ast.parse(source.read_text()))
         if isinstance(n, ast.FunctionDef) and n.name == "analyze_event_chunk"
     )
-    namespace = {"np": np, "time": SimpleNamespace(time=lambda: 0)}
+    namespace = {
+        "np": np,
+        "pd": pd,
+        "time": SimpleNamespace(time=lambda: 0),
+        "logger": SimpleNamespace(info=lambda *_: None),
+    }
     exec(compile(ast.fix_missing_locations(ast.Module(body=[node], type_ignores=[])), str(source), "exec"), namespace)  # noqa: S102 - committed method, no caller code
     obj = SimpleNamespace(
         use_event_based_centrality=False,

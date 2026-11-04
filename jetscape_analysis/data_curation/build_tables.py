@@ -1,0 +1,793 @@
+"""Build curated data tables (.dat format) from the STAT_{sqrt_s}.yaml config and HEPData files.
+
+Output follows the JetScape data-file format specification v1.0 (Note 1423):
+    # Version 1.0
+    # DOI <url>
+    # Source <hepdata url> <table refs>
+    # System PbPb2760
+    # Centrality 0 10
+    # XY PT RAA
+    # Label xmin xmax y stat,low stat,high sys,<name>,low sys,<name>,high ...
+    <xmin> <xmax> <y> <stat_lo> <stat_hi> ...
+
+Only AA/ratio (RAA) blocks are written.  One output file per (centrality, jet_R) combination.
+
+Rows: for pT-differential R_AA observables (hadron/pt_*, inclusive_jet/pt, inclusive_chjet/pt) only the HEPData
+bins overlapping the analyzer's pT window are written -- an explicit ``pt`` combination parameter if present,
+otherwise the observable's own ``hadron.pt`` / ``jet.pt`` window. This is the same row set the prediction tables
+carry (their leading empty bins are stripped and they have no x columns), and downstream consumers align data to
+prediction rows positionally, so the curated table must carry the same rows at every energy.
+Each table is written twice, with identical content, under two filename conventions:
+  1. legacy:     Data_{exp}_{system}_{measurement}_{cent}_{year}.dat
+  2. structured: Data__{sqrts}__{system}__{class}__{obs}_{exp}__{jet_cfg}__{cent}.dat
+
+.. codeauthor:: auto-generated
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import shutil
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from jetscape_analysis.data_curation import data as data_mod
+from jetscape_analysis.data_curation import hepdata_utils, observable
+
+logger = logging.getLogger(__name__)
+
+# Mapping from "{observable_class}/{internal_name_without_experiment}" to measurement tag prefix.
+# For jet observables, the jet_R suffix is appended dynamically (e.g. RAAJetR04).
+_MEASUREMENT_TAG: dict[str, str] = {
+    "hadron/pt_ch": "RAACharged",
+    "hadron/pt_pi": "RAAPi",
+    "hadron/pt_pi0": "RAAPi0",
+    "inclusive_jet/pt": "RAAJet",
+}
+
+# Override for the "# XY <x> <y>" header's x token, keyed like _MEASUREMENT_TAG.
+# The default derives x from the FIRST token of the observable's internal name, which is wrong
+# whenever the observable is named after the quantity being measured rather than its abscissa:
+# pt_y_atlas is R_AA vs |y| (not pT), D(z)/D(pT) are fragmentation functions vs z / track pT,
+# and the semi-inclusive recoil observables are named IAA_pt / dphi. Consumers parse this line,
+# so a wrong x label silently mislabels the abscissa downstream.
+_X_AXIS_TOKEN: dict[str, str] = {
+    "inclusive_jet/pt_y": "Y",
+    "inclusive_jet/Dz": "Z",
+    "inclusive_jet/Dpt": "PT",
+    "inclusive_chjet/Dz": "Z",
+    "inclusive_chjet/Dpt": "PT",
+    "hadron_trigger_chjet/IAA_pt": "PT",
+    "hadron_trigger_chjet/dphi": "DELTAPHI",
+    "pion_trigger_chjet/IAA_pt": "PT",
+    "pion_trigger_chjet/dphi": "DELTAPHI",
+    "pion_trigger_hadron/pi0_hadron_IAA_pt": "PT",
+}
+
+# Shortened labels used in the structured filename convention:
+#   Data__{sqrts}__{system}__{class_label}__{observable}_{exp}__{jet_cfg}__{cent}.dat
+# For most classes this is identity; trigger-composite classes collapse to their trigger side.
+_OBSERVABLE_CLASS_LABEL: dict[str, str] = {
+    "dijet_trigger_jet": "dijet",
+}
+
+
+def _system_tag(sqrt_s: int) -> str:
+    if sqrt_s == 200:
+        return f"AuAu{sqrt_s}"
+    return f"PbPb{sqrt_s}"
+
+
+def _centrality_tag(cent: observable.CentralitySpec) -> str:
+    return f"{_fmt_int(cent.low)}to{_fmt_int(cent.high)}"
+
+
+def _fmt_int(x: float) -> str:
+    return f"{int(x)}" if float(x).is_integer() else f"{x}"
+
+
+# Substructure discriminators that split an observable into multiple per-combination files but
+# aren't captured by centrality/jet_R/pt. Fixed order keeps the appended tag deterministic.
+_DISCRIMINATOR_KEYS: tuple[str, ...] = (
+    "jet_subjet_R",
+    "jet_grooming_settings",
+    "jet_angularity",
+    "jet_charge",
+    # Jet-axis definition (WTA / SD-groomed variants): without it the three axis_alice variants of one
+    # (R, pt) cell resolve to one filename and silently overwrite each other (last write wins).
+    "jet_axis",
+    # Synthetic, set by _collapse_shared_columns when one published column IS a ratio between
+    # jet radii rather than a per-radius measurement (e.g. STAR IAA_pt_star Table 38).
+    "jet_R_ratio",
+)
+
+
+def _discriminator_tag(params: dict[str, Any]) -> str:
+    """Compact, deterministic tag of the substructure discriminators present in ``params``.
+
+    Grooming setting, angularity (alpha/kappa), jet charge (kappa) and subjet R each split an
+    observable into several per-combination tables; without them e.g. the three ``jet_charge``
+    kappa values of ``charge_cms`` collapse to one filename and silently overwrite each other.
+    """
+    parts = [str(params[k]) for k in _DISCRIMINATOR_KEYS if params.get(k) is not None]
+    return "_".join(parts)
+
+
+def _measurement_tag(obs: observable.Observable, combo: dict[str, Any]) -> str:
+    key = f"{obs.observable_class}/{obs.internal_name_without_experiment}"
+    base = _MEASUREMENT_TAG.get(key, obs.internal_name_without_experiment.upper())
+    jet_r = combo.get("jet_R")
+    R_value: float | None
+    if isinstance(jet_r, observable.JetRSpec):
+        R_value = jet_r.R
+    elif isinstance(jet_r, (int, float)):
+        R_value = float(jet_r)
+    elif isinstance(jet_r, str):
+        try:
+            R_value = float(jet_r)
+        except ValueError:
+            R_value = None
+    else:
+        R_value = None
+    if R_value is not None:
+        base = f"{base}R{round(R_value * 10):02d}"
+    # Append pt-bin index when the observable has multiple pT bins (jet.pt or trigger.pt
+    # declaring more than two edges). Keeps legacy names unique for e.g. pt_y_atlas (4 pT bins).
+    pt_sel = _find_pt_selection(combo)
+    if pt_sel is not None:
+        idx = _pt_bin_index(obs, pt_sel)
+        if idx is not None:
+            base = f"{base}pt{idx}"
+    disc = _discriminator_tag(combo)
+    if disc:
+        base = f"{base}_{disc}"
+    return base
+
+
+def _observable_class_label(obs_class: str) -> str:
+    """Short label for the observable class used in the structured filename."""
+    return _OBSERVABLE_CLASS_LABEL.get(obs_class, obs_class)
+
+
+def _pt_bin_edges_for_obs(obs: observable.Observable) -> list[float] | None:
+    """Return the ordered pt-bin edge list for this observable, or None.
+
+    Trigger observables carry their pt binning under ``trigger:``; inclusive jet/chjet
+    observables under ``jet:``; pion/hadron-triggered correlations bin in the
+    associated-particle pt under ``hadron:`` (e.g. pi0-hadron IAA). The returned list
+    is raw bin edges (n edges → n-1 bins); an entry of ``None`` caps the last bin open.
+    Only *multi-bin* sections (>2 edges) are returned, so a single-bin ``trigger.pt``
+    doesn't shadow a genuine multi-bin ``hadron.pt``.
+    """
+    for section in ("trigger", "jet", "hadron"):
+        sec = obs.config.get(section)
+        if isinstance(sec, dict):
+            pt = sec.get("pt")
+            if isinstance(pt, list) and len(pt) > 2:
+                return [float(v) if v is not None else float("inf") for v in pt]
+    return None
+
+
+def _pt_bin_index(obs: observable.Observable, pt_spec: observable.PtSpec) -> int | None:
+    """Zero-based index of ``pt_spec`` among the yaml-declared pt bins, or None if not multi-bin."""
+    edges = _pt_bin_edges_for_obs(obs)
+    if edges is None or len(edges) <= 2:
+        return None
+    lo = float(pt_spec.low)
+    hi = float("inf") if pt_spec.high is None else float(pt_spec.high)
+    for i in range(len(edges) - 1):
+        if abs(edges[i] - lo) < 1e-9 and abs(edges[i + 1] - hi) < 1e-9:
+            return i
+    return None
+
+
+def _fmt_R(R: float) -> str:
+    """Format jet-R as ``R0.4`` style (single-decimal, trailing zero kept)."""
+    return f"R{R:.1f}"
+
+
+def _jet_config_tag(obs: observable.Observable, params: dict[str, Any]) -> str:
+    """Build the ``R{R}[_pt{i}]`` slot of the structured filename.
+
+    Returns an empty string for classes that have neither a jet-R nor a multi-bin pt
+    selection (e.g. plain ``hadron``), producing the ``____`` (empty middle field) seen
+    in hadron filenames. When the observable bins in pt without a jet-R (e.g. the
+    associated-hadron pt of pi0-hadron IAA), the slot is ``pt{i}`` alone so per-pt-bin
+    files don't collide.
+    """
+    jet_r = _find_jet_r(params)
+    tag = ""
+    if jet_r is not None:
+        R_value = jet_r.R if isinstance(jet_r, observable.JetRSpec) else float(jet_r)
+        tag = _fmt_R(R_value)
+    pt_sel = _find_pt_selection(params)
+    if pt_sel is not None:
+        idx = _pt_bin_index(obs, pt_sel)
+        if idx is not None:
+            tag = f"{tag}_pt{idx}" if tag else f"pt{idx}"
+    disc = _discriminator_tag(params)
+    if disc:
+        tag = f"{tag}_{disc}" if tag else disc
+    return tag
+
+
+def _centrality_tag_new(cent: observable.CentralitySpec) -> str:
+    return f"{_fmt_int(cent.low)}-{_fmt_int(cent.high)}"
+
+
+def _new_filename(obs: observable.Observable, params: dict[str, Any], cent: observable.CentralitySpec) -> str:
+    """Structured-convention filename:
+
+    ``Data__{sqrts}__{system}__{class}__{obs}_{exp}__{jet_cfg}__{cent}.dat``
+
+    The ``{obs}_{exp}`` field is the yaml observable key verbatim (e.g. ``pt_ch_alice``,
+    ``Dpt_atlas``, ``xj_atlas``). The jet_cfg slot is empty for hadron observables.
+    """
+    system = "PbPb" if obs.sqrt_s in (2760, 5020) else "AuAu"
+    class_label = _observable_class_label(obs.observable_class)
+    jet_cfg = _jet_config_tag(obs, params)
+    cent_tag = _centrality_tag_new(cent)
+    return f"Data__{obs.sqrt_s}__{system}__{class_label}__{obs.name}__{jet_cfg}__{cent_tag}.dat"
+
+
+_INSPIRE_YEAR_CACHE: dict[int, str] = {}
+
+
+def _year_from_inspire(inspire_hep_id: int) -> str:
+    """Fetch the paper publication year from the Inspire HEP API. Cached per record ID."""
+    if inspire_hep_id in _INSPIRE_YEAR_CACHE:
+        return _INSPIRE_YEAR_CACHE[inspire_hep_id]
+    try:
+        import requests  # noqa: PLC0415
+
+        resp = requests.get(
+            f"https://inspirehep.net/api/literature/{inspire_hep_id}",
+            params={"fields": "publication_info,earliest_date"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        meta = resp.json().get("metadata", {})
+        # Prefer publication year; fall back to earliest_date
+        for pub in meta.get("publication_info", []):
+            if "year" in pub:
+                year = str(pub["year"])
+                _INSPIRE_YEAR_CACHE[inspire_hep_id] = year
+                return year
+        earliest = meta.get("earliest_date", "")
+        if earliest:
+            year = earliest.split("-")[0]
+            _INSPIRE_YEAR_CACHE[inspire_hep_id] = year
+            return year
+    except Exception as exc:
+        logger.debug(f"Inspire API lookup failed for ins{inspire_hep_id}: {exc}")
+    _INSPIRE_YEAR_CACHE[inspire_hep_id] = "unknown"
+    return "unknown"
+
+
+def _year_from_hepdata(hd_info: hepdata_utils.HEPDataInfo, base_data_dir: Path) -> str:
+    """Extract year, preferring HEPData submission.yaml, falling back to Inspire API.
+
+    Some HEPData records put ``dateupdated`` in the first meta doc, others in a later one,
+    and a few omit it altogether. We try all docs first; if nothing, we ask Inspire.
+    """
+    sub = Path(base_data_dir) / "data" / hd_info.directory / "submission.yaml"
+    try:
+        with sub.open() as f:
+            metas = list(yaml.safe_load_all(f))
+        for m in metas:
+            if isinstance(m, dict) and "dateupdated" in m:
+                date = m["dateupdated"]
+                # Format "24/04/2015 07:16:36" → "2015"
+                return date.split()[0].split("/")[-1]
+    except Exception:
+        pass
+    return _year_from_inspire(hd_info.identifier.inspire_hep_id)
+
+
+def _to_abs_error(val: Any, y: float) -> float:
+    """Convert a HEPData error value (float, "3.1%", etc.) to an absolute magnitude."""
+    if val is None:
+        return 0.0
+    if isinstance(val, str) and val.endswith("%"):
+        return abs(y) * float(val.rstrip("%")) / 100.0
+    return float(val)
+
+
+def _parse_error(err_entry: dict[str, Any], y: float) -> tuple[float, float]:
+    """Return (low, high) magnitudes. Symmetric → duplicated; asymmetric → (|minus|, |plus|)."""
+    if "symerror" in err_entry:
+        v = abs(_to_abs_error(err_entry["symerror"], y))
+        return v, v
+    if "asymerror" in err_entry:
+        ae = err_entry["asymerror"]
+        lo = abs(_to_abs_error(ae.get("minus"), y))
+        hi = abs(_to_abs_error(ae.get("plus"), y))
+        return lo, hi
+    return 0.0, 0.0
+
+
+def _decode_centrality(raw: str) -> observable.CentralitySpec:
+    lo, hi = raw.split("_")
+    return observable.CentralitySpec(low=float(lo), high=float(hi))
+
+
+def _decode_pt_range(raw: str) -> observable.PtSpec | None:
+    try:
+        lo, hi = raw.split("_")
+        return observable.PtSpec(low=float(lo), high=float(hi) if float(hi) >= 0 else None)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _decode_jet_r(raw: str) -> observable.JetRSpec | None:
+    try:
+        return observable.JetRSpec(R=float(raw))
+    except (ValueError, TypeError):
+        return None
+
+
+def _find_centrality(combo: dict[str, Any]) -> observable.CentralitySpec | None:
+    for k, v in combo.items():
+        if "centrality" in str(k).lower():
+            return _decode_centrality(v) if isinstance(v, str) else v
+    return None
+
+
+def _find_jet_r(combo: dict[str, Any]) -> observable.JetRSpec | None:
+    for k, v in combo.items():
+        if "jet_r" in str(k).lower() or str(k) == "R":
+            return _decode_jet_r(v) if isinstance(v, str) else v
+    return None
+
+
+def _find_pt_range(combo: dict[str, Any]) -> observable.PtSpec | None:
+    """Return the PtSpec for filtering HEPData bins (if any in the combination)."""
+    for k, v in combo.items():
+        if str(k) == "pt":
+            return _decode_pt_range(v) if isinstance(v, str) else v
+    return None
+
+
+def _find_pt_selection(combo: dict[str, Any]) -> observable.PtSpec | None:
+    """Return the PtSpec identifying the jet-pT bin for structured-filename indexing.
+
+    Accepts either ``pt`` or ``jet_pt`` — the substructure observables use ``jet_pt`` to
+    tag which dependent-variable index to pull (the independent axis isn't pT).
+    """
+    for key in ("pt", "jet_pt"):
+        v = combo.get(key)
+        if v is None:
+            continue
+        return _decode_pt_range(v) if isinstance(v, str) else v
+    return None
+
+
+# pT-differential R_AA observables whose HEPData independent variable IS the analyzer's pT axis, keyed like
+# _MEASUREMENT_TAG, mapped to the config section that declares the analyzer window (``<section>.pt: [lo, hi]``).
+# Everything else (substructure, fragmentation, semi-inclusive) is never windowed by this fallback.
+_PT_WINDOW_SECTION: dict[str, str] = {
+    "hadron/pt_ch": "hadron",
+    "hadron/pt_pi": "hadron",
+    "hadron/pt_pi0": "hadron",
+    "inclusive_jet/pt": "jet",
+    "inclusive_chjet/pt": "jet",
+}
+
+
+def _analyzer_pt_window(obs: observable.Observable) -> observable.PtSpec | None:
+    """The analyzer's pT fill window for a pT-differential R_AA observable, or None."""
+    section = _PT_WINDOW_SECTION.get(f"{obs.observable_class}/{obs.internal_name_without_experiment}")
+    if section is None:
+        return None
+    block = obs.config.get(section)
+    if not isinstance(block, dict):
+        return None
+    pt = block.get("pt")
+    if not (isinstance(pt, list) and len(pt) == 2):
+        return None
+    return observable.PtSpec(low=float(pt[0]), high=None if pt[1] is None else float(pt[1]))
+
+
+def _effective_pt_window(obs: observable.Observable, params: dict[str, Any]) -> observable.PtSpec | None:
+    """Row window for a ratio entry: an explicit ``pt`` combination parameter wins; otherwise, for
+    pT-differential R_AA observables, the analyzer window (see _PT_WINDOW_SECTION).
+
+    Rationale: prediction tables carry exactly the HEPData bins overlapping the analyzer window (the
+    aggregation writer strips leading empty bins and writes no x columns) and consumers align data rows to
+    prediction rows positionally. Before this fallback the 2.76 TeV hadron configs windowed explicitly
+    (7 of 39 ALICE bins) while their 5.02 TeV siblings did not (all 39), from the same HEPData record.
+    """
+    explicit = _find_pt_range(params)
+    if explicit is not None:
+        return explicit
+    return _analyzer_pt_window(obs)
+
+
+def _additional_fractions(name: str, value: Any) -> tuple[float, float]:
+    """Normalise an ``additional_systematics`` value to ``(low_frac, high_frac)``.
+
+    A scalar is symmetric. A two-element list is ``[low, high]`` = ``[minus, plus]`` (HEPData
+    asymerror orientation), e.g. STAR ins619063's ``Bands: <Nbin>[1.0+0.18-0.20]`` is ``[0.20, 0.18]``.
+    """
+    if isinstance(value, (list, tuple)):
+        if len(value) != 2:
+            msg = f"additional_systematics '{name}': expected a scalar or [low, high], got {value!r}"
+            raise ValueError(msg)
+        return abs(float(value[0])), abs(float(value[1]))
+    frac = abs(float(value))
+    return frac, frac
+
+
+def _systematic_column_prefix(canonical: str) -> str:
+    """Return the column-name prefix for a systematic source.
+
+    If the canonical name is already ``sys`` (i.e. a lumped HEPData systematic kept as-is),
+    we avoid the degenerate ``sys,sys,low`` double prefix and write just ``sys,low``.
+    """
+    if canonical == "sys":
+        return "sys"
+    return f"sys,{canonical}"
+
+
+def _expand_ratio_entries(obs: observable.Observable) -> list[dict[str, Any]]:
+    """Return expanded ratio-block configs (raw dicts), or [] if missing/empty.
+
+    We do *not* convert to HEPDataEntry here because the current registry has an
+    unresolved key mismatch for ``jet_R`` (registered as ``R``). Returning raw
+    dicts lets us decode parameter values by hand in the writer.
+    """
+    ratio_cfg = obs.config.get("data", {}).get("AA", {}).get("hepdata", {}).get("ratio")
+    if not ratio_cfg:
+        return []
+    tables = ratio_cfg.get("tables", [])
+    expanded = data_mod.expand_parameter_combinations_into_individual_configs(tables)
+    entries: list[dict[str, Any]] = []
+    for e in expanded:
+        if not e.get("table") or e.get("index") in (None, ""):
+            logger.debug(f"Skipping empty ratio entry for {obs.observable_str}: {e}")
+            continue
+        # Skip unfilled blocks (systematics_names still empty) — nothing to write.
+        if not e.get("systematics_names") and not e.get("additional_systematics"):
+            logger.debug(f"Skipping unfilled ratio entry for {obs.observable_str} (empty systematics_names)")
+            continue
+        entries.append(e)
+    return _collapse_shared_columns(obs, entries)
+
+
+def _collapse_shared_columns(obs: observable.Observable, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse expanded entries that resolve to the SAME published column.
+
+    Expanding a ratio block over a multi-valued parameter assumes each value selects a
+    different measurement. That is false when the published column is itself a ratio between
+    those values: STAR's ``hadron_trigger_chjet/IAA_pt_star`` wires Table 38, the single
+    R=0.2/R=0.5 recoil-yield ratio, but declares ``jet_R: ["0.2", "0.5"]`` -- so the expansion
+    produced two BYTE-IDENTICAL files (IAA_PTR02 and IAA_PTR05) for one measurement.
+
+    Same (table, index) means literally the same numbers, so such a group is emitted once. The
+    differing radii are preserved in a synthetic ``jet_R_ratio`` discriminator (which both
+    filename conventions append) instead of a bogus single-radius label. Groups that differ in
+    any parameter other than ``jet_R`` are left untouched rather than guessed at.
+    """
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for e in entries:
+        groups.setdefault((str(e.get("table")), str(e.get("index"))), []).append(e)
+
+    collapsed: list[dict[str, Any]] = []
+    for (table_name, _index), group in groups.items():
+        if len(group) == 1:
+            collapsed.append(group[0])
+            continue
+        differing = {
+            k
+            for k in {key for e in group for key in (e.get("parameters") or {})}
+            if len({str((e.get("parameters") or {}).get(k)) for e in group}) > 1
+        }
+        if differing != {"jet_R"}:
+            logger.warning(
+                f"{obs.observable_str}: {len(group)} entries share '{table_name}' and differ in "
+                f"{sorted(differing) or 'nothing'} -- leaving them expanded (duplicate output likely)."
+            )
+            collapsed.extend(group)
+            continue
+        merged = dict(group[0])
+        params = dict(merged.get("parameters") or {})
+        radii = [str((e.get("parameters") or {}).get("jet_R")) for e in group]
+        params.pop("jet_R", None)
+        params["jet_R_ratio"] = "R" + "overR".join(radii)
+        merged["parameters"] = params
+        logger.info(
+            f"{obs.observable_str}: '{table_name}' is one column shared by jet_R {radii} -- "
+            f"emitting a single file tagged {params['jet_R_ratio']} instead of {len(group)} identical ones."
+        )
+        collapsed.append(merged)
+    return collapsed
+
+
+def _format_number(x: float) -> str:
+    return f"{x:.6g}"
+
+
+def write_data_table(  # noqa: C901
+    obs: observable.Observable,
+    entry: dict[str, Any],
+    hd_info: hepdata_utils.HEPDataInfo,
+    base_data_dir: Path,
+    output_dir: Path,
+) -> Path | None:
+    """Write a single Data_*.dat file for one expanded ratio-block entry.
+
+    Returns the output path, or None if the entry could not be written.
+    """
+    table_name: str = entry["table"]
+    table_index: str = str(entry["index"])
+    systematics_names: dict[str, str] = entry.get("systematics_names") or {}
+    additional_syst: dict[str, float | list[float]] = entry.get("additional_systematics") or {}
+    params: dict[str, Any] = entry.get("parameters") or {}
+
+    # Locate the HEPData YAML file
+    table_rel_filename = hd_info.tables_to_filenames.get(table_name)
+    if table_rel_filename is None:
+        logger.warning(f"{obs.observable_str}: '{table_name}' not in hepdata record {hd_info.identifier}; skipping")
+        return None
+    yaml_path = Path(base_data_dir) / "data" / hd_info.directory / table_rel_filename
+    with yaml_path.open() as f:
+        hd = yaml.safe_load(f)
+
+    # Independent variable → bin edges (prefer xmin/xmax, fall back to x)
+    ind = hd["independent_variables"][0]
+    has_bin_edges = all(
+        ("low" in b and "high" in b and b.get("low") is not None and b.get("high") is not None) for b in ind["values"]
+    )
+    # Some HEPData records store the bin edges the wrong way round (low > high) -- e.g.
+    # ins1673184 Table 27 (ATLAS jet R_AA vs |y|) has {'low': 0.8, 'high': 0.3}, and the CMS
+    # jet-charge record does the same for every bin. Copying them verbatim produces tables
+    # with xmin > xmax, which silently breaks any consumer that assumes ascending edges.
+    # Normalise here rather than in the configs, since it is a defect of the upload.
+    if has_bin_edges:
+        n_swapped = 0
+        for b in ind["values"]:
+            if float(b["low"]) > float(b["high"]):
+                b["low"], b["high"] = b["high"], b["low"]
+                n_swapped += 1
+        if n_swapped:
+            logger.warning(
+                f"{obs.observable_str} {table_name}: HEPData stores low > high for "
+                f"{n_swapped}/{len(ind['values'])} bins; swapping to get ascending edges."
+            )
+
+    # Dependent variable (select by index, 1-based per HEPData convention)
+    try:
+        dv = hd["dependent_variables"][int(table_index) - 1]
+    except (IndexError, ValueError):
+        logger.warning(f"{obs.observable_str}: table_index={table_index} out of range for {table_name}; skipping")
+        return None
+
+    # Build systematic columns in config order: skip "stat" (written separately), use canonical names.
+    per_bin_syst_cols: list[tuple[str, str]] = []  # (hepdata_label, canonical_name)
+    stat_label: str | None = None
+    for hep_label, canonical in systematics_names.items():
+        if canonical == "stat":
+            stat_label = hep_label
+            continue
+        per_bin_syst_cols.append((hep_label, canonical))
+    # Each value is a symmetric fraction, or a ``[low, high]`` pair of fractions (= [minus, plus],
+    # the same orientation as HEPData asymerror and as the ``,low`` / ``,high`` output columns).
+    additional_cols: list[tuple[str, tuple[float, float]]] = [
+        (name, _additional_fractions(name, value)) for name, value in additional_syst.items()
+    ]
+
+    # Determine filename components
+    cent = _find_centrality(params)
+    if cent is None:
+        logger.warning(f"{obs.observable_str}: no centrality in entry params {params}; skipping")
+        return None
+    exp = obs.experiment
+    system = _system_tag(obs.sqrt_s)
+    measurement = _measurement_tag(obs, params)
+    cent_tag = _centrality_tag(cent)
+    year = _year_from_hepdata(hd_info, base_data_dir)
+
+    fn = f"Data_{exp}_{system}_{measurement}_{cent_tag}_{year}.dat"
+    out_dir = output_dir / str(obs.sqrt_s)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / fn
+
+    hepdata_url = f"https://www.hepdata.net/record/ins{hd_info.identifier.inspire_hep_id}"
+    inspire_url = f"https://inspirehep.net/literature/{hd_info.identifier.inspire_hep_id}"
+
+    # Y-label: for the ratio block it's always RAA
+    y_label = "RAA"
+    # X-label: an explicit override where the observable is named after the measured quantity
+    # rather than its abscissa; otherwise fall back to the first token of the internal name.
+    x_token = _X_AXIS_TOKEN.get(
+        f"{obs.observable_class}/{obs.internal_name_without_experiment}",
+        obs.internal_name_without_experiment.split("_")[0].upper(),
+    )
+
+    # Write file
+    with out_path.open("w") as f:
+        f.write("# Version 1.0\n")
+        f.write(f"# DOI {hepdata_url}\n")
+        f.write(f"# InspireHEP {inspire_url}\n")
+        f.write(f"# Source {hepdata_url} {table_name}\n")
+        f.write(f"# System {system}\n")
+        f.write(f"# Centrality {_fmt_int(cent.low)} {_fmt_int(cent.high)}\n")
+        f.write(f"# XY {x_token} {y_label}\n")
+
+        # Label header
+        header_cols = (["xmin", "xmax", "y"] if has_bin_edges else ["x", "y"]) + [
+            "stat,low",
+            "stat,high",
+        ]
+        for _, canonical in per_bin_syst_cols:
+            prefix = _systematic_column_prefix(canonical)
+            header_cols += [f"{prefix},low", f"{prefix},high"]
+        for canonical, _ in additional_cols:
+            prefix = _systematic_column_prefix(canonical)
+            header_cols += [f"{prefix},low", f"{prefix},high"]
+        f.write("# Label " + " ".join(header_cols) + "\n")
+
+        # Row window: explicit `pt` combination parameter, else the analyzer window for pT-differential R_AA
+        pt_range = _effective_pt_window(obs, params)
+
+        # Rows
+        n_written = 0
+        for ind_entry, v in zip(ind["values"], dv["values"], strict=False):
+            y_raw = v.get("value")
+            # Skip HEPData "missing" sentinels like "-", "", None
+            if y_raw is None or (
+                isinstance(y_raw, str)
+                and not y_raw.replace(".", "").replace("-", "").replace("e", "").replace("+", "").strip()
+            ):
+                continue
+            try:
+                y = float(y_raw)
+            except (TypeError, ValueError):
+                logger.debug(f"{obs.observable_str} {entry.table}: skipping non-numeric value {y_raw!r}")
+                continue
+            # pT range filter
+            if pt_range is not None and has_bin_edges:
+                bin_lo, bin_hi = float(ind_entry["low"]), float(ind_entry["high"])
+                if bin_hi <= pt_range.low or (pt_range.high is not None and bin_lo >= pt_range.high):
+                    continue
+
+            # Locate errors by HEPData label
+            err_by_label = {e.get("label", ""): e for e in v.get("errors", [])}
+
+            row: list[str] = []
+            if has_bin_edges:
+                row += [_format_number(ind_entry["low"]), _format_number(ind_entry["high"])]
+            else:
+                row += [_format_number(ind_entry.get("value", 0))]
+            row += [_format_number(y)]
+
+            # Stat
+            if stat_label and stat_label in err_by_label:
+                lo, hi = _parse_error(err_by_label[stat_label], y)
+            else:
+                lo, hi = 0.0, 0.0
+            row += [_format_number(lo), _format_number(hi)]
+
+            # Per-bin systematics in config order
+            for hep_label, _ in per_bin_syst_cols:
+                if hep_label in err_by_label:
+                    lo, hi = _parse_error(err_by_label[hep_label], y)
+                else:
+                    lo, hi = 0.0, 0.0
+                row += [_format_number(lo), _format_number(hi)]
+
+            # Additional systematics (global, constant across bins) - frac * |y|, per side
+            for _, (frac_lo, frac_hi) in additional_cols:
+                row += [_format_number(abs(y) * frac_lo), _format_number(abs(y) * frac_hi)]
+
+            f.write(" ".join(row) + "\n")
+            n_written += 1
+
+    logger.info(f"Wrote {n_written} rows to {out_path}")
+
+    # Also emit a second copy under the structured filename convention:
+    #   Data__{sqrts}__{system}__{class}__{obs}_{exp}__{jet_cfg}__{cent}.dat
+    new_fn = _new_filename(obs, params, cent)
+    new_path = out_dir / new_fn
+    shutil.copy2(out_path, new_path)
+    logger.info(f"Also wrote structured-name copy to {new_path}")
+
+    return out_path
+
+
+def build_tables_for_config(config_path: Path, output_dir: Path, base_data_dir: Path | None = None) -> list[Path]:
+    """Build all RAA data tables for observables in the given STAT_{sqrt_s}.yaml config."""
+    if base_data_dir is None:
+        base_data_dir = hepdata_utils.BASE_DATA_DIR
+    base_data_dir = Path(base_data_dir)
+
+    # Derive sqrt_s from filename (e.g. STAT_2760.yaml → 2760)
+    stem = Path(config_path).stem
+    sqrt_s_str = stem.split("_")[-1]
+    try:
+        sqrt_s = int(sqrt_s_str)
+    except ValueError as exc:
+        msg = f"Cannot infer sqrt_s from config filename '{config_path.name}'"
+        raise ValueError(msg) from exc
+
+    with Path(config_path).open() as f:
+        cfg = yaml.safe_load(f)
+
+    # Identify observable classes (same logic as observable.read_observables_from_config)
+    observable_classes: list[str] = []
+    started = False
+    for k in cfg:
+        if "hadron" in k or started:
+            observable_classes.append(k)
+            started = True
+
+    output_paths: list[Path] = []
+    for obs_class in observable_classes:
+        for obs_name, obs_cfg in cfg[obs_class].items():
+            if not obs_cfg.get("enabled", False):
+                continue
+            obs = observable.Observable(
+                sqrt_s=sqrt_s,
+                observable_class=obs_class,
+                name=obs_name,
+                config=obs_cfg,
+            )
+            entries = _expand_ratio_entries(obs)
+            if not entries:
+                logger.debug(f"{obs.observable_str}: no filled ratio entries; skipping")
+                continue
+
+            # Retrieve HEPData info once per (observable, inspire_hep_id).
+            # Since all ratio entries for one observable share the same record, we fetch once.
+            inspire_id = obs_cfg["data"]["AA"]["hepdata"]["record"]["inspire_hep_id"]
+            version = obs_cfg["data"]["AA"]["hepdata"]["record"].get("version", -1)
+            hd_info = hepdata_utils.retrieve_observable_hepdata(
+                observable_str_as_path=obs.observable_str_as_path,
+                inspire_hep_id=inspire_id,
+                version=version,
+                base_dir=base_data_dir,
+            )
+
+            for entry in entries:
+                out = write_data_table(
+                    obs=obs,
+                    entry=entry,
+                    hd_info=hd_info,
+                    base_data_dir=base_data_dir,
+                    output_dir=output_dir,
+                )
+                if out is not None:
+                    output_paths.append(out)
+
+    logger.info(f"Wrote {len(output_paths)} data tables to {output_dir}/{sqrt_s}")
+    return output_paths
+
+
+def main() -> None:
+    from jetscape_analysis.base import helpers  # noqa: PLC0415
+
+    helpers.setup_logging(level=logging.INFO)
+
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--config", type=Path, required=True, help="Path to STAT_{sqrt_s}.yaml")
+    parser.add_argument("--output", type=Path, default=Path("tables"), help="Output directory (default: ./tables)")
+    parser.add_argument(
+        "--base-data-dir",
+        type=Path,
+        default=None,
+        help="Base dir for HEPData archives (default: hepdata_utils.BASE_DATA_DIR)",
+    )
+    args = parser.parse_args()
+
+    build_tables_for_config(
+        config_path=args.config,
+        output_dir=args.output,
+        base_data_dir=args.base_data_dir,
+    )
+
+
+if __name__ == "__main__":
+    main()

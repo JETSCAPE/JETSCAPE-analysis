@@ -1,67 +1,89 @@
+"""This script plots histograms created in the analysis of Jetscape events
+
+.. codeauthor:: James Mulligan <james.mulligan@berkeley.edu>, UC Berkeley
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
-  macro for plotting analyzed jetscape events
-  """
 
-# This script plots histograms created in the analysis of Jetscape events
-#
-# Author: James Mulligan (james.mulligan@berkeley.edu)
+from __future__ import annotations
 
-# General
-import os
-import sys
-import yaml
 import argparse
+import itertools
+import logging
+import sys
+from pathlib import Path
 
-# Data analysis and plotting
-import ROOT
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
-
-# Base class
-sys.path.append('.')
-from jetscape_analysis.base import common_base
+import ROOT  # pyright: ignore [reportMissingImports]
+import yaml
+from jetscape_analysis.base import common_base, helpers
+# Aliased to avoid clashing with the `observable` loop variable used pervasively in this file.
+from jetscape_analysis.data_curation import observable as observable_module
 from plot import plot_results_STAT_utils
 
 # Prevent ROOT from stealing focus when plotting
 ROOT.gROOT.SetBatch(True)
+# Do not tie newly-created histograms to the current ROOT directory. The
+# histogrammer opens HEPData TFiles (e.g. for the xj_gamma / D(z),D(pt) bin
+# lookups); without this, booked histograms become owned by whichever TFile is
+# the current gDirectory and are deleted when that file closes, leaving dangling
+# (null) entries in output_list. We write everything explicitly via TFile.Write.
+ROOT.TH1.AddDirectory(False)
+
+logger = logging.getLogger(__name__)
+
+# The set of encoder-migrated jet/substructure observables now lives in plot_results_STAT_utils
+# (ENCODER_MIGRATED_JET_OBSERVABLES) so the histogrammer and plotter share one source of truth.
+# Referenced below as plot_results_STAT_utils.ENCODER_MIGRATED_JET_OBSERVABLES.
+
 
 ################################################################
 class HistogramResults(common_base.CommonBase):
-
     # ---------------------------------------------------------------
     # Constructor
     # ---------------------------------------------------------------
-    def __init__(self, config_file='', input_file='', output_dir='', **kwargs):
-        super(HistogramResults, self).__init__(**kwargs)
-        self.input_file = input_file
-        self.output_dir = output_dir
+    def __init__(
+        self, config_file: str | Path = "", input_file: str | Path = "", output_dir: str | Path = "", **kwargs
+    ):
+        super().__init__(**kwargs)
+        config_file = Path(config_file)
+        self.config_file = config_file
+        self.input_file = Path(input_file)
+        self.output_dir = Path(output_dir)
 
         self.plot_utils = plot_results_STAT_utils.PlotUtils()
 
-        #------------------------------------------------------
+        # ------------------------------------------------------
         # Check whether pp or AA
-        if 'PbPb' in self.input_file or 'AuAu' in self.input_file:
+        self.is_AA = False
+        if "PbPb" in str(self.input_file) or "AuAu" in str(self.input_file):
             self.is_AA = True
-        else:
-            self.is_AA = False
 
-        #------------------------------------------------------
+        # ------------------------------------------------------
         # Read config file
-        with open(config_file, 'r') as stream:
+        with config_file.open() as stream:
             self.config = yaml.safe_load(stream)
 
-        self.sqrts = self.config['sqrt_s']
-        self.power = self.config['power']
-        self.pt_ref = self.config['pt_ref']
+        self.sqrts = self.config["sqrt_s"]
+        self.power = self.config["power"]
+        self.pt_ref = self.config["pt_ref"]
+
+        # Observable objects keyed "{sqrts}_{observable_class}_{name}", used to build the
+        # encoder-based storage column/histogram names for groomed & substructure observables.
+        # The analyzer already writes these encoder names; the histogrammer must match them
+        # (see MIGRATION_NOTES Step 4 and OBSERVABLE_EDGE_CASES C4/C5). Container-safe import
+        # (attrs/pyyaml only).
+        self.observables_info = observable_module.read_observables_from_config(
+            config_path=self.config_file, sqrt_s=self.sqrts
+        )
 
         # If AA, set different options for hole subtraction treatment
+        self.jet_collection_labels = [""]
         if self.is_AA:
-            self.jet_collection_labels = self.config['jet_collection_labels']
-        else:
-            self.jet_collection_labels = ['']
+            self.jet_collection_labels = self.config["jet_collection_labels"]
 
-        #------------------------------------------------------
+        # ------------------------------------------------------
         # Read input file
         self.observables_df = pd.read_parquet(self.input_file)
         # It's possible that there are no entries in observables_df, so we use get here and
@@ -70,14 +92,18 @@ class HistogramResults(common_base.CommonBase):
         # NOTE: We should still write an empty ROOT file when we go to run the histogramming.
         #       Otherwise the steering will fail because it will see the missing file and think
         #       that the jobs failed.
-        self.weights = self.observables_df.get('event_weight', [])
-        self.pt_hat = self.observables_df.get('pt_hat', [])
+        self.weights = self.observables_df.get("event_weight", [])
+        self.pt_hat = self.observables_df.get("pt_hat", [])
 
         # Columns that include ALL events (including empty ones)
         # If absent (older format files), fall back to legacy columns so downstream code still works.
-        self.weights_all = self.observables_df.get('event_weight_all', self.weights)
-        self.event_centrality_min_all = self.observables_df.get('centrality_min_all', self.observables_df.get('centrality_min', []))
-        self.event_centrality_max_all = self.observables_df.get('centrality_max_all', self.observables_df.get('centrality_max', []))
+        self.weights_all = self.observables_df.get("event_weight_all", self.weights)
+        self.event_centrality_min_all = self.observables_df.get(
+            "centrality_min_all", self.observables_df.get("centrality_min", [])
+        )
+        self.event_centrality_max_all = self.observables_df.get(
+            "centrality_max_all", self.observables_df.get("centrality_max", [])
+        )
 
         # Read metadata from parquet file to determine centrality mode
         try:
@@ -89,7 +115,9 @@ class HistogramResults(common_base.CommonBase):
             self.use_event_based_centrality = metadata.get(b"use_event_based_centrality", b"False") == b"True"
         except Exception as e:
             # In case of failure (e.g., missing metadata), fall back to precomputed hydro mode
-            print(f"Warning: could not read metadata from {self.input_file}. Assuming use_event_based_centrality = False.")
+            print(
+                f"Warning: could not read metadata from {self.input_file}. Assuming use_event_based_centrality = False."
+            )
             self.use_event_based_centrality = False
 
         # Load event-level centrality values from observables_df
@@ -99,60 +127,88 @@ class HistogramResults(common_base.CommonBase):
         #   inherited from the hydro profile used to generate the events.
         # These are used to determine whether an event should be included in a given observable's centrality bin.
         # Note: the *_all variants above include empty events if those columns were written.
-        self.event_centrality_min = self.observables_df.get('centrality_min', [])
-        self.event_centrality_max = self.observables_df.get('centrality_max', [])
+        self.event_centrality_min = self.observables_df.get("centrality_min", [])
+        self.event_centrality_max = self.observables_df.get("centrality_max", [])
 
-        #------------------------------------------------------
+        # ------------------------------------------------------
         # Read cross-section file
-        cross_section_file = 'cross_section'.join(self.input_file.rsplit('observables', 1))
+        # NOTE: These next two cross_section_file lines should be equivalent. The former was the
+        #       original line, and is very clever, but isn't so obvious. RJE replaced it with the
+        #       simpler version in July 2025, but left the previous version here in case I've
+        #       underestimated the complexity and we need to go back to the previous version.
+        cross_section_file = "cross_section".join(str(self.input_file).rsplit("observables", 1))
+        #cross_section_file = str(self.input_file).replace("observables", "cross_section")
         cross_section_df = pd.read_parquet(cross_section_file)
-        self.cross_section = cross_section_df['cross_section'][0]
-        self.cross_section_error = cross_section_df['cross_section_error'][0]
-        self.n_events_generated = cross_section_df['n_events'][0]
-        self.sum_weights = cross_section_df['weight_sum'][0]
+        self.cross_section = cross_section_df["cross_section"][0]
+        self.cross_section_error = cross_section_df["cross_section_error"][0]
+        self.n_events_generated = cross_section_df["n_events"][0]
+        self.sum_weights = cross_section_df["weight_sum"][0]
         if self.is_AA:
             # This centrality covers the range of centrality values simulated in the entire job
             # It represents the user-specified [min, max] centrality range
-            self.centrality_range = [ int(cross_section_df['centrality_range_min'][0]), int(cross_section_df['centrality_range_max'][0]) ]
+            self.centrality_range = [
+                int(cross_section_df["centrality_range_min"][0]),
+                int(cross_section_df["centrality_range_max"][0]),
+            ]
             self.observable_centrality_list = []
 
-        print(f'xsec: {self.cross_section}')
-        print(f'weights: {self.sum_weights}')
+        logger.info(f"xsec: {self.cross_section}")
+        logger.info(f"weights: {self.sum_weights}")
 
-        #------------------------------------------------------
+        # ------------------------------------------------------
         # Create output list to store histograms
         self.output_list = []
 
-        #print(self)
-        #print(f'keys: {self.observables_df.keys()}')
+        # logger.info(self)
+        # logger.info(f'keys: {self.observables_df.keys()}')
 
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     # Main function
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     def histogram_results(self):
-
         # only executed if there is at least one non-empty event
-        if self.observables_df['event_weight'].notna().sum() > 0:
+        if self.observables_df["event_weight"].notna().sum() > 0:
             # Hadron histograms
-            self.histogram_hadron_observables(observable_type='hadron')
+            self.histogram_hadron_observables(observable_type="hadron")
 
-            self.histogram_hadron_correlation_observables(observable_type='hadron_correlations')
+            #self.histogram_hadron_correlation_observables(observable_type="hadron_correlation")
+            #self.histogram_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
+            if "hadron_correlation" in self.config:
+                self.histogram_hadron_correlation_observables(observable_type="hadron_correlation")
+            if "hadron_trigger_hadron" in self.config:
+                self.histogram_hadron_trigger_hadron_observables(observable_type="hadron_trigger_hadron")
 
             # Jet histograms: loop through different hole subtraction treatments
             for jet_collection_label in self.jet_collection_labels:
+                self.histogram_jet_observables(
+                    observable_type="inclusive_chjet", jet_collection_label=jet_collection_label
+                )
 
-                self.histogram_jet_observables(observable_type='inclusive_chjet', jet_collection_label=jet_collection_label)
+                if "inclusive_jet" in self.config:
+                    self.histogram_jet_observables(
+                        observable_type="inclusive_jet", jet_collection_label=jet_collection_label
+                    )
 
-                if 'inclusive_jet' in self.config:
-                    self.histogram_jet_observables(observable_type='inclusive_jet', jet_collection_label=jet_collection_label)
+                if "hadron_trigger_chjet" in self.config:
+                    self.histogram_hadron_trigger_chjet_observables(
+                        observable_type="hadron_trigger_chjet", jet_collection_label=jet_collection_label
+                    )
 
-                if 'semi_inclusive_chjet' in self.config:
-                    self.histogram_semi_inclusive_chjet_observables(observable_type='semi_inclusive_chjet', jet_collection_label=jet_collection_label)
+                if "dijet_trigger_jet" in self.config:
+                    self.histogram_jet_observables(
+                        observable_type="dijet_trigger_jet", jet_collection_label=jet_collection_label
+                    )
 
-                if 'dijet' in self.config:
-                    self.histogram_jet_observables(observable_type='dijet', jet_collection_label=jet_collection_label)
+                # gamma-triggered jet observables (xj_gamma_*, pt_atlas, etc.) live under
+                # gamma_trigger_jet in the new YAML. The handlers are in
+                # histogram_photon_jet_observables (kept its old name despite the YAML rename).
+                if "gamma_trigger_jet" in self.config:
+                    self.histogram_photon_jet_observables(
+                        observable_type="gamma_trigger_jet", jet_collection_label=jet_collection_label
+                    )
+
         else:
-            print("\tWARNING: There are no entries in the observables df. Will only write event level QA.")
+            logger.warning("\tThere are no entries in the observables df. Will only write event level QA.")
 
         # QA histograms
         # NOTE: These histograms still work even if there are no observables (well, at least many of them,
@@ -160,14 +216,14 @@ class HistogramResults(common_base.CommonBase):
         self.histogram_event_qa()
 
         # Write output to ROOT file
+        logger.info(f"Writing output to {self.output_dir}")
         self.write_output_objects()
 
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     # Create event-level histograms
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     def histogram_event_qa(self):
-
-        #---------------------------------
+        # ---------------------------------
         # Save xsec and sum_weights for normalization and uncertainty
 
         # For AA, we need to loop through all centrality bins and save the xsec and weight_sum for each.
@@ -184,13 +240,18 @@ class HistogramResults(common_base.CommonBase):
                 return
 
             for centrality in self.observable_centrality_list:
-
                 if not self.use_event_based_centrality:
-                    # PRECOMPUTED: all events share the same (file-level) centrality.
-                    # Check once using the first row (safe because all rows match).
-                    if not self.centrality_accepted(centrality, event_index=0):
+                    # Find first event with valid centrality
+                    valid_idx = np.where(~np.isnan(centrality_min_all))[0]
+                    if len(valid_idx) == 0:
                         continue
-                    
+                    first_valid = valid_idx[0]
+                    # Check once using the first row (safe because all rows match).
+                    #if not self.centrality_accepted(centrality, event_index=first_valid):
+                    if not (centrality_min_all[first_valid] >= centrality[0]
+                            and centrality_max_all[first_valid] <= centrality[1]):
+                        continue
+
                     # The sum of weights is simply the total sum of all weights.
                     sum_weights = self.sum_weights
                     # The weights to fill the histogram are all weights.
@@ -208,141 +269,386 @@ class HistogramResults(common_base.CommonBase):
                     weights = weight_all[mask]
 
                 # Save cross section
-                h = ROOT.TH1F(f'h_xsec_{centrality}', f'h_xsec_{centrality}', 1, 0, 1)
+                h = ROOT.TH1F(f"h_xsec_{centrality}", f"h_xsec_{centrality}", 1, 0, 1)
                 h.SetBinContent(1, self.cross_section)
                 self.output_list.append(h)
 
-                h = ROOT.TH1F(f'h_xsec_error_{centrality}', f'h_xsec_error_{centrality}', 1, 0, 1)
+                h = ROOT.TH1F(f"h_xsec_error_{centrality}", f"h_xsec_error_{centrality}", 1, 0, 1)
                 h.SetBinContent(1, self.cross_section_error)
                 self.output_list.append(h)
 
                 # Save sum of weights (effective number of events), in order to keep track of normalization uncertainty
-                h = ROOT.TH1F(f'h_weight_sum_{centrality}', f'h_weight_sum_{centrality}', 1, 0, 1)
+                h = ROOT.TH1F(f"h_weight_sum_{centrality}", f"h_weight_sum_{centrality}", 1, 0, 1)
                 h.SetBinContent(1, sum_weights)
                 self.output_list.append(h)
 
                 # Save event weights
-                bins = np.logspace(np.log10( np.power(self.pt_ref/(self.sqrts/2),self.power) ), np.log10( np.power(self.pt_ref/2,self.power)  ), 10000)
-                h = ROOT.TH1F(f'h_weights_{centrality}', f'h_weights_{centrality}', bins.size-1, bins)
+                bins = np.logspace(
+                    np.log10(np.power(self.pt_ref / (self.sqrts / 2), self.power)),
+                    np.log10(np.power(self.pt_ref / 2, self.power)),
+                    10000,
+                )
+                h = ROOT.TH1F(f"h_weights_{centrality}", f"h_weights_{centrality}", bins.size - 1, bins)
                 for weight in weights:
                     h.Fill(weight)
                 self.output_list.append(h)
 
         # For pp, we can just save a single histogram for each
         else:
-
-            h = ROOT.TH1F('h_xsec', 'h_xsec', 1, 0, 1)
+            h = ROOT.TH1F("h_xsec", "h_xsec", 1, 0, 1)
             h.SetBinContent(1, self.cross_section)
             self.output_list.append(h)
 
-            h = ROOT.TH1F('h_xsec_error', 'h_xsec_error', 1, 0, 1)
+            h = ROOT.TH1F("h_xsec_error", "h_xsec_error", 1, 0, 1)
             h.SetBinContent(1, self.cross_section_error)
             self.output_list.append(h)
 
             # Save sum of weights (effective number of events), in order to keep track of normalization uncertainty
-            h = ROOT.TH1F('h_weight_sum', 'h_weight_sum', 1, 0, 1)
+            h = ROOT.TH1F("h_weight_sum", "h_weight_sum", 1, 0, 1)
             h.SetBinContent(1, self.sum_weights)
             self.output_list.append(h)
 
             # Save event weights
-            bins = np.logspace(np.log10( np.power(self.pt_ref/(self.sqrts/2),self.power) ), np.log10( np.power(self.pt_ref/2,self.power)  ), 10000)
-            h = ROOT.TH1F('h_weights', 'h_weights', bins.size-1, bins)
+            bins = np.logspace(
+                np.log10(np.power(self.pt_ref / (self.sqrts / 2), self.power)),
+                np.log10(np.power(self.pt_ref / 2, self.power)),
+                10000,
+            )
+            h = ROOT.TH1F("h_weights", "h_weights", bins.size - 1, bins)
             for weight in self.weights_all:
                 h.Fill(weight)
             self.output_list.append(h)
 
-        #---------------------------------
+        # ---------------------------------
         # Save additional histograms for QA
 
         if self.is_AA:
             # Histogram for full centrality range (global per file)
-            h = ROOT.TH1F('h_centrality_range_generated', 'h_centrality_range_generated', 100, 0, 100)
+            h = ROOT.TH1F("h_centrality_range_generated", "h_centrality_range_generated", 100, 0, 100)
             for i in range(self.centrality_range[0], self.centrality_range[1]):
-                h.SetBinContent(i+1, self.n_events_generated)
+                h.SetBinContent(i + 1, self.n_events_generated)
             self.output_list.append(h)
 
             # Histogram for event-by-event centrality
-            h = ROOT.TH1F('h_event_centrality_generated', 'h_event_centrality_generated', 100, 0, 100)
+            h = ROOT.TH1F("h_event_centrality_generated", "h_event_centrality_generated", 100, 0, 100)
             for cent in self.event_centrality_min_all:
                 h.Fill(cent)
             self.output_list.append(h)
         else:
-            h = ROOT.TH1F('h_n_events_generated', 'h_n_events_generated', 1, 0, 1)
+            h = ROOT.TH1F("h_n_events_generated", "h_n_events_generated", 1, 0, 1)
             h.SetBinContent(1, self.n_events_generated)
             self.output_list.append(h)
 
         # Save unweighted pt-hat
-        bins = np.logspace(np.log10(1.), np.log10(self.sqrts/2), 100)
-        h = ROOT.TH1F('h_pt_hat', 'h_pt_hat', bins.size-1, bins)
+        bins = np.logspace(np.log10(1.0), np.log10(self.sqrts / 2), 100)
+        h = ROOT.TH1F("h_pt_hat", "h_pt_hat", bins.size - 1, bins)
         h.Sumw2()
         for pt_hat in self.pt_hat:
             h.Fill(pt_hat)
         self.output_list.append(h)
 
         # Save weighted pt-hat
-        h = ROOT.TH1F('h_pt_hat_weighted', 'h_pt_hat_weighted', bins.size-1, bins)
+        h = ROOT.TH1F("h_pt_hat_weighted", "h_pt_hat_weighted", bins.size - 1, bins)
         h.Sumw2()
-        for i,pt_hat in enumerate(self.pt_hat):
+        for i, pt_hat in enumerate(self.pt_hat):
             h.Fill(pt_hat, self.weights_all[i])
         self.output_list.append(h)
 
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
+    # Read bin edges from a ROOT histogram, handling both variable and fixed binning.
+    # ROOT's GetXbins() returns an empty TArrayD for fixed-width histograms; we synthesize
+    # the edges from GetNbinsX/GetXmin/GetXmax in that case.
+    # Returns an empty numpy array when the input histogram is null or has zero bins.
+    # -------------------------------------------------------------------------------------------
+    @staticmethod
+    def _bin_edges_from_hist(h):
+        if h is None:
+            return np.array([])
+        axis = h.GetXaxis()
+        if axis is None:
+            return np.array([])
+        xbins = np.array(axis.GetXbins())
+        if xbins.size >= 2:
+            return xbins
+        nbins = h.GetNbinsX()
+        if nbins <= 0:
+            return np.array([])
+        return np.linspace(axis.GetXmin(), axis.GetXmax(), nbins + 1)
+
+    # -------------------------------------------------------------------------------------------
     # Histogram hadron observables
-    #-------------------------------------------------------------------------------------------
-    def histogram_hadron_observables(self, observable_type=''):
-        print()
-        print(f'Histogram {observable_type} observables...')
+    # -------------------------------------------------------------------------------------------
+    def histogram_hadron_observables(self, observable_type="", jet_collection_label=""):
+        logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
-            for centrality_index,centrality in enumerate(block['centrality']):
-
+            if not block.get("enabled", True):
+                continue
+            for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
                     self.observable_centrality_list.append(centrality)
 
                 # Construct appropriate binning
-                bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable, centrality, centrality_index)
+                bins = self.plot_utils.bins_from_config(
+                    block, self.sqrts, observable_type, observable, centrality, centrality_index, is_AA=self.is_AA
+                )
                 if not bins.any():
                     continue
 
                 # Histogram observable
-                self.histogram_observable(column_name=f'{observable_type}_{observable}', bins=bins, centrality=centrality)
+                self.histogram_observable(
+                    column_name=f"{observable_type}_{observable}", bins=bins, centrality=centrality
+                )
                 if self.is_AA:
-                    self.histogram_observable(column_name=f'{observable_type}_{observable}_holes', bins=bins, centrality=centrality)
+                    self.histogram_observable(
+                        column_name=f"{observable_type}_{observable}_holes", bins=bins, centrality=centrality
+                    )
+                else:
+                    # pp: also book the R_AA-denominator on the AA `ratio` binning (see helper)
+                    self.maybe_book_raa_denom(
+                        observable_type=observable_type,
+                        observable=observable,
+                        centrality=centrality,
+                        centrality_index=centrality_index,
+                        spectra_bins=bins,
+                        column_name=f"{observable_type}_{observable}",
+                        block=block,
+                    )
 
-    #-------------------------------------------------------------------------------------------
-    # Histogram hadron correlation observables
-    #-------------------------------------------------------------------------------------------
-    def histogram_hadron_correlation_observables(self, observable_type=''):
-        print()
-        print(f'Histogram {observable_type} observables...')
+    # -------------------------------------------------------------------------------------------
+    # Histograms for gamma-jet observables
+    # -------------------------------------------------------------------------------------------
+    def histogram_photon_jet_observables(self, observable_type: str = "", jet_collection_label: str = "") -> None:  # noqa: C901
+        logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
-            for centrality_index,centrality in enumerate(block['centrality']):
+            if not block.get("enabled", True):
+                continue
+            for centrality_index, centrality in enumerate(block["centrality"]):
+                # Add centrality bin to list, if needed
+                if self.is_AA and centrality not in self.observable_centrality_list:
+                    self.observable_centrality_list.append(centrality)
 
+                # gamma-tagged jet RAA ATLAS
+                if observable == "pt_atlas":
+                    # Construct appropriate binning
+                    bins = self.plot_utils.bins_from_config(
+                        block, self.sqrts, observable_type, observable, centrality, centrality_index, is_AA=self.is_AA
+                    )
+                    if not bins.any():
+                        continue
+                    for jet_R in block["jet"]["R"]:
+                        logger.info(f"{observable_type}_{observable}_R{jet_R}{jet_collection_label}")
+                        self.histogram_observable(
+                            column_name=f"{observable_type}_{observable}_R{jet_R}{jet_collection_label}",
+                            bins=bins,
+                            centrality=centrality,
+                        )
+                        if jet_collection_label in ["_shower_recoil"]:
+                            self.histogram_observable(
+                                column_name=f"{observable_type}_{observable}_R{jet_R}{jet_collection_label}_unsubtracted",
+                                bins=bins,
+                                centrality=centrality,
+                            )
+                if observable == "Dz_atlas":
+                    # TODO implement once we have HEPdata
+                    pass
+
+                if observable == "xj_gamma_atlas":
+                    # xj_gamma_atlas has a single jet R; define it here since the
+                    # pt_atlas branch above may be disabled / skipped.
+                    jet_R = block["jet"]["R"][0]
+                    # Get NGamma for normalization
+                    column_name_ngamma = f"gamma_trigger_jet_xj_atlas_R{jet_R}{jet_collection_label}_Ngamma"
+                    bins_pt = np.arange(0, 1000, 1)
+                    if column_name_ngamma in self.observables_df.columns:
+                        col = self.observables_df[column_name_ngamma]
+                        hname = f"h_{column_name_ngamma}_{centrality}"
+                        h = ROOT.TH1F(hname, hname, len(bins_pt) - 1, bins_pt)
+                        h.Sumw2()
+                        for i, _ in enumerate(col):
+                            if col[i] is not None:
+                                for value in col[i]:
+                                    h.Fill(value)
+                                    self.output_list.append(h)
+                        self.output_list.append(h)
+
+                    # load hep data (loading manually because structure is unusual)
+                    hepdata_dir = Path(f"data/STAT/{self.sqrts}/{observable_type}/{observable}")
+                    hepdata_filename = hepdata_dir / block["hepdata"]
+                    f = ROOT.TFile(str(hepdata_filename), "READ")
+
+                    # get the pt_gamma_bins from config and loop over them
+                    pt_gamma_bins = block["pt_gamma_bins"]
+
+                    # loop over the different pt_gamma_bins_i for i=1 to 4
+                    column_names = [
+                        f"gamma_trigger_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj",
+                        f"gamma_trigger_jet_xj_atlas_R{jet_R}{jet_collection_label}_xj_unsubtracted",
+                    ]
+
+                    # loop over the pt_gamma_bins
+                    for i, pt_gamma_bin in enumerate(pt_gamma_bins):
+                        # get the xj bins
+                        system = "AA" if self.is_AA else "pp"
+                        h_name_entry = block[f"hepdata_{system}_hname"]
+                        # AA shape: list of one name per centrality. pp shape: single string.
+                        h_name = h_name_entry[centrality_index] if isinstance(h_name_entry, list) else h_name_entry
+                        h_xj_hepdata = f.Get(block["hepdata_pt_bin_dir"][i]).Get(h_name)
+                        bins_xj = self._bin_edges_from_hist(h_xj_hepdata)
+                        if bins_xj.size < 2:
+                            logger.warning(
+                                f"\tCould not read bin edges for {observable} pt_gamma_bin {i} "
+                                f"({block['hepdata_pt_bin_dir'][i]}/{h_name}); skipping."
+                            )
+                            continue
+
+                        for column_name in column_names:
+                            hname = f"h_{column_name}_{centrality}_photonPt_{i}"
+                            h = ROOT.TH1F(hname, hname, len(bins_xj) - 1, bins_xj)
+                            h.Sumw2()
+                            if column_name in self.observables_df.columns:
+                                col = self.observables_df[column_name]
+                                for j, _ in enumerate(col):
+                                    if col[j] is not None:
+                                        for value in col[j]:
+                                            if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
+                                                h.Fill(value[1])
+                            self.output_list.append(h)
+
+                if observable == "xj_gamma_cms":
+                    # xj_gamma_cms has a single jet R; define it here since other branches
+                    # in this function may be disabled / skipped.
+                    jet_R = block["jet"]["R"][0]
+                    # Get NGamma for normalization
+                    column_name_ngamma = f"gamma_trigger_jet_xj_cms_R{jet_R}{jet_collection_label}_Ngamma"
+                    # array from 0 to 1000 in 1 GeV steps
+                    bins_pt = np.arange(0, 1000, 1)
+                    if column_name_ngamma in self.observables_df.columns:
+                        col = self.observables_df[column_name_ngamma]
+                        hname = f"h_{column_name_ngamma}_{centrality}"
+                        h = ROOT.TH1F(hname, hname, len(bins_pt) - 1, bins_pt)
+                        h.Sumw2()
+                        for i, _ in enumerate(col):
+                            if col[i] is not None:
+                                for value in col[i]:
+                                    h.Fill(value)
+                                    self.output_list.append(h)
+                        self.output_list.append(h)
+
+                    # load hep data (loading manually because structure is unusual)
+                    hepdata_dir = Path(f"data/STAT/{self.sqrts}/{observable_type}/{observable}")
+                    hepdata_filename = hepdata_dir / block["hepdata"]
+                    f = ROOT.TFile(str(hepdata_filename), "READ")
+
+                    # get the pt_gamma_bins from config and loop over them
+                    pt_gamma_bins = block["pt_gamma_bins"]
+                    column_names_dphi = [f"gamma_trigger_jet_dphi_cms_R{jet_R}{jet_collection_label}"]
+                    column_names_xj = [
+                        f"gamma_trigger_jet_xj_cms_R{jet_R}{jet_collection_label}",
+                        f"gamma_trigger_jet_xj_cms_R{jet_R}{jet_collection_label}_unsubtracted",
+                    ]
+                    # loop over the pt_gamma_bins
+                    for i, pt_gamma_bin in enumerate(pt_gamma_bins):
+                        # get the dphi dphi bins
+                        system = "AA" if self.is_AA else "pp"
+                        h_dphi_hepdata = f.Get(block["hepdata_dphi_dir"][0]).Get(block[f"hepdata_{system}_hname"][i])
+                        bins_dPhi = self._bin_edges_from_hist(h_dphi_hepdata)
+                        h_xj_hepdata = f.Get(block["hepdata_xjg_dir"][0]).Get(block[f"hepdata_{system}_hname"][i])
+                        bins_xj = self._bin_edges_from_hist(h_xj_hepdata)
+                        if bins_dPhi.size < 2 or bins_xj.size < 2:
+                            logger.warning(
+                                f"\tCould not read bin edges for xj_gamma_cms pt_gamma_bin {i}; skipping."
+                            )
+                            continue
+
+                        for column_name in column_names_dphi:
+                            hname = f"h_{column_name}_{centrality}_photonPt_{i}"
+                            h = ROOT.TH1F(hname, hname, len(bins_dPhi) - 1, bins_dPhi)
+                            h.Sumw2()
+                            if column_name in self.observables_df.columns:
+                                col = self.observables_df[column_name]
+                                for j, _ in enumerate(col):
+                                    if col[j] is not None:
+                                        for value in col[j]:
+                                            if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
+                                                h.Fill(value[1])
+                            self.output_list.append(h)
+                        for column_name in column_names_xj:
+                            hname = f"h_{column_name}_{centrality}_photonPt_{i}"
+                            h = ROOT.TH1F(hname, hname, len(bins_xj) - 1, bins_xj)
+                            h.Sumw2()
+                            if column_name in self.observables_df.columns:
+                                col = self.observables_df[column_name]
+                                for j, _ in enumerate(col):
+                                    if col[j] is not None:
+                                        for value in col[j]:
+                                            if value[0] > pt_gamma_bin[0] and value[0] < pt_gamma_bin[1]:
+                                                h.Fill(value[1])
+                            self.output_list.append(h)
+                if observable == "xi_cms":
+                    # TODO implement once we know if we want to deal with the fact that they provide smeared pp data (one per centrality)
+                    pass
+
+    # -------------------------------------------------------------------------------------------
+    # Histogram hadron correlation observables
+    # -------------------------------------------------------------------------------------------
+    def histogram_hadron_correlation_observables(self, observable_type: str) -> None:
+        logger.info("")
+        logger.info(f"Histogram {observable_type} observables...")
+
+        for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
+            for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
                     self.observable_centrality_list.append(centrality)
 
                 # v2 ATLAS and CMS
-                if observable == 'v2_atlas' or observable == 'v2_cms' :
+                if "v2" in observable and ("atlas" in observable or "cms" in observable):
                     # Construct appropriate binning
-                    bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable, centrality, centrality_index)
+                    bins = self.plot_utils.bins_from_config(
+                        block, self.sqrts, observable_type, observable, centrality, centrality_index, is_AA=self.is_AA
+                    )
                     if not bins.any():
                         continue
-                    self.histogram_observable(column_name=f'{observable_type}_{observable}', bins=bins, centrality=centrality)
+                    self.histogram_observable(
+                        column_name=f"{observable_type}_{observable}", bins=bins, centrality=centrality
+                    )
                     if self.is_AA:
-                        self.histogram_observable(column_name=f'{observable_type}_{observable}_holes', bins=bins, centrality=centrality)
+                        self.histogram_observable(
+                            column_name=f"{observable_type}_{observable}_holes", bins=bins, centrality=centrality
+                        )
+
+    # -------------------------------------------------------------------------------------------
+    # Histogram hadron correlation observables
+    # -------------------------------------------------------------------------------------------
+    def histogram_hadron_trigger_hadron_observables(self, observable_type: str = "") -> None:
+        logger.info("")
+        logger.info(f"Histogram {observable_type} observables...")
+
+        for observable, block in self.config[observable_type].items():
+            if not block.get("enabled", True):
+                continue
+            for _, centrality in enumerate(block["centrality"]):
+                # Add centrality bin to list, if needed
+                if self.is_AA and centrality not in self.observable_centrality_list:
+                    self.observable_centrality_list.append(centrality)
 
                 # STAR dihadron
-                if observable == 'dihadron_star':
-
+                if observable == "dihadron_star":
                     # Construct appropriate binning
                     dphi_bins = np.array(block["dphi_bins"])
 
                     # Histogram observable
-                    pt_trigger_ranges = block["pt_trig"]
-                    pt_associated_ranges = block["pt_assoc"]
+                    # NOTE: the config carries these as bin EDGES under the nested schema
+                    #       (`trigger.pt` / `hadron.pt`); the flat `pt_trig` / `pt_assoc` keys
+                    #       this used to read do not exist in any config. Pair them up exactly
+                    #       as the analyzer does, so the labels below match the column names.
+                    pt_trigger_ranges = list(itertools.pairwise(block["trigger"]["pt"]))
+                    pt_associated_ranges = list(itertools.pairwise(block["hadron"]["pt"]))
                     # Loop over trigger and associated ranges
                     # NOTE: n_trig will be calculated when histogram observable
                     for i_trig_bin, pt_trig_range in enumerate(pt_trigger_ranges):
@@ -353,202 +659,590 @@ class HistogramResults(common_base.CommonBase):
                             # If the upper range has -1, it's unbounded, so we make it large enough not to matter
                             pt_assoc_max = 1000 if pt_assoc_max == -1 else pt_assoc_max
 
-                            label = f"pt_trig_{pt_trig_min:g}_{pt_trig_max:g}_pt_assoc_{pt_assoc_min:g}_{pt_assoc_max:g}"
+                            label = (
+                                f"pt_trig_{pt_trig_min:g}_{pt_trig_max:g}_pt_assoc_{pt_assoc_min:g}_{pt_assoc_max:g}"
+                            )
                             self.histogram_observable(
-                                column_name=f'{observable_type}_{observable}_{label}',
-                                bins=dphi_bins, centrality=centrality,
+                                column_name=f"{observable_type}_{observable}_{label}",
+                                bins=dphi_bins,
+                                centrality=centrality,
                                 # We only want to histogram the number of triggers once. Otherwise, we're just
                                 # repeatedly replacing the histogram.
-                                pt_bin=i_trig_bin if histogrammed_n_trig == False else None, block=block
+                                pt_bin=i_trig_bin if histogrammed_n_trig else None,
+                                block=block,
                             )
                             if self.is_AA:
                                 self.histogram_observable(
-                                    column_name=f'{observable_type}_{observable}_{label}_holes',
-                                    bins=dphi_bins, centrality=centrality,
+                                    column_name=f"{observable_type}_{observable}_{label}_holes",
+                                    bins=dphi_bins,
+                                    centrality=centrality,
                                     # We only want to histogram the number of triggers once. Otherwise, we're just
                                     # repeatedly replacing the histogram.
-                                    pt_bin=i_trig_bin if histogrammed_n_trig == False else None, block=block
+                                    pt_bin=i_trig_bin if histogrammed_n_trig else None,
+                                    block=block,
                                 )
                             histogrammed_n_trig = True
 
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
+    # Build the encoder-based storage column name for a migrated jet/substructure observable.
+    #
+    # This mirrors, byte-for-byte, the name the analyzer writes via
+    # obs.encode_name_for_storing_in_file(...). The encoder includes a parameter iff it is
+    # essential (configured with >1 value) or it is jet_R (always), and excludes centrality.
+    # It pops every included parameter's encoded name from the kwargs (KeyError if missing),
+    # while tolerating extra kwargs (debug log only) -- so passing a superset is safe.
+    #
+    # We always pass jet_R; jet_pt / jet_grooming_settings / jet_axis are passed only when relevant
+    # to the observable. NOTE (mirror rule): for axis observables the grooming is carried *inside*
+    # jet_axis, so jet_grooming_settings is NOT passed when an axis_entry is given -- exactly as the
+    # analyzer does for axis_alice.
+    # -------------------------------------------------------------------------------------------
+    def _encoder_column_name(
+        self,
+        observable_type,
+        observable,
+        jet_R,
+        jet_collection_label,
+        block=None,
+        grooming_setting=None,
+        pt_bin=None,
+        axis_entry=None,
+        charge=None,
+        angularity=None,
+    ):
+        obs = self.observables_info[f"{self.sqrts}_{observable_type}_{observable}"]
+        kwargs = {"jet_R": observable_module.JetRSpec(jet_R)}
+
+        if pt_bin is not None and isinstance((block or {}).get("jet", {}).get("pt"), list):
+            pt_edges = block["jet"]["pt"]
+            if pt_bin + 1 < len(pt_edges):
+                kwargs["jet_pt"] = observable_module.PtSpec(pt_edges[pt_bin], pt_edges[pt_bin + 1])
+
+        if axis_entry is not None:
+            # Grooming is encoded inside the jet-axis spec; do not also pass jet_grooming_settings.
+            # JetAxisDifferenceSpec wraps the raw grooming dict in a GroomingSettingsSpec, so its
+            # grooming carries the "SD_"/"DyG_" method prefix (e.g. WTA_SD_SD_z_cut_020_beta_0) --
+            # this matches the analyzer, which also passes the raw dict here.
+            kwargs["jet_axis"] = observable_module.JetAxisDifferenceSpec(
+                type=axis_entry["type"], grooming_settings=axis_entry.get("grooming_settings")
+            )
+        elif grooming_setting is not None:
+            # Mirror the analyzer exactly: calculate_groomed_jet passes the underlying method spec
+            # (SoftDropSpec/DynamicalGroomingSpec) as jet_grooming_settings, NOT a GroomingSettingsSpec
+            # wrapper -- so its encoding has NO "SD_"/"DyG_" prefix (e.g. z_cut_010_beta_0). Using the
+            # wrapper here would add the prefix and miss the analyzer's column.
+            kwargs["jet_grooming_settings"] = observable_module.convert_to_grooming_method_spec(grooming_setting)
+
+        # Step 4.5: jet charge (charge_cms) is parametrized by kappa, an essential parameter. The
+        # analyzer encodes it as jet_charge=JetChargeSpec(kappa); the data block keys its tables with
+        # the same JetChargeSpec encoding (kappa_X). Independent of grooming/axis (none coexist today).
+        if charge is not None:
+            kwargs["jet_charge"] = observable_module.JetChargeSpec(charge)
+
+        # Step 5: angularity_alice / angularity_groomed_alice are parametrized by alpha (jet_angularity,
+        # essential). The analyzer encodes it as jet_angularity=AngularitySpec(alpha); the data block keys
+        # its tables with the same encoding (alpha_X_kappa_1.0). `angularity` is an AngularitySpec already.
+        if angularity is not None:
+            kwargs["jet_angularity"] = angularity
+
+        return obs.encode_name_for_storing_in_file(tag=jet_collection_label, **kwargs)
+
+    # -------------------------------------------------------------------------------------------
     # Histogram inclusive jet observables
-    #-------------------------------------------------------------------------------------------
-    def histogram_jet_observables(self, observable_type='', jet_collection_label=''):
-        print()
-        print(f'Histogram {observable_type} observables...')
+    # -------------------------------------------------------------------------------------------
+    def histogram_jet_observables(self, observable_type: str = "", jet_collection_label: str = "") -> None:  # noqa: C901
+        logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
-            for centrality_index,centrality in enumerate(block['centrality']):
-
+            if not block.get("enabled", True):
+                continue
+            for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
                     self.observable_centrality_list.append(centrality)
 
-                for jet_R in block['jet_R']:
-
+                for jet_R in block["jet"]["R"]:
                     # Custom skip
-                    if observable == 'zg_alice' or observable == 'tg_alice':
+                    if observable in ["zg_alice", "tg_alice"]:
                         if np.isclose(jet_R, 0.4) and centrality_index == 0:
                             continue
                         if np.isclose(jet_R, 0.2) and centrality_index == 1:
                             continue
 
-                    # Optional: Loop through pt bins
-                    for pt_bin in range(len(block['pt'])-1):
+                    # Optional: Loop through pt bins. xj_atlas (dijet) is binned by the LEADING/
+                    # trigger jet pt (block["trigger"]["pt"]), not the (subleading) jet pt -- the stored
+                    # value pairs are [leading_jet_pt, xj], so iterate the trigger-pt edges for it.
+                    pt_edges = block["trigger"]["pt"] if observable == "xj_atlas" else block["jet"]["pt"]
+                    for pt_bin in range(len(pt_edges) - 1):
+                        # Custom skip: xj_atlas measures all leading-pt bins only in 0-10%; other
+                        # centralities report only the first (lowest) leading-pt bin.
+                        if observable in ["xj_atlas"] and centrality_index > 0 and pt_bin != 0:
+                            continue
 
-                        # Custom skip
-                        if observable == 'xj_atlas':
-                            if centrality_index > 0 and pt_bin !=0:
-                                continue
+                        pt_suffix = ""
+                        if len(pt_edges) > 2:
+                            pt_suffix = f"_pt{pt_bin}"
 
-                        if len(block['pt']) > 2:
-                            pt_suffix = f'_pt{pt_bin}'
-                        else:
-                            pt_suffix = ''
+                        # Optional: subobservable. Each entry is (label, axis_entry, charge_value,
+                        # angularity_spec): the label feeds the (jet_R/pt-only) binning suffix; axis_entry
+                        # feeds the encoder for migrated axis observables (the bare `type` label can't
+                        # distinguish the grooming variant); charge_value (kappa) feeds the encoder for
+                        # charge_cms; angularity_spec (alpha) feeds it for the angularity observables. The
+                        # keys are mutually exclusive in the YAML.
+                        # Tuple is (subobservable_label, axis_entry, charge_value, angularity_spec,
+                        # subjet_spec). Step 6 added the 5th slot for zr_alice's subjet_R.
+                        subobservable_label_list = [("", None, None, None, None)]
+                        if "axis" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_{axis_block['type']}", axis_block, None, None, None) for axis_block in block["jet"]["axis"]
+                            ]
+                        if "charge" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_k{kappa}", None, kappa, None, None) for kappa in block["jet"]["charge"]
+                            ]
+                        # Step 5: angularity (alpha) sub-observable -- one AngularitySpec per alpha, feeding
+                        # the encoder name + per-alpha data-block table selection (jet_angularity key).
+                        if "angularity" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_alpha{a['alpha']}", None, None, observable_module.AngularitySpec(alpha=a["alpha"]), None)
+                                for a in block["jet"]["angularity"]
+                            ]
+                        # Step 6: subjet_R (zr_alice) sub-observable -- one SubjetRSpec per subjet R. It
+                        # feeds the `_r{r}` legacy suffix (matching the analyzer column ..._R{R}_r{r}) and
+                        # the per-r data-block table selection (jet_subjet_R key). zr_alice stays on the
+                        # legacy f-string name path (NOT the encoder), so no _encoder context is needed.
+                        if "subjet_R" in block["jet"]:
+                            subobservable_label_list = [
+                                (f"_r{r}", None, None, None, observable_module.SubjetRSpec(r=r))
+                                for r in block["jet"]["subjet_R"]
+                            ]
 
-                        # Optional: subobservable
-                        subobservable_label_list = ['']
-                        if 'kappa' in block:
-                            subobservable_label_list = [f'_k{kappa}' for kappa in block['kappa']]
-                        if 'r' in block:
-                            subobservable_label_list = [f'_r{r}' for r in block['r']]
-                        for subobservable_label in subobservable_label_list:
+                        # Whether the histogram name comes from the observable encoder (the analyzer
+                        # writes encoder names for these) or the legacy hand-built f-string.
+                        is_migrated = (
+                            observable_type,
+                            observable,
+                        ) in plot_results_STAT_utils.ENCODER_MIGRATED_JET_OBSERVABLES
+                        # jet_axis is an essential (encoded) parameter only when >1 axis variant is
+                        # configured; with a single axis entry the encoder omits it, so we don't pass
+                        # it (mirrors the analyzer: axis_alice passes jet_axis, axis_cms does not).
+                        axis_is_essential = isinstance(block["jet"].get("axis"), list) and len(block["jet"]["axis"]) > 1
 
-                            if 'SoftDrop' in block:
-                                for grooming_setting in block['SoftDrop']:
-                                    zcut = grooming_setting['zcut']
-                                    beta = grooming_setting['beta']
-
-                                    self.suffix = f'_R{jet_R}_zcut{zcut}_beta{beta}{subobservable_label}'
-                                    bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable,
-                                                                            centrality, centrality_index,
-                                                                            suffix=f'{self.suffix}{pt_suffix}')
+                        for subobservable_label, axis_entry, charge_value, angularity_spec, subjet_spec in subobservable_label_list:
+                            if "grooming_settings" in block["jet"]:
+                                for grooming_setting in block["jet"]["grooming_settings"]:
+                                    # New YAML schema mixes grooming methods (soft_drop + dynamical_grooming).
+                                    # Soft Drop uses the legacy zcut/beta suffix. Dynamical Grooming (DyG) is
+                                    # supported only on the encoder path (migrated observables) -- its column
+                                    # name and per-grooming HEPData table are built from grooming_setting below
+                                    # (convert_to_grooming_method_spec / GroomingSettingsSpec handle DyG), so
+                                    # here it only needs a legacy suffix for the binning-lookup fallback.
+                                    # Non-soft-drop on a non-migrated observable has no legacy name -> skip.
+                                    grooming_type = grooming_setting.get("type", "soft_drop")
+                                    if grooming_type != "soft_drop" and not is_migrated:
+                                        continue
+                                    if grooming_type == "soft_drop":
+                                        zcut = grooming_setting["z_cut"]
+                                        beta = grooming_setting["beta"]
+                                        # Option to take zcut and beta = 0 as the ungroomed case, where we fall back to the standard suffix
+                                        if np.isclose(zcut, 0.0) and np.isclose(beta, 0.0):
+                                            self.suffix = f"_R{jet_R}{subobservable_label}"
+                                        else:
+                                            self.suffix = f"_R{jet_R}_zcut{zcut}_beta{beta}{subobservable_label}"
+                                    else:
+                                        # Dynamical grooming (migrated path only, gated above)
+                                        self.suffix = f"_R{jet_R}_a{grooming_setting['a']}{subobservable_label}"
+                                    # For migrated observables, select the per-grooming HEPData table
+                                    # (the data block is keyed by jet_grooming_settings in the
+                                    # GroomingSettingsSpec encoding, which carries the SD_/DyG_ prefix).
+                                    data_block_params = None
+                                    if is_migrated:
+                                        data_block_params = {
+                                            "jet_grooming_settings": observable_module.GroomingSettingsSpec(
+                                                grooming_setting
+                                            ).encode()
+                                        }
+                                        # Step 5: angularity observables have one table per (grooming, alpha)
+                                        # -> add the per-alpha key so the right table is selected.
+                                        if angularity_spec is not None:
+                                            data_block_params["jet_angularity"] = angularity_spec.encode()
+                                    bins = self.plot_utils.bins_from_config(
+                                        block,
+                                        self.sqrts,
+                                        observable_type,
+                                        observable,
+                                        centrality,
+                                        centrality_index,
+                                        suffix=f"{self.suffix}{pt_suffix}",
+                                        is_AA=self.is_AA,
+                                        data_block_params=data_block_params,
+                                    )
                                     if not bins.any():
                                         continue
 
-                                    self.histogram_observable(column_name=f'{observable_type}_{observable}{self.suffix}{jet_collection_label}',
-                                                                bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
-                                    if jet_collection_label in ['_shower_recoil']:
-                                        self.histogram_observable(column_name=f'{observable_type}_{observable}{self.suffix}{jet_collection_label}_unsubtracted',
-                                                                    bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
+                                    if is_migrated:
+                                        # Encoder name already encodes the pt range, so suppress the
+                                        # now-redundant _pt{i} suffix on the histogram name (but keep
+                                        # it in the binning lookup above, which resolves by pt index).
+                                        encoder_name = self._encoder_column_name(
+                                            observable_type,
+                                            observable,
+                                            jet_R,
+                                            jet_collection_label,
+                                            block=block,
+                                            grooming_setting=grooming_setting,
+                                            pt_bin=pt_bin,
+                                            charge=charge_value,
+                                            angularity=angularity_spec,
+                                        )
+                                        self.histogram_observable(
+                                            column_name=encoder_name,
+                                            bins=bins,
+                                            centrality=centrality,
+                                            pt_suffix="",
+                                            pt_bin=pt_bin,
+                                            block=block,
+                                        )
+                                        # pp: book the R_AA-denominator on the AA `ratio` binning
+                                        # (migrated groomed-jet substructure RAA, e.g. mg_cms/zg_cms).
+                                        self.maybe_book_raa_denom(
+                                            observable_type=observable_type,
+                                            observable=observable,
+                                            centrality=centrality,
+                                            centrality_index=centrality_index,
+                                            spectra_bins=bins,
+                                            column_name=encoder_name,
+                                            pt_suffix="",
+                                            pt_bin=pt_bin,
+                                            block=block,
+                                            suffix=f"{self.suffix}{pt_suffix}",
+                                            data_block_params=data_block_params,
+                                        )
+                                    else:
+                                        self.histogram_observable(
+                                            column_name=f"{observable_type}_{observable}{self.suffix}{jet_collection_label}",
+                                            bins=bins,
+                                            centrality=centrality,
+                                            pt_suffix=pt_suffix,
+                                            pt_bin=pt_bin,
+                                            block=block,
+                                        )
+                                        if jet_collection_label in ["_shower_recoil"]:
+                                            self.histogram_observable(
+                                                column_name=f"{observable_type}_{observable}{self.suffix}{jet_collection_label}_unsubtracted",
+                                                bins=bins,
+                                                centrality=centrality,
+                                                pt_suffix=pt_suffix,
+                                                pt_bin=pt_bin,
+                                                block=block,
+                                            )
                             else:
+                                self.suffix = f"_R{jet_R}{subobservable_label}"
 
-                                self.suffix = f'_R{jet_R}{subobservable_label}'
-
-                                bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable, centrality,
-                                                                        centrality_index, suffix=f'{self.suffix}{pt_suffix}')
+                                # For migrated axis observables with >1 axis variant (axis_alice), the
+                                # data block has one HEPData table per jet_axis variant, so select it
+                                # (JetAxisDifferenceSpec encoding -- grooming carried inside the axis).
+                                data_block_params = None
+                                if is_migrated and axis_is_essential and axis_entry is not None:
+                                    data_block_params = {
+                                        "jet_axis": observable_module.JetAxisDifferenceSpec(
+                                            type=axis_entry["type"], grooming_settings=axis_entry.get("grooming_settings")
+                                        ).encode()
+                                    }
+                                # charge_cms: select the per-kappa HEPData table (data block keyed by
+                                # jet_charge in the JetChargeSpec encoding, kappa_X).
+                                if is_migrated and charge_value is not None:
+                                    data_block_params = {
+                                        "jet_charge": observable_module.JetChargeSpec(charge_value).encode()
+                                    }
+                                # Step 6: zr_alice has one HEPData table per subjet R; select it by the
+                                # jet_subjet_R key (SubjetRSpec encoding, "r_{r}"). NOT gated on is_migrated
+                                # -- zr_alice is on the legacy name path but its binning still resolves
+                                # through the per-r data-block table.
+                                if subjet_spec is not None:
+                                    data_block_params = {"jet_subjet_R": subjet_spec.encode()}
+                                # pt_y_atlas is the ATLAS |y| double-ratio R_AA(|y|)/R_AA(|y|<0.3) -- the
+                                # rapidity-dependence of the PbPb jet suppression. Its only |y|-binned
+                                # HEPData (raa_doubleRatio) is in the AA `ratio` block; the pp `spectra` is
+                                # an inclusive pT spectrum (ppCrossX, a DIFFERENT axis). Force the MC onto
+                                # the |y| (ratio) edges in BOTH arms so the analyzer's |y| fill lands on |y|
+                                # bins (else it collapses into the first pT bin). Each arm is then self-
+                                # normalized to its own |y|<0.3 bin (post_process_histogram); plot_RAA then
+                                # divides the AA self-ratio by the pp self-ratio to form R_AA(|y|)/R_AA(0).
+                                # Because the pp main hist is already on the |y| (ratio) binning,
+                                # maybe_book_raa_denom's equality guard skips the _raa_denom and plot_RAA
+                                # uses the pp main hist directly as the (binning-matched) denominator.
+                                bins_is_AA = self.is_AA or observable == "pt_y_atlas"
+                                bins = self.plot_utils.bins_from_config(
+                                    block,
+                                    self.sqrts,
+                                    observable_type,
+                                    observable,
+                                    centrality,
+                                    centrality_index,
+                                    suffix=f"{self.suffix}{pt_suffix}",
+                                    is_AA=bins_is_AA,
+                                    data_block_params=data_block_params,
+                                )
 
                                 if not bins.any():
                                     continue
 
-                                self.histogram_observable(column_name=f'{observable_type}_{observable}{self.suffix}{jet_collection_label}',
-                                                          bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
-                                if jet_collection_label in ['_shower_recoil']:
-                                    self.histogram_observable(column_name=f'{observable_type}_{observable}{self.suffix}{jet_collection_label}_unsubtracted',
-                                                            bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
+                                if is_migrated:
+                                    encoder_name = self._encoder_column_name(
+                                        observable_type,
+                                        observable,
+                                        jet_R,
+                                        jet_collection_label,
+                                        block=block,
+                                        pt_bin=pt_bin,
+                                        axis_entry=axis_entry if axis_is_essential else None,
+                                        charge=charge_value,
+                                        angularity=angularity_spec,
+                                    )
+                                    self.histogram_observable(
+                                        column_name=encoder_name,
+                                        bins=bins,
+                                        centrality=centrality,
+                                        pt_suffix="",
+                                        pt_bin=pt_bin,
+                                        block=block,
+                                    )
+                                    # pp: book the R_AA-denominator on the AA `ratio` binning
+                                    # (migrated axis/substructure RAA, e.g. axis_cms/rg_atlas).
+                                    self.maybe_book_raa_denom(
+                                        observable_type=observable_type,
+                                        observable=observable,
+                                        centrality=centrality,
+                                        centrality_index=centrality_index,
+                                        spectra_bins=bins,
+                                        column_name=encoder_name,
+                                        pt_suffix="",
+                                        pt_bin=pt_bin,
+                                        block=block,
+                                        suffix=f"{self.suffix}{pt_suffix}",
+                                        data_block_params=data_block_params,
+                                    )
+                                else:
+                                    self.histogram_observable(
+                                        column_name=f"{observable_type}_{observable}{self.suffix}{jet_collection_label}",
+                                        bins=bins,
+                                        centrality=centrality,
+                                        pt_suffix=pt_suffix,
+                                        pt_bin=pt_bin,
+                                        block=block,
+                                    )
+                                    if jet_collection_label in ["_shower_recoil"]:
+                                        self.histogram_observable(
+                                            column_name=f"{observable_type}_{observable}{self.suffix}{jet_collection_label}_unsubtracted",
+                                            bins=bins,
+                                            centrality=centrality,
+                                            pt_suffix=pt_suffix,
+                                            pt_bin=pt_bin,
+                                            block=block,
+                                        )
+                                    # pp: book the R_AA-denominator (inclusive_jet pt/Dz/Dpt RAA)
+                                    # on the AA `ratio` binning when it differs from the spectra binning.
+                                    # Forward data_block_params so per-sub-observable legacy observables
+                                    # (zr_alice's subjet_R) resolve the denom on the RIGHT per-r ratio
+                                    # table; it is None for every other legacy observable (no-op).
+                                    self.maybe_book_raa_denom(
+                                        observable_type=observable_type,
+                                        observable=observable,
+                                        centrality=centrality,
+                                        centrality_index=centrality_index,
+                                        spectra_bins=bins,
+                                        column_name=f"{observable_type}_{observable}{self.suffix}{jet_collection_label}",
+                                        pt_suffix=pt_suffix,
+                                        pt_bin=pt_bin,
+                                        block=block,
+                                        suffix=f"{self.suffix}{pt_suffix}",
+                                        data_block_params=data_block_params,
+                                    )
 
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     # Histogram semi-inclusive jet observables
-    #-------------------------------------------------------------------------------------------
-    def histogram_semi_inclusive_chjet_observables(self, observable_type='', jet_collection_label=''):
-        print()
-        print(f'Histogram {observable_type} observables...')
+    # -------------------------------------------------------------------------------------------
+    def histogram_hadron_trigger_chjet_observables(self, observable_type="", jet_collection_label=""):  # noqa: C901
+        logger.info(f"\nHistogram {observable_type} observables...")
 
         for observable, block in self.config[observable_type].items():
-            for centrality_index,centrality in enumerate(block['centrality']):
+            if not block.get("enabled", True):
+                continue
+            if "trigger" in block and isinstance(block["trigger"], dict):
+                trigger = block["trigger"]
+                if "low_range" in trigger:
+                    block.setdefault("low_trigger_range", trigger["low_range"])
+                if "high_range" in trigger:
+                    block.setdefault("high_trigger_range", trigger["high_range"])
+                if "eta_cut" in trigger:
+                    block.setdefault("trigger_eta_cut", trigger["eta_cut"])
 
+            for centrality_index, centrality in enumerate(block["centrality"]):
                 # Add centrality bin to list, if needed
                 if self.is_AA and centrality not in self.observable_centrality_list:
                     self.observable_centrality_list.append(centrality)
 
-                for jet_R in block['jet_R']:
-                    self.suffix = f'_R{jet_R}'
+                for jet_R in block["jet"]["R"]:
+                    self.suffix = f"_R{jet_R}"
 
-                    if self.sqrts == 2760 or self.sqrts == 5020:
-
-                        if 'dphi' in observable:
-
+                    if self.sqrts in [2760, 5020]:
+                        if "dphi" in observable:
                             # loop over pt bins for dphi observable
-                            for pt_bin in range(len(block['pt'])-1):
-
-                                pt_suffix = f'_pt{pt_bin}'
+                            for pt_bin in range(len(block["jet"]["pt"]) - 1):
+                                pt_suffix = f"_pt{pt_bin}"
 
                                 # Construct appropriate binning
-                                bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable,
-                                                                        centrality, centrality_index,
-                                                                        # suffix=f'{self.suffix}{pt_suffix}')
-                                                                        self.suffix)
+                                bins = self.plot_utils.bins_from_config(
+                                    block,
+                                    self.sqrts,
+                                    observable_type,
+                                    observable,
+                                    centrality,
+                                    centrality_index,
+                                    # suffix=f'{self.suffix}{pt_suffix}')
+                                    self.suffix,
+                                    is_AA=self.is_AA,
+                                )
                                 if not bins.any():
                                     continue
 
-                                self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}',
-                                                          bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
-                                self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}',
-                                                          bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
+                                self.histogram_observable(
+                                    column_name=f"{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}",
+                                    bins=bins,
+                                    centrality=centrality,
+                                    pt_suffix=pt_suffix,
+                                    pt_bin=pt_bin,
+                                    block=block,
+                                )
+                                self.histogram_observable(
+                                    column_name=f"{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}",
+                                    bins=bins,
+                                    centrality=centrality,
+                                    pt_suffix=pt_suffix,
+                                    pt_bin=pt_bin,
+                                    block=block,
+                                )
 
-                                if jet_collection_label in ['_shower_recoil']:
-                                    self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}_unsubtracted',
-                                            bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
-                                    self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}_unsubtracted',
-                                            bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
+                                if jet_collection_label in ["_shower_recoil"]:
+                                    self.histogram_observable(
+                                        column_name=f"{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}_unsubtracted",
+                                        bins=bins,
+                                        centrality=centrality,
+                                        pt_suffix=pt_suffix,
+                                        pt_bin=pt_bin,
+                                        block=block,
+                                    )
+                                    self.histogram_observable(
+                                        column_name=f"{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}_unsubtracted",
+                                        bins=bins,
+                                        centrality=centrality,
+                                        pt_suffix=pt_suffix,
+                                        pt_bin=pt_bin,
+                                        block=block,
+                                    )
 
-
-
-
-                                self.histogram_observable(column_name=f'{observable_type}_{observable}{self.suffix}{jet_collection_label}',
-                                                          bins=bins, centrality=centrality, pt_suffix=pt_suffix, pt_bin=pt_bin, block=block)
+                                self.histogram_observable(
+                                    column_name=f"{observable_type}_{observable}{self.suffix}{jet_collection_label}",
+                                    bins=bins,
+                                    centrality=centrality,
+                                    pt_suffix=pt_suffix,
+                                    pt_bin=pt_bin,
+                                    block=block,
+                                )
 
                         else:
-
                             # Construct appropriate binning
-                            bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable,
-                                                                    centrality, centrality_index, self.suffix)
+                            bins = self.plot_utils.bins_from_config(
+                                block,
+                                self.sqrts,
+                                observable_type,
+                                observable,
+                                centrality,
+                                centrality_index,
+                                self.suffix,
+                                is_AA=self.is_AA,
+                            )
 
                             if not bins.any():
                                 continue
 
-                            self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}',
-                                                      bins=bins, centrality=centrality)
-                            self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}',
-                                                      bins=bins, centrality=centrality)
+                            self.histogram_observable(
+                                column_name=f"{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}",
+                                bins=bins,
+                                centrality=centrality,
+                            )
+                            self.histogram_observable(
+                                column_name=f"{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}",
+                                bins=bins,
+                                centrality=centrality,
+                            )
 
-                            if jet_collection_label in ['_shower_recoil']:
-                                self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}_unsubtracted',
-                                        bins=bins, centrality=centrality)
-                                self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}_unsubtracted',
-                                        bins=bins, centrality=centrality)
+                            if jet_collection_label in ["_shower_recoil"]:
+                                self.histogram_observable(
+                                    column_name=f"{observable_type}_{observable}_R{jet_R}_lowTrigger{jet_collection_label}_unsubtracted",
+                                    bins=bins,
+                                    centrality=centrality,
+                                )
+                                self.histogram_observable(
+                                    column_name=f"{observable_type}_{observable}_R{jet_R}_highTrigger{jet_collection_label}_unsubtracted",
+                                    bins=bins,
+                                    centrality=centrality,
+                                )
 
-
-                        if np.isclose(jet_R, block['jet_R'][0]):
-                            column_name = f'{observable_type}_{observable}_trigger_pt{jet_collection_label}'
-                            bins = np.array(block['low_trigger_range'] + block['high_trigger_range']).astype(np.float64)
-                            self.histogram_observable(column_name=column_name, bins=bins, centrality=centrality, observable=observable)
+                        if np.isclose(jet_R, block["jet"]["R"][0]):
+                            column_name = f"{observable_type}_{observable}_trigger_pt{jet_collection_label}"
+                            bins = np.array(block["low_trigger_range"] + block["high_trigger_range"]).astype(np.float64)
+                            self.histogram_observable(
+                                column_name=column_name, bins=bins, centrality=centrality, observable=observable
+                            )
 
                     elif self.sqrts == 200:
-                        bins = self.plot_utils.bins_from_config(block, self.sqrts, observable_type, observable,
-                                                                centrality, centrality_index, self.suffix)
+                        bins = self.plot_utils.bins_from_config(
+                            block, self.sqrts, observable_type, observable, centrality, centrality_index, self.suffix,
+                            is_AA=self.is_AA,
+                        )
 
+                        self.histogram_observable(
+                            column_name=f"{observable_type}_{observable}_R{jet_R}{jet_collection_label}",
+                            bins=bins,
+                            centrality=centrality,
+                        )
+                        if jet_collection_label in ["_shower_recoil"]:
+                            self.histogram_observable(
+                                column_name=f"{observable_type}_{observable}_R{jet_R}{jet_collection_label}_unsubtracted",
+                                bins=bins,
+                                centrality=centrality,
+                            )
 
-                        self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}',
-                                                  bins=bins, centrality=centrality)
-                        if jet_collection_label in ['_shower_recoil']:
-                            self.histogram_observable(column_name=f'{observable_type}_{observable}_R{jet_R}{jet_collection_label}_unsubtracted',
-                                                    bins=bins, centrality=centrality)
-
-                        if observable == 'IAA_star' and np.isclose(jet_R, block['jet_R'][0]):
-                            column_name = f'{observable_type}_star_trigger_pt{jet_collection_label}'
-                            bins = np.array(block['trigger_range'])
+                        if observable == "IAA_pt_star" and np.isclose(jet_R, block["jet"]["R"][0]):
+                            # NOTE: the analyzer writes this N_trig column as
+                            #       `hadron_trigger_chjet_hjet_star_trigger_pt{label}` -- the `hjet_`
+                            #       was missing here, so the lookup silently never matched.
+                            column_name = f"{observable_type}_hjet_star_trigger_pt{jet_collection_label}"
+                            # NOTE: `trigger_range` exists in no config; the nested schema calls it
+                            #       `trigger.pt`.
+                            bins = np.array(block["trigger"]["pt"])
                             self.histogram_observable(column_name=column_name, bins=bins, centrality=centrality)
 
-    #-------------------------------------------------------------------------------------------
-    # Histogram a single observable
-    #-------------------------------------------------------------------------------------------
-    def histogram_observable(self, column_name=None, bins=None, centrality=None, pt_suffix='',
-                             pt_bin=None, block=None, observable=''):
+                # Semi-inclusive recoil: the histogrammer only books the RAW per-trigger-class yields
+                # (lowTrigger/highTrigger) + the trigger-pt (N_trig) histogram above. The Delta_recoil
+                # subtraction + per-trigger normalization are deferred to the plotter
+                # (construct_semi_inclusive_histogram), which runs AFTER aggregation -- the 1/N_trig
+                # normalization is non-linear, so doing it here per-file and then hadd-summing N files
+                # would over-count by n_files (verified on the 30-file large sample, 2026-06-04).
 
+    # -------------------------------------------------------------------------------------------
+    # Histogram a single observable
+    # -------------------------------------------------------------------------------------------
+    def histogram_observable(
+        self, column_name=None, bins=None, centrality=None, pt_suffix="", pt_bin=None, block=None, observable="",
+        name_suffix="",
+    ):
         # Get column
-        if column_name in self.observables_df.keys():
+        logger.debug(f"Column name: {column_name}")
+        logger.debug(f"Keys: {self.observables_df.keys()}")
+        if column_name in self.observables_df.keys():  # noqa: SIM118
             col = self.observables_df[column_name]
         else:
             return
@@ -556,53 +1250,145 @@ class HistogramResults(common_base.CommonBase):
         # Decide centrality checking strategy
         skip_eventwise_check = False
         if self.is_AA and not self.use_event_based_centrality:
-            # In precomputed hydro mode, all events share the same centrality, so check once using the first event
-            event_cmin = self.event_centrality_min[0]
-            event_cmax = self.event_centrality_max[0]
-            if not (event_cmin >= centrality[0] and event_cmax <= centrality[1]):
-                return  # skip entire histogram
-            skip_eventwise_check = True
+            # If file centrality range fits entirely within this observable bin, skip per-event checks
+            if self.centrality_range[0] >= centrality[0] and self.centrality_range[1] <= centrality[1]:
+                skip_eventwise_check = True
+            # Otherwise, fall through to per-event checking (never silently return)
 
         # Find dimension of observable
         dim_observable = 0
-        for i,_ in enumerate(col):
+        for i, _ in enumerate(col):
             if (isinstance(col.iloc[i], list) or isinstance(col.iloc[i], np.ndarray)) and len(col.iloc[i]) > 0:
                 dim_observable = col[i][0].size
                 break
 
         # Construct histogram
         if dim_observable == 1:
-            self.histogram_1d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix, observable=observable, skip_eventwise_check=skip_eventwise_check)
+            logger.debug(f"Histogramming 1D observable {column_name}")
+            self.histogram_1d_observable(
+                col,
+                column_name=column_name,
+                bins=bins,
+                centrality=centrality,
+                pt_suffix=pt_suffix,
+                observable=observable,
+                skip_eventwise_check=skip_eventwise_check,
+                name_suffix=name_suffix,
+            )
         elif dim_observable == 2:
-            self.histogram_2d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix, block=block, skip_eventwise_check=skip_eventwise_check)
+            self.histogram_2d_observable(
+                col,
+                column_name=column_name,
+                bins=bins,
+                centrality=centrality,
+                pt_suffix=pt_suffix,
+                block=block,
+                skip_eventwise_check=skip_eventwise_check,
+                name_suffix=name_suffix,
+            )
         else:
             return
 
-        # Also store N_jets for D(z) observables
-        if 'Dz' in column_name:
-            column_name = f'{column_name}_Njets'
+        # Also store N_jets for D(z) observables.
+        # Skip on the R_AA-denominator pass (name_suffix set): the N_jets companion is binned by the
+        # jet-pt range (independent of the spectra-vs-ratio observable binning), so the primary pass
+        # already booked it -- re-booking here would only create a duplicate, identically-named key.
+        if "Dz" in column_name and not name_suffix:
+            column_name = f"{column_name}_Njets"
             col = self.observables_df[column_name]
-            bins = np.array([block['pt'][pt_bin], block['pt'][pt_bin+1]])
-            self.histogram_1d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix, skip_eventwise_check=skip_eventwise_check)
+            bins = np.array([block["jet"]["pt"][pt_bin], block["jet"]["pt"][pt_bin + 1]])
+            self.histogram_1d_observable(
+                col,
+                column_name=column_name,
+                bins=bins,
+                centrality=centrality,
+                pt_suffix=pt_suffix,
+                skip_eventwise_check=skip_eventwise_check,
+            )
 
         # Also store N_trig for dihadron correlations
         # NOTE: We use pt_bin being set as a signal whether we should histogram the triggers.
         #       We then only set it sometimes so that we don't repeating histogram the same quantity.
-        if "dihadron_" in column_name and pt_bin is not None:
+        if "dihadron_" in column_name and pt_bin is not None and not name_suffix:
             start_of_label = column_name.find("_pt_trig")
             column_name_suffix = "_holes" if "_holes" in column_name else ""
-            column_name = f'{column_name[:start_of_label]}_Ntrig{column_name_suffix}'
+            column_name = f"{column_name[:start_of_label]}_Ntrig{column_name_suffix}"
             col = self.observables_df[column_name]
-            # We want the same binning for all triggers, so we flatten all of the trigger binning to a flat list
+            # We want the same binning for all triggers, so we use the trigger bin edges directly.
             # NOTE: This assumes that the triggers ranges do not overlap.
             # NOTE: The unique ensures that the binning is valid if the bin edges match up.
-            bins = np.unique(np.array([v for trig_range in block["pt_trig"] for v in trig_range]))  # type: ignore
-            self.histogram_1d_observable(col, column_name=column_name, bins=bins, centrality=centrality, pt_suffix=pt_suffix, skip_eventwise_check=skip_eventwise_check)
+            # NOTE: `trigger.pt` is ALREADY the flat edge list under the nested schema, so the
+            #       old flatten-the-pairs comprehension over `pt_trig` is no longer needed.
+            bins = np.unique(np.array(block["trigger"]["pt"]))  # type: ignore
+            self.histogram_1d_observable(
+                col,
+                column_name=column_name,
+                bins=bins,
+                centrality=centrality,
+                pt_suffix=pt_suffix,
+                skip_eventwise_check=skip_eventwise_check,
+            )
 
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
+    # Book the R_AA-denominator pp histogram (pp run only).
+    #
+    # The AA arm bins R_AA observables from the measured `ratio` table while the pp arm bins from
+    # the `spectra` table -- these edges differ and are NOT nested, so plot_RAA's AA.Divide(h_pp)
+    # fails ("Cannot divide histograms with different number of bins"). To fix it WITHOUT
+    # resampling, we re-fill the SAME observable column on the AA `ratio` binning and store it under
+    # a "_raa_denom" name; plot_RAA divides by that instead. This is a correctly-normalized pp
+    # spectrum on the ratio edges (with proper Sumw2). The normal pp spectra histogram is untouched.
+    #
+    # We only book the denominator when (a) this is the pp run, and (b) the ratio binning actually
+    # differs from the spectra binning (otherwise the existing spectra histogram already aligns and
+    # plot_RAA's fallback handles it). All other args mirror the normal histogram_observable call.
+    # -------------------------------------------------------------------------------------------
+    def maybe_book_raa_denom(
+        self, *, observable_type, observable, centrality, centrality_index, spectra_bins,
+        column_name, pt_suffix="", pt_bin=None, block=None, suffix="", data_block_params=None,
+    ):
+        # Only the pp run produces the denominator; the AA arm already uses the ratio binning.
+        if self.is_AA or block is None:
+            return
+        ratio_bins = self.plot_utils.bins_from_config(
+            block, self.sqrts, observable_type, observable, centrality, centrality_index,
+            suffix=suffix, is_AA=True, data_block_params=data_block_params,
+        )
+        # Skip when there is no usable ratio binning, or when it matches the spectra binning
+        # (e.g. pt_ch_alice / pt_pi_alice) -- plot_RAA's fallback covers those exactly.
+        if ratio_bins is None or len(ratio_bins) < 2:
+            return
+        ratio_bins = np.asarray(ratio_bins)
+        # Defensive: a malformed ratio table with non-monotonic edges would book an invalid TAxis.
+        # Skip and let plot_RAA fall back to the spectra histogram. (pt_y_atlas is NOT caught here --
+        # its |y| ratio edges are monotonic post-B11. It is skipped instead by the spectra==ratio
+        # equality guard below: its main hist is forced onto the |y| ratio binning, so its
+        # spectra-binning already equals its ratio-binning.)
+        if not np.all(np.diff(ratio_bins) > 0):
+            return
+        if spectra_bins is not None and np.array_equal(ratio_bins, np.asarray(spectra_bins)):
+            return
+        self.histogram_observable(
+            column_name=column_name,
+            bins=ratio_bins,
+            centrality=centrality,
+            pt_suffix=pt_suffix,
+            pt_bin=pt_bin,
+            block=block,
+            name_suffix="_raa_denom",
+        )
+
+    # -------------------------------------------------------------------------------------------
     # Histogram a single observable
-    #-------------------------------------------------------------------------------------------
-    def histogram_1d_observable(self, col, column_name=None, bins=None, centrality=None, pt_suffix='', observable='', skip_eventwise_check=False):
+    # -------------------------------------------------------------------------------------------
+    def histogram_1d_observable(
+        self, col, column_name=None, bins=None, centrality=None, pt_suffix="", observable="", skip_eventwise_check=False,
+        name_suffix="",
+    ):
+        # Need at least 2 edges to define a histogram; a degenerate binning would
+        # otherwise book an invalid TH1F (len(bins)-1 <= 0 bins).
+        if bins is None or len(bins) < 2:
+            return
 
         # Flag to check if any valid event exists
         h = None
@@ -616,7 +1402,7 @@ class HistogramResults(common_base.CommonBase):
                         continue
                 # Create histogram only when the first valid event is found
                 if h is None:
-                    hname = f'h_{column_name}{observable}_{centrality}{pt_suffix}'
+                    hname = f"h_{column_name}{observable}_{centrality}{pt_suffix}{name_suffix}"
                     h = ROOT.TH1F(hname, hname, len(bins) - 1, bins)
                     h.Sumw2()
                 for value in col[i]:
@@ -626,43 +1412,70 @@ class HistogramResults(common_base.CommonBase):
         if h is not None:
             self.output_list.append(h)
 
-    #-------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     # Histogram a single observable
-    #-------------------------------------------------------------------------------------------
-    def histogram_2d_observable(self, col, column_name=None, bins=None, centrality=None, pt_suffix='', block=None, skip_eventwise_check=False):
+    # -------------------------------------------------------------------------------------------
+    def histogram_2d_observable(
+        self, col, column_name=None, bins=None, centrality=None, pt_suffix="", block=None, skip_eventwise_check=False,
+        name_suffix="",
+    ):
+        # Need at least 2 edges to define a histogram; a degenerate binning would
+        # otherwise book an invalid TH1F (len(bins)-1 <= 0 bins).
+        if bins is None or len(bins) < 2:
+            return
 
         h = None
         h2 = None
 
-        hname = f'h_{column_name}_{centrality}{pt_suffix}'
+        hname = f"h_{column_name}_{centrality}{pt_suffix}{name_suffix}"
 
-        if "hadron_correlations_v2" in hname:
+        if "hadron_correlation_v2" in hname:
             # for v2 calculation only
-            hname2 = f'h_{column_name}_denom_{centrality}{pt_suffix}'
+            hname2 = f"h_{column_name}_denom_{centrality}{pt_suffix}"
 
             # Fill histogram
-            for i,_ in enumerate(col):
+            for i, _ in enumerate(col):
                 if (isinstance(col.iloc[i], list) or isinstance(col.iloc[i], np.ndarray)) and len(col.iloc[i]) > 0:
                     if not skip_eventwise_check and not self.centrality_accepted(centrality, event_index=i):
                         continue
                     if h is None:
-                        h = ROOT.TH1F(hname, hname, len(bins)-1, bins)
+                        h = ROOT.TH1F(hname, hname, len(bins) - 1, bins)
                         h.Sumw2()
-                        h2 = ROOT.TH1F(hname2, hname2, len(bins)-1, bins)
+                        h2 = ROOT.TH1F(hname2, hname2, len(bins) - 1, bins)
                         h2.Sumw2()
                     for value in col[i]:
-                        h.Fill(value[0], self.weights[i]*value[1])
+                        h.Fill(value[0], self.weights[i] * value[1])
                         h2.Fill(value[0], self.weights[i])
-                        #print('pt=',value[0], ', cosine=',value[1], ',i=',i)
+                        # print('pt=',value[0], ', cosine=',value[1], ',i=',i)
             if h is not None:
                 self.output_list.append(h)
                 self.output_list.append(h2)
             return
 
         # Get pt bin
+        if not pt_suffix:
+            # This generic per-pt 2D path selects the bin from block["jet"]["pt"] via the pt_suffix.
+            # xj_atlas (dijet) reaches here with an EMPTY suffix -- its real binning is the leading/
+            # trigger pt (block["trigger"]["pt"]), which this path doesn't iterate yet. Skip rather
+            # than crash on pt_suffix[-1]; xj needs a dedicated trigger-pt histogram/plot path.
+            logger.warning(
+                f"histogram_2d_observable: empty pt_suffix for {column_name} {centrality} -- "
+                "skipping (xj-style trigger-pt binning not implemented in this path)"
+            )
+            return
         pt_index = int(pt_suffix[-1])
-        pt_min = block['pt'][pt_index]
-        pt_max = block['pt'][pt_index+1]
+        # xj_atlas (dijet) bins by the LEADING/trigger jet pt (block["trigger"]["pt"]); the value pairs
+        # are [leading_jet_pt, xj] and the fill below selects value[0] (leading pt) in [pt_min, pt_max].
+        pt_edges = (
+            block["trigger"]["pt"]
+            if (column_name and "dijet_trigger_jet_xj_atlas" in column_name)
+            else block["jet"]["pt"]
+        )
+        pt_min = pt_edges[pt_index]
+        pt_max = pt_edges[pt_index + 1]
+
+        # block is everything in config for the observable
+        # look at example form axis_alice
 
         # Fill histogram
         for i, _ in enumerate(col):
@@ -670,7 +1483,7 @@ class HistogramResults(common_base.CommonBase):
                 if not skip_eventwise_check and not self.centrality_accepted(centrality, event_index=i):
                     continue
                 if h is None:
-                    h = ROOT.TH1F(hname, hname, len(bins)-1, bins)
+                    h = ROOT.TH1F(hname, hname, len(bins) - 1, bins)
                     h.Sumw2()
                 for value in col[i]:
                     if pt_min < value[0] < pt_max:
@@ -683,92 +1496,123 @@ class HistogramResults(common_base.CommonBase):
     # Check if event centrality is within observable's centrality
     # ---------------------------------------------------------------
     def centrality_accepted(self, observable_centrality, event_index=None):
-
         # AA
+        logger.debug(f"Comparing to full centrality range {observable_centrality}")
         if self.is_AA:
             if event_index is None:
                 raise ValueError("event_index must be provided for event-based centrality analysis.")
 
-            if self.event_centrality_min[event_index] >= observable_centrality[0] and self.event_centrality_max[event_index] <= observable_centrality[1]:
+            if (
+                self.event_centrality_min[event_index] >= observable_centrality[0]
+                and self.event_centrality_max[event_index] <= observable_centrality[1]
+            ):
                 return True
             return False
         # pp
-        else:
-            return True
+        return True
 
     # ---------------------------------------------------------------
     # Save all ROOT histograms to file
     # ---------------------------------------------------------------
     def write_output_objects(self):
-
         # Save output objects
-        output_file = self.input_file.replace('observables', 'histograms').replace('parquet', 'root')
-        output_path = os.path.join(self.output_dir, output_file)
-        fout = ROOT.TFile(output_path, 'recreate')
-        fout.cd()
+        output_file = Path(str(self.input_file).replace("observables", "histograms").replace("parquet", "root"))
+        output_path = self.output_dir / output_file
+        f_out = ROOT.TFile(str(output_path), "recreate")
+        f_out.cd()
+        n_skipped = 0
+        last_name = "<start>"
         for obj in self.output_list:
-
+            # Guard against null/non-ROOT entries: a null ROOT pointer in the
+            # list surfaces as CPyCppyy_NoneType, which has no GetName(). Skip it
+            # rather than crashing the whole write. One bad observable should not
+            # take down the entire output file.
+            if obj is None or not hasattr(obj, "GetName"):
+                if n_skipped == 0:
+                    logger.warning(
+                        f"Encountered non-writable (null) output object(s); first one follows "
+                        f"'{last_name}'. These are skipped — see MIGRATION_NOTES (axis/substructure)."
+                    )
+                n_skipped += 1
+                continue
+            logger.info(f"Writing {obj.GetName()} to {output_path}")
+            last_name = obj.GetName()
             types = (ROOT.TH1, ROOT.THnBase)
             if isinstance(obj, types):
                 obj.Write()
                 obj.SetDirectory(0)
                 del obj
 
-        fout.Close()
+        if n_skipped:
+            logger.warning(f"Skipped {n_skipped} non-writable (null) output object(s) during write.")
+        f_out.Close()
 
-#-------------------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------------------
-if __name__ == '__main__':
-    print()
-    print('Executing histogram_results_STAT.py...')
 
+def main_entry_point() -> None:
+    """Main entry point for histogrammingSTAT results."""
+    # Setup
     # Define arguments
-    parser = argparse.ArgumentParser(description='Histogram JETSCAPE observables')
+    parser = argparse.ArgumentParser(description="Histogram JETSCAPE observables")
     parser.add_argument(
-        '-c',
-        '--configFile',
-        action='store',
-        type=str,
-        metavar='configFile',
-        default='config/TG3.yaml',
-        help='Config file'
+        "-c",
+        "--configFile",
+        action="store",
+        type=Path,
+        metavar="configFile",
+        help="Path of config file for analysis (e.g. config/STAT_5020.yaml).",
     )
     parser.add_argument(
-        '-i',
-        '--inputFile',
-        action='store',
-        type=str,
-        metavar='inputFile',
-        default='observables_5020_0000_00.parquet',
-        help='Input file'
+        "-i",
+        "--inputFile",
+        action="store",
+        type=Path,
+        metavar="inputFile",
+        default=Path("observables_5020_0000_00.parquet"),
+        help="Input parquet file.",
     )
     parser.add_argument(
-        '-o',
-        '--outputDir',
-        action='store',
+        "-o",
+        "--outputDir",
+        action="store",
+        type=Path,
+        metavar="outputDir",
+        default=Path("/home/jetscape-user/JETSCAPE-analysis/TestOutput"),
+        help="Output directory for output to be written to.",
+    )
+    parser.add_argument(
+        "-l",
+        "--logLevel",
+        action="store",
         type=str,
-        metavar='outputDir',
-        default='/home/jetscape-user/JETSCAPE-analysis/TestOutput',
-        help='Output directory for output to be written to'
+        metavar="logLevel",
+        default="INFO",
+        help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
     )
 
     # Parse the arguments
     args = parser.parse_args()
 
-    # If invalid configFile is given, exit
-    if not os.path.exists(args.configFile):
-        print('File "{0}" does not exist! Exiting!'.format(args.configFile))
-        sys.exit(0)
+    # Setup logging
+    helpers.setup_logging(level=args.logLevel)
 
-    # If invalid inputDir is given, exit
-    if not os.path.exists(args.inputFile):
-        print('File "{0}" does not exist! Exiting!'.format(args.inputFile))
-        sys.exit(0)
+    logger.info("Executing histogram_results_STAT...\n")
 
-    # If output dir doesn't exist, create it
-    if not os.path.exists(args.outputDir):
-        os.makedirs(args.outputDir)
+    # Validation and setup
+    if not args.configFile.exists():
+        msg = f'File "{args.configFile}" does not exist! Exiting!'
+        raise ValueError(msg)
+    if not args.inputFile.exists():
+        msg = f'File "{args.inputFile}" does not exist! Exiting!'
+        raise ValueError(msg)
+    args.outputDir.mkdir(exist_ok=True, parents=True)
 
     analysis = HistogramResults(config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir)
-    analysis.histogram_results()
+    try:
+        analysis.histogram_results()
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main_entry_point()

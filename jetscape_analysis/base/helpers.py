@@ -78,7 +78,7 @@ def setup_logging(
         format=FORMAT,
         datefmt="[%X]",
         # NOTE(RJE): Intentionally disabled the RichModuleNameHandler to save horizontal space with the module name in the log.
-        #            Module names are mostly clear for this package, so better to use the standard appraoch.
+        #            Module names are mostly clear for this package, so better to use the standard approach.
         handlers=[RichHandler(level=level, console=rich_console, rich_tracebacks=True)],
     )
 
@@ -88,5 +88,7 @@ def setup_logging(
     # Possibility to quiet down some additional loggers
     # From IPython
     logging.getLogger("parso").setLevel(logging.INFO)
+    # Turn off "Using selector" messages from IPython
+    logging.getLogger("asyncio").setLevel(logging.INFO)
 
     return True
