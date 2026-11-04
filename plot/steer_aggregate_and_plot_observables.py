@@ -58,6 +58,7 @@ import os
 import pathlib
 import pickle
 import random
+import re
 import subprocess
 import sys
 import time
@@ -172,6 +173,44 @@ if analysis_version != -1:
     local_base_output_dir = local_base_output_dir / f"version{analysis_version}"
 final_state_hadrons_download_location = local_base_output_dir / "final_state_hadrons_per_run"
 reananalysis_output_location_base = local_base_output_dir / "histograms_per_run"
+
+
+def parse_table_key(key: str, observables: dict[str, list[str]]) -> tuple[str, str, str, list[str], str] | None:
+    """Split a final_results.h5 key into the parts of the Bayesian table names.
+
+    Keys look like jetscape_distribution_[<subtraction>_]<category>_<observable>_<params>_[c0, c1][_ptN]_<type>,
+    e.g. jetscape_distribution_negative_recombiner_inclusive_chjet_angularity_alice_R0.2_alpha1_[0, 10]_pt0_values.
+    The category and observable are matched against the names in the STAT config (``observables``: category ->
+    observable names), since both can contain underscores.
+
+    Returns (category, observable, subobservable, centrality, observable_label), where observable_label is the key
+    without prefix, subtraction and type (as in the Data_*.dat names), or None for keys that do not go into the
+    tables: jets with a subtraction other than negative_recombiner, and keys that match no configured observable.
+    """
+    m = re.fullmatch(r"jetscape_distribution_(.*)_(values|errors|bin_edges)", key)
+    if not m:
+        return None
+    observable_label = m.group(1)
+    for subtraction in ["negative_recombiner", "shower_recoil", "constituent_subtraction", "unsubtracted"]:
+        if observable_label.startswith(f"{subtraction}_"):
+            if subtraction != "negative_recombiner":
+                return None
+            observable_label = observable_label[len(subtraction) + 1 :]
+            break
+    for category in sorted(observables, key=len, reverse=True):
+        if not observable_label.startswith(f"{category}_"):
+            continue
+        rest = observable_label[len(category) + 1 :]
+        for observable in sorted(observables[category], key=len, reverse=True):
+            if not rest.startswith(f"{observable}_"):
+                continue
+            m = re.fullmatch(r"(?:(.*)_)?\[(\d+), (\d+)\](?:_(.*))?", rest[len(observable) + 1 :])
+            if m:
+                params, centrality_min, centrality_max, suffix = m.groups()
+                subobservable = "_".join(s for s in (params, suffix) if s)
+                return category, observable, subobservable, [centrality_min, centrality_max], observable_label
+    logger.warning(f"Key matches no configured observable, skipping it in the tables: {key}")
+    return None
 
 
 def download_server(facilities: list[str], runs: dict, buffer_size: int = 5) -> None:  # noqa: C901
@@ -923,12 +962,18 @@ def main():  # noqa: C901
             label = label_dir.name
             if "AuAu" in label or "PbPb" in label:
                 sqrts, system, parameterization = label.split("_")
+                with open(jetscape_analysis_dir / "config" / f"STAT_{sqrts}.yaml") as f:
+                    config = yaml.safe_load(f)
+                observables = {
+                    category: [name for name, block in blocks.items() if isinstance(block, dict) and "enabled" in block]
+                    for category, blocks in config.items()
+                    if isinstance(blocks, dict)
+                }
 
                 output_dict = defaultdict()
                 output_dict["values"] = {}
                 output_dict["errors"] = {}
                 output_dict["bin_edges"] = {}
-                output_dict["observable_label"] = {}
 
                 # Loop through design points and observables, and construct a dataframe of predictions for each observable
                 #   columns=[design1, design2, ...]
@@ -956,17 +1001,6 @@ def main():  # noqa: C901
                                 else:
                                     sys.exit(f"Unexpected key: {key}")
 
-                                # Get observable label for bookkeeping
-                                observable_labels = [
-                                    s.name.replace("h_", "", 1).replace(".pdf", "")
-                                    for s in design_point_index.iterdir()
-                                    if s.suffix == ".pdf"
-                                ]
-                                output_dict["observable_label"][key] = None
-                                for s in observable_labels:
-                                    if s in key:
-                                        output_dict["observable_label"][key] = s
-
                                 # Put design point info into dataframe, with design point index as index of dataframe
                                 if key not in output_dict[type]:
                                     output_dict[type][key] = pd.DataFrame()
@@ -993,75 +1027,20 @@ def main():  # noqa: C901
                 # Write Prediction and Data dataframes to txt
                 logger.info(f"Writing prediction tables for {label}...")
                 for type in output_dict:
-                    if type in ["observable_label", "bin_edges"]:
+                    if type == "bin_edges":
                         continue
 
                     for key in output_dict[type]:
-                        key_items = key.split("_")
-                        # if 'values' in key:
-                        #    print()
-                        #    print(key_items)
-
-                        # Parse observable-specific names -- there are a few different cases depending on the observable class
-                        # We uniformize the structure as: f'{parameterization}__{sqrts}__{system}__{observable_category}__{observable}__{subobservable}__{centrality[0]}-{centrality[1]}'
+                        # Uniform table names: f'{parameterization}__{sqrts}__{system}__{observable_category}__{observable}__{subobservable}__{centrality[0]}-{centrality[1]}'
                         # For example: binomial__5020__PbPb__inclusive_chjet__pt_alice__R0.4__0-10
                         # This will allow us to easily parse the observables in a uniform way, and also access info in the STAT observable config files
                         # Note that the experiment can always be accessed as observable.split('_')[-1]
-                        # The subobservable can include: jet radius, grooming condition, pt bin index
-
-                        # Hadron observables -- after hole subtraction
-                        if "hadron" in key and "unsubtracted" not in key:
-                            observable_category = key_items[2]
-                            observable = f"{key_items[3]}_{key_items[4]}_{key_items[5]}"
-                            subobservable = ""
-                            centrality = ["".join(filter(str.isdigit, s)) for s in key_items[6].split(",")]
-
-                        # Jet observables -- with negative_recombiner
-                        # There are several different subobservable patterns that we need to parse
-                        elif "negative_recombiner" in key:
-                            if "z_cut" in key:
-                                observable_category = f"{key_items[4]}_{key_items[5]}"
-                                observable = f"{key_items[6]}_{key_items[7]}"
-                                # TODO(RJE): This may have broken with the rename of "zcut" -> "z_cut", but needs to be checked.
-                                # subobservable = f"{key_items[8]}_{key_items[9]}_{key_items[10]}"
-                                # I shift the indices back one to account for the additional "_"
-                                subobservable = f"{key_items[9]}_{key_items[10]}_{key_items[11]}"
-                                centrality = ["".join(filter(str.isdigit, s)) for s in key_items[12].split(",")]
-                            elif "charge" in key:
-                                observable_category = f"{key_items[4]}_{key_items[5]}"
-                                observable = f"{key_items[6]}_{key_items[7]}"
-                                subobservable = f"{key_items[8]}_{key_items[9]}"
-                                centrality = ["".join(filter(str.isdigit, s)) for s in key_items[10].split(",")]
-                            elif "dijet_trigger_jet" in key:
-                                observable_category = key_items[4]
-                                observable = f"{key_items[5]}_{key_items[6]}"
-                                subobservable = f"{key_items[7]}_{key_items[9]}"
-                                centrality = ["".join(filter(str.isdigit, s)) for s in key_items[8].split(",")]
-                            elif "_y_" in key:
-                                observable_category = f"{key_items[4]}_{key_items[5]}"
-                                observable = f"{key_items[6]}_{key_items[7]}_{key_items[8]}"
-                                subobservable = f"{key_items[9]}_{key_items[11]}"
-                                centrality = ["".join(filter(str.isdigit, s)) for s in key_items[10].split(",")]
-                            elif key_items[-2] in [f"pt{i}" for i in range(10)]:
-                                observable_category = f"{key_items[4]}_{key_items[5]}"
-                                observable = f"{key_items[6]}_{key_items[7]}"
-                                subobservable = f"{key_items[8]}_{key_items[10]}"
-                                centrality = ["".join(filter(str.isdigit, s)) for s in key_items[9].split(",")]
-                            else:
-                                observable_category = f"{key_items[4]}_{key_items[5]}"
-                                observable = f"{key_items[6]}_{key_items[7]}"
-                                subobservable = key_items[8]
-                                centrality = ["".join(filter(str.isdigit, s)) for s in key_items[9].split(",")]
-
-                        # Skip other observables (hadrons without subtraction, jets with other subtraction schemes)
-                        else:
-                            if (
-                                "shower_recoil" not in key
-                                and "constituent_subtraction" not in key
-                                and "unsubtracted" not in key
-                            ):
-                                logger.info(f"Unexpected key: {key}")
+                        # The subobservable can include: jet radius, grooming condition, other parameters, pt bin index
+                        # Hadron observables enter after hole subtraction, jet observables with negative_recombiner.
+                        parsed = parse_table_key(key, observables)
+                        if parsed is None:
                             continue
+                        observable_category, observable, subobservable, centrality, observable_label = parsed
 
                         observable_name_data = f"{sqrts}__{system}__{observable_category}__{observable}__{subobservable}__{centrality[0]}-{centrality[1]}"
                         observable_name_prediction = f"{parameterization}__{observable_name_data}"
@@ -1077,17 +1056,26 @@ def main():  # noqa: C901
                         columns = list(df_prediction.columns)
 
                         # Get experimental data
-                        observable_label = output_dict["observable_label"][key]
-                        data_dir = label_dir / "Data"
-                        filename = f"Data_{observable_label}.dat"
-                        data_file = data_dir / filename
-                        if data_file.exists():
-                            data = np.loadtxt(data_file, ndmin=2)
-
-                        if df_prediction.to_numpy().shape[0] != data.shape[0]:
-                            logger.info(
-                                f"Mismatch of number of bins: prediction ({df_prediction.to_numpy().shape[0]}) vs. data ({data.shape[0]})"
-                            )
+                        data_file = label_dir / "Data" / f"Data_{observable_label}.dat"
+                        data = np.loadtxt(data_file, ndmin=2) if data_file.exists() else None
+                        if data is None:
+                            logger.warning(f"No data table {data_file.name}: writing the prediction only")
+                        elif df_prediction.to_numpy().shape[0] != data.shape[0]:
+                            # The data may cover only some of the prediction bins (see write_experimental_data in
+                            # plot_results_STAT.py): then keep the prediction bins whose edges match a data row
+                            df_edges = output_dict["bin_edges"].get(f"{key.rsplit('_', 1)[0]}_bin_edges")
+                            edges = df_edges.iloc[:, 0].to_numpy() if df_edges is not None else np.array([])
+                            matches = [
+                                np.flatnonzero(np.isclose(edges[:-1], x_min) & np.isclose(edges[1:], x_max))
+                                for x_min, x_max in data[:, :2]
+                            ]
+                            if len(edges) == df_prediction.shape[0] + 1 and all(len(m) == 1 for m in matches):
+                                df_prediction = df_prediction.iloc[[m[0] for m in matches], :]
+                                logger.info(f"Data cover {len(matches)} of {len(edges) - 1} bins: keeping those bins")
+                            else:
+                                logger.info(
+                                    f"Mismatch of number of bins: prediction ({df_prediction.to_numpy().shape[0]}) vs. data ({data.shape[0]})"
+                                )
 
                         # Remove rows with leading zeros (corresponding to bins below the min_pt cut)
                         n_zero_rows = 0
@@ -1097,12 +1085,6 @@ def main():  # noqa: C901
                             else:
                                 break
                         df_prediction = df_prediction.iloc[n_zero_rows:, :]
-                        data = data[n_zero_rows:, :]
-
-                        if df_prediction.to_numpy().shape[0] != data.shape[0]:
-                            logger.info(
-                                f"Mismatch of number of bins after removing zeros: prediction ({df_prediction.to_numpy().shape[0]}) vs. data ({data.shape[0]})\n"
-                            )
 
                         # Write Prediction.dat and Data.dat files
                         filename = prediction_table_dir / f"Prediction__{observable_name_prediction}__{type}.dat"
@@ -1113,10 +1095,16 @@ def main():  # noqa: C901
                         header += " ".join(columns)
                         np.savetxt(filename, df_prediction.values, header=header)
 
-                        filename = data_table_dir / f"Data__{observable_name_data}.dat"
-                        header = "Version 1.1\n"
-                        header += "Label xmin xmax y y_err"
-                        np.savetxt(filename, data, header=header)
+                        if data is not None:
+                            data = data[n_zero_rows:, :]
+                            if df_prediction.to_numpy().shape[0] != data.shape[0]:
+                                logger.info(
+                                    f"Mismatch of number of bins after removing zeros: prediction ({df_prediction.to_numpy().shape[0]}) vs. data ({data.shape[0]})\n"
+                                )
+                            filename = data_table_dir / f"Data__{observable_name_data}.dat"
+                            header = "Version 1.1\n"
+                            header += "Label xmin xmax y y_err"
+                            np.savetxt(filename, data, header=header)
 
                 logger.info(f"Done writing prediction tables for {label}.\n")
 
