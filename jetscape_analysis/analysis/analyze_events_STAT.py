@@ -468,6 +468,11 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
         # Fill inclusive jets
         cs = fj.ClusterSequence(hadrons_for_jet_finding, jet_def)
         jets = fj.sorted_by_pt(cs.inclusive_jets())
+        # Large-R observables need all R=0.2 jets, before the ordinary selector.
+        if full_jet:
+            self.fill_large_radius_jet_observables(
+                jets, hadrons_for_jet_finding, hadrons_negative,
+                pid_hadrons_positive, pid_hadrons_negative, jetR, jet_collection_label)
         jets_selected = jet_selector(jets)
 
         [self.analyze_inclusive_jet(jet, hadrons_for_jet_finding, hadrons_negative,
@@ -738,6 +743,159 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
     # ---------------------------------------------------------------
     # Fill inclusive full jet observables
     # ---------------------------------------------------------------
+    def fill_large_radius_jet_observables(
+        self, jets, hadrons_for_jet_finding, hadrons_negative,
+        pid_hadrons_positive, pid_hadrons_negative, jetR, jet_collection_label='',
+    ):
+        """ATLAS sqrt(d_12) and dR_12 (arXiv:2504.04805, Sec. 4-5).
+
+        Ported from Dhanush Hangal's JETSCAPE-analysis PR #21, commit
+        3d9d3ba9ad014a8876cfc716919cec87514d2961. Keep its ghost association,
+        kt R=2.5 tree and manual z>0.15 harder-branch declustering.
+
+        Hybrid adaptation: negative wake contributes signed calorimetric and
+        charged-track momentum in the negative-recombiner collection, but is
+        not a physical jet or resolved prong. Shower-recoil retains the upstream
+        pT-only hole correction; constituent-subtracted inputs need no correction.
+        """
+        if self.sqrts != 5020:
+            return
+        active = {
+            name: block for name in ('d12_atlas', 'dR12_atlas')
+            if (block := self.inclusive_jet_observables.get(name))
+            and block.get('enabled', True)
+            and self.centrality_accepted(block['centrality'])
+            and jetR in block['jet_R']
+        }
+        if not active:
+            return
+        block = next(iter(active.values()))
+        selection = ('jet_R', 'jet_R_reclustered', 'pt', 'eta_cut')
+        if any(any(other[key] != block[key] for key in selection) for other in active.values()):
+            raise ValueError('d12_atlas and dR12_atlas must have identical jet selections')
+        if block['jet_R'] != [0.2] or block['jet_R_reclustered'] != [1.0] or len(block['pt']) != 2:
+            raise ValueError('ATLAS d12/dR12 requires R=0.2 to R=1.0 and one jet-pT interval')
+        R_large = block['jet_R_reclustered'][0]
+        pt_min, pt_max = block['pt']
+        eta_max = block['eta_cut']
+        column_names = {name: f'inclusive_jet_{name}_R{jetR}{jet_collection_label}' for name in active}
+
+        small_R_jet_pt_min = 35.0
+        small_R_jet_eta_max = 3.0
+        track_pt_min = 4.0
+        track_eta_max = 2.5
+        track_to_jet_pt_ratio_min = 0.2
+        kt_R = 2.5
+        z_cut = 0.15
+        ghost_pt = 1.0e-9
+        signed = jet_collection_label == '_negative_recombiner'
+        recombiner = fjext.NegativeEnergyRecombiner(-1) if signed else None
+
+        def particle_pid(hadron):
+            index = hadron.user_index()
+            if index == 0:
+                raise ValueError('Track inputs require signed, one-based PID indices')
+            pids = pid_hadrons_positive if index > 0 else pid_hadrons_negative
+            return abs(pids[abs(index) - 1])
+
+        # This branch's generic full-jet inputs include muons/neutrinos. Keep
+        # their removal, and the sign-preserving recombiner, local to d12/dR12.
+        excluded_calo_pids = (12, 13, 14, 16)
+        calo_particles = [h for h in hadrons_for_jet_finding if particle_pid(h) not in excluded_calo_pids]
+        if signed or len(calo_particles) != len(hadrons_for_jet_finding):
+            small_def = fj.JetDefinition(fj.antikt_algorithm, jetR)
+            if signed:
+                small_def.set_recombiner(recombiner)
+            cs_small = fj.ClusterSequence(calo_particles, small_def)
+            jets = fj.sorted_by_pt(cs_small.inclusive_jets())
+
+        small_R_jets = []
+        holes_per_small_R_jet = []
+        for jet in jets:
+            if (signed and jet.user_index() < 0) or abs(jet.eta()) >= small_R_jet_eta_max:
+                continue
+            holes = set()
+            if jet_collection_label == '_shower_recoil':
+                holes = {i for i, hole in enumerate(hadrons_negative)
+                         if abs(pid_hadrons_negative[i]) not in excluded_calo_pids and jet.delta_R(hole) < jetR}
+            if jet.pt() - sum(hadrons_negative[i].pt() for i in holes) > small_R_jet_pt_min:
+                small_R_jets.append(jet)
+                holes_per_small_R_jet.append(holes)
+        if not small_R_jets:
+            return
+
+        acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+        tracks = [
+            hadron for hadron in hadrons_for_jet_finding
+            if (signed or hadron.user_index() > 0)
+            and hadron.pt() > track_pt_min
+            and abs(hadron.eta()) < track_eta_max
+            and particle_pid(hadron) in acceptable_hadrons
+        ]
+        particles = []
+        for i, jet in enumerate(small_R_jets):
+            subjet = fj.PseudoJet(jet.px(), jet.py(), jet.pz(), jet.e())
+            subjet.set_user_index(-(i + 1))
+            particles.append(subjet)
+        for i, track in enumerate(tracks):
+            ghost = fj.PseudoJet()
+            ghost.reset_PtYPhiM(ghost_pt, track.rap(), track.phi(), 0.0)
+            ghost.set_user_index(i)
+            particles.append(ghost)
+        cs_large = fj.ClusterSequence(particles, fj.JetDefinition(fj.antikt_algorithm, R_large))
+
+        for jet_large in fj.sorted_by_pt(cs_large.inclusive_jets()):
+            constituents = jet_large.constituents()
+            subjet_indices = [-c.user_index() - 1 for c in constituents if c.user_index() < 0]
+            if not subjet_indices:
+                continue
+            # Remove association ghosts even at a jet-pT/eta selection boundary.
+            calo_jet = fj.PseudoJet(0., 0., 0., 0.)
+            for i in subjet_indices:
+                calo_jet += small_R_jets[i]
+            jet_large_pt = calo_jet.pt()
+            if jet_collection_label == '_shower_recoil':
+                holes = set().union(*(holes_per_small_R_jet[i] for i in subjet_indices))
+                jet_large_pt -= sum(hadrons_negative[i].pt() for i in holes)
+            if not (pt_min <= jet_large_pt < pt_max and abs(calo_jet.eta()) < eta_max):
+                continue
+
+            jet_tracks = [tracks[c.user_index()] for c in constituents if c.user_index() >= 0]
+            charged_pt = sum((-1 if t.user_index() < 0 else 1) * t.pt() for t in jet_tracks)
+            if len(jet_tracks) < 2 or charged_pt <= track_to_jet_pt_ratio_min * jet_large_pt:
+                continue
+            kt_def = fj.JetDefinition(fj.kt_algorithm, kt_R)
+            if signed:
+                kt_def.set_recombiner(recombiner)
+            cs_kt = fj.ClusterSequence(jet_tracks, kt_def)
+            current = fj.sorted_by_pt(cs_kt.inclusive_jets())[0]
+            if signed and current.user_index() < 0:
+                continue
+            splitting = None
+            while True:
+                parent1 = fj.PseudoJet()
+                parent2 = fj.PseudoJet()
+                if not current.has_parents(parent1, parent2):
+                    break
+                # A hole branch is a subtraction, not a positive Soft-Drop prong.
+                if signed and (parent1.user_index() < 0 or parent2.user_index() < 0):
+                    if parent1.user_index() < 0 and parent2.user_index() < 0:
+                        break
+                    current = parent1 if parent1.user_index() >= 0 else parent2
+                    continue
+                pt1, pt2 = parent1.pt(), parent2.pt()
+                if pt1 + pt2 > 0 and min(pt1, pt2) / (pt1 + pt2) > z_cut:
+                    splitting = (min(pt1, pt2), parent1.delta_R(parent2))
+                    break
+                current = parent1 if pt1 > pt2 else parent2
+            if splitting is None:
+                continue
+            pt_softer, dR12 = splitting
+            if 'd12_atlas' in active:
+                self.observable_dict_event[column_names['d12_atlas']].append(pt_softer * dR12)
+            if 'dR12_atlas' in active:
+                self.observable_dict_event[column_names['dR12_atlas']].append(dR12)
+
     def fill_full_jet_groomed_observables(self, grooming_setting, jet, jet_pt, jetR, jet_collection_label=''):
 
         # Construct groomed jet
