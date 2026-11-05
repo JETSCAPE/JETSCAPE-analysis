@@ -929,10 +929,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 and jetR in axis_block["R"]
                 and abs(jet.eta()) < (axis_block["eta_R"] - jetR)
             ):
+                # NOTE: No negative recombiner here: it cannot be combined with the WTA scheme. In the
+                #       negative_recombiner case, the holes are therefore reclustered as ordinary particles.
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
-                if jet_collection_label in ["_negative_recombiner"]:
-                    recombiner = fjext.NegativeEnergyRecombiner()
-                    jet_def_wta.set_recombiner(recombiner)
                 jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
                 reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
                 jet_wta = reclusterer_wta.result(jet)
@@ -1311,10 +1310,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 and abs(jet.eta()) < (axis_block["eta_R"] - jetR)
             ):
                 # Recluster with WTA (with larger jet R)
+                # NOTE: No negative recombiner here: it cannot be combined with the WTA scheme. In the
+                #       negative_recombiner case, the holes are therefore reclustered as ordinary particles.
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
-                if self.is_AA:
-                    recombiner = fjext.NegativeEnergyRecombiner()
-                    jet_def_wta.set_recombiner(recombiner)
                 jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
                 reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
                 jet_wta = reclusterer_wta.result(jet)
@@ -1684,10 +1682,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                 and jetR in self.inclusive_jet_observables["axis_cms"]["jet"]["R"]
                 and abs(jet.eta()) < (self.inclusive_jet_observables["axis_cms"]["jet"]["eta"])
             ):
+                # NOTE: No negative recombiner here: it cannot be combined with the WTA scheme. In the
+                #       negative_recombiner case, the holes are therefore reclustered as ordinary particles.
                 jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
-                if jet_collection_label in ["_negative_recombiner"]:
-                    recombiner = fjext.NegativeEnergyRecombiner()
-                    jet_def_wta.set_recombiner(recombiner)
                 jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
                 reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
                 jet_wta = reclusterer_wta.result(jet)
@@ -3766,10 +3763,9 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                         # TODO(RJE): CMS usually doesn't do a eta - R cut - check this.
                         and abs(jet.eta()) < (self.gamma_triggered_jet_observables["axis_cms"]["eta_R"] - jetR)
                     ):
+                        # NOTE: No negative recombiner here: it cannot be combined with the WTA scheme. In the
+                        #       negative_recombiner case, the holes are therefore reclustered as ordinary particles.
                         jet_def_wta = fj.JetDefinition(fj.cambridge_algorithm, 2 * jetR)
-                        if jet_collection_label in ["_negative_recombiner"]:
-                            recombiner = fjext.NegativeEnergyRecombiner()
-                            jet_def_wta.set_recombiner(recombiner)
                         jet_def_wta.set_recombination_scheme(fj.WTA_pt_scheme)
                         reclusterer_wta = fjcontrib.Recluster(jet_def_wta)
                         jet_wta = reclusterer_wta.result(jet)
