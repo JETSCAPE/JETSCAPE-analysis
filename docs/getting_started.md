@@ -607,6 +607,16 @@ In practice in the code, these methods are iterated over by looping over the `je
 > [!caution]
 > The values in `jet_collection_labels` are expected to already have the leading underscore (i.e. `_negative_recombiner`).
 
+> [!caution]
+> Always create the negative-energy recombiner as `fjext.NegativeEnergyRecombiner(-1)`. The argument is the `user_index` given to a cluster which comes out net-negative, e.g. two holes merged with each other. It has to be negative for the cluster to be subtracted in the following recombinations: with the default, 0, it is added.
+>
+> A jet which is net-negative as a whole comes back with its momentum flipped and a negative `user_index`. It is not a jet, and is removed from the selected jets.
+>
+> Two known limitations of the `negative_recombiner` case:
+>
+> - The groomer (`GroomerShop`, from heppy) does not look at the sign of a branch: a net-negative branch is treated as an ordinary prong, and can be selected as the softer prong of a splitting.
+> - The WTA reclustering does not use the negative recombiner, which cannot be combined with the WTA recombination scheme: there, the holes are reclustered as ordinary particles.
+
 [^1]: There's always room for further optimization, but this was the organizing principle
 [^2]: Understood that this may not be the ideal case, but it's unclear how this may be impacting e.g. subjets, nor how it could be accounted for, so we've lived with this. The negative energy recombiner seems to be conceptually preferred for substructure, so we haven't investigated further, although it certainly could be done
 
