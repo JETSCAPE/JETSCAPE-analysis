@@ -874,10 +874,12 @@ def calculate_groomed_jet(
     otherwise the ClusterSequence is freed and constituent access dereferences dangling memory
     (segfault). Scalar splitting properties (.kt()/.Delta()/.z()/.pair().m()) are unaffected.
     """
-    # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering
+    # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering. Its argument (-1)
+    # is the user_index given to a net-negative cluster, so that it is subtracted again in the later recombinations
+    # (the default, 0, would add it).
     jet_def = fj.JetDefinition(fj.cambridge_algorithm, jet_R)
     if jet_collection_label in ["_negative_recombiner"]:
-        recombiner = fjext.NegativeEnergyRecombiner()
+        recombiner = fjext.NegativeEnergyRecombiner(-1)
         jet_def.set_recombiner(recombiner)
     gshop = fjcontrib.GroomerShop(jet, jet_def)
 
