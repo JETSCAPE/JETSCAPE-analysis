@@ -873,6 +873,11 @@ def calculate_groomed_jet(
     accesses groomed-jet constituents (e.g. fjext.lambda_beta_kappa on the groomed pair) —
     otherwise the ClusterSequence is freed and constituent access dereferences dangling memory
     (segfault). Scalar splitting properties (.kt()/.Delta()/.z()/.pair().m()) are unaffected.
+
+    NOTE: In the negative_recombiner case, the GroomerShop (heppy) does not look at the sign of a
+    branch. A net-negative branch (user_index < 0), e.g. two holes merged with each other, is
+    treated as an ordinary prong with the flipped momentum, and can be selected as the softer
+    prong of the splitting.
     """
     # For negative_recombiner case, we set the negative recombiner also for the C/A reclustering. Its argument (-1)
     # is the user_index given to a net-negative cluster, so that it is subtracted again in the later recombinations
