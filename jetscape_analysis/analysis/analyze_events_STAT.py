@@ -658,6 +658,17 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
 
         # Fill dijet_trigger_jet observables -- full jets only
         if full_jet:
+            # Large-radius jets reclustered from all R=0.2 jets in the event (ATLAS d_12 / dR_12)
+            if self.inclusive_jet_observables:
+                self.fill_large_radius_jet_observables(
+                    jet_def,
+                    hadrons_for_jet_finding,
+                    hadrons_negative,
+                    pid_hadrons_positive,
+                    pid_hadrons_negative,
+                    jetR,
+                    jet_collection_label=jet_collection_label,
+                )
             if self.dijet_trigger_jet_observables:
                 self.fill_dijet_trigger_jet_observables(
                     jets_selected, hadrons_negative, jetR, jet_collection_label=jet_collection_label
@@ -1684,25 +1695,194 @@ class AnalyzeJetscapeEvents_STAT(analyze_events_base_STAT.AnalyzeJetscapeEvents_
                     )
                 ].append(deltaR)
 
-        # ATLAS, d_12
-        #   Hole treatment:
-        #    - For shower_recoil case, ?
-        #    - For negative_recombiner case, ?
-        #    - For constituent_subtraction, ?
-        if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="d12_atlas"):
-            pt_min = self.inclusive_jet_observables["d12_atlas"]["jet"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["d12_atlas"]["jet"]["pt"][1]
-            # TODO(Dhanush): Implement from here
+        # ATLAS, d_12 and dR_12: event-level (large-R jets are built from all R=0.2 jets),
+        # see fill_large_radius_jet_observables
 
-        # ATLAS, dR_12
-        #   Hole treatment:
-        #    - For shower_recoil case, ?
-        #    - For negative_recombiner case, ?
-        #    - For constituent_subtraction, ?
-        if self.measure_observable_for_current_event(self.inclusive_jet_observables, observable_name="dR12_atlas"):
-            pt_min = self.inclusive_jet_observables["dR12_atlas"]["jet"]["pt"][0]
-            pt_max = self.inclusive_jet_observables["dR12_atlas"]["jet"]["pt"][1]
-            # TODO(Dhanush): Implement from here
+    # ---------------------------------------------------------------
+    # Fill large-radius (reclustered) jet observables -- ATLAS d_12 and dR_12
+    # ---------------------------------------------------------------
+    def fill_large_radius_jet_observables(  # noqa: C901
+        self,
+        jet_def: fj.JetDefinition,
+        hadrons_for_jet_finding: PseudoJetVector,
+        hadrons_negative: PseudoJetVector,
+        pid_hadrons_positive: npt.NDArray[np.int32],
+        pid_hadrons_negative: npt.NDArray[np.int32],
+        jetR: float,
+        jet_collection_label: str = "",
+    ) -> None:
+        """ATLAS sqrt(d_12) and dR_12 of R=1.0 jets reclustered from R=0.2 jets (arXiv:2504.04805, Sec. 4-5).
+
+        This is an event-level fill: a large-radius jet is built from ALL R=0.2 jets in the event, so it
+        cannot be measured from one R=0.2 jet at a time.
+          0. As for the measurement's particle-level jets, the R=0.2 jets are found (with jet_def, as the other
+             jets) from all particles except muons and neutrinos, which leave no significant energy in the
+             calorimeter. Muons are still tracks.
+          1. R=0.2 jets with pT > 35 GeV and |eta| < 3.0 are reclustered with anti-kT R=1.0. Charged
+             particles with pT > 4 GeV are ghost-associated to the large-R jets in the same clustering.
+          2. Large-R jets: pT in the configured range, |eta| < 1.3, sum pT(tracks) / pT(jet) > 0.2.
+          3. Only the associated tracks (with their original kinematics) are reclustered with kT, R=2.5,
+             and the tree is declustered with the Soft Drop condition z > 0.15 (beta=0). Jets with no
+             splitting passing it are dropped (~5% in ATLAS).
+          4. sqrt(d_12) = min(pT1, pT2) * dR_12 and dR_12 of that splitting, stored per jet as a scalar:
+             the configured pT range is a single bin and is applied here (histogram_2d_observable skips
+             [jet_pt, value] pairs when there is only one pT bin).
+
+        Hole treatment:
+          - For shower_recoil case, correct the pt only: subtract the holes within R of each R=0.2 jet (except
+            muons and neutrinos, as for the jets), both for the R=0.2 jet pt cut and (each hole counted once)
+            for the large-R jet pt
+          - For negative_recombiner case, the R=0.2 jet pt already includes the holes. Holes passing the track
+            selection are negative tracks: they are subtracted in the sum pT(tracks) and in the kT reclustering
+            (with the negative recombiner, as for the C/A reclustering of groomed observables), and a net-negative
+            branch is not a prong, so the declustering skips it and follows the other branch
+          - For constituent_subtraction case, no subtraction is needed
+        """
+        measure_d12 = self.measure_observable_for_current_event(
+            self.inclusive_jet_observables, observable_name="d12_atlas"
+        )
+        measure_dR12 = self.measure_observable_for_current_event(
+            self.inclusive_jet_observables, observable_name="dR12_atlas"
+        )
+        if not (measure_d12 or measure_dR12):
+            return
+        # d12_atlas and dR12_atlas share the same jet selection
+        block = self.inclusive_jet_observables["d12_atlas" if measure_d12 else "dR12_atlas"]
+        if jetR not in block["jet"]["R"]:
+            return
+        R_large = block["jet"]["R_reclustered"][0]
+        pt_min, pt_max = block["jet"]["pt"][0], block["jet"]["pt"][-1]
+        eta_max = block["jet"]["eta"]
+        # Encoder-based storage names. The jet pt range is a single (non-essential) bin, so only jet_R is encoded.
+        column_names = {
+            name: self.observables_info[f"{self.sqrts}_inclusive_jet_{name}"].encode_name_for_storing_in_file(
+                jet_R=observable.JetRSpec(jetR), tag=jet_collection_label
+            )
+            for name, measure in (("d12_atlas", measure_d12), ("dR12_atlas", measure_dR12))
+            if measure
+        }
+
+        # Selections fixed by the measurement (arXiv:2504.04805, Sec. 4-5)
+        small_R_jet_pt_min = 35.0
+        small_R_jet_eta_max = 3.0
+        track_pt_min = 4.0
+        track_eta_max = 2.5  # inner-detector acceptance
+        track_to_jet_pt_ratio_min = 0.2
+        kt_R = 2.5
+        z_cut = 0.15
+        ghost_pt = 1.0e-9  # 1 eV, as in ATLAS
+
+        def pid(hadron: PseudoJet) -> int:
+            # user_index = +/-(i+1) indexes pid_hadrons_positive for particles, pid_hadrons_negative for holes
+            pids = pid_hadrons_positive if hadron.user_index() > 0 else pid_hadrons_negative
+            return abs(pids[abs(hadron.user_index()) - 1])
+
+        # R=0.2 jets, without muons and neutrinos (pt corrected for holes in the shower_recoil case)
+        muons_and_neutrinos = [12, 13, 14, 16]
+        cs_small_R = fj.ClusterSequence(
+            [hadron for hadron in hadrons_for_jet_finding if pid(hadron) not in muons_and_neutrinos], jet_def
+        )
+        small_R_jets = []
+        holes_per_small_R_jet = []
+        for jet in fj.sorted_by_pt(cs_small_R.inclusive_jets()):
+            if abs(jet.eta()) >= small_R_jet_eta_max:
+                continue
+            holes = set()
+            if jet_collection_label in ["_shower_recoil"]:
+                holes = {
+                    i
+                    for i, hole in enumerate(hadrons_negative)
+                    if pid(hole) not in muons_and_neutrinos and jet.delta_R(hole) < jetR
+                }
+            if jet.pt() - sum(hadrons_negative[i].pt() for i in holes) > small_R_jet_pt_min:
+                small_R_jets.append(jet)
+                holes_per_small_R_jet.append(holes)
+        if not small_R_jets:
+            return
+
+        # Charged particles ("tracks"), muons included. Holes are only included (as negative tracks) in the
+        # negative_recombiner case.
+        negative_recombiner = jet_collection_label in ["_negative_recombiner"]
+        acceptable_hadrons = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+        tracks = [
+            hadron
+            for hadron in hadrons_for_jet_finding
+            if (hadron.user_index() > 0 or negative_recombiner)
+            and hadron.pt() > track_pt_min
+            and abs(hadron.eta()) < track_eta_max
+            and pid(hadron) in acceptable_hadrons
+        ]
+
+        # kT reclustering of the tracks. For negative_recombiner case, the recombiner subtracts the holes. Its
+        # argument (-1) is the user_index given to a net-negative cluster, so that it is subtracted again further
+        # up the tree (the default, 0, would add it).
+        kt_def = fj.JetDefinition(fj.kt_algorithm, kt_R)
+        if negative_recombiner:
+            recombiner = fjext.NegativeEnergyRecombiner(-1)
+            kt_def.set_recombiner(recombiner)
+
+        # Recluster the R=0.2 jets with anti-kT R=1.0, with the tracks as ghosts.
+        # user_index: -(i+1) for the i-th R=0.2 jet, i for the i-th track.
+        particles = []
+        for i, jet in enumerate(small_R_jets):
+            subjet = fj.PseudoJet(jet.px(), jet.py(), jet.pz(), jet.e())
+            subjet.set_user_index(-(i + 1))
+            particles.append(subjet)
+        for i, track in enumerate(tracks):
+            ghost = fj.PseudoJet()
+            ghost.reset_PtYPhiM(ghost_pt, track.rap(), track.phi(), 0.0)
+            ghost.set_user_index(i)
+            particles.append(ghost)
+        cs_large = fj.ClusterSequence(particles, fj.JetDefinition(fj.antikt_algorithm, R_large))
+
+        for jet_large in fj.sorted_by_pt(cs_large.inclusive_jets()):
+            constituents = jet_large.constituents()
+            subjet_indices = [-c.user_index() - 1 for c in constituents if c.user_index() < 0]
+            if not subjet_indices:
+                continue
+            jet_large_pt = jet_large.pt()
+            if jet_collection_label in ["_shower_recoil"]:
+                holes = set().union(*(holes_per_small_R_jet[i] for i in subjet_indices))
+                jet_large_pt -= sum(hadrons_negative[i].pt() for i in holes)
+            if not (pt_min <= jet_large_pt < pt_max and abs(jet_large.eta()) < eta_max):
+                continue
+
+            jet_tracks = [tracks[c.user_index()] for c in constituents if c.user_index() >= 0]
+            tracks_pt = sum(t.pt() if t.user_index() > 0 else -t.pt() for t in jet_tracks)
+            if len(jet_tracks) < 2 or tracks_pt <= track_to_jet_pt_ratio_min * jet_large_pt:
+                continue
+
+            # kT reclustering of the tracks, then Soft Drop declustering along the harder branch.
+            # NOTE: the fastjet SWIG binding has no parents(); has_parents() fills the two output PseudoJets.
+            cs_kt = fj.ClusterSequence(jet_tracks, kt_def)
+            current = fj.sorted_by_pt(cs_kt.inclusive_jets())[0]
+            # NOTE: Only the negative recombiner sets the user_index of a cluster by its sign (the default
+            #       recombiner leaves it at -1), so the sign checks are restricted to negative_recombiner case.
+            if negative_recombiner and current.user_index() < 0:
+                continue
+            splitting = None
+            while True:
+                parent1 = fj.PseudoJet()
+                parent2 = fj.PseudoJet()
+                if not current.has_parents(parent1, parent2):
+                    break
+                # A net-negative branch is not a prong: skip it
+                if negative_recombiner and (parent1.user_index() < 0 or parent2.user_index() < 0):
+                    current = parent2 if parent1.user_index() < 0 else parent1
+                    continue
+                pt1, pt2 = parent1.pt(), parent2.pt()
+                if min(pt1, pt2) / (pt1 + pt2) > z_cut:
+                    splitting = (min(pt1, pt2), parent1.delta_R(parent2))
+                    break
+                current = parent1 if pt1 > pt2 else parent2
+            if splitting is None:
+                continue
+
+            pt_softer, dR12 = splitting
+            if measure_d12:
+                self.observable_dict_event[column_names["d12_atlas"]].append(pt_softer * dR12)
+            if measure_dR12:
+                self.observable_dict_event[column_names["dR12_atlas"]].append(dR12)
 
     def fill_full_jet_groomed_observables(
         self,
@@ -4025,7 +4205,7 @@ def main_entry_point() -> None:
         required=False,
         metavar="model_name",
         default="",
-        help="Name of the model which we are analyzing. Default: '', which uses autodetection, using jetscape if it can't be identified.",
+        help="Name of the model which we are analyzing. Default: '', which autodetects the model from the input filename (an error if it can't be identified).",
     )
 
     # Parse the arguments
@@ -4043,7 +4223,10 @@ def main_entry_point() -> None:
         raise ValueError(msg)
 
     analysis = AnalyzeJetscapeEvents_STAT(
-        config_file=args.configFile, input_file=args.inputFile, output_dir=args.outputDir
+        config_file=args.configFile,
+        input_file=args.inputFile,
+        output_dir=args.outputDir,
+        model_name=args.model_name,
     )
     try:
         analysis.analyze_jetscape_events()

@@ -2,7 +2,7 @@
 
 Below I attempt to outline the information needed to get up to speed on the jetscape-analysis framework. It's divided into the analysis code and the data curation.
 
-Work is ongoing in the [dev-stat-observables](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-stat-observables) and [dev-aggregation](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-aggregation) branches.
+Work is ongoing in the [dev-aggregation](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-aggregation) branch.
 
 # Essentials for running the code
 
@@ -643,7 +643,7 @@ Concrete:
 
 To ensure modularity and separation from the analysis code, I created a new module for the data curation: `jetscape_analysis/data_curation`.
 
-Developments here are are now merged into the [dev-stat-observables](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-stat-observables) branch.
+Developments here are now merged into the [dev-aggregation](https://github.com/JETSCAPE/JETSCAPE-analysis/tree/dev-aggregation) branch.
 
 Since we need to switch from root to YAML files to have full access to the full set of systematic sources, there will be a ton of new files. To contain the impact of so many files on the repo (e.g. if we need to update them, etc), I've created a repo solely for the HEPData files: https://github.com/raymondEhlers/hard-sector-data-curation .
 

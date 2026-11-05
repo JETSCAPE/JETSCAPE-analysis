@@ -5153,14 +5153,14 @@ inclusive_jet:
   # ATLAS d_12
   # TODO: Update
   d12_atlas:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/2909617
       hepdata: N/A
 
     centrality: [[0, 10], [10, 20], [20, 40], [40, 60], [60, 80]]
-    # Recluster R=0.2 jets into R=1.0 jets. Selection read off the figures themselves:
-    #   "200 < p_T < 251 GeV", "reclustered R = 1.0 jets, |eta|<1.3"
+    # Recluster R=0.2 jets into R=1.0 jets, |eta|<1.3. The distributions and R_AA (Figs. 1-2) are
+    # published for 200 < p_T < 251 GeV only; Fig. 3 (R_AA vs p_T in substructure slices) is not curated.
     jet:
       R: [0.2]
       R_reclustered: [1.0]
@@ -5276,14 +5276,14 @@ inclusive_jet:
                 index: "1"
 
   dR12_atlas:
-    enabled: false
+    enabled: true
     urls:
       inspire_hep: https://inspirehep.net/literature/2909617
       hepdata: N/A
 
     centrality: [[0, 10], [10, 20], [20, 40], [40, 60], [60, 80]]
-    # Recluster R=0.2 jets into R=1.0 jets. Selection read off the figures themselves:
-    #   "200 < p_T < 251 GeV", "reclustered R = 1.0 jets, |eta|<1.3"
+    # Recluster R=0.2 jets into R=1.0 jets, |eta|<1.3. The distributions and R_AA (Figs. 1-2) are
+    # published for 200 < p_T < 251 GeV only; Fig. 3 (R_AA vs p_T in substructure slices) is not curated.
     jet:
       R: [0.2]
       R_reclustered: [1.0]

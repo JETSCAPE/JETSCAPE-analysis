@@ -1570,30 +1570,42 @@ class PlotResults(common_base.CommonBase):
                 if not g_data:
                     return
                 g_truncated = self.plot_utils.truncate_tgraph(g_data, h_prediction, is_AA=self.is_AA)
-                if g_truncated:
+                x = np.array(g_truncated.GetX()) if g_truncated else np.array([])
+                # The Data_*.dat table pairs the prediction-histogram bins (x_min/x_max) with the
+                # truncated data points (x/y), which works when the data cover every histogram bin.
+                if len(x) == len(x_min) and not (np.any(np.greater(x_min, x)) or np.any(np.greater(x, x_max))):
                     y = np.array(g_truncated.GetY())
                     y_err = np.array([g_truncated.GetErrorY(i) for i in range(g_truncated.GetN())])
-                    x = np.array(g_truncated.GetX())
-
-                    # The Data_*.dat table pairs the prediction-histogram bins (x_min/x_max) with the
-                    # truncated data points (x/y). If they don't line up -- different counts, or a point
-                    # outside its bin -- the measured data simply doesn't cover this histogram's binning
-                    # (a known HEPData edge case; see OBSERVABLE_EDGE_CASES). The R_AA plot is already
-                    # rendered by now, so skip this ancillary curation table instead of aborting the run.
-                    if len(x) != len(x_min) or np.any(np.greater(x_min, x)) or np.any(np.greater(x, x_max)):
+                    df = pd.DataFrame({"x_min": x_min, "x_max": x_max, "y": y, "y_err": y_err})
+                else:
+                    # The measurement covers only some of the histogram bins -- e.g. pt_cms, where CMS publishes
+                    # R_AA only above an R- and centrality-dependent pt threshold in central events, and only up
+                    # to one in peripheral events. Write just the bins that hold a data point (matched by
+                    # containment, as in divide_histogram_by_tgraph); the table writer in
+                    # steer_aggregate_and_plot_observables.py selects the same bins of the prediction by their edges.
+                    rows = []
+                    for i in range(g_data.GetN()):
+                        gx, gy, _, _ = self.plot_utils.get_gx_gy(g_data, i)
+                        bin_index = np.searchsorted(xbins, gx, side="right") - 1
+                        if 0 <= bin_index < len(x_min):
+                            rows.append((x_min[bin_index], x_max[bin_index], gy, g_data.GetErrorY(i)))
+                    if not rows or len({row[0] for row in rows}) != len(rows):
+                        # Two points in one bin (or none in range): the data really don't fit this binning
+                        # (a known HEPData edge case; see OBSERVABLE_EDGE_CASES). The R_AA plot is already
+                        # rendered by now, so skip this ancillary curation table instead of aborting the run.
                         logger.warning(
                             f"Skipping Data table {filename}: data points don't align with hist binning "
-                            f"(x={x} vs. x_bins={xbins})"
+                            f"(x={[self.plot_utils.get_gx_gy(g_data, i)[0] for i in range(g_data.GetN())]} "
+                            f"vs. x_bins={xbins})"
                         )
                         return
+                    logger.info(f"Data table {filename}: data cover {len(rows)} of {len(x_min)} bins, writing those")
+                    df = pd.DataFrame(rows, columns=["x_min", "x_max", "y", "y_err"])
 
-                    df = pd.DataFrame({"x_min": x_min, "x_max": x_max, "y": y, "y_err": y_err})
-                    # Write table
-                    header = "Version 1.1\n"
-                    header += "Label xmin xmax y y_err"
-                    np.savetxt(output_file, df.values, header=header)
-                else:
-                    logger.info(f"Did not write Data table: {filename} -- missing tgraph")
+                # Write table
+                header = "Version 1.1\n"
+                header += "Label xmin xmax y y_err"
+                np.savetxt(output_file, df.values, header=header)
             else:
                 logger.info(f"Did not write Data table: {filename} -- missing histogram")
         else:

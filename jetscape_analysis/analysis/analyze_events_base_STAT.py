@@ -65,11 +65,12 @@ class AnalyzeJetscapeEvents_BaseSTAT(common_base.CommonBase):
 
         # Keep track of the model name, allowing for the customization of analysis by model when necessary.
         if model_name == "":
-            # attempt auto-detection based on the filename
-            name_to_check = str(self.input_file_hadrons).lower()
+            # attempt auto-detection based on the filename. Only the filename: the directories may name
+            # another model (e.g. hybrid outputs stored under a "jetscape" directory).
+            name_to_check = self.input_file_hadrons.name.lower()
             possible_models_in_filename = [m for m in _SUPPORTED_MODELS_FOR_ANALYSIS if m in name_to_check]
             if len(possible_models_in_filename) == 0:
-                msg = f"Unable to autodetect model name in {name_to_check}"
+                msg = f"Unable to autodetect model name in {name_to_check}. Please set it explicitly (-m)"
                 raise ValueError(msg)
             if len(possible_models_in_filename) > 1:
                 msg = f"Autodetected multiple model names. Please check. Found: {possible_models_in_filename}"
